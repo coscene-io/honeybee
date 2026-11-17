@@ -71,8 +71,8 @@ it("uses current preview frames outside editing and clears unknown images instea
 
 it("lets the first vertex choose either canvas, then keeps the stroke there", async () => {
   const store = await storeWithSeed();
-  const polygonId = store.getState().addPolygon("instance-1");
-  store.getState().setDrawingPolygonId(polygonId);
+  store.getState().startDrawing("instance-1");
+  const staged = store.getState().stagedOperations;
   segmentationSession.setState({
     open: true,
     panelId: "left",
@@ -93,20 +93,17 @@ it("lets the first vertex choose either canvas, then keeps the stroke there", as
     canvas,
     new MouseEvent("pointerdown", { clientX: 20, clientY: 20, button: 0, bubbles: true }),
   );
-  const owner = Object.values(store.getState().document!.annotations).find((item) =>
-    item.polygons.some((polygon) => polygon.id === polygonId),
-  );
-  expect(owner?.frameId).toBe("side-0");
+  // Retargeting moves only the canvas-local session; nothing is staged for it.
+  expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "side-0" });
+  expect(store.getState().stagedOperations).toEqual(staged);
   expect(store.getState().currentFrameId).toBe("side-0");
-  expect(store.getState().drawingPolygonId).toBe(polygonId);
   expect(segmentationSession.getState().strokeFrameId).toBe("side-0");
   store.getState().dispose();
 });
 
 it("does not leave the canvas after the first vertex is placed", async () => {
   const store = await storeWithSeed();
-  const polygonId = store.getState().addPolygon("instance-1");
-  store.getState().setDrawingPolygonId(polygonId);
+  store.getState().startDrawing("instance-1");
   segmentationSession.setState({
     open: true,
     panelId: "left",
@@ -135,6 +132,6 @@ it("does not leave the canvas after the first vertex is placed", async () => {
   const sideRow = screen.getByRole("treeitem", { name: "side · Polygon 1" });
   fireEvent.click(sideRow.querySelector("[data-tree-primary]")!);
   expect(store.getState().currentFrameId).toBe("frame-0");
-  expect(store.getState().drawingPolygonId).toBe(polygonId);
+  expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
   store.getState().dispose();
 });

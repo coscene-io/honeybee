@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { polygonsOf } from "../maskGeometry";
 import type { SegmentationDocument, SegmentationNodeRef } from "../types";
 
 export function polygonInstance(
@@ -12,7 +13,7 @@ export function polygonInstance(
   polygonId: string,
 ): string | undefined {
   return Object.values(document.annotations).find((annotation) =>
-    annotation.polygons.some((polygon) => polygon.id === polygonId),
+    polygonsOf(annotation).some((polygon) => polygon.id === polygonId),
   )?.instanceId;
 }
 
@@ -135,11 +136,11 @@ function nodeChildren(
       .map((instance) => ({ type: "instance", id: instance.id }));
   }
   if (node.type === "instance") {
-    return (
-      Object.values(document.annotations)
-        .find((annotation) => annotation.frameId === frameId && annotation.instanceId === node.id)
-        ?.polygons.map((polygon) => ({ type: "polygon", id: polygon.id })) ?? []
-    );
+    return polygonsOf(
+      Object.values(document.annotations).find(
+        (annotation) => annotation.frameId === frameId && annotation.instanceId === node.id,
+      ),
+    ).map((polygon) => ({ type: "polygon", id: polygon.id }));
   }
   return [];
 }

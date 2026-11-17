@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { polygonsOf } from "../maskGeometry";
 import type { SemanticSegmentationStore } from "../types";
 import { polygonInstance } from "./editorTree";
 
@@ -22,7 +23,7 @@ export function focusContains(
     const inFrame = Object.values(doc?.annotations ?? {}).some(
       (annotation) =>
         annotation.frameId === frameId &&
-        annotation.polygons.some((polygon) => polygon.id === focus.id),
+        polygonsOf(annotation).some((polygon) => polygon.id === focus.id),
     );
     return inFrame
       ? focus.id === polygonId
@@ -45,7 +46,7 @@ export function findPolygonOwner(
     if (annotation.frameId !== frameId) {
       continue;
     }
-    const polygon = annotation.polygons.find((item) => item.id === polygonId);
+    const polygon = polygonsOf(annotation).find((item) => item.id === polygonId);
     if (polygon) {
       return { instanceId: annotation.instanceId, pointCount: polygon.points.length };
     }
@@ -54,9 +55,8 @@ export function findPolygonOwner(
 }
 
 /**
- * Starts editing a polygon of the current frame (or drawing it, when it has no vertices yet).
- * Shared by Enter on the canvas, Enter on the tree and double-click. Returns false when the
- * polygon is not in the current frame.
+ * Starts editing a polygon of the current frame. Shared by Enter on the canvas, Enter on the tree
+ * and double-click. Returns false when the polygon is not in the current frame.
  */
 export function beginPolygonEdit(state: SemanticSegmentationStore, polygonId: string): boolean {
   const found = findPolygonOwner(state.document, state.currentFrameId, polygonId);
@@ -75,10 +75,6 @@ export function beginPolygonEdit(state: SemanticSegmentationStore, polygonId: st
   if (state.viewMode === "original") {
     state.setViewMode("all");
   }
-  if (found.pointCount === 0) {
-    state.setDrawingPolygonId(polygonId);
-  } else {
-    state.setEditing(true);
-  }
+  state.setEditing(true);
   return true;
 }

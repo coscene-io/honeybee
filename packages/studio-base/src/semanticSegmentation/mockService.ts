@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { summarizeObservation } from "./maskGeometry";
+import { maskOf, summarizeObservation } from "./maskGeometry";
 import {
   mockMaskCatalog,
   propagateMockMask,
@@ -72,6 +72,7 @@ export function createSeedDocument(): SegmentationDocument {
       annotations[key] = {
         frameId: frame.id,
         instanceId,
+        kind: "polygons",
         polygons: [
           {
             id: `${instanceId}-polygon-${frame.index}`,
@@ -102,6 +103,7 @@ export function createSeedDocument(): SegmentationDocument {
     annotations[key] = {
       frameId: frame.id,
       instanceId: "instance-side",
+      kind: "polygons",
       polygons: [
         {
           id: `instance-side-polygon-${frame.index}`,
@@ -253,7 +255,7 @@ export function createMockSemanticSegmentationService(
   }
   function isUntouchedMock(doc: SegmentationDocument, key: string): boolean {
     const annotation = doc.annotations[key];
-    return annotation?.mask?.source === "mock" && !saved.has(key);
+    return maskOf(annotation)?.source === "mock" && !saved.has(key);
   }
   function withoutUntouchedMocks(doc: SegmentationDocument): SegmentationDocument {
     if (!options.mockMasks) {
@@ -444,11 +446,7 @@ export function createMockSemanticSegmentationService(
       }
       materializeMocks([source]);
       const seedAnnotation = document.annotations[frameInstanceKey(source.id, request.instanceId)];
-      const seeds = resolvePropagationSeeds(
-        request,
-        seedAnnotation?.polygons,
-        seedAnnotation?.mask,
-      );
+      const seeds = resolvePropagationSeeds(request, seedAnnotation);
       const sourceVideo = document.videos.find((video) => video.id === source.videoId);
       const size =
         sourceVideo?.width != undefined && sourceVideo.height != undefined
@@ -478,16 +476,21 @@ export function createMockSemanticSegmentationService(
           };
           // MOCK: like the backend, propagation answers with masks once the topic size is bound
           // (or the seed is a mask, which carries its size). Without a size it stays polygons.
-          if (seed.mask || (options.mockMasks && size)) {
+          if (seed.kind === "mask" || (options.mockMasks && size)) {
             yield {
               ...common,
-              polygons: [],
-              mask: propagateMockMask(seed, seed.mask ?? size!, frameOffset + 1),
+              kind: "mask" as const,
+              mask: propagateMockMask(
+                seed,
+                seed.kind === "mask" ? seed.mask : size!,
+                frameOffset + 1,
+              ),
             };
             continue;
           }
           yield {
             ...common,
+            kind: "polygons" as const,
             polygons: seed.polygons.map((polygon) => ({
               id: `${polygon.id}@${frame.id}`,
               points: shiftPolygonPoints(polygon.points, frameOffset + 1),

@@ -84,8 +84,9 @@
 
 几何映射：
 
-- 多边形：编辑器存 [0,1] 归一化坐标，发送时乘以该 topic 的解码尺寸并裁剪到 `[0, width] × [0, height]`；少于 3 个顶点的（正在画的）留在本地草稿，不发送。多边形 ID 不是 UUID 时（例如传播结果）按 record/instance/ID 生成确定的 UUID。
-- Mask：只收发 `counts`，宽高绑定到 topic 的解码尺寸。读回时用该尺寸解码校验，对不上就跳过并计数（`maskSizeMismatches`），不按猜测的尺寸显示。之后照常走已有的 GPU Mask 渲染和双击转多边形。
+- 一个观测只有一种几何：编辑器的 `FrameInstance` 是 `kind: "polygons" | "mask"` 的判别联合，对应契约的 `oneof geometry`，规则见 [segmentation-geometry-model.md](segmentation-geometry-model.md)。
+- 多边形：编辑器存 [0,1] 归一化坐标，发送时乘以该 topic 的解码尺寸并裁剪到 `[0, width] × [0, height]`。正在画的多边形只在画布草稿里，完成（≥ 3 个顶点）后才进文档，所以不会出现在快照里。多边形 ID 不是 UUID 时（例如传播结果）按 record/instance/ID 生成确定的 UUID。
+- Mask：只收发 `counts`，宽高绑定到 topic 的解码尺寸。保存前用该尺寸解码，像素总数不等于宽×高就拒绝整次保存（后端不查这一项）。读回时对不上的观测不显示、计入 `maskSizeMismatches`，并在画布上提示；适配器保留它的原始 wire 数据，保存这一帧时原样带回，直到用户在同一帧替换或清除该实例。
 - `occluded`：编辑器没有这个字段。适配器记住服务端的值并在保存时原样带回，避免把别人设置的遮挡标记清掉。
 
 ## 生成代码

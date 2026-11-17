@@ -9,6 +9,7 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { editor, fixture, pointer, polygon } from "./fixtures";
+import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 
 function paths(instanceId: string) {
@@ -83,7 +84,11 @@ it("SEG-FOC-001/002/003/004/007/008/015/016 switches rendered focus across frame
 
 it("SEG-FOC-006/018 isolates P from sibling Q for visibility and pointer editing", async () => {
   const document = fixture(2);
-  document.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons.push({
+  const owner = document.annotations[frameInstanceKey("frame-0", "instance-1")]!;
+  if (owner.kind !== "polygons") {
+    throw new Error("fixture observation must be polygons");
+  }
+  owner.polygons.push({
     id: "sibling-Q",
     points: [
       { x: 0.6, y: 0.1 },
@@ -100,15 +105,16 @@ it("SEG-FOC-006/018 isolates P from sibling Q for visibility and pointer editing
   expect(paths("instance-1")).toHaveLength(1);
   expect(screen.queryByRole("button", { name: "Vertex 1 of polygon sibling-Q" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "All" }));
-  const before =
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons;
+  const before = polygonsOf(
+    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+  );
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   const q = paths("instance-1")[1]!;
   pointer(q, "pointerdown", 650, 100);
   pointer(canvas, "pointermove", 700, 140);
   pointer(canvas, "pointerup", 700, 140);
   expect(
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons,
+    polygonsOf(store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]),
   ).toEqual(before);
   // Clicking a sibling shape of the same instance moves focus without ending the edit; selecting
   // P again goes straight back to editing it.
@@ -118,8 +124,9 @@ it("SEG-FOC-006/018 isolates P from sibling Q for visibility and pointer editing
   pointer(vertex, "pointerdown", 163.2, 162);
   pointer(canvas, "pointermove", 200.5, 180.25);
   pointer(canvas, "pointerup", 200.5, 180.25);
-  const after =
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons;
+  const after = polygonsOf(
+    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+  );
   expect(after[1]).toEqual(before[1]);
   expect(after[0]!.points[0]).toEqual({ x: 200.5 / 960, y: 180.25 / 540 });
   expect(after[0]!.points.slice(1)).toEqual(before[0]!.points.slice(1));
@@ -192,21 +199,22 @@ it("SEG-FOC-017 class focus edits I/J but not K", async () => {
   store.getState().dispose();
 });
 
-it("shows Draw instead of Edit for a focused empty polygon, then toggles Done editing", async () => {
+it("Done editing ends a drawing session without adding geometry, then offers Edit", async () => {
   const { store } = await editor();
-  let id = "";
+  const staged = store.getState().stagedOperations;
   act(() => {
-    id = store.getState().addPolygon("instance-1");
-    store.getState().setFocus({ type: "polygon", id });
-    store.getState().setEditing(false);
+    store.getState().startDrawing("instance-1");
   });
-  expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Draw" }));
   expect(store.getState().editing).toBe(true);
-  expect(store.getState().drawingPolygonId).toBe(id);
+  expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
+  expect(store.getState().focus).toEqual({ type: "instance", id: "instance-1" });
+  expect(screen.queryByRole("button", { name: "Draw" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Done editing" }));
   expect(store.getState().editing).toBe(false);
-  expect(store.getState().drawingPolygonId).toBeUndefined();
-  expect(screen.getByRole("button", { name: "Draw" })).toBeTruthy();
+  expect(store.getState().drawing).toBeUndefined();
+  expect(store.getState().stagedOperations).toEqual(staged);
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  expect(store.getState().editing).toBe(true);
+  expect(store.getState().drawing).toBeUndefined();
   store.getState().dispose();
 });

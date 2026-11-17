@@ -20,6 +20,7 @@ import {
   segmentationImageSources,
   type SegmentationImageMetadata,
 } from "../imageSource";
+import { polygonsOf } from "../maskGeometry";
 import { segmentationSession, type SegmentationRuntime } from "../runtime";
 import { polygonPath } from "./editorGeometry";
 
@@ -123,7 +124,7 @@ function PreviewPolygons({
     >
       <g transform={`matrix(${view.matrix.join(" ")})`}>
         {polygons.flatMap((annotation) =>
-          annotation.polygons.map((polygon) => (
+          polygonsOf(annotation).map((polygon) => (
             <path
               key={polygon.id}
               d={polygonPath(polygon.points, view.imageWidth, view.imageHeight)}

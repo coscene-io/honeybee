@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { maskIou } from "./maskCodec";
-import { runsOfMask } from "./maskGeometry";
+import { maskOf, polygonsOf, runsOfMask } from "./maskGeometry";
 import {
   DEFAULT_MOCK_MASK_PROFILE,
   propagateMockMask,
@@ -39,7 +39,7 @@ describe("MOCK masks", () => {
 
   it("propagates the seed pixels 10 px per frame", () => {
     const seed = synthesizeMockMask(profile, 1, 0, 0, 1280, 720);
-    const moved = runsOfMask(propagateMockMask({ polygons: [], mask: seed }, seed, 2));
+    const moved = runsOfMask(propagateMockMask({ kind: "mask", mask: seed }, seed, 2));
     const original = runsOfMask(seed);
     expect(moved.bbox!.x0).toBe(original.bbox!.x0 + 20);
     expect(moved.bbox!.y0).toBe(original.bbox!.y0 + 20);
@@ -70,12 +70,12 @@ describe("mock service with MOCK masks", () => {
     const mock = service(storage);
     const window = await mock.loadFrameWindow("video-side", 0, 1);
     const key = frameInstanceKey("side-0", "mock-mask-0");
-    expect(window.annotations[key]?.mask).toMatchObject({
+    expect(maskOf(window.annotations[key])).toMatchObject({
       width: 1280,
       height: 720,
       source: "mock",
     });
-    expect(window.annotations[key]?.polygons).toEqual([]);
+    expect(polygonsOf(window.annotations[key])).toEqual([]);
 
     await mock.submit({
       id: "delete-1",
@@ -88,7 +88,9 @@ describe("mock service with MOCK masks", () => {
     const reloaded = service(storage);
     const again = await reloaded.loadFrameWindow("video-side", 0, 1);
     expect(again.annotations[key]).toBeUndefined();
-    expect(again.annotations[frameInstanceKey("side-1", "mock-mask-0")]?.mask?.source).toBe("mock");
+    expect(maskOf(again.annotations[frameInstanceKey("side-1", "mock-mask-0")])?.source).toBe(
+      "mock",
+    );
   });
 
   it("propagates a mask seed as masks", async () => {
@@ -107,8 +109,12 @@ describe("mock service with MOCK masks", () => {
     }
     expect(results).toHaveLength(2);
     for (const result of results) {
-      expect(result.polygons).toEqual([]);
-      expect(result.mask).toMatchObject({ width: 1280, height: 720, source: "propagation" });
+      expect(result.kind).toBe("mask");
+      expect(maskOf(result.kind === "empty" ? undefined : result)).toMatchObject({
+        width: 1280,
+        height: 720,
+        source: "propagation",
+      });
     }
   });
 });

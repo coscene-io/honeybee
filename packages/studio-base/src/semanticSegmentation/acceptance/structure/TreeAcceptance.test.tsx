@@ -62,7 +62,10 @@ describe("structure tree original GWT acceptance", () => {
     const load = service.loadFrameWindow.bind(service);
     service.loadFrameWindow = async (...args) => {
       const response = await load(...args);
-      response.annotations[frameInstanceKey("frame-0", "I")]!.polygons.reverse();
+      const observation = response.annotations[frameInstanceKey("frame-0", "I")];
+      if (observation?.kind === "polygons") {
+        observation.polygons.reverse();
+      }
       return response;
     };
     await act(async () => {
@@ -166,20 +169,20 @@ describe("structure tree original GWT acceptance", () => {
     refreshedStore.getState().dispose();
   });
 
-  it("SEG-ID-006/007/008 persists empty objects and renders selectable drafts without painted area", async () => {
+  it("SEG-ID-006/007/008 persists empty objects, and an unfinished drawing persists nothing", async () => {
     const storageKey = "structure-empty-persistence";
     window.localStorage.removeItem(storageKey);
     const { store, unmount } = await setup(structureDocument(), window.localStorage, storageKey);
     fireEvent.click(screen.getByRole("button", { name: "○ Empty instance" }));
     expect(store.getState().selection).toEqual([{ type: "instance", id: "empty-instance" }]);
     expect(polygons(store.getState().document!, 0, "empty-instance")).toEqual([]);
-    let draft = "";
     let emptyClass = "";
     let emptyInstance = "";
     act(() => {
       emptyClass = store.getState().addClass("Persisted empty");
       emptyInstance = store.getState().addInstance("E", "Persisted empty instance");
-      draft = store.getState().addPolygon("empty-instance");
+      // A drawing session is canvas-local: submitting during it stores no placeholder geometry.
+      store.getState().startDrawing("empty-instance");
       store.getState().submit();
     });
     await act(async () => {
@@ -211,18 +214,15 @@ describe("structure tree original GWT acceptance", () => {
     fireEvent.click(screen.getByRole("button", { name: "○ Empty instance" }));
     expect(reloaded.getState().selection).toEqual([{ type: "instance", id: "empty-instance" }]);
     expect(within(row("E")).getByText("1 present / 3 total")).toBeDefined();
-    expect(within(row(draft)).getByText("Empty polygon · add vertices")).toBeDefined();
-    fireEvent.click(within(row(draft)).getByRole("button", { name: /^Polygon \d+ Empty/ }));
-    expect(reloaded.getState().selection).toEqual([{ type: "polygon", id: draft }]);
-    expect(polygons(reloaded.getState().document!, 0, "empty-instance")).toEqual([
-      { id: draft, points: [], topic: "/camera/front" },
-    ]);
-    const emptyPaths = screen
-      .getByRole("img", { name: "Frame polygons" })
-      .querySelectorAll('[data-instance-id="empty-instance"] path');
-    for (const path of emptyPaths) {
-      expect(path.getAttribute("d")).toBe("");
-    }
+    expect(polygons(reloaded.getState().document!, 0, "empty-instance")).toEqual([]);
+    expect(
+      reloaded.getState().document!.annotations[frameInstanceKey("frame-0", "empty-instance")],
+    ).toBeUndefined();
+    expect(
+      screen
+        .getByRole("img", { name: "Frame polygons" })
+        .querySelectorAll('[data-instance-id="empty-instance"] path'),
+    ).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Add instance to Empty class" }));
     expect(
       reloaded.getState().document!.instances.some((item) => item.classId === "empty-class"),
@@ -267,24 +267,43 @@ describe("structure tree original GWT acceptance", () => {
         .backgroundColor,
     ).toBe(color);
     fireEvent.click(within(row(instance.id)).getByRole("button", { name: /^Add polygon/ }));
-    const draftId = store.getState().drawingPolygonId!;
+    expect(store.getState().drawing?.instanceId).toBe(instance.id);
+    let polygonId = "";
+    act(() => {
+      polygonId = store.getState().addPolygon(instance.id, [
+        { x: 0.1, y: 0.1 },
+        { x: 0.3, y: 0.1 },
+        { x: 0.2, y: 0.3 },
+      ]);
+    });
     expect(
-      row(draftId).querySelector<HTMLElement>('[style*="background-color"]')!.style.backgroundColor,
+      row(polygonId).querySelector<HTMLElement>('[style*="background-color"]')!.style
+        .backgroundColor,
     ).toBe(color);
   });
 
-  it("SEG-TREE-005 adds a draft and starts drawing while preserving both existing pieces", async () => {
+  it("SEG-TREE-005 starts drawing without a placeholder, and finishing keeps both existing pieces", async () => {
     const { store } = await setup();
     const before = polygons(store.getState().document!, 0, "I");
     fireEvent.click(within(row("I")).getByRole("button", { name: /^Add polygon/ }));
-    const id = store.getState().drawingPolygonId!;
-    expect(id).toBeDefined();
+    expect(store.getState().drawing).toEqual({ instanceId: "I", frameId: "frame-0" });
     expect(store.getState().editing).toBe(true);
+    expect(polygons(store.getState().document!, 0, "I")).toEqual(before);
+    expect(store.getState().stagedOperations).toHaveLength(0);
+    let id = "";
+    act(() => {
+      id = store.getState().addPolygon("I", [
+        { x: 0.6, y: 0.6 },
+        { x: 0.8, y: 0.6 },
+        { x: 0.7, y: 0.8 },
+      ]);
+    });
+    expect(store.getState().drawing).toBeUndefined();
     expect(polygons(store.getState().document!, 0, "I")).toEqual([
       ...before,
-      { id, points: [], topic: "/camera/front" },
+      expect.objectContaining({ id, topic: "/camera/front" }),
     ]);
-    expect(row(id).textContent).toContain("Empty polygon");
+    expect(row(id)).toBeDefined();
   });
 
   it.each(["cross", "menu"])(

@@ -17,6 +17,7 @@ import { ActiveMomentReference } from "./ActiveMomentReference";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
+import { polygonsOf } from "../maskGeometry";
 
 const pipeline = {
   playerState: { activeData: { startTime: { sec: 100, nsec: 0 } } },
@@ -174,10 +175,8 @@ it("resets tree creation/dialog and canvas drawing/handles while preserving sour
   expect(matrix.a * 480 + matrix.e).toBe(340);
   expect(matrix.d * 270 + matrix.f).toBe(185);
   act(() => {
-    const id = store.getState().addPolygon("instance-1");
-    store.getState().setFocus({ type: "polygon", id });
-    store.getState().setSelection([{ type: "polygon", id }]);
-    store.getState().setDrawingPolygonId(id);
+    store.getState().setSelection([{ type: "instance", id: "instance-1" }]);
+    store.getState().startDrawing("instance-1");
   });
   fireEvent.click(screen.getByRole("button", { name: "New" }));
   fireEvent.change(screen.getByLabelText("Class name"), {
@@ -187,11 +186,13 @@ it("resets tree creation/dialog and canvas drawing/handles while preserving sour
     store.getState().revertStaging();
   });
   expect(screen.queryByRole("group", { name: "New class row" })).toBeNull();
+  // Reverting ends the drawing session; the focused instance still exists, so it stays focused
+  // (a drawing no longer stages a placeholder polygon that the revert would remove).
   expect(store.getState()).toMatchObject({
     editing: false,
-    drawingPolygonId: undefined,
-    focus: undefined,
-    selection: [],
+    drawing: undefined,
+    focus: { type: "instance", id: "instance-1" },
+    selection: [{ type: "instance", id: "instance-1" }],
     currentFrameId: frame,
   });
   expect(container.querySelector("polyline")).toBeNull();
@@ -222,7 +223,8 @@ it("identifies a failed stream request, unlocks controls and keeps accepted repl
       frameId: "frame-1",
       instanceId: "instance-1",
       context: request.context,
-      polygons: [{ ...request.seeds![0]!.polygons[0]!, id: "retained" }],
+      kind: "polygons" as const,
+      polygons: [{ ...polygonsOf(request.seeds![0])[0]!, id: "retained" }],
     };
     throw new Error("transport failed");
   };
@@ -239,8 +241,9 @@ it("identifies a failed stream request, unlocks controls and keeps accepted repl
   expect(failure.closest('[role="alert"]')?.textContent).toMatch(/部分.*保留.*暂存.*尚未提交/);
   expect(container.querySelector("fieldset")).toHaveProperty("disabled", false);
   expect(
-    runtime.store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-1")]!
-      .polygons[0]!.id,
+    polygonsOf(
+      runtime.store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-1")],
+    )[0]!.id,
   ).toBe("retained");
   expect(runtime.store.getState().stagedOperations).toHaveLength(1);
   expect(write).not.toHaveBeenCalled();

@@ -18,11 +18,11 @@ import { runsOfMask, runsOfPolygons } from "./maskGeometry";
 import { frameInstanceKey } from "./service";
 import type {
   FrameInstance,
+  ObservationGeometry,
   SegmentationClass,
   SegmentationFrame,
   SegmentationInstance,
   SegmentationMask,
-  SegmentationPolygon,
   SegmentationVideo,
 } from "./types";
 
@@ -227,7 +227,7 @@ export function synthesizeMockObservations(
       annotations[key] = {
         frameId: frame.id,
         instanceId,
-        polygons: [],
+        kind: "mask",
         mask: synthesizeMockMask(
           profile,
           instance,
@@ -244,13 +244,14 @@ export function synthesizeMockObservations(
 
 /** Mock propagation: the seed's pixels, moved 10 px right and down per frame (like the polygon mock). */
 export function propagateMockMask(
-  seed: { polygons: SegmentationPolygon[]; mask?: SegmentationMask },
+  seed: ObservationGeometry,
   size: { width: number; height: number },
   steps: number,
 ): SegmentationMask {
-  const runs: MaskRuns = seed.mask
-    ? runsOfMask(seed.mask)
-    : runsOfPolygons(seed.polygons, size.width, size.height);
+  const runs: MaskRuns =
+    seed.kind === "mask"
+      ? runsOfMask(seed.mask)
+      : runsOfPolygons(seed.polygons, size.width, size.height);
   const { width, height } = runs;
   const dx = steps * 10;
   const dy = steps * 10;

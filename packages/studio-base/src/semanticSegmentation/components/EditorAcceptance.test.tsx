@@ -14,6 +14,7 @@ import { createSemanticSegmentationStore } from "../store";
 import type { NormalizedPoint, SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { polygonsOf } from "../maskGeometry";
 
 // Contract: the original Given/When/Then in requirements.csv, not the preaudit wording.
 function fixture(frameCount: number, present: (frame: number, instance: number) => boolean) {
@@ -43,6 +44,7 @@ function fixture(frameCount: number, present: (frame: number, instance: number) 
       document.annotations[key] = {
         frameId: frame.id,
         instanceId: instance.id,
+        kind: "polygons",
         polygons: [
           {
             id: `${instance.id}-polygon-${frame.index}`,
@@ -89,29 +91,31 @@ describe("editor original GWT acceptance", () => {
   it("SEG-DRAW-004 dismissing help preserves two draft vertices and drawing can continue", async () => {
     const { store } = await setup(fixture(2, (_frame, instance) => instance < 2));
     fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ I2" }));
-    const polygonId = store.getState().drawingPolygonId!;
+    const drawing = store.getState().drawing;
+    expect(drawing?.instanceId).toBe("instance-2");
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     pointer(canvas, 96, 54);
     pointer(canvas, 384, 54);
-    expect(screen.getByText(/^Drawing: 2 vertices · /)).toBeDefined();
+    expect(screen.getByText(/^Drawing a polygon: 2 vertices · /)).toBeDefined();
     const draftPoints = canvas.querySelector("polyline")!.getAttribute("points");
     const operations = store.getState().stagedOperations;
     fireEvent.click(within(screen.getByRole("alert")).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("button", { name: "Drawing help" })).toBeDefined();
-    expect(screen.getByText(/^Drawing: 2 vertices · /)).toBeDefined();
+    expect(screen.getByText(/^Drawing a polygon: 2 vertices · /)).toBeDefined();
     expect(canvas.querySelector("polyline")!.getAttribute("points")).toBe(draftPoints);
-    expect(store.getState().drawingPolygonId).toBe(polygonId);
+    expect(store.getState().drawing).toEqual(drawing);
     expect(store.getState().stagedOperations).toEqual(operations);
     pointer(canvas, 240, 270);
-    expect(screen.getByText(/^Drawing: 3 vertices · /)).toBeDefined();
+    expect(screen.getByText(/^Drawing a polygon: 3 vertices · /)).toBeDefined();
     fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
-    expect(store.getState().drawingPolygonId).toBeUndefined();
+    expect(store.getState().drawing).toBeUndefined();
     expect(
-      store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-2")]!
-        .polygons[0],
+      polygonsOf(
+        store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-2")],
+      )[0],
     ).toEqual({
-      id: polygonId,
+      id: expect.any(String),
       points: [
         { x: 0.1, y: 0.1 },
         { x: 0.4, y: 0.1 },
@@ -141,7 +145,7 @@ describe("editor original GWT acceptance", () => {
       y: 0.5 + 0.3 * Math.sin((2 * Math.PI * index) / 69),
     }));
     const key = frameInstanceKey("frame-0", "instance-0");
-    document.annotations[key]!.polygons[0]!.points = points;
+    polygonsOf(document.annotations[key])[0]!.points = points;
     document.annotationSummaries[key] = { polygonCount: 1, pointCount: 69 };
     const { store } = await setup(document);
     const polygonId = "instance-0-polygon-0";
@@ -171,7 +175,7 @@ describe("editor original GWT acceptance", () => {
     expect(
       within(canvas).getAllByRole("button", { name: /^Vertex .*instance-0-polygon-0$/ }),
     ).toHaveLength(69);
-    const stored = store.getState().document!.annotations[key]!.polygons[0]!.points;
+    const stored = polygonsOf(store.getState().document!.annotations[key])[0]!.points;
     expect(stored).toEqual(removed);
     expect(stored[stored.length - 1]).not.toEqual(stored[0]);
     expect(

@@ -10,6 +10,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 import { deferred, polygon, setup, triangle } from "./fixtures";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
+import { polygonsOf } from "../../maskGeometry";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
 
 it("SEG-SAVE-001/014 stages edits without writes and keeps newer B dirty when A is acknowledged", async () => {
@@ -47,18 +48,18 @@ it("SEG-SAVE-001/014 stages edits without writes and keeps newer B dirty when A 
   expect(store.getState().submissionQueue[0]!.status).toBe("succeeded");
   expect(store.getState().stagedOperations).toHaveLength(1);
   expect(
-    store
-      .getState()
-      .document!.annotations[
-        frameInstanceKey("frame-0", "instance-2")
-      ]!.polygons.some((item) => item.id === later),
+    polygonsOf(
+      store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-2")],
+    ).some((item) => item.id === later),
   ).toBe(true);
   expect(screen.getByRole("button", { name: /提交 1/ }).className).toContain("seg-dirty");
   expect(submit).toHaveBeenCalledTimes(1);
   expect(
-    (await service.loadFrameWindow("video-1", 0, 1)).annotations[
-      frameInstanceKey("frame-0", "instance-2")
-    ]!.polygons.some((item) => item.id === later),
+    polygonsOf(
+      (await service.loadFrameWindow("video-1", 0, 1)).annotations[
+        frameInstanceKey("frame-0", "instance-2")
+      ],
+    ).some((item) => item.id === later),
   ).toBe(false);
   store.getState().dispose();
 });

@@ -10,6 +10,7 @@ import type { RenderResult } from "@testing-library/react";
 
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
+import { polygonsOf } from "../../maskGeometry";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../../mockService";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
@@ -70,7 +71,12 @@ export function structureDocument(): SegmentationDocument {
           { x: 0.25 + index * 0.2, y: 0.5 },
         ],
       }));
-      document.annotations[key] = { frameId: frame.id, instanceId: owner, polygons };
+      document.annotations[key] = {
+        frameId: frame.id,
+        instanceId: owner,
+        kind: "polygons",
+        polygons,
+      };
       document.annotationSummaries[key] = { polygonCount: count, pointCount: count * 3 };
     }
   }
@@ -137,11 +143,11 @@ export function polygons(
   frame: number,
   owner: string,
 ): SegmentationPolygon[] {
-  return document.annotations[frameInstanceKey(`frame-${frame}`, owner)]?.polygons ?? [];
+  return [...polygonsOf(document.annotations[frameInstanceKey(`frame-${frame}`, owner)])];
 }
 
 export function geometry(document: SegmentationDocument): SegmentationPolygon[] {
   return Object.values(document.annotations)
-    .flatMap((annotation) => annotation.polygons)
+    .flatMap((annotation) => polygonsOf(annotation))
     .sort((a, b) => a.id.localeCompare(b.id));
 }

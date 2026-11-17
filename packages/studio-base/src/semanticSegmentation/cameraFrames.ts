@@ -189,7 +189,7 @@ export function segmentationCameraStep(
   const frameId = session.surfaces[camera.panelId]?.frameId;
   const shown = document?.frames.find((frame) => frame.id === frameId);
   const busy =
-    state.drawingPolygonId != undefined ||
+    state.drawing != undefined ||
     session.strokeFrameId != undefined ||
     ["running", "stopping"].includes(state.propagation.status);
   if (!document || !shown || busy) {

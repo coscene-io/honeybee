@@ -28,6 +28,7 @@ import {
 } from "./frameTime";
 import { createLiveAnnotationService } from "./liveService";
 import { encodeCounts } from "./maskCodec";
+import { maskOf, polygonsOf } from "./maskGeometry";
 import { frameInstanceKey } from "./service";
 import type { PropagationResult, SegmentationDocument, StagedOperation } from "./types";
 
@@ -297,13 +298,13 @@ describe("live annotation service", () => {
     }
     expect(server.listFrames).toHaveLength(2);
     const observation = window.annotations[frameInstanceKey(document.frames[1]!.id, OTHER_ID)];
-    expect(observation?.polygons[0]?.points[0]).toEqual({ x: 0.1, y: 0.1 });
-    expect(observation?.polygons[0]?.topic).toBe(TOPIC);
+    expect(polygonsOf(observation)[0]?.points[0]).toEqual({ x: 0.1, y: 0.1 });
+    expect(polygonsOf(observation)[0]?.topic).toBe(TOPIC);
     // Loaded geometry replaces timeline presence.
     expect(service.timelineSummaries()).toEqual({});
   });
 
-  it("binds a mask to the topic's source size and skips counts of another size", async () => {
+  it("binds a mask to the topic's source size and reports counts of another size as unreadable", async () => {
     const { server, service, document } = setup();
     seedServer(server);
     server.frames = [
@@ -319,15 +320,132 @@ describe("live annotation service", () => {
       }),
     ];
     await service.loadDocument();
-    const window = await service.loadFrameWindow("video", 0, 5);
+    const frameWindow = await service.loadFrameWindow("video", 0, 5);
     expect(
-      window.annotations[frameInstanceKey(document.frames[0]!.id, OTHER_ID)]?.mask,
+      maskOf(frameWindow.annotations[frameInstanceKey(document.frames[0]!.id, OTHER_ID)]),
     ).toMatchObject({
       width: 640,
       height: 480,
     });
-    expect(window.annotations[frameInstanceKey(document.frames[2]!.id, OTHER_ID)]).toBeUndefined();
+    const mismatched = frameInstanceKey(document.frames[2]!.id, OTHER_ID);
+    expect(frameWindow.annotations[mismatched]).toBeUndefined();
+    expect(frameWindow.unreadable?.[mismatched]).toMatchObject({
+      frameId: document.frames[2]!.id,
+      instanceId: OTHER_ID,
+      reason: expect.stringContaining("640×480"),
+    });
     expect(service.diagnostics().maskSizeMismatches).toBe(1);
+  });
+
+  it("re-sends an unreadable observation verbatim until the user replaces that instance there", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    const foreign = encodeCounts([10, 10, 80]);
+    server.frames = [
+      wireFrame({
+        instance: `${R}/instances/${OTHER_ID}`,
+        frameTime: frameTimeOf(LOG_TIMES[1]!),
+        occluded: true,
+        geometry: { case: "mask", value: { counts: foreign } },
+      }),
+    ];
+    await service.loadDocument();
+    const frameId = document.frames[1]!.id;
+    const frameWindow = await service.loadFrameWindow("video", 0, 5);
+    const otherKey = frameInstanceKey(frameId, OTHER_ID);
+    expect(frameWindow.unreadable?.[otherKey]).toBeDefined();
+    const newInstance = uuidv4();
+    const mineKey = frameInstanceKey(frameId, newInstance);
+    const triangle = [
+      { x: 0.5, y: 0.5 },
+      { x: 0.75, y: 0.5 },
+      { x: 0.75, y: 0.75 },
+    ];
+    await service.submit({
+      id: uuidv4(),
+      message: "",
+      operations: [
+        {
+          id: uuidv4(),
+          label: "draw",
+          patch: {
+            instances: { [newInstance]: { id: newInstance, classId: CLASS_ID, name: "mug 2" } },
+            annotations: {
+              [mineKey]: {
+                frameId,
+                instanceId: newInstance,
+                kind: "polygons",
+                polygons: [{ id: "p1", points: triangle }],
+              },
+            },
+          },
+        },
+      ],
+    });
+    const kept = server.saves[0]!.frames[0]!.annotations.find((item) =>
+      item.instance.endsWith(OTHER_ID),
+    );
+    // The frame snapshot would otherwise delete what the editor could not show.
+    expect(kept?.geometry).toEqual({
+      case: "mask",
+      value: expect.objectContaining({ counts: foreign }),
+    });
+    expect(kept?.occluded).toBe(true);
+    await service.submit({
+      id: uuidv4(),
+      message: "",
+      operations: [
+        {
+          id: uuidv4(),
+          label: "replace",
+          patch: {
+            annotations: {
+              [otherKey]: {
+                frameId,
+                instanceId: OTHER_ID,
+                kind: "polygons",
+                polygons: [{ id: "p2", points: triangle }],
+              },
+            },
+          },
+        },
+      ],
+    });
+    const replaced = server.saves[1]!.frames[0]!.annotations.filter((item) =>
+      item.instance.endsWith(OTHER_ID),
+    );
+    expect(replaced).toHaveLength(1);
+    expect(replaced[0]!.geometry.case).toBe("polygons");
+  });
+
+  it("refuses a mask whose counts do not cover the source frame before any write", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    await service.loadDocument();
+    const frameId = document.frames[1]!.id;
+    await expect(
+      service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          {
+            id: uuidv4(),
+            label: "paint",
+            patch: {
+              annotations: {
+                [frameInstanceKey(frameId, OTHER_ID)]: {
+                  frameId,
+                  instanceId: OTHER_ID,
+                  kind: "mask",
+                  mask: { counts: encodeCounts([10, 10, 80]), width: 640, height: 480 },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    ).rejects.toThrow(/640×480/);
+    expect(server.calls).not.toContain("saveAnnotation");
   });
 
   it("creates the catalog, then saves the complete snapshot of each changed frame", async () => {
@@ -615,9 +733,10 @@ describe("live annotation service", () => {
       expect.objectContaining(frameTimeOf(LOG_TIMES[1]!)),
     );
     expect(requests[0]!.propagation!.endTime!.nanos % 1000).toBe(0);
-    expect(results.map((item) => [item.frameId, item.polygons.length])).toEqual([
-      [document.frames[2]!.id, 1],
-      [document.frames[3]!.id, 0],
+    // An instance missing from a frame event clears it there.
+    expect(results.map((item) => [item.frameId, item.kind])).toEqual([
+      [document.frames[2]!.id, "polygons"],
+      [document.frames[3]!.id, "empty"],
     ]);
   });
 

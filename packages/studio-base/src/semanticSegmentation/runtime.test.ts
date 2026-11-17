@@ -7,6 +7,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { polygonsOf } from "./maskGeometry";
 import { createSeedDocument, setMockControls } from "./mockService";
 import { createSegmentationRuntime } from "./runtime";
 import { frameInstanceKey } from "./service";
@@ -67,8 +68,7 @@ it("appends real message/camera metadata without losing drafts or committed geom
   runtime.store.getState().setCurrentFrame(frame.id);
   await runtime.store.getState().loadFrameWindow(second.id, 0, 1);
   const instanceId = runtime.store.getState().addInstance(classId);
-  const polygonId = runtime.store.getState().addPolygon(instanceId);
-  runtime.store.getState().setPolygonPoints(polygonId, [
+  const polygonId = runtime.store.getState().addPolygon(instanceId, [
     { x: 0.1, y: 0.1 },
     { x: 0.2, y: 0.1 },
     { x: 0.1, y: 0.2 },
@@ -76,7 +76,7 @@ it("appends real message/camera metadata without losing drafts or committed geom
   runtime.store.getState().submit("new actual frame");
   await runtime.store.getState().waitForSubmissions();
   const frameWindow = await runtime.service.loadFrameWindow(second.id, 0, 1);
-  expect(frameWindow.annotations[frameInstanceKey(frame.id, instanceId)]?.polygons[0]?.id).toBe(
+  expect(polygonsOf(frameWindow.annotations[frameInstanceKey(frame.id, instanceId)])[0]?.id).toBe(
     polygonId,
   );
   expect(runtime.store.getState().document?.videos).toHaveLength(videoCount + 1);

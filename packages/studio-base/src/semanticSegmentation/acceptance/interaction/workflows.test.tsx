@@ -9,6 +9,7 @@
 import { waitFor } from "@testing-library/react";
 
 import { deferred, polygon, setup, triangle } from "./fixtures";
+import { polygonsOf } from "../../maskGeometry";
 import { cloneSegmentation } from "../../service";
 
 it("SEG-ONLINE-009/013/SEG-SAVE-002 restart uses corrected stopped-frame seed and fresh job without durable writes", async () => {
@@ -22,8 +23,12 @@ it("SEG-ONLINE-009/013/SEG-SAVE-002 restart uses corrected stopped-frame seed an
     yield {
       frameId,
       instanceId: "instance-1",
+      kind: "polygons" as const,
       polygons: [
-        { id: `result-${frameId}`, points: cloneSegmentation(request.seedPolygons![0]!.points) },
+        {
+          id: `result-${frameId}`,
+          points: cloneSegmentation(polygonsOf(request.seeds![0])[0]!.points),
+        },
       ],
       context: request.context,
     };
@@ -52,7 +57,9 @@ it("SEG-ONLINE-009/013/SEG-SAVE-002 restart uses corrected stopped-frame seed an
     fromFrameId: "frame-1",
     endTimeNs: "1700000000400000000",
   });
-  expect(requests[1]!.seedPolygons).toEqual([corrected]);
+  expect(requests[1]!.seeds).toEqual([
+    { instanceId: "instance-1", kind: "polygons", polygons: [corrected] },
+  ]);
   expect(requests[1]!.context!.requestId).not.toBe(requests[0]!.context!.requestId);
   expect(requests[1]!.context!.seedSnapshotId).not.toBe(requests[0]!.context!.seedSnapshotId);
   expect(polygon(store, "instance-1", "frame-2").points).toEqual(triangle);

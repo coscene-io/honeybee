@@ -105,12 +105,6 @@ export function PropagationForm({
         fromFrameId: frame.id,
         endTimeNs: last.logTimeNs,
         model,
-        ...(firstSeed.mask
-          ? { seedMask: firstSeed.mask }
-          : {
-              polygonIds: firstSeed.polygons.map((polygon) => polygon.id),
-              seedPolygons: firstSeed.polygons,
-            }),
         seeds,
       };
       setBusy("starting");
@@ -136,7 +130,7 @@ export function PropagationForm({
       )}
       <p className="seg-muted">
         {hasSeed
-          ? `${seeds.length} 个实例 · ${seeds.reduce((count, seed) => count + seed.polygons.length, 0)} 个多边形${seeds.some((seed) => seed.mask) ? ` · ${seeds.filter((seed) => seed.mask).length} 个 mask` : ""}`
+          ? `${seeds.length} 个实例 · ${seeds.reduce((count, seed) => count + (seed.kind === "polygons" ? seed.polygons.length : 0), 0)} 个多边形${seeds.some((seed) => seed.kind === "mask") ? ` · ${seeds.filter((seed) => seed.kind === "mask").length} 个 mask` : ""}`
           : "当前帧没有可传播的实例"}
       </p>
       {state.propagationCapabilitiesLoading === true && <p role="status">正在读取模型传播能力…</p>}
@@ -197,9 +191,7 @@ export function PropagationForm({
         <button
           type="button"
           className="seg-primary"
-          disabled={
-            !sourceReady || !hasSeed || !supportedParameters || busy !== "idle" || running
-          }
+          disabled={!sourceReady || !hasSeed || !supportedParameters || busy !== "idle" || running}
           onClick={start}
         >
           {busy === "preparing" ? "正在读取后续帧…" : "开始传播"}

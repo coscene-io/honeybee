@@ -51,18 +51,21 @@ export type SegmentationMask = {
   width: number;
   height: number;
   /** Provenance for labelling only. "mock" is synthetic local data, never inference output. */
-  source?: "mock" | "propagation" | "merge" | "import";
+  source?: "mock" | "propagation" | "merge" | "import" | "quick" | "brush";
 };
-export type FrameInstance = {
-  frameId: string;
-  instanceId: string;
-  /**
-   * One authoritative representation per observation (backend `Frame.geometry` oneof). When
-   * `mask` is set, `polygons` is empty; editing a mask into polygons removes `mask`.
-   */
-  polygons: SegmentationPolygon[];
-  mask?: SegmentationMask;
-};
+/** Editable polygon components; their union is the instance's geometry (no holes). */
+export type PolygonGeometry = { kind: "polygons"; polygons: SegmentationPolygon[] };
+/** Pixel geometry; the authoritative form for model output, brush strokes and merges. */
+export type MaskGeometry = { kind: "mask"; mask: SegmentationMask };
+/**
+ * Exactly one representation, as the backend `Frame.geometry` oneof. A stored observation always
+ * has foreground: a polygon observation holds at least one complete polygon (≥ 3 vertices) and a
+ * mask has at least one foreground pixel. Clearing an observation removes it from the document.
+ */
+export type ObservationGeometry = PolygonGeometry | MaskGeometry;
+export type FrameInstance = { frameId: string; instanceId: string } & ObservationGeometry;
+/** A server observation the editor cannot show, e.g. a mask whose size does not match the frame. */
+export type UnreadableObservation = { frameId: string; instanceId: string; reason: string };
 /** Lightweight presence metadata; `maskArea` counts foreground pixels of a mask observation. */
 export type AnnotationSummary = {
   polygonCount: number;
@@ -93,6 +96,11 @@ export type SegmentationDocument = {
   /** Lightweight presence metadata for tree counts without fetching all frame geometry. */
   annotationSummaries: Record<string, AnnotationSummary>;
   momentReferences: MomentReference[];
+  /**
+   * Loaded server observations that cannot be displayed or edited, keyed like `annotations`. The
+   * adapter keeps their original geometry and re-sends it, so saving a frame never drops them.
+   */
+  unreadableObservations?: Record<string, UnreadableObservation>;
 };
 /** A patch is immutable once staged. Undefined values remove entities. */
 export type SegmentationPatch = {
@@ -141,6 +149,8 @@ export type FrameWindow = {
   startSec: number;
   endSec: number;
   annotations: Record<string, FrameInstance>;
+  /** Server observations in the window that cannot be shown, keyed like `annotations`. */
+  unreadable?: Record<string, UnreadableObservation>;
 };
 export type PropagationContext = {
   requestId: string;
@@ -152,14 +162,13 @@ export type PropagationContext = {
   fromFrameId: string;
   generation: number;
 };
-export type PropagationResult = FrameInstance & { context?: PropagationContext };
+/** One inferred frame for one instance; `kind: "empty"` clears that instance on the frame. */
+export type PropagationResult = (
+  FrameInstance | { frameId: string; instanceId: string; kind: "empty" }
+) & { context?: PropagationContext };
 export type PropagationCancellation = { requestId: string; status: "cancelled" };
 /** A seed is either polygons or a mask, matching the backend seed oneof. */
-export type PropagationSeed = {
-  instanceId: string;
-  polygons: SegmentationPolygon[];
-  mask?: SegmentationMask;
-};
+export type PropagationSeed = { instanceId: string } & ObservationGeometry;
 export type PropagationCapabilities = {
   models: string[];
 };
@@ -168,14 +177,12 @@ export type PropagationRequest = {
   fromFrameId: string;
   /** Propagation only follows later frames. Inclusive end: the last frame's log_time (decimal ns). */
   endTimeNs: string;
+  /** Without `seeds`: limit a polygon source observation to these polygons. */
   polygonIds?: string[];
   model?: string;
-  /** Current local seed, including unsubmitted edits. */
-  seedPolygons?: SegmentationPolygon[];
-  /** Current local mask seed, when the seed observation is a mask. */
-  seedMask?: SegmentationMask;
   /** Optional echo contract; existing untagged adapters retain structural-only validation. */
   context?: PropagationContext;
+  /** Explicit seeds, including unsubmitted edits. Omitted: the source observation itself. */
   seeds?: PropagationSeed[];
 };
 export type PropagationState = {
@@ -193,18 +200,26 @@ export type MockControls = {
 };
 
 export type SegmentationNodeRef = { type: "class" | "instance" | "polygon"; id: string };
+/** How a drawing session creates geometry: vertex by vertex, or from model clicks (a mask). */
+export type CreationTool = "polygon" | "quick";
 /**
- * One mask observation opened for vertex editing. Until the first real edit its polygons are a
- * view over the untouched mask; the first edit replaces the observation with polygons (the
- * backend oneof), and Undo restores the mask.
+ * A creation in progress. The draft (vertices or clicks) lives in the canvas, never in the
+ * document; finishing adds complete geometry in one staged command, cancelling changes nothing.
  */
-export type MaskEditState = {
-  key: string;
-  frameId: string;
-  instanceId: string;
-  counts: string;
-  original: FrameInstance;
-  polygons: SegmentationPolygon[];
+export type DrawingSession = { instanceId: string; frameId: string };
+/** What converting a mask to editable polygons loses; polygons cannot hold holes or slivers. */
+export type MaskConversionLoss = {
+  /** Intersection over union of the original mask and the rasterized polygons. */
+  iou: number;
+  /** Foreground pixels of the mask that the polygons do not cover. */
+  lostPixels: number;
+  /** Background pixels the polygons add. */
+  addedPixels: number;
+  /** Enclosed background regions (holes) the polygons fill in. */
+  holes: number;
+  /** Mask components too thin or small to become a polygon. */
+  droppedComponents: number;
+  polygonCount: number;
 };
 export type SemanticSegmentationStore = {
   document: SegmentationDocument | undefined;
@@ -213,8 +228,9 @@ export type SemanticSegmentationStore = {
   focus: SegmentationNodeRef | undefined;
   selection: SegmentationNodeRef[];
   editing: boolean;
-  drawingPolygonId: string | undefined;
-  maskEdit: MaskEditState | undefined;
+  drawing: DrawingSession | undefined;
+  /** The tool a new drawing session uses; remembered across sessions. */
+  creationTool: CreationTool;
   /** Explicit local reset boundary for component-owned editor transients, independent of media. */
   interactionResetVersion: number;
   stagedOperations: StagedOperation[];
@@ -223,8 +239,7 @@ export type SemanticSegmentationStore = {
   loading: boolean;
   /** The failed geometry read is separate from GPU/task errors and can be retried in place. */
   frameWindowError:
-    | { videoId: string; startSec: number; endSec: number; message: string }
-    | undefined;
+    { videoId: string; startSec: number; endSec: number; message: string } | undefined;
   isFrameReady: (frameId: string) => boolean;
   retryCurrentFrameWindow: () => Promise<void>;
   error: string | undefined;
@@ -247,9 +262,12 @@ export type SemanticSegmentationStore = {
   setSelection: (selection: SegmentationNodeRef[]) => void;
   // eslint-disable-next-line @coscene-io/no-boolean-parameters -- Matches the existing UI toggle contract.
   setEditing: (editing: boolean) => void;
-  setDrawingPolygonId: (id: string | undefined) => void;
-  /** Convert exactly one mask observation (this instance, this frame) to editable polygons. */
-  beginMaskEdit: (frameId: string, instanceId: string) => MaskEditState;
+  /** Start creating geometry for an instance on the current frame with the given (or last) tool. */
+  startDrawing: (instanceId: string, tool?: CreationTool) => void;
+  /** Move a drawing session that has no draft yet onto another (camera's) frame. */
+  retargetDrawing: (frameId: string) => void;
+  cancelDrawing: () => void;
+  setCreationTool: (tool: CreationTool) => void;
   addClass: (name?: string) => string;
   renameClass: (id: string, name: string) => void;
   renameInstance: (id: string, name: string) => void;
@@ -258,12 +276,21 @@ export type SemanticSegmentationStore = {
   addInstance: (classId: string, name?: string) => string;
   moveInstance: (instanceId: string, classId: string) => void;
   deleteInstance: (instanceId: string, scope?: "frame" | "all") => void;
-  addPolygon: (instanceId: string, points?: NormalizedPoint[]) => string;
-  /** Moves an empty in-progress polygon onto the frame that receives its first vertex. */
-  retargetEmptyDrawing: (frameId: string) => void;
+  /**
+   * Add one complete polygon (≥ 3 vertices, nonzero area) to the instance on the current frame
+   * and end any drawing session. On a mask observation the polygon is rasterized into the mask:
+   * the observation keeps one representation and the mask stays lossless.
+   */
+  addPolygon: (instanceId: string, points: NormalizedPoint[]) => string;
+  /** Union a mask into the instance's observation on the current frame (polygons are rasterized). */
+  addMask: (instanceId: string, mask: SegmentationMask, label?: string) => void;
+  /** Replace the instance's mask on the current frame (brush/eraser); an empty mask clears it. */
+  replaceMask: (instanceId: string, mask: SegmentationMask, label?: string) => void;
+  /** Rasterize a polygon observation on the current frame into a mask (sub-pixel precision only). */
+  convertToMask: (instanceId: string) => void;
+  /** Vectorize a mask observation on the current frame; holes and slivers are lost (see `maskConversionLoss`). */
+  convertToPolygons: (instanceId: string) => void;
   setPolygonPoints: (polygonId: string, points: NormalizedPoint[]) => void;
-  /** Replace the polygon being drawn with a mask (quick annotation), merged into the frame. */
-  commitDrawingMask: (mask: SegmentationMask) => void;
   deletePolygon: (polygonId: string) => void;
   mergeInstances: (sourceIds: string[], targetInstanceId: string) => void;
   mergePolygons: (polygonIds: string[], targetInstanceId: string) => void;

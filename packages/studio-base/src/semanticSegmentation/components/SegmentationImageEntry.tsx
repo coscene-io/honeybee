@@ -254,15 +254,18 @@ export function SegmentationImageEntry({
   const blockedImage = useRef<object | undefined>(undefined);
   const lastSyncedImage = useRef<object | undefined>(undefined);
   // What the last source registration read; see `sync`.
-  const registeredImage = useRef<{
-    image: object;
-    bindingKey: string;
-    runtime: object;
-    blocks: unknown;
-    blockMessages: number;
-    messages: unknown;
-    canvasFrames: number;
-  } | undefined>(undefined);
+  const registeredImage = useRef<
+    | {
+        image: object;
+        bindingKey: string;
+        runtime: object;
+        blocks: unknown;
+        blockMessages: number;
+        messages: unknown;
+        canvasFrames: number;
+      }
+    | undefined
+  >(undefined);
   const [error, setError] = useState<string>();
   // Bumped when the first decoded frame arrives after the preview effect found none.
   const [previewRetry, setPreviewRetry] = useState(0);
@@ -520,13 +523,13 @@ export function SegmentationImageEntry({
       if (propagationLocksContext(binding.runtime.store.getState().propagation.status)) {
         binding.runtime.store.getState().stopPropagation();
       }
-      binding.runtime.store.setState({ editing: false, drawingPolygonId: undefined });
+      binding.runtime.store.setState({ editing: false, drawing: undefined });
     } else if (
       binding != undefined &&
       handoff &&
-      binding.runtime.store.getState().drawingPolygonId != undefined
+      binding.runtime.store.getState().drawing != undefined
     ) {
-      binding.runtime.store.setState({ drawingPolygonId: undefined });
+      binding.runtime.store.setState({ drawing: undefined });
     }
     if (!ownsSession && segmentationSession.getState().surfaces[panelId] == undefined) {
       return;
@@ -849,9 +852,9 @@ export function SegmentationImageEntry({
       const live = segmentationSession.getState();
       if (bound && live.open && live.runtime === bound.runtime && bound.key === latestKey.current) {
         const storeState = bound.runtime.store.getState();
-        if (storeState.drawingPolygonId != undefined && live.panelId !== panelId) {
+        if (storeState.drawing != undefined && live.panelId !== panelId) {
           bound.runtime.store.setState({
-            error: "先完成当前画布上的多边形，再标注另一路。",
+            error: "先完成或取消当前画布上的绘制，再标注另一路。",
           });
           return;
         }

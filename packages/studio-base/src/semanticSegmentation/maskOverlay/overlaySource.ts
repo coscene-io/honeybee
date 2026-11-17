@@ -13,6 +13,7 @@ import {
   type SegmentationMaskOverlaySource,
   type SegmentationMaskStyle,
 } from "../imageSource";
+import { maskOf } from "../maskGeometry";
 import { segmentationSession, type SegmentationRuntime } from "../runtime";
 import { frameInstanceKey } from "../service";
 import type { SegmentationDocument, SegmentationFrame, SemanticSegmentationStore } from "../types";
@@ -136,7 +137,7 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
     let width = 0;
     let height = 0;
     for (const instance of doc.instances) {
-      const mask = doc.annotations[frameInstanceKey(frame.id, instance.id)]?.mask;
+      const mask = maskOf(doc.annotations[frameInstanceKey(frame.id, instance.id)]);
       if (!mask) {
         continue;
       }

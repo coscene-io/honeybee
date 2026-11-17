@@ -164,7 +164,7 @@ describe("mask overlay source", () => {
     document.annotations[frameInstanceKey(frame.id, "instance-side")] = {
       frameId: frame.id,
       instanceId: "instance-side",
-      polygons: [],
+      kind: "mask",
       mask,
     };
     const runtime = createSegmentationRuntime(document);
@@ -208,7 +208,7 @@ describe("mask overlay source", () => {
         frames: [...current.frames],
         annotations: {
           ...current.annotations,
-          [key]: { ...current.annotations[key]!, mask: moved },
+          [key]: { ...current.annotations[key]!, kind: "mask", mask: moved },
         },
       },
     });
@@ -240,7 +240,7 @@ describe("mask overlay source", () => {
             [frameInstanceKey(frame.id, "instance-side")]: {
               frameId: frame.id,
               instanceId: "instance-side",
-              polygons: [],
+              kind: "mask",
               mask: synthesizeMockMask(DEFAULT_MOCK_MASK_PROFILE, 0, 0, 0, 1280, 720),
             },
           },
@@ -274,7 +274,7 @@ describe("mask overlay source", () => {
       annotations[frameInstanceKey(item.id, "instance-side")] = {
         frameId: item.id,
         instanceId: "instance-side",
-        polygons: [],
+        kind: "mask",
         mask: synthesizeMockMask(DEFAULT_MOCK_MASK_PROFILE, 0, 0, 0, 1280, 720),
       };
     }

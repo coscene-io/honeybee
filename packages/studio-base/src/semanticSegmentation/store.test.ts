@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { countsFromRuns, runsFromIntervals } from "./maskCodec";
+import { maskArea, maskOf, polygonsOf, runsOfPolygons } from "./maskGeometry";
 import { createMockSemanticSegmentationService } from "./mockService";
 import { frameInstanceKey } from "./service";
 import { createSemanticSegmentationStore } from "./store";
@@ -44,22 +46,46 @@ describe("semantic segmentation state", () => {
     const classId = store.getState().addClass("  Tool  ");
     expect(store.getState().addClass("Tool")).toBe(classId);
     const instanceId = store.getState().addInstance(classId);
-    const polygonId = store.getState().addPolygon(instanceId);
     const annotationKey = frameInstanceKey("frame-0", instanceId);
-    expect(store.getState().document!.annotations[annotationKey]!.polygons).toEqual([
-      { id: polygonId, points: [], topic: "/camera/front" },
-    ]);
-    store.getState().setPolygonPoints(polygonId, triangle);
-    expect(store.getState().document!.annotations[annotationKey]!.polygons[0]!.points).toEqual(
-      triangle,
+    // A drawing session stages nothing: the draft lives in the canvas until it is complete.
+    const staged = store.getState().stagedOperations.length;
+    store.getState().startDrawing(instanceId);
+    expect(store.getState().drawing).toEqual({ instanceId, frameId: "frame-0" });
+    expect(store.getState().stagedOperations).toHaveLength(staged);
+    expect(store.getState().document!.annotations[annotationKey]).toBeUndefined();
+    expect(() => store.getState().addPolygon(instanceId, triangle.slice(0, 2))).toThrow(
+      "at least 3 vertices",
+    );
+    const polygonId = store.getState().addPolygon(instanceId, triangle);
+    expect(store.getState().drawing).toBeUndefined();
+    expect(store.getState().document!.annotations[annotationKey]).toEqual({
+      frameId: "frame-0",
+      instanceId,
+      kind: "polygons",
+      polygons: [{ id: polygonId, points: triangle, topic: "/camera/front" }],
+    });
+    const moved = triangle.map((point) => ({ x: point.x + 0.01, y: point.y }));
+    store.getState().setPolygonPoints(polygonId, moved);
+    expect(polygonsOf(store.getState().document!.annotations[annotationKey])[0]!.points).toEqual(
+      moved,
     );
     expect(() => {
       store.getState().setPolygonPoints(polygonId, [{ x: NaN, y: 0 }]);
     }).toThrow("normalized");
+    expect(() => {
+      store.getState().setPolygonPoints(polygonId, moved.slice(0, 2));
+    }).toThrow("at least 3 vertices");
     store.getState().undo();
-    expect(store.getState().document!.annotations[annotationKey]!.polygons[0]!.points).toEqual([]);
-    store.getState().setDrawingPolygonId(undefined);
-    expect(store.getState().document!.annotations[annotationKey]!.polygons[0]!.id).toBe(polygonId);
+    expect(polygonsOf(store.getState().document!.annotations[annotationKey])[0]!.points).toEqual(
+      triangle,
+    );
+    // Deleting the last polygon clears the observation; it never stays as an empty placeholder.
+    store.getState().deletePolygon(polygonId);
+    expect(store.getState().document!.annotations[annotationKey]).toBeUndefined();
+    store.getState().undo();
+    expect(polygonsOf(store.getState().document!.annotations[annotationKey])[0]!.id).toBe(
+      polygonId,
+    );
     store.getState().revertStaging();
     expect(store.getState().document!.classes.some((item) => item.id === classId)).toBe(false);
     expect(store.getState().document!.instances.some((item) => item.id === "instance-empty")).toBe(
@@ -113,11 +139,11 @@ describe("semantic segmentation state", () => {
       "succeeded",
     ]);
     expect(
-      store.getState().document!.annotations[key]!.polygons.map((polygon) => polygon.id),
+      polygonsOf(store.getState().document!.annotations[key]).map((polygon) => polygon.id),
     ).toEqual(expect.arrayContaining([firstId, secondId]));
     expect(
       Object.values(store.getState().document!.annotations).some((annotation) =>
-        annotation.polygons.some((polygon) => polygon.id === thirdId),
+        polygonsOf(annotation).some((polygon) => polygon.id === thirdId),
       ),
     ).toBe(true);
   });
@@ -130,7 +156,7 @@ describe("semantic segmentation state", () => {
     await store.getState().waitForSubmissions();
     expect(store.getState().submissionQueue[0]!.status).toBe("failed");
     expect(
-      store.getState().document!.annotations[key]!.polygons.some((polygon) => polygon.id === id),
+      polygonsOf(store.getState().document!.annotations[key]).some((polygon) => polygon.id === id),
     ).toBe(true);
     store.getState().retrySubmission(batchId);
     await store.getState().waitForSubmissions();
@@ -161,17 +187,14 @@ describe("semantic segmentation state", () => {
       "succeeded",
       "succeeded",
     ]);
+    const document = store.getState().document!;
     expect(
-      store
-        .getState()
-        .document!.annotations[key]!.polygons.some((polygon) => polygon.id === firstPolygonId),
+      polygonsOf(document.annotations[key]).some((polygon) => polygon.id === firstPolygonId),
     ).toBe(true);
     expect(
-      store
-        .getState()
-        .document!.annotations[
-          frameInstanceKey("frame-0", "instance-2")
-        ]!.polygons.some((polygon) => polygon.id === secondPolygonId),
+      polygonsOf(document.annotations[frameInstanceKey("frame-0", "instance-2")]).some(
+        (polygon) => polygon.id === secondPolygonId,
+      ),
     ).toBe(true);
   });
 
@@ -183,7 +206,7 @@ describe("semantic segmentation state", () => {
     const frameWindow = await service.loadFrameWindow("video-1", 23, 24);
     expect(frameWindow.annotations[frameInstanceKey("frame-119", "instance-1")]).toBeUndefined();
     expect(
-      frameWindow.annotations[frameInstanceKey("frame-119", "instance-2")]!.polygons.map(
+      polygonsOf(frameWindow.annotations[frameInstanceKey("frame-119", "instance-2")]).map(
         (polygon) => polygon.id,
       ),
     ).toEqual(["instance-2-polygon-119", "instance-1-polygon-119"]);
@@ -311,7 +334,7 @@ describe("semantic segmentation state", () => {
 
   it("streams later frames from the current unsubmitted seed", async () => {
     const { store } = await setup();
-    const polygonId = store.getState().document!.annotations[key]!.polygons[0]!.id;
+    const polygonId = polygonsOf(store.getState().document!.annotations[key])[0]!.id;
     store.getState().setPolygonPoints(polygonId, triangle);
     await store.getState().startPropagation({
       instanceId: "instance-1",
@@ -320,14 +343,15 @@ describe("semantic segmentation state", () => {
     });
     expect(store.getState().currentFrameId).toBe("frame-2");
     expect(
-      store.getState().document!.annotations[frameInstanceKey("frame-2", "instance-1")]!
-        .polygons[0]!.points,
+      polygonsOf(
+        store.getState().document!.annotations[frameInstanceKey("frame-2", "instance-1")],
+      )[0]!.points,
     ).toEqual(shifted(triangle, 2));
   });
 
   it("keeps mock polygons inside the image without collapsing their shape", async () => {
     const { store } = await setup();
-    const polygonId = store.getState().document!.annotations[key]!.polygons[0]!.id;
+    const polygonId = polygonsOf(store.getState().document!.annotations[key])[0]!.id;
     const edge = [
       { x: 0.8, y: 0.8 },
       { x: 0.99, y: 0.8 },
@@ -339,9 +363,9 @@ describe("semantic segmentation state", () => {
       fromFrameId: "frame-0",
       endTimeNs: "1700000000400000000",
     });
-    const points =
-      store.getState().document!.annotations[frameInstanceKey("frame-2", "instance-1")]!
-        .polygons[0]!.points;
+    const points = polygonsOf(
+      store.getState().document!.annotations[frameInstanceKey("frame-2", "instance-1")],
+    )[0]!.points;
     expect(
       points.every((point) => point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1),
     ).toBe(true);
@@ -397,7 +421,7 @@ describe("selection validity after document changes", () => {
     "prunes removed polygon refs after %s while keeping valid classes",
     async (change) => {
       const { store } = await setup();
-      const id = store.getState().addPolygon("instance-empty");
+      const id = store.getState().addPolygon("instance-empty", triangle);
       store.getState().setSelection([
         { type: "class", id: "class-1" },
         { type: "polygon", id },
@@ -411,7 +435,7 @@ describe("selection validity after document changes", () => {
       expect(store.getState().selection).toEqual([{ type: "class", id: "class-1" }]);
       expect(
         Object.values(store.getState().document!.annotations)
-          .flatMap((item) => item.polygons)
+          .flatMap((item) => polygonsOf(item))
           .some((polygon) => polygon.id === id),
       ).toBe(false);
     },
@@ -465,7 +489,7 @@ describe("compound editor commands", () => {
     const saved = await service.loadDocument();
     const moved = saved.instances.find((instance) => instance.name === "Moved")!;
     const frameWindow = await service.loadFrameWindow("video-1", 0, 1);
-    expect(frameWindow.annotations[frameInstanceKey("frame-0", moved.id)]?.polygons[0]?.id).toBe(
+    expect(polygonsOf(frameWindow.annotations[frameInstanceKey("frame-0", moved.id)])[0]?.id).toBe(
       "instance-1-polygon-0",
     );
   });
@@ -515,5 +539,112 @@ describe("local segmentation service", () => {
     expect(store.getState().submissionQueue[0]!.status).toBe("succeeded");
     expect(store.getState().error).toMatch(/Export annotations/);
     expect((await service.loadDocument()).classes[0]!.name).toBe("In-memory name");
+  });
+});
+
+describe("one geometry per observation", () => {
+  /** A filled rectangle at the mock front camera's 960×540 source size. */
+  function rectangleMask(x0: number, y0: number, x1: number, y1: number) {
+    const intervals: number[] = [];
+    for (let x = x0; x < x1; x++) {
+      intervals.push(x * 540 + y0, x * 540 + y1);
+    }
+    return {
+      counts: countsFromRuns(runsFromIntervals(Uint32Array.from(intervals), 960, 540)),
+      width: 960,
+      height: 540,
+    };
+  }
+
+  it("unions a quick mask with polygons into one mask, and undo restores the polygons", async () => {
+    const { store } = await setup();
+    const before = store.getState().document!.annotations[key]!;
+    expect(before.kind).toBe("polygons");
+    store.getState().addMask("instance-1", rectangleMask(600, 100, 700, 200));
+    const after = store.getState().document!.annotations[key]!;
+    expect(after.kind).toBe("mask");
+    expect(maskArea(maskOf(after)!.counts)).toBe(
+      runsOfPolygons(polygonsOf(before), 960, 540).area + 100 * 100,
+    );
+    store.getState().undo();
+    expect(store.getState().document!.annotations[key]).toEqual(before);
+  });
+
+  it("rasterizes a polygon drawn on a mask instead of mixing representations", async () => {
+    const { store } = await setup();
+    store.getState().addMask("instance-empty", rectangleMask(10, 10, 20, 20));
+    const emptyKey = frameInstanceKey("frame-0", "instance-empty");
+    store.getState().addPolygon("instance-empty", triangle);
+    const merged = store.getState().document!.annotations[emptyKey]!;
+    expect(merged.kind).toBe("mask");
+    expect(maskArea(maskOf(merged)!.counts)).toBeGreaterThan(100);
+  });
+
+  it("rejects a mask bound to another frame size", async () => {
+    const { store } = await setup();
+    expect(() => {
+      store.getState().addMask("instance-1", { ...rectangleMask(0, 0, 4, 4), width: 961 });
+    }).toThrow("960×540");
+  });
+
+  it("converts explicitly between representations, each one undoable", async () => {
+    const { store } = await setup();
+    const polygons = store.getState().document!.annotations[key]!;
+    store.getState().convertToMask("instance-1");
+    const mask = store.getState().document!.annotations[key]!;
+    expect(mask.kind).toBe("mask");
+    store.getState().convertToPolygons("instance-1");
+    const back = store.getState().document!.annotations[key]!;
+    expect(back.kind).toBe("polygons");
+    expect(polygonsOf(back).length).toBeGreaterThan(0);
+    store.getState().undo();
+    expect(store.getState().document!.annotations[key]).toEqual(mask);
+    store.getState().undo();
+    expect(store.getState().document!.annotations[key]).toEqual(polygons);
+  });
+
+  it("clears the observation when the eraser leaves no pixels", async () => {
+    const { store } = await setup();
+    store.getState().addMask("instance-empty", rectangleMask(10, 10, 20, 20));
+    const emptyKey = frameInstanceKey("frame-0", "instance-empty");
+    store.getState().replaceMask("instance-empty", rectangleMask(0, 0, 0, 0), "Erase");
+    expect(store.getState().document!.annotations[emptyKey]).toBeUndefined();
+  });
+
+  it("ends a drawing session when its instance goes away, and cancelling stages nothing", async () => {
+    const { store } = await setup();
+    const staged = store.getState().stagedOperations.length;
+    store.getState().startDrawing("instance-empty", "quick");
+    expect(store.getState().creationTool).toBe("quick");
+    store.getState().cancelDrawing();
+    expect(store.getState().drawing).toBeUndefined();
+    expect(store.getState().stagedOperations).toHaveLength(staged);
+    store.getState().setCreationTool("polygon");
+    store.getState().startDrawing("instance-empty");
+    store.getState().deleteInstance("instance-empty");
+    expect(store.getState().drawing).toBeUndefined();
+  });
+
+  it("stages an empty propagation result as a cleared observation", async () => {
+    const { service, store } = await setup();
+    service.propagate = async function* (request) {
+      yield {
+        frameId: "frame-1",
+        instanceId: "instance-1",
+        kind: "empty" as const,
+        ...(request.context ? { context: request.context } : {}),
+      };
+    };
+    await store.getState().startPropagation({
+      instanceId: "instance-1",
+      fromFrameId: "frame-0",
+      endTimeNs: "1700000000200000000",
+    });
+    expect(store.getState().stagedOperations.at(-1)!.patch.annotations).toEqual({
+      [frameInstanceKey("frame-1", "instance-1")]: undefined,
+    });
+    expect(
+      store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-1")],
+    ).toBeUndefined();
   });
 });

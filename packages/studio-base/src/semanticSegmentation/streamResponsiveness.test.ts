@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { polygonsOf } from "./maskGeometry";
 import { createMockSemanticSegmentationService, createSeedDocument } from "./mockService";
 import { applySegmentationPatches, cloneSegmentation, frameInstanceKey } from "./service";
 import { createSemanticSegmentationStore } from "./store";
@@ -38,6 +39,7 @@ function createSubmissionFixture(targetFrames = 1000): SegmentationDocument {
       {
         frameId: frame.id,
         instanceId: "instance-1",
+        kind: "polygons",
         polygons: [
           {
             id: `submission-polygon-${frame.index}`,
@@ -77,6 +79,7 @@ async function fixture(mode: "initial" | "preloaded" = "initial") {
     document.annotations[key(index, "instance-2")] = {
       frameId: `submission-frame-${index}`,
       instanceId: "instance-2",
+      kind: "polygons",
       polygons: [{ id: `unselected-${index}`, points: cloneSegmentation(points) }],
     };
     document.annotationSummaries[key(index, "instance-2")] = { polygonCount: 1, pointCount: 3 };
@@ -108,7 +111,7 @@ it("lets a timer STOP a hot 100-frame iterator before exhaustion, rejects the yi
   };
   let produced = 0;
   let cutoff = 0;
-  const emitted: PropagationResult[] = [];
+  const emitted: (PropagationResult & { kind: "polygons" })[] = [];
   service.propagate = async function* (submitted) {
     setTimeout(() => {
       cutoff = store.getState().stagedOperations.length;
@@ -120,6 +123,7 @@ it("lets a timer STOP a hot 100-frame iterator before exhaustion, rejects the yi
         frameId: `submission-frame-${index}`,
         instanceId: "instance-1",
         context: submitted.context,
+        kind: "polygons" as const,
         polygons: [{ id: `stream-${index}`, points: cloneSegmentation(points) }],
       };
       emitted.push(result);
@@ -138,13 +142,13 @@ it("lets a timer STOP a hot 100-frame iterator before exhaustion, rejects the yi
   });
   expect(() => store.getState().addClass("Locked until terminal ack")).toThrow("Stop propagation");
   expect(before).toEqual(snapshot);
-  expect(store.getState().document!.annotations[key(cutoff + 1)]!.polygons[0]!.id).toBe(
+  expect(polygonsOf(store.getState().document!.annotations[key(cutoff + 1)])[0]!.id).toBe(
     `submission-polygon-${cutoff + 1}`,
   );
   const staged = cloneSegmentation(store.getState().stagedOperations);
   emitted[0]!.polygons[0]!.points[0]!.x = 0.9;
   expect(store.getState().stagedOperations).toEqual(staged);
-  expect(store.getState().document!.annotations[key(1)]!.polygons[0]!.points).toEqual(points);
+  expect(polygonsOf(store.getState().document!.annotations[key(1)])[0]!.points).toEqual(points);
   const stopped = new Promise<void>((resolve) => {
     const detach = store.subscribe((state) => {
       if (state.propagation.status === "cancelled") {
@@ -176,6 +180,7 @@ it("retains all 100 unique frames, complete window geometry, manual edits and un
         frameId: `submission-frame-${index}`,
         instanceId: "instance-1",
         context: submitted.context,
+        kind: "polygons" as const,
         polygons: [{ id: `stream-${index}`, points }],
       };
     }
@@ -185,14 +190,14 @@ it("retains all 100 unique frames, complete window geometry, manual edits and un
   expect(store.getState().propagation).toMatchObject({ status: "completed", processedFrames: 100 });
   expect(store.getState().stagedOperations).toHaveLength(101);
   for (let index = 1; index <= 100; index++) {
-    expect(store.getState().document!.annotations[key(index)]!.polygons).toEqual([
+    expect(polygonsOf(store.getState().document!.annotations[key(index)])).toEqual([
       { id: `stream-${index}`, points },
     ]);
   }
   expect(
-    store.getState().document!.annotations[key(0, "instance-2")]!.polygons.map((p) => p.id),
+    polygonsOf(store.getState().document!.annotations[key(0, "instance-2")]).map((p) => p.id),
   ).toEqual(["unselected-0", manual]);
-  expect(store.getState().document!.annotations[key(60, "instance-2")]!.polygons[0]!.id).toBe(
+  expect(polygonsOf(store.getState().document!.annotations[key(60, "instance-2")])[0]!.id).toBe(
     "unselected-60",
   );
   expect(store.getState().document!.annotationSummaries[key(900)]).toEqual({
@@ -202,12 +207,12 @@ it("retains all 100 unique frames, complete window geometry, manual edits and un
   expect(oldDocument).toEqual(oldSnapshot);
   expect(store.getState().stagedOperations[0]).toEqual(oldOperations[0]);
   store.getState().undo();
-  expect(store.getState().document!.annotations[key(100)]!.polygons[0]!.id).toBe(
+  expect(polygonsOf(store.getState().document!.annotations[key(100)])[0]!.id).toBe(
     "submission-polygon-100",
   );
-  expect(store.getState().document!.annotations[key(99)]!.polygons[0]!.id).toBe("stream-99");
+  expect(polygonsOf(store.getState().document!.annotations[key(99)])[0]!.id).toBe("stream-99");
   expect(
-    store.getState().document!.annotations[key(0, "instance-2")]!.polygons.map((p) => p.id),
+    polygonsOf(store.getState().document!.annotations[key(0, "instance-2")]).map((p) => p.id),
   ).toContain(manual);
   store.getState().dispose();
 });
@@ -226,6 +231,7 @@ it("also yields during a hot flood of context-rejected results", async () => {
         frameId: `submission-frame-${index}`,
         instanceId: "instance-1",
         context: { ...submitted.context!, requestId: "foreign" },
+        kind: "polygons" as const,
         polygons: [{ id: `stream-${index}`, points }],
       };
     }
@@ -252,7 +258,7 @@ it("publishes each accepted result atomically and respects a subscriber STOP bef
   let stoppedDocument: ReturnType<typeof store.getState>["document"];
   const detach = store.subscribe((state, previous) => {
     if (state.stagedOperations.length > previous.stagedOperations.length) {
-      expect(state.document!.annotations[key(1)]!.polygons[0]!.id).toBe("stream-1");
+      expect(polygonsOf(state.document!.annotations[key(1)])[0]!.id).toBe("stream-1");
       expect(state.propagation.processedFrames).toBe(1);
       store.getState().stopPropagation();
       stoppedDocument = store.getState().document;
@@ -264,6 +270,7 @@ it("publishes each accepted result atomically and respects a subscriber STOP bef
         frameId: `submission-frame-${index}`,
         instanceId: "instance-1",
         context: submitted.context,
+        kind: "polygons" as const,
         polygons: [{ id: `stream-${index}`, points }],
       };
     }
@@ -290,6 +297,7 @@ it("replays dependent patches in order with isolated base and patch data, merges
         [key(1, "created")]: {
           frameId: "submission-frame-1",
           instanceId: "created",
+          kind: "polygons",
           polygons: [{ id: "new", points: cloneSegmentation(points) }],
         },
       },
@@ -310,14 +318,14 @@ it("replays dependent patches in order with isolated base and patch data, merges
   delete baseSnapshot.annotations[key(900)];
   const patchSnapshot = cloneSegmentation(patches);
   const next = applySegmentationPatches(document, patches);
-  expect(next.annotations[key(1, "created")]!.polygons.map((p) => p.id)).toEqual([
+  expect(polygonsOf(next.annotations[key(1, "created")]).map((p) => p.id)).toEqual([
     "submission-polygon-1",
   ]);
   expect(next.annotationSummaries[key(900, "created")]).toEqual({ polygonCount: 1, pointCount: 4 });
   expect(next.annotationSummaries[key(900)]).toBeUndefined();
   expect(document).toEqual(baseSnapshot);
   expect(patches).toEqual(patchSnapshot);
-  next.annotations[key(1, "created")]!.polygons[0]!.points[0]!.x = 0.8;
+  polygonsOf(next.annotations[key(1, "created")])[0]!.points[0]!.x = 0.8;
   next.instances.find((instance) => instance.id === "created")!.name = "Changed output";
   expect(document).toEqual(baseSnapshot);
   expect(patches).toEqual(patchSnapshot);

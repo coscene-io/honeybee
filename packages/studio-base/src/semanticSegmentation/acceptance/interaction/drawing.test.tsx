@@ -9,6 +9,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 
 import { editor, fixture, pointer, polygon, triangle } from "./fixtures";
+import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 
 function frameImage(width: number, height: number) {
@@ -29,7 +30,7 @@ function loadSize(container: HTMLElement, width: number, height: number) {
   fireEvent.load(image);
 }
 
-it("SEG-DRAW-001/002/003/005 inserts at missing I, renders ordered draft segments, and Escape retains empty Q and saved P", async () => {
+it("SEG-DRAW-001/002/003/005 draws at missing I from a document-free draft, and Escape adds nothing beside saved P", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   delete document.annotations[frameInstanceKey("frame-0", "instance-1")];
@@ -37,12 +38,16 @@ it("SEG-DRAW-001/002/003/005 inserts at missing I, renders ordered draft segment
   const { store, container } = await editor(document);
   const otherFrame = polygon(store, "instance-1", "frame-1");
   fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Person 1" }));
-  const p = store.getState().drawingPolygonId!;
+  expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
   expect(store.getState().currentFrameId).toBe("frame-0");
-  expect(polygon(store)).toEqual({ id: p, points: [], topic: "/camera/front" });
+  // The draft lives in the canvas: nothing is staged or stored until it is finished.
+  expect(
+    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+  ).toBeUndefined();
+  expect(store.getState().stagedOperations).toHaveLength(0);
   expect(canvas().style.cursor).toBe("crosshair");
   expect(screen.getByRole("alert").textContent).toContain(
-    "Click to add vertices. Enter finishes with at least 3 points. Esc cancels",
+    "Click to add vertices. Enter finishes with at least 3 points; Esc cancels",
   );
   expect(screen.getByRole("button", { name: "Close" })).toBeDefined();
   loadSize(container, 100, 100);
@@ -57,16 +62,20 @@ it("SEG-DRAW-001/002/003/005 inserts at missing I, renders ordered draft segment
   expect(canvas().querySelectorAll('g[pointer-events="none"] circle')).toHaveLength(3);
   key("Enter");
   expect(polygon(store).points).toEqual(triangle);
+  expect(polygon(store).topic).toBe("/camera/front");
+  expect(store.getState().drawing).toBeUndefined();
   const saved = polygon(store);
+  const staged = store.getState().stagedOperations;
   fireEvent.click(screen.getByRole("button", { name: "Add polygon to ● Person 1" }));
-  const q = store.getState().drawingPolygonId!;
+  expect(store.getState().drawing?.instanceId).toBe("instance-1");
   pointer(canvas(), "pointerdown", 50, 50);
   pointer(canvas(), "pointerdown", 60, 60);
   key("Escape");
-  expect(store.getState().drawingPolygonId).toBeUndefined();
+  expect(store.getState().drawing).toBeUndefined();
+  expect(store.getState().stagedOperations).toEqual(staged);
   expect(
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons,
-  ).toEqual([saved, { id: q, points: [], topic: "/camera/front" }]);
+    polygonsOf(store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]),
+  ).toEqual([saved]);
   expect(polygon(store, "instance-1", "frame-1")).toEqual(otherFrame);
   store.getState().dispose();
 });
@@ -89,7 +98,8 @@ it.each(
 )("SEG-DRAW-006/009 invalid draft $points remains open without staged area", async ({ points }) => {
   const { store } = await editor();
   fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Empty instance" }));
-  const id = store.getState().drawingPolygonId;
+  const drawing = store.getState().drawing;
+  expect(drawing?.instanceId).toBe("instance-empty");
   const staged = store.getState().stagedOperations;
   for (const [x, y] of points) {
     pointer(canvas(), "pointerdown", x!, y!);
@@ -102,17 +112,21 @@ it.each(
         : "Vertices must enclose a nonzero area.",
     ),
   ).toBeDefined();
-  expect(store.getState().drawingPolygonId).toBe(id);
-  expect(polygon(store, "instance-empty").points).toEqual([]);
+  expect(store.getState().drawing).toEqual(drawing);
+  expect(
+    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-empty")],
+  ).toBeUndefined();
   expect(store.getState().stagedOperations).toEqual(staged);
-  expect(screen.getByText(new RegExp(`^Drawing: ${points.length} vertices · `))).toBeDefined();
+  expect(
+    screen.getByText(new RegExp(`^Drawing a polygon: ${points.length} vertices · `)),
+  ).toBeDefined();
   store.getState().dispose();
 });
 
 it("SEG-DRAW-010 text-field Enter does not finish a simultaneous valid polygon draft", async () => {
   const { store } = await editor();
   fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Empty instance" }));
-  const id = store.getState().drawingPolygonId;
+  const drawing = store.getState().drawing;
   for (const [x, y] of [
     [96, 54],
     [288, 54],
@@ -125,16 +139,18 @@ it("SEG-DRAW-010 text-field Enter does not finish a simultaneous valid polygon d
   fireEvent.change(input, { target: { value: "   " } });
   fireEvent.keyDown(input, { key: "Enter" });
   expect(screen.getByText("Enter a class name of 1–100 characters.")).toBeDefined();
-  expect(store.getState().drawingPolygonId).toBe(id);
-  expect(screen.getByText(/^Drawing: 3 vertices · /)).toBeDefined();
-  expect(polygon(store, "instance-empty").points).toEqual([]);
+  expect(store.getState().drawing).toEqual(drawing);
+  expect(screen.getByText(/^Drawing a polygon: 3 vertices · /)).toBeDefined();
+  expect(
+    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-empty")],
+  ).toBeUndefined();
   store.getState().dispose();
 });
 
 it("SEG-DRAW-011/019 fractional image vertex drag survives durable mock submit and reload within 0.01 pixel", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
-  document.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons[0]!.points = triangle;
+  polygonsOf(document.annotations[frameInstanceKey("frame-0", "instance-1")])[0]!.points = triangle;
   const { store, service, container } = await editor(document);
   loadSize(container, 100, 100);
   fireEvent.click(screen.getByRole("button", { name: "● Person 1" }));
@@ -159,8 +175,8 @@ it("SEG-DRAW-011/019 fractional image vertex drag survives durable mock submit a
     await store.getState().waitForSubmissions();
   });
   const loaded = await service.loadFrameWindow("video-1", 0, 0.4);
-  const point =
-    loaded.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons[0]!.points[0]!;
+  const point = polygonsOf(loaded.annotations[frameInstanceKey("frame-0", "instance-1")])[0]!
+    .points[0]!;
   expect(Math.abs(point.x * 100 - 12.5)).toBeLessThanOrEqual(0.01);
   expect(Math.abs(point.y * 100 - 13.25)).toBeLessThanOrEqual(0.01);
   expect(store.getState().submissionQueue[0]!.status).toBe("succeeded");
@@ -169,13 +185,17 @@ it("SEG-DRAW-011/019 fractional image vertex drag survives durable mock submit a
 
 it("SEG-DRAW-013 retains two disjoint selectable components in one instance across reload", async () => {
   const document = fixture(2);
-  const p = document.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons[0]!;
+  const p = polygonsOf(document.annotations[frameInstanceKey("frame-0", "instance-1")])[0]!;
   p.points = triangle;
   const q = {
     id: "disjoint-Q",
     points: triangle.map((point) => ({ x: point.x + 0.5, y: point.y + 0.5 })),
   };
-  document.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons.push(q);
+  const owner = document.annotations[frameInstanceKey("frame-0", "instance-1")]!;
+  if (owner.kind !== "polygons") {
+    throw new Error("fixture observation must be polygons");
+  }
+  owner.polygons.push(q);
   const { store, service } = await editor(document);
   const union = canvas().querySelector(
     '[data-instance-id="instance-1"] [data-testid="instance-union-fill"]',
@@ -189,9 +209,11 @@ it("SEG-DRAW-013 retains two disjoint selectable components in one instance acro
     expect(store.getState().selection).toEqual([{ type: "polygon", id }]);
   }
   expect(
-    (await service.loadFrameWindow("video-1", 0, 1)).annotations[
-      frameInstanceKey("frame-0", "instance-1")
-    ]!.polygons,
+    polygonsOf(
+      (await service.loadFrameWindow("video-1", 0, 1)).annotations[
+        frameInstanceKey("frame-0", "instance-1")
+      ],
+    ),
   ).toEqual([p, q]);
   await act(async () => {
     await store.getState().initialize();
@@ -204,7 +226,7 @@ it("SEG-DRAW-013 retains two disjoint selectable components in one instance acro
     [...reloadedUnion.querySelectorAll("path")].every((path) => path.getAttribute("d")!.length > 0),
   ).toBe(true);
   expect(
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons,
+    polygonsOf(store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]),
   ).toEqual([p, q]);
   for (const [index, id] of [p.id, q.id].entries()) {
     pointer(reloadedUnion.querySelectorAll("path")[index]!, "pointerdown", 100, 100);
@@ -269,6 +291,6 @@ it("SEG-DRAW-017 exact2x SVG layout maps an actual drawing pointer to fractional
   expect(points[0]!.y * 100).toBeCloseTo(20.25, 8);
   expect(points[1]!.x * 100).toBeCloseTo(30.5, 8);
   expect(points[2]!.y * 100).toBeCloseTo(40.25, 8);
-  expect(store.getState().drawingPolygonId).toBeUndefined();
+  expect(store.getState().drawing).toBeUndefined();
   store.getState().dispose();
 });

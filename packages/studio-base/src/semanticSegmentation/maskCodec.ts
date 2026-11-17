@@ -80,10 +80,7 @@ export function encodeCounts(runs: ArrayLike<number>): string {
   return s;
 }
 
-function boundsOf(
-  intervals: Uint32Array,
-  height: number,
-): MaskRuns["bbox"] & { area: number } {
+function boundsOf(intervals: Uint32Array, height: number): MaskRuns["bbox"] & { area: number } {
   let area = 0;
   let y0 = height;
   let y1 = -1;
@@ -234,6 +231,40 @@ export function unionRuns(a: MaskRuns, b: MaskRuns): MaskRuns {
     if (out.length > 0 && start <= out[out.length - 1]!) {
       out[out.length - 1] = Math.max(out[out.length - 1]!, end);
     } else {
+      out.push(start, end);
+    }
+  }
+  return runsFromIntervals(Uint32Array.from(out), a.width, a.height);
+}
+
+/** Foreground of `a` that is not in `b` (the eraser). */
+export function subtractRuns(a: MaskRuns, b: MaskRuns): MaskRuns {
+  if (a.width !== b.width || a.height !== b.height) {
+    throw new Error("Cannot subtract masks bound to different frame sizes");
+  }
+  const out: number[] = [];
+  let j = 0;
+  for (let i = 0; i < a.intervals.length; i += 2) {
+    let start = a.intervals[i]!;
+    const end = a.intervals[i + 1]!;
+    while (j < b.intervals.length && b.intervals[j + 1]! <= start) {
+      j += 2;
+    }
+    let k = j;
+    while (start < end && k < b.intervals.length && b.intervals[k]! < end) {
+      const cutStart = b.intervals[k]!;
+      const cutEnd = b.intervals[k + 1]!;
+      if (cutStart > start) {
+        out.push(start, cutStart);
+      }
+      start = Math.max(start, cutEnd);
+      if (cutEnd <= end) {
+        k += 2;
+      } else {
+        break;
+      }
+    }
+    if (start < end) {
       out.push(start, end);
     }
   }

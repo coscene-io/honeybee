@@ -28,7 +28,7 @@ import {
   windowBoundaryMicros,
 } from "./frameTime";
 import { maskRunsFromCounts } from "./maskCodec";
-import { observationHasGeometry } from "./maskGeometry";
+import { maskObservation, observationHasGeometry, polygonObservation } from "./maskGeometry";
 import { describeViolation, polygonViolation } from "./polygonContract";
 import {
   applySegmentationPatches,
@@ -44,6 +44,7 @@ import type {
   AnnotationSummary,
   FrameInstance,
   FrameWindow,
+  ObservationGeometry,
   PropagationResult,
   SegmentationClass,
   SegmentationDocument,
@@ -51,6 +52,7 @@ import type {
   SegmentationPolygon,
   SegmentationVideo,
   SubmitResult,
+  UnreadableObservation,
 } from "./types";
 import { isUuid, polygonWireId } from "./wireIds";
 
@@ -166,6 +168,12 @@ export function createLiveAnnotationService(options: {
   const loadedFrames = new Set<string>();
   /** `occluded` has no editor field; keep the server value so a save does not reset it. */
   const occluded = new Map<string, boolean>();
+  /**
+   * Server observations the editor cannot show (`doc.unreadableObservations`), as read. A frame
+   * snapshot replaces the whole frame, so they are re-sent verbatim until the user replaces or
+   * clears that instance on that frame.
+   */
+  const opaqueWires = new Map<string, WireFrame>();
   const indexes = new Map<string, FrameTimeIndex>();
   const ranges = new Map<string, WireTimelineRange[]>();
   let summaries: Record<string, AnnotationSummary> = {};
@@ -298,32 +306,37 @@ export function createLiveAnnotationService(options: {
     rebuildSummaries();
   }
 
+  /** A wire observation as editor geometry, or why the editor cannot show it. */
   function toObservation(
     wire: WireFrame,
     video: SegmentationVideo & { topic: string },
     size: { width: number; height: number },
     frameId: string,
-  ): FrameInstance | undefined {
+  ): FrameInstance | { unreadable: string } {
     const instanceId = idOf(wire.instance);
     if (wire.geometry.case === "mask") {
       try {
         maskRunsFromCounts(wire.geometry.value.counts, size.width, size.height);
-      } catch {
+      } catch (error) {
         diagnostics.maskSizeMismatches++;
-        return undefined;
+        return {
+          unreadable: `mask 与 ${video.topic} 的源图尺寸 ${size.width}×${size.height} 不符（${
+            error instanceof Error ? error.message : String(error)
+          }）`,
+        };
       }
-      return {
-        frameId,
-        instanceId,
-        polygons: [],
-        mask: { counts: wire.geometry.value.counts, width: size.width, height: size.height },
-      };
+      const observation = maskObservation(frameId, instanceId, {
+        counts: wire.geometry.value.counts,
+        width: size.width,
+        height: size.height,
+      });
+      return observation ?? { unreadable: "mask 没有前景像素" };
     }
     if (wire.geometry.case === "polygons") {
-      return {
+      const observation = polygonObservation(
         frameId,
         instanceId,
-        polygons: wire.geometry.value.polygons.map((polygon) => ({
+        wire.geometry.value.polygons.map((polygon) => ({
           id: polygon.id,
           topic: video.topic,
           points: polygon.points.map((point) => ({
@@ -331,9 +344,10 @@ export function createLiveAnnotationService(options: {
             y: point.y / size.height,
           })),
         })),
-      };
+      );
+      return observation ?? { unreadable: "多边形少于 3 个顶点" };
     }
-    return undefined;
+    return { unreadable: "观测没有几何" };
   }
 
   /** Reads `[fromMicros, toMicros)` of one topic and makes it the complete state of those frames. */
@@ -342,7 +356,10 @@ export function createLiveAnnotationService(options: {
     fromMicros: bigint,
     toMicros: bigint,
     signal?: AbortSignal,
-  ): Promise<Record<string, FrameInstance>> {
+  ): Promise<{
+    annotations: Record<string, FrameInstance>;
+    unreadable: Record<string, UnreadableObservation>;
+  }> {
     const video = videoOf(videoId);
     const wireFrames: WireFrame[] = [];
     for (let start = fromMicros; start < toMicros; start += MAX_WINDOW_MICROS) {
@@ -367,6 +384,8 @@ export function createLiveAnnotationService(options: {
     throwIfAborted(signal);
     const index = indexOf(videoId);
     const annotations: Record<string, FrameInstance> = {};
+    const unreadable: Record<string, UnreadableObservation> = {};
+    const unreadableWires = new Map<string, WireFrame>();
     const size = wireFrames.length > 0 ? sizeOf(video) : undefined;
     for (const wire of wireFrames) {
       if (!wire.frameTime) {
@@ -382,10 +401,14 @@ export function createLiveAnnotationService(options: {
         continue;
       }
       const observation = toObservation(wire, video, size!, resolved.frameId);
-      if (observation) {
-        const key = frameInstanceKey(observation.frameId, observation.instanceId);
+      const instanceId = idOf(wire.instance);
+      const key = frameInstanceKey(resolved.frameId, instanceId);
+      occluded.set(key, wire.occluded);
+      if ("unreadable" in observation) {
+        unreadable[key] = { frameId: resolved.frameId, instanceId, reason: observation.unreadable };
+        unreadableWires.set(key, wire);
+      } else {
         annotations[key] = observation;
-        occluded.set(key, wire.occluded);
       }
     }
     // The read is the complete state of every registered frame in the range.
@@ -406,11 +429,29 @@ export function createLiveAnnotationService(options: {
       }
     }
     Object.assign(doc.annotations, cloneSegmentation(annotations));
+    const keptUnreadable = Object.entries(doc.unreadableObservations ?? {}).filter(
+      ([key, item]) => {
+        if (covered.has(item.frameId)) {
+          opaqueWires.delete(key);
+          return false;
+        }
+        return true;
+      },
+    );
+    for (const [key, wire] of unreadableWires) {
+      opaqueWires.set(key, wire);
+    }
+    const nextUnreadable = { ...Object.fromEntries(keptUnreadable), ...unreadable };
+    if (Object.keys(nextUnreadable).length > 0) {
+      doc.unreadableObservations = nextUnreadable;
+    } else {
+      delete doc.unreadableObservations;
+    }
     for (const id of covered) {
       loadedFrames.add(id);
     }
     diagnostics.loadedFrames = loadedFrames.size;
-    return annotations;
+    return { annotations, unreadable };
   }
 
   async function ensureFramesLoaded(frameIds: Iterable<string>): Promise<void> {
@@ -471,39 +512,46 @@ export function createLiveAnnotationService(options: {
       });
   }
 
-  /** One observation on the wire; undefined when nothing savable is left (it is then cleared). */
+  /**
+   * One observation on the wire. Checks everything AnnotationGeometry checks and what it does not
+   * (mask pixel total, coordinates within the frame), so a bad observation is named here instead
+   * of failing the whole save, or being stored and later unreadable.
+   */
   function wireObservation(
-    annotation: FrameInstance,
+    annotation: { instanceId: string; frameId: string } & ObservationGeometry,
     topic: string,
     size: { width: number; height: number },
     frameTime: { seconds: bigint; nanos: number },
-  ): WireFrameInit | undefined {
+  ): WireFrameInit {
     const instance = instanceResource(requireUuid(annotation.instanceId, "Instance"));
-    const occludedValue = occluded.get(frameInstanceKey(annotation.frameId, annotation.instanceId));
-    if (annotation.mask) {
-      if (annotation.polygons.length > 0) {
-        throw new Error("An observation has exactly one geometry: polygons or a mask, not both");
-      }
-      if (annotation.mask.width !== size.width || annotation.mask.height !== size.height) {
+    const occludedValue =
+      occluded.get(frameInstanceKey(annotation.frameId, annotation.instanceId)) ?? false;
+    if (annotation.kind === "mask") {
+      const { mask } = annotation;
+      if (mask.width !== size.width || mask.height !== size.height) {
         throw new Error(
-          `Mask is bound to ${annotation.mask.width}×${annotation.mask.height}, but ${topic} decodes at ${size.width}×${size.height}`,
+          `Mask is bound to ${mask.width}×${mask.height}, but ${topic} decodes at ${size.width}×${size.height}`,
         );
+      }
+      // Throws unless the counts cover exactly width × height (the backend does not check this).
+      if (maskRunsFromCounts(mask.counts, size.width, size.height).area === 0) {
+        throw new Error(`${topic} 上的 mask 没有前景像素，不能保存`);
       }
       return {
         instance,
         frameTime,
-        occluded: occludedValue ?? false,
-        geometry: { case: "mask" as const, value: { counts: annotation.mask.counts } },
+        occluded: occludedValue,
+        geometry: { case: "mask" as const, value: { counts: mask.counts } },
       };
     }
     const polygons = wirePolygons(annotation.polygons, instance, size, topic);
     if (polygons.length === 0) {
-      return undefined;
+      throw new Error(`${topic} 上的多边形观测没有完整的多边形，不能保存`);
     }
     return {
       instance,
       frameTime,
-      occluded: occludedValue ?? false,
+      occluded: occludedValue,
       geometry: { case: "polygons" as const, value: { polygons } },
     };
   }
@@ -526,12 +574,16 @@ export function createLiveAnnotationService(options: {
       }
       const video = videoOf(frame.videoId);
       const frameTime = microsToTimestamp(indexOf(frame.videoId).frameTimeOf(frameId));
-      const observations = (byFrame.get(frameId) ?? [])
+      const observations: WireFrameInit[] = (byFrame.get(frameId) ?? [])
         .sort((left, right) => left.instanceId.localeCompare(right.instanceId))
-        .flatMap((annotation) => {
-          const wire = wireObservation(annotation, video.topic, sizeOf(video), frameTime);
-          return wire ? [wire] : [];
-        });
+        .map((annotation) => wireObservation(annotation, video.topic, sizeOf(video), frameTime));
+      // What the editor could not read is still on the server: keep it, untouched.
+      for (const [key, unreadable] of Object.entries(candidate.unreadableObservations ?? {})) {
+        const wire = opaqueWires.get(key);
+        if (unreadable.frameId === frameId && wire && !(key in candidate.annotations)) {
+          observations.push(wire);
+        }
+      }
       snapshots.push({ topic: video.topic, frameTime, annotations: observations });
     }
     return snapshots;
@@ -708,8 +760,10 @@ export function createLiveAnnotationService(options: {
       }));
       // A fresh document read starts geometry over: windows are re-read from the service.
       doc.annotations = {};
+      delete doc.unreadableObservations;
       loadedFrames.clear();
       occluded.clear();
+      opaqueWires.clear();
       await refreshTimeline(signal);
       return {
         ...cloneSegmentation(doc),
@@ -722,13 +776,16 @@ export function createLiveAnnotationService(options: {
       // The local window is inclusive of `endSec`; the wire window is [start, end).
       const from = windowBoundaryMicros(startNs, startSec);
       const to = windowBoundaryMicros(startNs, endSec) + 1n;
-      const annotations = await readRange(videoId, from, to, signal);
+      const { annotations, unreadable } = await readRange(videoId, from, to, signal);
       rebuildSummaries();
       return {
         videoId,
         startSec,
         endSec,
         annotations: cloneSegmentation(annotations),
+        ...(Object.keys(unreadable).length > 0
+          ? { unreadable: cloneSegmentation(unreadable) }
+          : {}),
       };
     },
     async submit(request): Promise<SubmitResult> {
@@ -823,6 +880,12 @@ export function createLiveAnnotationService(options: {
           ),
         ),
       };
+      // Superseded or cascaded-away unreadable observations are gone from the server too.
+      for (const key of opaqueWires.keys()) {
+        if (!(key in (doc.unreadableObservations ?? {}))) {
+          opaqueWires.delete(key);
+        }
+      }
       // Timeline presence changed with the save; refresh it for unloaded frames.
       await refreshTimeline();
       return {
@@ -845,28 +908,16 @@ export function createLiveAnnotationService(options: {
       if (endMicros <= seedMicros) {
         throw new Error("End time must be later than the seed frame");
       }
-      const seedAnnotation = doc.annotations[frameInstanceKey(source.id, request.instanceId)];
       const seeds =
         request.seeds ??
-        resolvePropagationSeeds(request, seedAnnotation?.polygons, seedAnnotation?.mask);
-      const frameTime = microsToTimestamp(seedMicros);
-      const wireSeeds = seeds.map((seed) => {
-        const wire = wireObservation(
-          {
-            frameId: source.id,
-            instanceId: seed.instanceId,
-            polygons: seed.mask ? [] : seed.polygons,
-            ...(seed.mask ? { mask: seed.mask } : {}),
-          },
-          video.topic,
-          size,
-          frameTime,
+        resolvePropagationSeeds(
+          request,
+          doc.annotations[frameInstanceKey(source.id, request.instanceId)],
         );
-        if (!wire) {
-          throw new Error("Propagation requires a nonempty seed polygon");
-        }
-        return wire;
-      });
+      const frameTime = microsToTimestamp(seedMicros);
+      const wireSeeds = seeds.map((seed) =>
+        wireObservation({ ...seed, frameId: source.id }, video.topic, size, frameTime),
+      );
       const instanceIds = seeds.map((seed) => seed.instanceId);
       const stream = client.propagateAnnotation(
         {
@@ -902,18 +953,17 @@ export function createLiveAnnotationService(options: {
           // A frame event replaces every selected instance: an omitted one is cleared.
           for (const instanceId of instanceIds) {
             const wire = byInstance.get(instanceId);
-            const observation = wire
-              ? toObservation(wire, video, size, resolved.frameId)
-              : undefined;
-            if (observation?.mask) {
+            const decoded = wire ? toObservation(wire, video, size, resolved.frameId) : undefined;
+            // Propagation output must decode at the source size; anything else clears the draft.
+            const observation: PropagationResult =
+              decoded && !("unreadable" in decoded)
+                ? decoded
+                : { frameId: resolved.frameId, instanceId, kind: "empty" };
+            if (observation.kind === "mask") {
               observation.mask.source = "propagation";
             }
             yield {
-              ...(observation ?? {
-                frameId: resolved.frameId,
-                instanceId,
-                polygons: [],
-              }),
+              ...observation,
               ...(request.context ? { context: cloneSegmentation(request.context) } : {}),
             };
           }

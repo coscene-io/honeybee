@@ -10,7 +10,17 @@ import { v4 as uuidv4 } from "uuid";
 import { createStore, StoreApi } from "zustand";
 
 import { ANNOTATION_WINDOW_SEC, annotationWindow } from "./annotationFrames";
-import { maskToEditorPolygons, mergeObservations, summarizeObservation } from "./maskGeometry";
+import {
+  maskObservation,
+  maskOf,
+  maskOfRuns,
+  maskToEditorPolygons,
+  mergeObservations,
+  polygonObservation,
+  polygonsOf,
+  runsOfPolygons,
+  summarizeObservation,
+} from "./maskGeometry";
 import { createMockSemanticSegmentationService } from "./mockService";
 import {
   applySegmentationPatch,
@@ -23,8 +33,9 @@ import {
   validatePropagationCapabilities,
 } from "./service";
 import {
+  CreationTool,
   FrameInstance,
-  MaskEditState,
+  FrameWindow,
   NormalizedPoint,
   PropagationContext,
   SegmentationDocument,
@@ -49,6 +60,46 @@ function validatePoints(points: NormalizedPoint[]) {
   }
 }
 
+/** A stored polygon is complete: at least three vertices enclosing a nonzero area. */
+function validateCompletePolygon(points: NormalizedPoint[]) {
+  validatePoints(points);
+  if (points.length < 3) {
+    throw new Error("A polygon needs at least 3 vertices");
+  }
+  const area = points.reduce((sum, point, index) => {
+    const next = points[(index + 1) % points.length]!;
+    return sum + point.x * next.y - next.x * point.y;
+  }, 0);
+  if (Math.abs(area) <= 1e-12) {
+    throw new Error("Polygon vertices must enclose a nonzero area");
+  }
+}
+
+const CREATION_TOOL_KEY = "coStudio.semanticSegmentation.creationTool";
+
+function storedCreationTool(): CreationTool {
+  try {
+    return globalThis.localStorage.getItem(CREATION_TOOL_KEY) === "quick" ? "quick" : "polygon";
+  } catch {
+    return "polygon";
+  }
+}
+
+/**
+ * Window geometry replaces what could not be read on exactly the window's frames. An empty set
+ * leaves no `unreadableObservations` key, so unchanged documents still compare equal.
+ */
+function withUnreadable(
+  document: SegmentationDocument,
+  frameWindow: FrameWindow,
+  frameIds: ReadonlySet<string>,
+): SegmentationDocument {
+  const { unreadableObservations: current, ...rest } = document;
+  const kept = Object.entries(current ?? {}).filter(([, item]) => !frameIds.has(item.frameId));
+  const next = Object.fromEntries([...kept, ...Object.entries(frameWindow.unreadable ?? {})]);
+  return Object.keys(next).length > 0 ? { ...rest, unreadableObservations: next } : rest;
+}
+
 /** Keep only existing refs; an explicit frame limits polygon refs to that frame. */
 export function filterSegmentationSelection(
   document: SegmentationDocument,
@@ -60,7 +111,7 @@ export function filterSegmentationSelection(
   const polygons = new Set(
     Object.values(document.annotations)
       .filter((item) => frameId == undefined || item.frameId === frameId)
-      .flatMap((item) => item.polygons.map((polygon) => polygon.id)),
+      .flatMap((item) => polygonsOf(item).map((polygon) => polygon.id)),
   );
   return selection.filter((node) =>
     node.type === "class"
@@ -104,49 +155,7 @@ export function createSemanticSegmentationStore(
   let transaction: { id: string; label: string } | undefined;
   // Each entry is one immutable command (possibly several grouped operations).
   let redoStack: StagedOperation[][] = [];
-  const store = createStore<SemanticSegmentationStore>((rawSet, get) => {
-    /** The mask edit view follows every state change: it ends with editing or a frame switch. */
-    const set: typeof rawSet = (...args: unknown[]) => {
-      (rawSet as (...forwarded: unknown[]) => void)(...args);
-      reconcileMaskEdit();
-    };
-    function maskEditView(doc: SegmentationDocument, edit: MaskEditState): SegmentationDocument {
-      const observation = doc.annotations[edit.key];
-      if (observation?.mask?.counts !== edit.counts) {
-        return doc;
-      }
-      const { mask: _mask, ...rest } = observation;
-      return {
-        ...doc,
-        annotations: { ...doc.annotations, [edit.key]: { ...rest, polygons: edit.polygons } },
-      };
-    }
-    function reconcileMaskEdit(): void {
-      const state = get();
-      const edit = state.maskEdit;
-      if (!edit) {
-        return;
-      }
-      const doc = state.document;
-      const observation = doc?.annotations[edit.key];
-      const ended = !doc || !state.editing || state.currentFrameId !== edit.frameId;
-      if (ended) {
-        // Restore the untouched mask unless the transient polygons were promoted by an edit.
-        const restored =
-          doc && observation?.polygons === edit.polygons
-            ? { ...doc, annotations: { ...doc.annotations, [edit.key]: edit.original } }
-            : doc;
-        rawSet({ maskEdit: undefined, ...(restored ? { document: restored } : {}) });
-        return;
-      }
-      if (observation?.mask) {
-        if (observation.mask.counts === edit.counts) {
-          rawSet({ document: maskEditView(doc, edit) });
-        } else {
-          rawSet({ maskEdit: undefined });
-        }
-      }
-    }
+  const store = createStore<SemanticSegmentationStore>((set, get) => {
     function acknowledgeStop(session: PropagationSession): void {
       session.cancelPending = false;
       if (
@@ -254,7 +263,12 @@ export function createSemanticSegmentationStore(
       return {
         selection: filterSegmentationSelection(next, current.selection, current.currentFrameId),
         focus,
-        ...(!focus ? { editing: false, drawingPolygonId: undefined } : {}),
+        ...(!focus ? { editing: false, drawing: undefined } : {}),
+        // A drawing session ends with its instance (deleted, merged away or undone).
+        ...(current.drawing &&
+        !next.instances.some((instance) => instance.id === current.drawing!.instanceId)
+          ? { drawing: undefined }
+          : {}),
       };
     }
     function rebuild() {
@@ -285,35 +299,32 @@ export function createSemanticSegmentationStore(
         assertEditable();
       }
       const normalized = cloneSegmentation(patch);
-      const maskEdit = get().maskEdit;
       for (const [key, next] of Object.entries(normalized.annotations ?? {})) {
         if (!next) {
           continue;
         }
         const previous = document().annotations[key];
-        if (key === maskEdit?.key || previous?.mask != undefined || next.mask != undefined) {
-          // One authoritative representation: a mask or a mask-to-polygon edit replaces the
-          // whole observation. Opening a mask without changing its polygons rewrites nothing.
-          const unchanged =
-            key === maskEdit?.key && next.mask == undefined
-              ? _.isEqual(next.polygons, maskEdit.polygons)
-              : next.mask != undefined &&
-                previous?.mask?.counts === next.mask.counts &&
-                previous.mask.width === next.mask.width &&
-                previous.mask.height === next.mask.height;
-          if (unchanged) {
+        if (next.kind === "mask" || previous?.kind === "mask") {
+          // One authoritative representation: a mask, or a change between representations,
+          // replaces the whole observation. An identical mask rewrites nothing.
+          if (
+            next.kind === "mask" &&
+            previous?.kind === "mask" &&
+            previous.mask.counts === next.mask.counts &&
+            previous.mask.width === next.mask.width &&
+            previous.mask.height === next.mask.height
+          ) {
             delete normalized.annotations![key];
-          } else if (next.mask) {
-            normalized.annotations![key] = { ...next, polygons: [] };
           }
           continue;
         }
+        const before = polygonsOf(previous);
         const polygons = Object.fromEntries(
           next.polygons
             .filter(
               (polygon) =>
                 !_.isEqual(
-                  previous?.polygons.find((item) => item.id === polygon.id),
+                  before.find((item) => item.id === polygon.id),
                   polygon,
                 ),
             )
@@ -321,7 +332,7 @@ export function createSemanticSegmentationStore(
         );
         const changes = {
           ...Object.fromEntries(
-            (previous?.polygons ?? [])
+            before
               .filter((polygon) => !next.polygons.some((item) => item.id === polygon.id))
               .map((polygon) => [polygon.id, undefined]),
           ),
@@ -352,7 +363,7 @@ export function createSemanticSegmentationStore(
         canRedo: false,
         stagedOperations: [...get().stagedOperations, operation],
         error: undefined,
-        ...(options?.exitEditing === true ? { editing: false, drawingPolygonId: undefined } : {}),
+        ...(options?.exitEditing === true ? { editing: false, drawing: undefined } : {}),
       });
       rebuild();
     }
@@ -414,38 +425,58 @@ export function createSemanticSegmentationStore(
         });
       pumpPromise = completion;
     }
-    function annotation(instanceId: string): FrameInstance {
+    /** The instance's observation on the current frame (a private clone), once its geometry is loaded. */
+    function observation(instanceId: string): FrameInstance | undefined {
       if (!loadedFrames.has(frameId())) {
         throw new Error("Wait for frame geometry to load");
       }
       if (!document().instances.some((instance) => instance.id === instanceId)) {
         throw new Error("Unknown instance");
       }
-      const value = cloneSegmentation(
-        document().annotations[frameInstanceKey(frameId(), instanceId)] ?? {
-          frameId: frameId(),
-          instanceId,
-          polygons: [],
-        },
-      );
-      if (value.mask) {
-        // A polygon edit on a mask observation replaces it with its polygon conversion.
-        const frame = document().frames.find((item) => item.id === value.frameId);
-        const topic = document().videos.find((video) => video.id === frame?.videoId)?.topic;
-        value.polygons = maskToEditorPolygons(value.mask, topic);
-        delete value.mask;
-      }
-      return value;
+      const value = document().annotations[frameInstanceKey(frameId(), instanceId)];
+      return value ? cloneSegmentation(value) : undefined;
     }
-    function findPolygon(polygonId: string): FrameInstance {
+    function topicOf(targetFrameId: string): string | undefined {
+      const frame = document().frames.find((item) => item.id === targetFrameId);
+      return document().videos.find((video) => video.id === frame?.videoId)?.topic;
+    }
+    /** The decoded source size of a frame's topic; geometry is never bound to a guessed size. */
+    function sourceSize(targetFrameId: string): { width: number; height: number } {
+      const frame = document().frames.find((item) => item.id === targetFrameId);
+      const video = document().videos.find((item) => item.id === frame?.videoId);
+      if (
+        video?.width == undefined ||
+        video.height == undefined ||
+        video.width <= 0 ||
+        video.height <= 0
+      ) {
+        throw new Error("The source image size of this camera is not known yet");
+      }
+      return { width: video.width, height: video.height };
+    }
+    function findPolygon(polygonId: string): FrameInstance & { kind: "polygons" } {
       const found = Object.values(document().annotations).find(
         (item) =>
-          item.frameId === frameId() && item.polygons.some((polygon) => polygon.id === polygonId),
+          item.frameId === frameId() &&
+          polygonsOf(item).some((polygon) => polygon.id === polygonId),
       );
-      if (!found) {
+      if (found?.kind !== "polygons") {
         throw new Error("Unknown polygon in current frame");
       }
       return cloneSegmentation(found);
+    }
+    function stageObservation(
+      label: string,
+      targetFrameId: string,
+      instanceId: string,
+      next: FrameInstance | undefined,
+      options?: { exitEditing?: true },
+    ) {
+      stage(
+        label,
+        { annotations: { [frameInstanceKey(targetFrameId, instanceId)]: next } },
+        options,
+      );
     }
     function checkedName(name: string): string {
       const value = name.trim();
@@ -466,7 +497,7 @@ export function createSemanticSegmentationStore(
       return `#${highest + 1}`;
     }
     function exitEditing() {
-      set({ editing: false, drawingPolygonId: undefined });
+      set({ editing: false, drawing: undefined });
     }
     function assertNavigation() {
       if (["running", "stopping"].includes(get().propagation.status)) {
@@ -483,8 +514,8 @@ export function createSemanticSegmentationStore(
       focus: undefined,
       selection: [],
       editing: false,
-      drawingPolygonId: undefined,
-      maskEdit: undefined,
+      drawing: undefined,
+      creationTool: storedCreationTool(),
       interactionResetVersion: 0,
       stagedOperations: [],
       canRedo: false,
@@ -539,15 +570,23 @@ export function createSemanticSegmentationStore(
           }
           // A document read omits geometry. Keep loaded windows and redo only when
           // the authoritative metadata is unchanged.
-          const sameBase =
-            base != undefined &&
-            _.isEqual({ ...base, annotations: {} }, { ...loaded, annotations: {} });
+          const metadata = (doc: SegmentationDocument) => {
+            const { annotations: _annotations, unreadableObservations: _unreadable, ...rest } = doc;
+            return rest;
+          };
+          const sameBase = base != undefined && _.isEqual(metadata(base), metadata(loaded));
           if (!sameBase) {
             redoStack = [];
             loadedFrames.clear();
           }
           base = sameBase
-            ? { ...loaded, annotations: { ...base!.annotations, ...loaded.annotations } }
+            ? {
+                ...loaded,
+                annotations: { ...base!.annotations, ...loaded.annotations },
+                ...(base!.unreadableObservations
+                  ? { unreadableObservations: base!.unreadableObservations }
+                  : {}),
+              }
             : loaded;
           ++baseGeneration;
           const first =
@@ -651,8 +690,16 @@ export function createSemanticSegmentationStore(
             const annotations = Object.fromEntries(
               Object.entries(frameWindow.annotations).filter(([item]) => unloaded(item)),
             );
+            const filled = new Set(
+              base.frames
+                .filter((frame) => inWindow(frame) && !loadedFrames.has(frame.id))
+                .map((frame) => frame.id),
+            );
+            const unreadable = Object.fromEntries(
+              Object.entries(frameWindow.unreadable ?? {}).filter(([item]) => unloaded(item)),
+            );
             base = {
-              ...base,
+              ...withUnreadable(base, { ...frameWindow, unreadable }, filled),
               annotations: { ...base.annotations, ...annotations },
               annotationSummaries: {
                 ...base.annotationSummaries,
@@ -706,19 +753,23 @@ export function createSemanticSegmentationStore(
               summarizeObservation(annotation),
             ]),
           );
+          const windowFrames = new Set(
+            base.frames
+              .filter(
+                (frame) =>
+                  frame.videoId === videoId &&
+                  frame.timestampSec >= startSec &&
+                  frame.timestampSec <= endSec,
+              )
+              .map((frame) => frame.id),
+          );
           base = {
-            ...base,
+            ...withUnreadable(base, frameWindow, windowFrames),
             annotations: { ...base.annotations, ...frameWindow.annotations },
             annotationSummaries: { ...base.annotationSummaries, ...loadedSummaries },
           };
-          for (const frame of base.frames) {
-            if (
-              frame.videoId === videoId &&
-              frame.timestampSec >= startSec &&
-              frame.timestampSec <= endSec
-            ) {
-              loadedFrames.add(frame.id);
-            }
+          for (const id of windowFrames) {
+            loadedFrames.add(id);
           }
           rebuild();
         } catch (error) {
@@ -742,7 +793,7 @@ export function createSemanticSegmentationStore(
         }
         set({
           currentFrameId: id,
-          drawingPolygonId: undefined,
+          drawing: undefined,
           selection: filterSegmentationSelection(document(), get().selection, id),
         });
         if (!loadedFrames.has(id)) {
@@ -761,8 +812,7 @@ export function createSemanticSegmentationStore(
         assertNavigation();
         const current = get();
         // Moving focus to another object completes an edit in progress. Narrowing or widening it
-        // within one instance (the instance, or one of its polygons) keeps editing: otherwise
-        // picking a polygon of a double-clicked mask ends the mask edit and the polygons vanish.
+        // within one instance (the instance, or one of its polygons) keeps editing.
         const owner = (ref: SegmentationNodeRef | undefined): string | undefined => {
           if (ref?.type === "instance") {
             return ref.id;
@@ -771,7 +821,7 @@ export function createSemanticSegmentationStore(
             return Object.values(current.document?.annotations ?? {}).find(
               (item) =>
                 item.frameId === current.currentFrameId &&
-                item.polygons.some((polygon) => polygon.id === ref.id),
+                polygonsOf(item).some((polygon) => polygon.id === ref.id),
             )?.instanceId;
           }
           return undefined;
@@ -781,7 +831,13 @@ export function createSemanticSegmentationStore(
           current.editing &&
           !sameInstance &&
           (focus?.type !== current.focus?.type || focus?.id !== current.focus?.id);
-        set({ focus, drawingPolygonId: undefined, ...(switching ? { editing: false } : {}) });
+        set({
+          focus,
+          ...(switching || (current.drawing && owner(focus) !== current.drawing.instanceId)
+            ? { drawing: undefined }
+            : {}),
+          ...(switching ? { editing: false } : {}),
+        });
       },
       setSelection(selection) {
         assertNavigation();
@@ -789,51 +845,52 @@ export function createSemanticSegmentationStore(
       },
       setEditing(editing) {
         assertEditable();
-        set({ editing, drawingPolygonId: undefined });
+        set({ editing, drawing: undefined });
       },
-      setDrawingPolygonId(id) {
+      startDrawing(instanceId, tool) {
         assertEditable();
-        set({ drawingPolygonId: id, editing: id != undefined || get().editing });
+        if (!document().instances.some((instance) => instance.id === instanceId)) {
+          throw new Error("Unknown instance");
+        }
+        if (tool) {
+          get().setCreationTool(tool);
+        }
+        set({
+          drawing: { instanceId, frameId: frameId() },
+          editing: true,
+          focus: { type: "instance", id: instanceId },
+          ...(get().viewMode === "original" ? { viewMode: "all" as const } : {}),
+        });
       },
-      beginMaskEdit(targetFrameId, instanceId) {
+      retargetDrawing(targetFrameId) {
         assertEditable();
+        const drawing = get().drawing;
+        if (!drawing) {
+          throw new Error("Nothing is being drawn");
+        }
+        if (!document().frames.some((frame) => frame.id === targetFrameId)) {
+          throw new Error("Unknown frame");
+        }
         if (!loadedFrames.has(targetFrameId)) {
           throw new Error("Wait for frame geometry to load");
         }
-        const current = get().maskEdit;
-        const key = frameInstanceKey(targetFrameId, instanceId);
-        if (current?.key === key) {
-          return current;
-        }
-        if (current) {
-          set({ editing: false });
-        }
-        const doc = document();
-        const observation = doc.annotations[key];
-        if (!observation?.mask) {
-          throw new Error("This observation is not a mask");
-        }
-        const frame = doc.frames.find((item) => item.id === targetFrameId);
-        const topic = doc.videos.find((video) => video.id === frame?.videoId)?.topic;
-        const edit: MaskEditState = {
-          key,
-          frameId: targetFrameId,
-          instanceId,
-          counts: observation.mask.counts,
-          original: observation,
-          polygons: maskToEditorPolygons(observation.mask, topic),
-        };
-        rawSet({
-          maskEdit: edit,
-          document: maskEditView(doc, edit),
+        set({
           currentFrameId: targetFrameId,
-          focus: { type: "instance", id: instanceId },
-          selection: [{ type: "instance", id: instanceId }],
+          drawing: { ...drawing, frameId: targetFrameId },
           editing: true,
-          drawingPolygonId: undefined,
-          ...(get().viewMode === "original" ? { viewMode: "all" as const } : {}),
+          selection: filterSegmentationSelection(document(), get().selection, targetFrameId),
         });
-        return edit;
+      },
+      cancelDrawing() {
+        set({ drawing: undefined });
+      },
+      setCreationTool(tool) {
+        try {
+          globalThis.localStorage.setItem(CREATION_TOOL_KEY, tool);
+        } catch {
+          // Storage may be disabled; the choice still applies to this session.
+        }
+        set({ creationTool: tool });
       },
       addClass(name = "New class") {
         assertEditable();
@@ -943,133 +1000,114 @@ export function createSemanticSegmentationStore(
           { exitEditing: true },
         );
       },
-      addPolygon(instanceId, points = []) {
-        validatePoints(points);
-        const current = annotation(instanceId);
+      addPolygon(instanceId, points) {
+        validateCompletePolygon(points);
+        const current = observation(instanceId);
         const id = uuidv4();
-        const frame = document().frames.find((item) => item.id === current.frameId);
-        const topic = document().videos.find((item) => item.id === frame?.videoId)?.topic;
-        current.polygons.push({
-          id,
-          points: cloneSegmentation(points),
-          ...(topic == undefined ? {} : { topic }),
-        });
-        stage("Create polygon", {
-          annotations: { [frameInstanceKey(current.frameId, instanceId)]: current },
-        });
-        set({
-          focus: { type: "instance", id: instanceId },
-          editing: true,
-          drawingPolygonId: points.length === 0 ? id : undefined,
-        });
+        const topic = topicOf(frameId());
+        const added: FrameInstance = {
+          frameId: frameId(),
+          instanceId,
+          kind: "polygons",
+          polygons: [
+            { id, points: cloneSegmentation(points), ...(topic == undefined ? {} : { topic }) },
+          ],
+        };
+        stageObservation(
+          "Create polygon",
+          frameId(),
+          instanceId,
+          mergeObservations(current, added, instanceId),
+        );
+        set({ focus: { type: "instance", id: instanceId }, editing: true, drawing: undefined });
         return id;
       },
-      retargetEmptyDrawing(targetFrameId) {
-        assertEditable();
-        const drawingId = get().drawingPolygonId;
-        if (drawingId == undefined) {
-          throw new Error("No polygon is being drawn");
+      addMask(instanceId, mask, label = "Quick annotate") {
+        const size = sourceSize(frameId());
+        if (mask.width !== size.width || mask.height !== size.height) {
+          throw new Error(
+            `The mask is ${mask.width}×${mask.height}, but this camera decodes at ${size.width}×${size.height}`,
+          );
         }
-        const doc = document();
-        const target = doc.frames.find((frame) => frame.id === targetFrameId);
-        if (!target) {
-          throw new Error("Unknown frame");
+        const added = maskObservation(frameId(), instanceId, cloneSegmentation(mask));
+        if (!added) {
+          throw new Error("The mask has no foreground pixels");
         }
-        if (!loadedFrames.has(targetFrameId)) {
-          throw new Error("Wait for frame geometry to load");
-        }
-        const source = Object.values(doc.annotations).find((item) =>
-          item.polygons.some((polygon) => polygon.id === drawingId),
+        stageObservation(
+          label,
+          frameId(),
+          instanceId,
+          mergeObservations(observation(instanceId), added, instanceId),
         );
-        const polygon = source?.polygons.find((item) => item.id === drawingId);
-        if (!source || !polygon) {
-          throw new Error("Unknown polygon");
+        set({ focus: { type: "instance", id: instanceId }, editing: true, drawing: undefined });
+      },
+      replaceMask(instanceId, mask, label = "Brush") {
+        const size = sourceSize(frameId());
+        if (mask.width !== size.width || mask.height !== size.height) {
+          throw new Error(
+            `The mask is ${mask.width}×${mask.height}, but this camera decodes at ${size.width}×${size.height}`,
+          );
         }
-        if (polygon.points.length > 0) {
-          throw new Error("Finish the polygon on the current canvas before switching.");
+        observation(instanceId);
+        stageObservation(
+          label,
+          frameId(),
+          instanceId,
+          maskObservation(frameId(), instanceId, cloneSegmentation(mask)),
+        );
+      },
+      convertToMask(instanceId) {
+        const current = observation(instanceId);
+        if (current?.kind !== "polygons") {
+          throw new Error("Only a polygon observation can be converted to a mask");
         }
-        if (source.frameId !== targetFrameId) {
-          const topic = doc.videos.find((video) => video.id === target.videoId)?.topic;
-          const { topic: _previous, ...rest } = polygon;
-          const moved = topic == undefined ? rest : { ...rest, topic };
-          const sourceNext = {
-            ...source,
-            polygons: source.polygons.filter((item) => item.id !== drawingId),
-          };
-          const key = frameInstanceKey(targetFrameId, source.instanceId);
-          const existing = doc.annotations[key];
-          const targetNext = existing
-            ? { ...cloneSegmentation(existing), polygons: [...existing.polygons, moved] }
-            : {
-                frameId: targetFrameId,
-                instanceId: source.instanceId,
-                polygons: [moved],
-              };
-          set({ currentFrameId: targetFrameId });
-          stage("Choose canvas", {
-            annotations: {
-              [frameInstanceKey(source.frameId, source.instanceId)]: sourceNext,
-              [key]: targetNext,
-            },
-          });
-        } else if (get().currentFrameId !== targetFrameId) {
-          set({ currentFrameId: targetFrameId });
+        const size = sourceSize(frameId());
+        const mask = maskOfRuns(runsOfPolygons(current.polygons, size.width, size.height), "merge");
+        const next = maskObservation(frameId(), instanceId, mask);
+        if (!next) {
+          throw new Error("These polygons cover no pixel centre, so they have no mask");
         }
-        const next = get().document;
-        if (next) {
-          set({
-            drawingPolygonId: drawingId,
-            editing: true,
-            selection: filterSegmentationSelection(next, get().selection, targetFrameId),
-          });
+        stageObservation("Convert to mask", frameId(), instanceId, next);
+      },
+      convertToPolygons(instanceId) {
+        const current = observation(instanceId);
+        if (current?.kind !== "mask") {
+          throw new Error("Only a mask observation can be converted to polygons");
         }
+        const next = polygonObservation(
+          frameId(),
+          instanceId,
+          maskToEditorPolygons(current.mask, topicOf(frameId())),
+        );
+        if (!next) {
+          throw new Error("This mask is too thin or fragmented to become a polygon");
+        }
+        stageObservation("Convert to polygons", frameId(), instanceId, next);
       },
       setPolygonPoints(id, points) {
-        validatePoints(points);
+        validateCompletePolygon(points);
         const current = findPolygon(id);
         current.polygons = current.polygons.map((polygon) =>
           polygon.id === id ? { ...polygon, points: cloneSegmentation(points) } : polygon,
         );
-        stage("Edit polygon", {
-          annotations: { [frameInstanceKey(current.frameId, current.instanceId)]: current },
-        });
-      },
-      commitDrawingMask(mask) {
-        const drawingId = get().drawingPolygonId;
-        if (drawingId == undefined) {
-          throw new Error("No polygon is being drawn");
-        }
-        const current = findPolygon(drawingId);
-        const rest = {
-          ...current,
-          polygons: current.polygons.filter((polygon) => polygon.id !== drawingId),
-        };
-        // The clicked mask joins whatever this instance already has on the frame (one geometry).
-        const merged = mergeObservations(
-          rest.mask || rest.polygons.length > 0 ? rest : undefined,
-          { frameId: current.frameId, instanceId: current.instanceId, polygons: [], mask },
-          current.instanceId,
-        );
-        stage("Quick annotate", {
-          annotations: {
-            [frameInstanceKey(current.frameId, current.instanceId)]: merged,
-          },
-        });
-        set({ drawingPolygonId: undefined });
+        stageObservation("Edit polygon", current.frameId, current.instanceId, current);
       },
       deletePolygon(id) {
         const current = findPolygon(id);
-        current.polygons = current.polygons.filter((polygon) => polygon.id !== id);
-        stage(
+        stageObservation(
           "Delete polygon",
-          {
-            annotations: { [frameInstanceKey(current.frameId, current.instanceId)]: current },
-          },
+          current.frameId,
+          current.instanceId,
+          polygonObservation(
+            current.frameId,
+            current.instanceId,
+            current.polygons.filter((polygon) => polygon.id !== id),
+          ),
           { exitEditing: true },
         );
       },
       mergeInstances(sourceIds, targetInstanceId) {
-        annotation(targetInstanceId);
+        observation(targetInstanceId);
         const sources = sourceIds.filter((id) => id !== targetInstanceId);
         if (sources.some((id) => !document().instances.some((item) => item.id === id))) {
           throw new Error("Unknown source instance");
@@ -1084,20 +1122,37 @@ export function createSemanticSegmentationStore(
         );
       },
       mergePolygons(polygonIds, targetInstanceId) {
-        const target = annotation(targetInstanceId);
-        const changes: Record<string, FrameInstance> = {};
+        const target = observation(targetInstanceId);
+        const remaining = new Map<string, FrameInstance & { kind: "polygons" }>();
+        const moved: FrameInstance & { kind: "polygons" } = {
+          frameId: frameId(),
+          instanceId: targetInstanceId,
+          kind: "polygons",
+          polygons: [],
+        };
         for (const id of polygonIds) {
           const found = findPolygon(id);
           if (found.instanceId === targetInstanceId) {
             continue;
           }
           const key = frameInstanceKey(found.frameId, found.instanceId);
-          const source = changes[key] ?? found;
-          target.polygons.push(source.polygons.find((polygon) => polygon.id === id)!);
+          const source = remaining.get(key) ?? found;
+          moved.polygons.push(source.polygons.find((polygon) => polygon.id === id)!);
           source.polygons = source.polygons.filter((polygon) => polygon.id !== id);
-          changes[key] = source;
+          remaining.set(key, source);
         }
-        changes[frameInstanceKey(target.frameId, targetInstanceId)] = target;
+        const changes: Record<string, FrameInstance | undefined> = {};
+        for (const [key, source] of remaining) {
+          changes[key] = polygonObservation(source.frameId, source.instanceId, source.polygons);
+        }
+        if (moved.polygons.length > 0) {
+          // Polygons moved onto a mask are rasterized into it (one representation).
+          changes[frameInstanceKey(frameId(), targetInstanceId)] = mergeObservations(
+            target,
+            moved,
+            targetInstanceId,
+          );
+        }
         stage("Move polygons to instance", { annotations: changes }, { exitEditing: true });
       },
       runTransaction(label, command) {
@@ -1158,7 +1213,7 @@ export function createSemanticSegmentationStore(
           canRedo: false,
           stagedOperations: [],
           editing: false,
-          drawingPolygonId: undefined,
+          drawing: undefined,
           interactionResetVersion: get().interactionResetVersion + 1,
         });
         rebuild();
@@ -1187,7 +1242,7 @@ export function createSemanticSegmentationStore(
           ],
           stagedOperations: [],
           editing: false,
-          drawingPolygonId: undefined,
+          drawing: undefined,
         });
         startPump();
         return id;
@@ -1218,15 +1273,8 @@ export function createSemanticSegmentationStore(
         }
         validatePropagationCapabilities(request, get().propagationCapabilities);
         const initial = document();
-        // An opened-but-unedited mask seeds as the mask itself, not its transient polygons.
-        const openMask = get().maskEdit;
-        const authoritative = (key: string) => {
-          const viewed = initial.annotations[key];
-          return openMask?.key === key && viewed?.polygons === openMask.polygons
-            ? openMask.original
-            : viewed;
-        };
-        const source = authoritative(frameInstanceKey(request.fromFrameId, request.instanceId));
+        const source =
+          initial.annotations[frameInstanceKey(request.fromFrameId, request.instanceId)];
         const sourceFrame = initial.frames.find((frame) => frame.id === request.fromFrameId);
         if (!sourceFrame || (!request.seeds && !source)) {
           throw new Error("Source annotation is not loaded");
@@ -1237,15 +1285,17 @@ export function createSemanticSegmentationStore(
         ) {
           throw new Error("End time must be later than the seed frame");
         }
-        const seeds = resolvePropagationSeeds(request, source?.polygons, source?.mask);
+        const seeds = resolvePropagationSeeds(request, source);
         for (const seed of seeds) {
-          const annotation = authoritative(frameInstanceKey(request.fromFrameId, seed.instanceId));
+          const annotation =
+            initial.annotations[frameInstanceKey(request.fromFrameId, seed.instanceId)];
           if (
             !initial.instances.some((instance) => instance.id === seed.instanceId) ||
-            (seed.mask != undefined && annotation?.mask?.counts !== seed.mask.counts) ||
-            seed.polygons.some(
-              (polygon) => annotation?.polygons.some((item) => item.id === polygon.id) !== true,
-            )
+            (seed.kind === "mask"
+              ? maskOf(annotation)?.counts !== seed.mask.counts
+              : seed.polygons.some(
+                  (polygon) => !polygonsOf(annotation).some((item) => item.id === polygon.id),
+                ))
           ) {
             throw new Error("Selected seed does not belong to the source frame and instance");
           }
@@ -1272,8 +1322,6 @@ export function createSemanticSegmentationStore(
           context,
           seeds,
           instanceId: seeds[0]!.instanceId,
-          seedPolygons: seeds[0]!.polygons,
-          ...(seeds[0]!.mask ? { seedMask: seeds[0]!.mask } : {}),
         });
         const targets = initial.frames
           .filter(
@@ -1360,7 +1408,7 @@ export function createSemanticSegmentationStore(
                   }
                   // This complete adapter window, not one inferred instance, establishes readiness.
                   base = {
-                    ...base,
+                    ...withUnreadable(base, geometryWindow, frameIds),
                     annotations: {
                       ...base.annotations,
                       ...cloneSegmentation(geometryWindow.annotations),
@@ -1398,7 +1446,7 @@ export function createSemanticSegmentationStore(
         set({
           propagation: { status: "running", processedFrames: 0 },
           editing: false,
-          drawingPolygonId: undefined,
+          drawing: undefined,
           error: undefined,
         });
         const detachContext = store.subscribe(() => {
@@ -1437,12 +1485,17 @@ export function createSemanticSegmentationStore(
             ) {
               continue;
             }
-            const annotation: FrameInstance = {
-              frameId: result.frameId,
-              instanceId: result.instanceId,
-              polygons: result.mask ? [] : cloneSegmentation(result.polygons),
-              ...(result.mask ? { mask: cloneSegmentation(result.mask) } : {}),
-            };
+            // An empty result clears the instance on that frame: the object left the view.
+            const annotation: FrameInstance | undefined =
+              result.kind === "mask"
+                ? maskObservation(result.frameId, result.instanceId, cloneSegmentation(result.mask))
+                : result.kind === "polygons"
+                  ? polygonObservation(
+                      result.frameId,
+                      result.instanceId,
+                      cloneSegmentation(result.polygons),
+                    )
+                  : undefined;
             const key = frameInstanceKey(result.frameId, result.instanceId);
             // Keep a full inference replacement before the target's old geometry is loaded.
             // A delta against an unloaded frame would retain hidden old components on re-read.

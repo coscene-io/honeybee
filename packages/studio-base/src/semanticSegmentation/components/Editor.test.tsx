@@ -15,6 +15,7 @@ import { createSemanticSegmentationStore } from "../store";
 import type { SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { polygonsOf } from "../maskGeometry";
 
 async function setup(configure?: (document: SegmentationDocument) => void) {
   const document = createSeedDocument();
@@ -66,20 +67,22 @@ describe("segmentation editor", () => {
       .getState()
       .document!.instances.find((item) => item.classId === category.id)!;
     fireEvent.click(screen.getByRole("button", { name: /Add polygon to.*#1$/ }));
-    const polygonId = store.getState().drawingPolygonId!;
+    expect(store.getState().drawing?.instanceId).toBe(instance.id);
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     pointer(canvas, "pointerdown", 96, 54);
     pointer(canvas, "pointerdown", 384, 54);
     fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
     expect(screen.getByText("Add at least 3 vertices before pressing Enter.")).toBeDefined();
-    expect(store.getState().drawingPolygonId).toBe(polygonId);
+    expect(store.getState().drawing?.instanceId).toBe(instance.id);
     pointer(canvas, "pointerdown", 240, 270);
     fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
-    const polygon = Object.values(store.getState().document!.annotations).find(
-      (annotation) => annotation.instanceId === instance.id,
-    )!.polygons[0]!;
+    const polygon = polygonsOf(
+      Object.values(store.getState().document!.annotations).find(
+        (annotation) => annotation.instanceId === instance.id,
+      ),
+    )[0]!;
     expect(polygon).toEqual({
-      id: polygonId,
+      id: expect.any(String),
       points: [
         { x: 0.1, y: 0.1 },
         { x: 0.4, y: 0.1 },
@@ -87,7 +90,7 @@ describe("segmentation editor", () => {
       ],
       topic: "/camera/front",
     });
-    expect(store.getState().drawingPolygonId).toBeUndefined();
+    expect(store.getState().drawing).toBeUndefined();
   });
 
   it("completes editing on focus switch and keeps display mode across frame switches", async () => {
@@ -182,9 +185,11 @@ describe("segmentation editor", () => {
     pointer(path, "pointerdown", 200, 200);
     pointer(canvas, "pointermove", 248, 227);
     pointer(canvas, "pointerup", 248, 227);
-    const polygon = Object.values(store.getState().document!.annotations).find(
-      (annotation) => annotation.frameId === "frame-0" && annotation.instanceId === "instance-1",
-    )!.polygons[0]!;
+    const polygon = polygonsOf(
+      Object.values(store.getState().document!.annotations).find(
+        (annotation) => annotation.frameId === "frame-0" && annotation.instanceId === "instance-1",
+      ),
+    )[0]!;
     expect(polygon.points[0]!.x).toBeCloseTo(0.22);
     expect(polygon.points[0]!.y).toBeCloseTo(0.35);
     expect(polygon.points[1]!.x - polygon.points[0]!.x).toBeCloseTo(0.15);
@@ -200,7 +205,7 @@ describe("segmentation editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const key = frameInstanceKey("frame-0", "instance-1");
     const polygonId = "instance-1-polygon-0";
-    const points = () => store.getState().document!.annotations[key]!.polygons[0]!.points;
+    const points = () => polygonsOf(store.getState().document!.annotations[key])[0]!.points;
     const original = points();
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     const edge = () => canvas.querySelector('[data-instance-id="instance-1"] path[stroke]')!;
@@ -256,7 +261,7 @@ describe("segmentation editor", () => {
       value: () => ({ a: 2, b: 0, c: 0, d: 2, e: 110, f: 95 }),
     });
     const key = frameInstanceKey("frame-0", "instance-1");
-    const points = () => store.getState().document!.annotations[key]!.polygons[0]!.points;
+    const points = () => polygonsOf(store.getState().document!.annotations[key])[0]!.points;
     const original = points();
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     const fill = () => canvas.querySelector('[data-instance-id="instance-1"] path')!;
@@ -312,7 +317,7 @@ describe("segmentation editor", () => {
           store.setState({ propagation: { status: mode, processedFrames: 0 } });
         }
         if (mode === "drawing") {
-          store.getState().setDrawingPolygonId("instance-1-polygon-0");
+          store.getState().startDrawing("instance-1");
         }
         if (mode === "original") {
           store.getState().setViewMode("original");
@@ -327,7 +332,7 @@ describe("segmentation editor", () => {
       const canvas = screen.getByRole("img", { name: "Frame polygons" });
       const path = canvas.querySelector('[data-instance-id="instance-1"] path[stroke]');
       if (path) {
-        const points = before!.annotations[key]!.polygons[0]!.points;
+        const points = polygonsOf(before!.annotations[key])[0]!.points;
         pointer(path, "pointerdown", (points[0]!.x + points[1]!.x) * 480, points[0]!.y * 540);
         pointer(canvas, "pointerup", (points[0]!.x + points[1]!.x) * 480, points[0]!.y * 540);
       }
@@ -344,9 +349,9 @@ describe("segmentation editor", () => {
     const { store } = await setup();
     fireEvent.click(screen.getByRole("button", { name: /^● Person 1/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    const points =
-      store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!
-        .polygons[0]!.points;
+    const points = polygonsOf(
+      store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+    )[0]!.points;
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     const x = (points[0]!.x + points[1]!.x) * 480;
     const y = points[0]!.y * 540;
@@ -427,14 +432,14 @@ describe("segmentation editor", () => {
     fireEvent.click(screen.getByRole("button", { name: /^● Person 1/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const key = frameInstanceKey("frame-0", "instance-1");
-    const points = store.getState().document!.annotations[key]!.polygons[0]!.points;
+    const points = polygonsOf(store.getState().document!.annotations[key])[0]!.points;
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     pointer(canvas, "pointerdown", points[0]!.x * 960 + 2, points[0]!.y * 540);
     pointer(canvas, "pointerup", points[0]!.x * 960 + 2, points[0]!.y * 540);
     expect(store.getState().stagedOperations).toHaveLength(0);
     pointer(canvas, "pointerdown", (points[0]!.x + points[1]!.x) * 480, points[0]!.y * 540 - 4);
     pointer(canvas, "pointerup", (points[0]!.x + points[1]!.x) * 480, points[0]!.y * 540 - 4);
-    const edited = store.getState().document!.annotations[key]!.polygons[0]!.points;
+    const edited = polygonsOf(store.getState().document!.annotations[key])[0]!.points;
     expect(edited).toHaveLength(5);
     expect(edited[1]!.y).toBe(points[0]!.y);
   });
@@ -510,7 +515,7 @@ describe("segmentation editor", () => {
         const owner = Object.values(document.annotations).find(
           (annotation) =>
             annotation.frameId === "frame-0" &&
-            annotation.polygons.some((polygon) => polygon.id === "instance-1-polygon-0"),
+            polygonsOf(annotation).some((polygon) => polygon.id === "instance-1-polygon-0"),
         )!;
         expect(document.instances.find((item) => item.id === owner.instanceId)?.classId).toBe(
           "class-2",
@@ -518,7 +523,9 @@ describe("segmentation editor", () => {
         if (targetType !== "class") {
           expect(owner.instanceId).toBe("instance-2");
         }
-        expect(owner.polygons.some((polygon) => polygon.id === "instance-1-polygon-0")).toBe(true);
+        expect(polygonsOf(owner).some((polygon) => polygon.id === "instance-1-polygon-0")).toBe(
+          true,
+        );
       }
       act(() => {
         store.getState().undo();

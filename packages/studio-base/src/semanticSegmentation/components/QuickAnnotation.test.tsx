@@ -10,7 +10,8 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 
 import { editor, fixture, pointer } from "../acceptance/interaction/fixtures";
 import { countsFromRuns, runsFromIntervals } from "../maskCodec";
-import { QUICK_SEGMENT_URL, setQuickSegmentInTests } from "../quickSegment";
+import { maskOf, polygonsOf } from "../maskGeometry";
+import { QUICK_SEGMENT_URL } from "../quickSegment";
 import { frameInstanceKey } from "../service";
 
 /** A column-major rectangle mask, columns [x0, x1) and rows [y0, y1). */
@@ -33,7 +34,7 @@ let requests: {
 beforeEach(() => {
   requests = [];
   urls = [];
-  setQuickSegmentInTests("on");
+  window.localStorage.removeItem("coStudio.semanticSegmentation.creationTool");
   // jsdom has no 2D canvas; the preview image is cosmetic.
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
@@ -65,7 +66,7 @@ beforeEach(() => {
     }
     urls.push(String(url));
     const form = init!.body!;
-    const body = JSON.parse(String(form.get("request"))) as Omit<
+    const body = JSON.parse(form.get("request") as string) as Omit<
       (typeof requests)[number],
       "image"
     >;
@@ -82,7 +83,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  setQuickSegmentInTests("off");
+  window.localStorage.removeItem("coStudio.semanticSegmentation.creationTool");
 });
 
 it("clicks positive and negative points, then Enter saves one mask observation", async () => {
@@ -94,7 +95,7 @@ it("clicks positive and negative points, then Enter saves one mask observation",
   let instanceId = "";
   act(() => {
     instanceId = store.getState().addInstance(document.classes[0]!.id, "fresh");
-    store.getState().addPolygon(instanceId);
+    store.getState().startDrawing(instanceId, "quick");
   });
 
   pointer(canvas, "pointerdown", 200, 100);
@@ -138,20 +139,27 @@ it("clicks positive and negative points, then Enter saves one mask observation",
 
   fireEvent.keyDown(canvas, { key: "Enter" });
   await waitFor(() => {
-    expect(store.getState().drawingPolygonId).toBeUndefined();
+    expect(store.getState().drawing).toBeUndefined();
   });
   const saved = store.getState().document!.annotations[frameInstanceKey("frame-0", instanceId)]!;
-  expect(saved.polygons).toEqual([]);
-  expect(saved.mask).toMatchObject({ width, height, counts: rect(960, 540, 100, 300, 50, 150) });
+  expect(saved.kind).toBe("mask");
+  expect(maskOf(saved)).toMatchObject({
+    width,
+    height,
+    counts: rect(960, 540, 100, 300, 50, 150),
+    source: "quick",
+  });
+  // A fresh instance gets the mask as is: no representation change to report.
+  expect(screen.queryByTestId("geometry-notice")).toBeNull();
 });
 
 it("merges the clicked mask with the instance's existing polygons on that frame", async () => {
   const { store } = await editor(fixture());
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   const key = frameInstanceKey("frame-0", "instance-1");
-  expect(store.getState().document!.annotations[key]!.polygons.length).toBeGreaterThan(0);
+  expect(polygonsOf(store.getState().document!.annotations[key]).length).toBeGreaterThan(0);
   act(() => {
-    store.getState().addPolygon("instance-1");
+    store.getState().startDrawing("instance-1", "quick");
   });
   pointer(canvas, "pointerdown", 200, 100);
   await waitFor(() => {
@@ -159,18 +167,41 @@ it("merges the clicked mask with the instance's existing polygons on that frame"
   });
   fireEvent.keyDown(canvas, { key: "Enter" });
   await waitFor(() => {
-    expect(store.getState().drawingPolygonId).toBeUndefined();
+    expect(store.getState().drawing).toBeUndefined();
   });
   const merged = store.getState().document!.annotations[key]!;
-  expect(merged.polygons).toEqual([]);
-  expect(merged.mask?.counts).not.toBe(rect(960, 540, 100, 300, 50, 150));
+  expect(merged.kind).toBe("mask");
+  expect(maskOf(merged)?.counts).not.toBe(rect(960, 540, 100, 300, 50, 150));
+  // The polygons were rasterized into the mask; the user is told so.
+  expect(screen.getByTestId("geometry-notice").textContent).toContain("rasterized");
+});
+
+it("P and Q switch the creation tool during a drawing and discard the other tool's draft", async () => {
+  const { store } = await editor(fixture());
+  const canvas = screen.getByRole("img", { name: "Frame polygons" });
+  act(() => {
+    store.getState().startDrawing("instance-empty", "polygon");
+  });
+  pointer(canvas, "pointerdown", 100, 100);
+  pointer(canvas, "pointerdown", 200, 100);
+  expect(canvas.querySelector("polyline")!.getAttribute("points")).not.toBe("");
+  fireEvent.keyDown(canvas, { key: "q" });
+  expect(store.getState().creationTool).toBe("quick");
+  expect(store.getState().drawing?.instanceId).toBe("instance-empty");
+  expect(canvas.querySelector("polyline")).toBeNull();
+  expect(screen.getByRole("radio", { name: /Quick/ }).getAttribute("aria-checked")).toBe("true");
+  fireEvent.click(screen.getByRole("radio", { name: /Polygon/ }));
+  expect(store.getState().creationTool).toBe("polygon");
+  // The choice is remembered for the next session.
+  expect(window.localStorage.getItem("coStudio.semanticSegmentation.creationTool")).toBe("polygon");
+  expect(requests).toHaveLength(0);
 });
 
 it("sends every click to the tunnelled quick-annotation endpoint", async () => {
   const { store } = await editor(fixture());
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   act(() => {
-    store.getState().addPolygon("instance-1");
+    store.getState().startDrawing("instance-1", "quick");
   });
   pointer(canvas, "pointerdown", 200, 100);
   await waitFor(() => {

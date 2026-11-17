@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { maskArea } from "../maskGeometry";
+import { maskArea, polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
 import type { PropagationSeed, SegmentationDocument } from "../types";
 import { hasPolygonArea } from "./editorGeometry";
@@ -32,14 +32,14 @@ export function buildCanvasPropagationScope(
   const seeds: PropagationSeed[] = [];
   for (const instance of document.instances) {
     const annotation = document.annotations[frameInstanceKey(frame.id, instance.id)];
-    if (annotation?.mask) {
+    if (annotation?.kind === "mask") {
       // A mask observation seeds as a mask (backend seed oneof); it is never vectorized for this.
       if (maskArea(annotation.mask.counts) > 0) {
-        seeds.push({ instanceId: instance.id, polygons: [], mask: { ...annotation.mask } });
+        seeds.push({ instanceId: instance.id, kind: "mask", mask: { ...annotation.mask } });
       }
       continue;
     }
-    const polygons = (annotation?.polygons ?? [])
+    const polygons = polygonsOf(annotation)
       .filter(
         (polygon) =>
           hasPolygonArea(polygon.points) &&
@@ -52,7 +52,7 @@ export function buildCanvasPropagationScope(
         points: polygon.points.map((point) => ({ ...point })),
       }));
     if (polygons.length > 0) {
-      seeds.push({ instanceId: instance.id, polygons });
+      seeds.push({ instanceId: instance.id, kind: "polygons", polygons });
     }
   }
   return { videoId: frame.videoId, frameId: frame.id, seeds };

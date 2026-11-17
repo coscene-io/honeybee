@@ -23,7 +23,7 @@ const document: SegmentationDocument = {
     { id: "j", classId: "b", name: "J" },
   ],
   annotations: {
-    f: { frameId: "f", instanceId: "i", polygons: [{ id: "p", points: [] }] },
+    f: { frameId: "f", instanceId: "i", kind: "polygons", polygons: [{ id: "p", points: [] }] },
   },
 };
 

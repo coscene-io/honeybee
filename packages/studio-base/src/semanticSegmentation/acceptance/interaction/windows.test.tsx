@@ -12,9 +12,11 @@ import { deferred, fixture } from "./fixtures";
 import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkbench";
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
+import { polygonsOf } from "../../maskGeometry";
 import { setMockControls } from "../../mockService";
 import { createSegmentationRuntime, openWorkflowPanel } from "../../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
+import type { FrameInstance } from "../../types";
 
 it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
   const document = fixture();
@@ -45,7 +47,9 @@ it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame 
   expect(reads.mock.calls.at(-1)!.slice(0, 3)).toEqual(["video-1", 30, 40]);
   expect(runtime.store.getState().document!.record.id).toBe("record-1");
   expect(runtime.store.getState().loading).toBe(true);
-  expect(await screen.findByTitle(/正在等待当前视频帧和标注数据/, undefined, { timeout: 2000 })).toBeDefined();
+  expect(
+    await screen.findByTitle(/正在等待当前视频帧和标注数据/, undefined, { timeout: 2000 }),
+  ).toBeDefined();
   // A real drawer control reacts while the geometry promise remains unresolved.
   act(() => {
     openWorkflowPanel();
@@ -84,11 +88,17 @@ it("SEG-ENT-007 a normalized two-page complete-window response renders each stab
   document.classes = document.classes.filter((category) => category.id !== "class-empty");
   delete document.annotations[frameInstanceKey("frame-1", "instance-2")];
   delete document.annotationSummaries[frameInstanceKey("frame-1", "instance-2")];
-  const first = cloneSegmentation(document.annotations[frameInstanceKey("frame-0", "instance-1")]!);
-  const second = cloneSegmentation(
-    document.annotations[frameInstanceKey("frame-0", "instance-2")]!,
+  const polygonObservation = (value: FrameInstance | undefined) => {
+    if (value?.kind !== "polygons") {
+      throw new Error("fixture observation must be polygons");
+    }
+    return cloneSegmentation(value);
+  };
+  const first = polygonObservation(document.annotations[frameInstanceKey("frame-0", "instance-1")]);
+  const second = polygonObservation(
+    document.annotations[frameInstanceKey("frame-0", "instance-2")],
   );
-  const later = cloneSegmentation(document.annotations[frameInstanceKey("frame-1", "instance-1")]!);
+  const later = polygonObservation(document.annotations[frameInstanceKey("frame-1", "instance-1")]);
   const q = {
     id: "page-two-Q",
     points: [
@@ -155,8 +165,9 @@ it("SEG-ENT-007 a normalized two-page complete-window response renders each stab
       .getAttribute("d"),
   ).toBe("M576,54 L768,54 L672,162 Z");
   expect(
-    runtime.store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!
-      .polygons,
+    polygonsOf(
+      runtime.store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+    ),
   ).toEqual([first.polygons[0]!, q]);
   const qRow = container.querySelector<HTMLElement>(`[data-node-id="${q.id}"]`)!;
   fireEvent.click(within(qRow).getByRole("button", { name: /^Polygon 2/ }));
@@ -172,8 +183,9 @@ it("SEG-ENT-007 a normalized two-page complete-window response renders each stab
   });
   expect(container.querySelectorAll(`[data-node-id="${later.polygons[0]!.id}"]`)).toHaveLength(1);
   expect(
-    runtime.store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-1")]!
-      .polygons,
+    polygonsOf(
+      runtime.store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-1")],
+    ),
   ).toEqual(later.polygons);
   expect(
     image.querySelectorAll(

@@ -168,7 +168,7 @@ describe("segmentationPlaybackStep", () => {
   function openSession(panelId: string, shown: Record<string, string>) {
     const store = createStore(() => ({
       document: { frames: [...shuffled(head), ...stereo] },
-      drawingPolygonId: undefined as string | undefined,
+      drawing: undefined as { instanceId: string; frameId: string } | undefined,
       propagation: { status: "idle" },
     }));
     segmentationChrome.setState({
@@ -276,7 +276,7 @@ describe("segmentationPlaybackStep", () => {
 
   it("does not move while a polygon is being drawn", async () => {
     const store = openSession("Image!head", { "Image!head": head[10]!.id });
-    store.setState({ drawingPolygonId: "polygon-1" });
+    store.setState({ drawing: { instanceId: "instance-1", frameId: head[10]!.id } });
     const seek = jest.fn();
     expect(segmentationPlaybackStep(1, undefined, seek)).toEqual({ handled: true });
     await new Promise((resolve) => setTimeout(resolve, 0));

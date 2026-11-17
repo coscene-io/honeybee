@@ -18,6 +18,7 @@ import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
+import { polygonsOf } from "../maskGeometry";
 
 function pointer(
   target: Element,
@@ -100,8 +101,9 @@ async function setup(fitScale = 0.5) {
   const content = () => canvas.querySelector("g[transform]")!;
   const transform = () => content().getAttribute("transform");
   const points = () =>
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons[0]!
-      .points;
+    polygonsOf(
+      store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+    )[0]!.points;
   const handle = () =>
     screen.getByRole("button", { name: "Vertex 1 of polygon instance-1-polygon-0" });
   return { ...result, store, viewport, canvas, content, transform, points, handle };
@@ -235,7 +237,7 @@ it("commits a vertex drag when pointer capture is lost before pointerup", async 
 it("preserves a drawing draft through temporary pan, peek, cancellation and contextual navigation", async () => {
   const { store, viewport, canvas, content } = await setup();
   act(() => {
-    store.getState().addPolygon("instance-1");
+    store.getState().startDrawing("instance-1");
   });
   pointer(canvas, "pointerdown", 150, 100);
   pointer(canvas, "pointerdown", 250, 100);
@@ -269,8 +271,9 @@ it("preserves a drawing draft through temporary pan, peek, cancellation and cont
   ).not.toBe("true");
   expect(store.getState().stagedOperations).toHaveLength(count);
   fireEvent.click(screen.getByRole("menuitem", { name: "Finish polygon" }));
-  const polygons =
-    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons;
+  const polygons = polygonsOf(
+    store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+  );
   expect(polygons.at(-1)!.points).toHaveLength(3);
 });
 
@@ -388,7 +391,7 @@ it.each(["minimum", "draft", "running", "stopping"] as const)(
     );
     act(() => {
       if (mode === "draft") {
-        store.getState().addPolygon("instance-1");
+        store.getState().startDrawing("instance-1");
       } else if (mode === "running" || mode === "stopping") {
         store.setState({ propagation: { status: mode, processedFrames: 0 } });
       }
@@ -718,18 +721,6 @@ describe("polygon editing keys and multi-point selection", () => {
     fireEvent.keyDown(viewport, { key: "Enter" });
     expect(store.getState().editing).toBe(true);
     expect(store.getState().focus).toEqual({ type: "instance", id: "instance-2" });
-  });
-
-  it("Enter on a selected polygon without vertices starts drawing it", async () => {
-    const { store, viewport } = await setup();
-    let id = "";
-    act(() => {
-      id = store.getState().addPolygon("instance-1");
-      store.getState().setSelection([{ type: "polygon", id }]);
-      store.getState().setEditing(false);
-    });
-    fireEvent.keyDown(viewport, { key: "Enter" });
-    expect(store.getState().drawingPolygonId).toBe(id);
   });
 
   it("Shift+click builds a multi-selection and arrows move every selected point together", async () => {

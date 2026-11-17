@@ -13,6 +13,7 @@ import { PropagationForm } from "../../components/PropagationForm";
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
 import { buildCanvasPropagationScope } from "../../components/propagationSeeds";
+import { polygonsOf, summarizeObservation } from "../../maskGeometry";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../../mockService";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
@@ -39,13 +40,7 @@ export function fixture(frameCount = 20): SegmentationDocument {
     ),
   );
   document.annotationSummaries = Object.fromEntries(
-    Object.entries(document.annotations).map(([key, value]) => [
-      key,
-      {
-        polygonCount: value.polygons.length,
-        pointCount: value.polygons.reduce((n, polygon) => n + polygon.points.length, 0),
-      },
-    ]),
+    Object.entries(document.annotations).map(([key, value]) => [key, summarizeObservation(value)]),
   );
   return document;
 }
@@ -92,8 +87,9 @@ export function polygon(
   instanceId = "instance-1",
   frameId = "frame-0",
 ): SegmentationPolygon {
-  return store.getState().document!.annotations[frameInstanceKey(frameId, instanceId)]!
-    .polygons[0]!;
+  return polygonsOf(
+    store.getState().document!.annotations[frameInstanceKey(frameId, instanceId)],
+  )[0]!;
 }
 
 export function pointer(target: Element, type: string, x: number, y: number): void {

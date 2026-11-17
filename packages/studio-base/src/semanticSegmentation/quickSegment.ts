@@ -30,17 +30,6 @@ export type QuickSegmentResult = { mask: SegmentationMask; score: number };
  */
 export const QUICK_SEGMENT_URL = "https://sam.reily.app";
 
-let enabledInTests = false;
-
-/** Unit tests draw manual polygons unless a test opts in; they never reach the tunnel. */
-export function setQuickSegmentInTests(state: "on" | "off"): void {
-  enabledInTests = state === "on";
-}
-
-export function quickSegmentAvailable(): boolean {
-  return process.env.NODE_ENV !== "test" || enabledInTests;
-}
-
 /** Re-encode the displayed frame as JPEG at full size: a few hundred KB instead of a large PNG. */
 async function frameJpeg(imageUrl: string, width: number, height: number): Promise<Blob> {
   const bitmap = await createImageBitmap(await (await fetch(imageUrl)).blob());

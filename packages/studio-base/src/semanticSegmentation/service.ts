@@ -7,10 +7,17 @@
 
 import * as _ from "lodash-es";
 
-import { maskArea, mergeObservations, runsOfMask, summarizeObservation } from "./maskGeometry";
 import {
-  FrameInstance,
+  maskArea,
+  mergeObservations,
+  polygonObservation,
+  polygonsOf,
+  runsOfMask,
+  summarizeObservation,
+} from "./maskGeometry";
+import {
   FrameWindow,
+  ObservationGeometry,
   PropagationCapabilities,
   PropagationCancellation,
   PropagationContext,
@@ -68,31 +75,35 @@ export function validatePropagationCapabilities(
   }
 }
 
-/** Freeze exactly the selected seed geometry; absent legacy fields alone use the fallback. */
+/**
+ * Freeze exactly the selected seed geometry. Without explicit seeds the source observation is
+ * the seed: a mask as itself, polygons optionally limited to `polygonIds`.
+ */
 export function resolvePropagationSeeds(
   request: PropagationRequest,
-  fallback: SegmentationPolygon[] = [],
-  fallbackMask?: SegmentationMask,
+  source?: ObservationGeometry,
 ): PropagationSeed[] {
-  const mask = request.seedPolygons ? request.seedMask : (request.seedMask ?? fallbackMask);
-  const supplied = request.seeds ?? [
-    mask
-      ? { instanceId: request.instanceId, polygons: [], mask }
-      : {
-          instanceId: request.instanceId,
-          polygons: (request.seedPolygons ?? fallback).filter(
-            (polygon) =>
-              polygon.points.length > 0 &&
-              (!request.polygonIds || request.polygonIds.includes(polygon.id)),
-          ),
-        },
-  ];
+  const supplied: PropagationSeed[] =
+    request.seeds ??
+    (source?.kind === "mask"
+      ? [{ instanceId: request.instanceId, kind: "mask", mask: source.mask }]
+      : [
+          {
+            instanceId: request.instanceId,
+            kind: "polygons",
+            polygons: (source?.polygons ?? []).filter(
+              (polygon) =>
+                polygon.points.length > 0 &&
+                (!request.polygonIds || request.polygonIds.includes(polygon.id)),
+            ),
+          },
+        ]);
   const instances = new Map<string, Map<string, SegmentationPolygon>>();
   const masks = new Map<string, SegmentationMask>();
   for (const seed of supplied) {
-    if (seed.mask) {
+    if (seed.kind === "mask") {
       // A mask seed is one authoritative representation; it cannot be combined with polygons.
-      if (!seed.instanceId.trim() || seed.polygons.length > 0 || instances.has(seed.instanceId)) {
+      if (!seed.instanceId.trim() || instances.has(seed.instanceId)) {
         throw new Error("A mask seed cannot be combined with polygons for the same instance");
       }
       const existing = masks.get(seed.instanceId);
@@ -140,11 +151,16 @@ export function resolvePropagationSeeds(
     throw new Error("Propagation requires a nonempty seed polygon");
   }
   return [
-    ...[...instances].map(([instanceId, polygons]) => ({
+    ...[...instances].map(([instanceId, polygons]): PropagationSeed => ({
       instanceId,
+      kind: "polygons",
       polygons: [...polygons.values()],
     })),
-    ...[...masks].map(([instanceId, seedMask]) => ({ instanceId, polygons: [], mask: seedMask })),
+    ...[...masks].map(([instanceId, seedMask]): PropagationSeed => ({
+      instanceId,
+      kind: "mask",
+      mask: seedMask,
+    })),
   ];
 }
 
@@ -199,7 +215,7 @@ function applyPatchToClone(next: SegmentationDocument, patch: SegmentationPatch)
   }
   for (const [key, change] of Object.entries(patch.polygonChanges ?? {})) {
     const current = next.annotations[key];
-    const polygons = new Map((current?.polygons ?? []).map((polygon) => [polygon.id, polygon]));
+    const polygons = new Map(polygonsOf(current).map((polygon) => [polygon.id, polygon]));
     for (const [id, polygon] of Object.entries(change.polygons)) {
       if (polygon) {
         polygons.set(id, cloneSegmentation(polygon));
@@ -207,16 +223,13 @@ function applyPatchToClone(next: SegmentationDocument, patch: SegmentationPatch)
         polygons.delete(id);
       }
     }
-    const merged: FrameInstance = {
-      frameId: change.frameId,
-      instanceId: change.instanceId,
-      polygons: [...polygons.values()],
-    };
+    const merged = polygonObservation(change.frameId, change.instanceId, [...polygons.values()]);
     // Polygon deltas replace a mask only once they leave polygons behind; never both.
-    if (current?.mask && merged.polygons.length === 0) {
-      merged.mask = current.mask;
+    if (merged) {
+      next.annotations[key] = merged;
+    } else if (current?.kind !== "mask") {
+      delete next.annotations[key];
     }
-    next.annotations[key] = merged;
   }
   for (const [sourceId, targetId] of Object.entries(patch.instanceMerges ?? {})) {
     for (const [key, summary] of Object.entries(next.annotationSummaries)) {
@@ -256,6 +269,19 @@ function applyPatchToClone(next: SegmentationDocument, patch: SegmentationPatch)
     const [, instanceId] = JSON.parse(key) as [string, string];
     if (!validInstanceIds.has(instanceId)) {
       delete next.annotationSummaries[key];
+    }
+  }
+  if (next.unreadableObservations) {
+    // A user write (or clear) of the same instance/frame supersedes what could not be read.
+    for (const [key, unreadable] of Object.entries(next.unreadableObservations)) {
+      if (
+        !validInstanceIds.has(unreadable.instanceId) ||
+        key in (patch.annotations ?? {}) ||
+        key in (patch.polygonChanges ?? {}) ||
+        patch.instanceMerges?.[unreadable.instanceId] != undefined
+      ) {
+        delete next.unreadableObservations[key];
+      }
     }
   }
   for (const key of Object.keys(patch.annotations ?? {})) {

@@ -33,7 +33,7 @@ import { makeStyles } from "tss-react/mui";
 import type { StoreApi } from "zustand";
 import { useStore } from "zustand";
 
-import { summaryHasGeometry } from "../maskGeometry";
+import { polygonsOf, summaryHasGeometry } from "../maskGeometry";
 import { segmentationSession } from "../runtime";
 import { segmentationCanvasLabel } from "../segmentationChrome";
 import { frameInstanceKey } from "../service";
@@ -261,7 +261,7 @@ function nodeExists(document: SegmentationDocument, node: SegmentationNodeRef): 
     return document.instances.some((item) => item.id === node.id);
   }
   return Object.values(document.annotations).some((annotation) =>
-    annotation.polygons.some((polygon) => polygon.id === node.id),
+    polygonsOf(annotation).some((polygon) => polygon.id === node.id),
   );
 }
 
@@ -288,13 +288,16 @@ function forwardCanvasShortcut(event: ReactKeyboardEvent<HTMLElement>): void {
   if (
     event.defaultPrevented ||
     (target instanceof Element &&
-      target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"]'))
+      target.closest(
+        'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"]',
+      ))
   ) {
     return;
   }
   const history =
     (event.ctrlKey || event.metaKey) && ["z", "Z", "y", "Y"].includes(event.key) && !event.altKey;
-  const view = !event.ctrlKey && !event.metaKey && !event.altKey && TREE_FORWARDED_KEYS.has(event.key);
+  const view =
+    !event.ctrlKey && !event.metaKey && !event.altKey && TREE_FORWARDED_KEYS.has(event.key);
   const escape = event.key === "Escape";
   if (!history && !view && !escape) {
     return;
@@ -490,16 +493,16 @@ export function SpatialTree({
       return true;
     }
     const owner = Object.values(document.annotations).find((item) =>
-      item.polygons.some((polygon) => polygon.id === node.id),
+      polygonsOf(item).some((polygon) => polygon.id === node.id),
     );
     if (!owner || owner.frameId === state.currentFrameId) {
       return true;
     }
-    if (state.drawingPolygonId != undefined) {
+    if (state.drawing != undefined) {
       setError(
         text(
-          "Finish the polygon on the current canvas before switching.",
-          "先完成当前画布上的多边形，再标注另一路。",
+          "Finish or cancel the drawing on the current canvas before switching.",
+          "先完成或取消当前画布上的绘制，再标注另一路。",
         ),
       );
       return false;
@@ -531,12 +534,9 @@ export function SpatialTree({
   }
   function addPolygon(instanceId: string): void {
     run(() => {
-      const id = state.addPolygon(instanceId);
-      state.setViewMode(state.viewMode === "original" ? "all" : state.viewMode);
       state.setFocus({ type: "instance", id: instanceId });
-      state.setSelection([{ type: "polygon", id }]);
-      state.setEditing(true);
-      state.setDrawingPolygonId(id);
+      state.setSelection([{ type: "instance", id: instanceId }]);
+      state.startDrawing(instanceId);
     });
   }
   function merge(nodes: SegmentationNodeRef[], targetInstanceId: string): void {
@@ -821,7 +821,7 @@ export function SpatialTree({
           ) {
             return;
           }
-          if (state.editing && state.drawingPolygonId == undefined) {
+          if (state.editing && state.drawing == undefined) {
             // Enter confirms the edit in progress; every change is already staged.
             event.preventDefault();
             event.stopPropagation();
@@ -1023,17 +1023,6 @@ export function SpatialTree({
           ?.classId;
   };
   const instanceCount = document?.instances.length ?? 0;
-  // Set when the focused node is a polygon in the current frame that has no vertices yet.
-  const currentFrameId = state.currentFrameId;
-  const emptyFocusedPolygonId =
-    document && currentFrameId != undefined && state.focus?.type === "polygon"
-      ? document.instances
-          .flatMap(
-            (instance) =>
-              document.annotations[frameInstanceKey(currentFrameId, instance.id)]?.polygons ?? [],
-          )
-          .find((polygon) => polygon.id === state.focus?.id && polygon.points.length === 0)?.id
-      : undefined;
   /**
    * The tree as a flat list. Only the rows in or near the viewport call `render`, so building the
    * list stays cheap: per-row work is lookups in the frame index and cached strip cells.
@@ -1099,12 +1088,10 @@ export function SpatialTree({
           return item ? [item] : [];
         });
         const polygonCount = visibleAnnotations.reduce(
-          (sum, item) => sum + item.polygons.length,
+          (sum, item) => sum + polygonsOf(item).length,
           0,
         );
-        const camerasPresent = visibleAnnotations.filter(
-          (item) => item.polygons.length > 0 || item.mask != undefined,
-        ).length;
+        const camerasPresent = visibleAnnotations.length;
         const isPresent = treeFrameIds.some((id) => hasGeometry(id, instance.id));
         flatRows.push({
           key: instanceKey,
@@ -1176,8 +1163,8 @@ export function SpatialTree({
               `${isPresent ? "●" : "○"} ${instance.name || instance.id}`,
               category.color,
               text(
-                `${framesPresent}/${videoFrames.length} frames · ${annotation?.polygons.length ?? 0} polygons`,
-                `${framesPresent}/${videoFrames.length} 帧 · ${annotation?.polygons.length ?? 0} 块`,
+                `${framesPresent}/${videoFrames.length} frames · ${annotation?.kind === "mask" ? "mask" : `${polygonsOf(annotation).length} polygons`}`,
+                `${framesPresent}/${videoFrames.length} 帧 · ${annotation?.kind === "mask" ? "mask" : `${polygonsOf(annotation).length} 块`}`,
               ),
               2,
               () => {
@@ -1195,7 +1182,7 @@ export function SpatialTree({
           const frame = index.frameById.get(id);
           const video = frame ? index.videoById.get(frame.videoId) : undefined;
           const camera = segmentationCanvasLabel(video?.topic ?? video?.name);
-          const polygons = document.annotations[frameInstanceKey(id, instance.id)]?.polygons ?? [];
+          const polygons = polygonsOf(document.annotations[frameInstanceKey(id, instance.id)]);
           polygons.forEach((polygon, position) => {
             flatRows.push({
               key: `polygon:${instance.id}:${id}:${polygon.id}`,
@@ -1234,7 +1221,7 @@ export function SpatialTree({
                   frameId={id}
                   camera={camera}
                   color={category.color}
-                  disabled={disabled || state.drawingPolygonId != undefined}
+                  disabled={disabled || state.drawing != undefined}
                 />
               ),
             });
@@ -1415,26 +1402,13 @@ export function SpatialTree({
           disabled={locked || !state.focus}
           aria-pressed={state.editing}
           onClick={(event) => {
-            if (!state.editing && emptyFocusedPolygonId != undefined) {
-              // A polygon without vertices has nothing to edit yet: start drawing it.
-              if (state.viewMode === "original") {
-                state.setViewMode("all");
-              }
-              state.setDrawingPolygonId(emptyFocusedPolygonId);
-            } else {
-              state.setEditing(!state.editing);
-              state.setDrawingPolygonId(undefined);
-            }
+            state.setEditing(!state.editing);
             if (event.detail > 0) {
               onPointerActivate?.();
             }
           }}
         >
-          {state.editing
-            ? text("Done editing", "完成编辑")
-            : emptyFocusedPolygonId != undefined
-              ? text("Draw", "绘制")
-              : text("Edit", "编辑")}
+          {state.editing ? text("Done editing", "完成编辑") : text("Edit", "编辑")}
         </Button>
         {state.focus && (
           <Button
@@ -1639,17 +1613,17 @@ export function SpatialTree({
         {menu?.node.type === "polygon" && (
           <MenuItem
             onClick={() => {
-              const node = menu.node;
+              const owner = document ? polygonInstance(document, menu.node.id) : undefined;
               run(() => {
-                state.setFocus(node);
-                state.setViewMode("instance");
-                state.setEditing(true);
-                state.setDrawingPolygonId(node.id);
+                if (owner) {
+                  state.setViewMode("instance");
+                  state.startDrawing(owner, "polygon");
+                }
               });
               setMenu(undefined);
             }}
           >
-            {text("Draw / replace polygon", "绘制 / 替换多边形")}
+            {text("Draw another polygon", "再画一个多边形")}
           </MenuItem>
         )}
         {menu?.node.type === "instance" ? (
@@ -1743,24 +1717,24 @@ export function SpatialTree({
             <Box component="details" className={classes.affectedIds}>
               <summary>{text("IDs", "ID 详情")}</summary>
               <Box component="dl">
-              <Typography component="dt" variant="caption">
-                {text("Class scope IDs", "类别范围 ID")}
-              </Typography>
-              <Typography component="dd" variant="caption" aria-label="Affected class IDs">
-                {affected.classes.join(", ") || "—"}
-              </Typography>
-              <Typography component="dt" variant="caption">
-                {text("Affected instance IDs", "受影响实例 ID")}
-              </Typography>
-              <Typography component="dd" variant="caption" aria-label="Affected instance IDs">
-                {affectedInstances.join(", ") || "—"}
-              </Typography>
-              <Typography component="dt" variant="caption">
-                {text("Selected polygon IDs (current frame)", "选中多边形 ID（本帧）")}
-              </Typography>
-              <Typography component="dd" variant="caption" aria-label="Affected polygon IDs">
-                {affected.polygons.join(", ") || "—"}
-              </Typography>
+                <Typography component="dt" variant="caption">
+                  {text("Class scope IDs", "类别范围 ID")}
+                </Typography>
+                <Typography component="dd" variant="caption" aria-label="Affected class IDs">
+                  {affected.classes.join(", ") || "—"}
+                </Typography>
+                <Typography component="dt" variant="caption">
+                  {text("Affected instance IDs", "受影响实例 ID")}
+                </Typography>
+                <Typography component="dd" variant="caption" aria-label="Affected instance IDs">
+                  {affectedInstances.join(", ") || "—"}
+                </Typography>
+                <Typography component="dt" variant="caption">
+                  {text("Selected polygon IDs (current frame)", "选中多边形 ID（本帧）")}
+                </Typography>
+                <Typography component="dd" variant="caption" aria-label="Affected polygon IDs">
+                  {affected.polygons.join(", ") || "—"}
+                </Typography>
               </Box>
             </Box>
           )}

@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { polygonsOf } from "./maskGeometry";
 import { createMockSemanticSegmentationService, createSeedDocument } from "./mockService";
 import { cloneSegmentation, frameInstanceKey } from "./service";
 import { createSemanticSegmentationStore } from "./store";
@@ -15,6 +16,10 @@ async function fixture(options: { emptyUnselected?: boolean } = {}) {
   document.videos.push({ ...document.videos[0]!, id: "other-video" });
   document.frames.push({ ...document.frames[0]!, id: "foreign-frame", videoId: "other-video" });
   const annotation = document.annotations[frameInstanceKey("frame-5", "instance-1")]!;
+  if (annotation.kind !== "polygons") {
+    throw new Error("The seed fixture is a polygon observation");
+  }
+  // A legacy document may still hold an empty placeholder polygon; seeds must ignore it.
   annotation.polygons.push({
     ...cloneSegmentation(annotation.polygons[0]!),
     id: "unselected-Q",
@@ -37,6 +42,7 @@ function result(
   return {
     frameId,
     instanceId: "instance-1",
+    kind: "polygons",
     polygons: [
       {
         id: `stream-${frameId}`,
@@ -95,8 +101,9 @@ it.each([["frame-7", "frame-6", ["frame-6", "frame-7"]]] as const)(
     expect(store.getState().stagedOperations).toHaveLength(2);
     for (const frameId of expected) {
       expect(
-        store.getState().document?.annotations[frameInstanceKey(frameId, "instance-1")]?.polygons[0]
-          ?.id,
+        polygonsOf(
+          store.getState().document?.annotations[frameInstanceKey(frameId, "instance-1")],
+        )[0]?.id,
       ).toBe(`stream-${frameId}`);
     }
     detach();
@@ -147,11 +154,11 @@ it("SEG-ONLINE-016 rejects foreign frame, instance, record, video, job and gener
 it("SEG-ONLINE-002 freezes I.P and J.R only and fans them out without Q", async () => {
   const { service, store } = await fixture();
   const document = store.getState().document!;
-  const p = document.annotations[frameInstanceKey("frame-5", "instance-1")]!.polygons[0]!;
-  const r = document.annotations[frameInstanceKey("frame-5", "instance-2")]!.polygons[0]!;
+  const p = polygonsOf(document.annotations[frameInstanceKey("frame-5", "instance-1")])[0]!;
+  const r = polygonsOf(document.annotations[frameInstanceKey("frame-5", "instance-2")])[0]!;
   const seeds = [
-    { instanceId: "instance-1", polygons: [cloneSegmentation(p)] },
-    { instanceId: "instance-2", polygons: [cloneSegmentation(r)] },
+    { instanceId: "instance-1", kind: "polygons" as const, polygons: [cloneSegmentation(p)] },
+    { instanceId: "instance-2", kind: "polygons" as const, polygons: [cloneSegmentation(r)] },
   ];
   const propagate = jest.spyOn(service, "propagate");
   const submitted = { ...request(), seeds: cloneSegmentation(seeds) };
@@ -159,24 +166,19 @@ it("SEG-ONLINE-002 freezes I.P and J.R only and fans them out without Q", async 
   submitted.seeds[0]!.polygons[0]!.points[0]!.x = 0.9;
   await running;
   expect(propagate.mock.calls[0]![0].seeds).toEqual(seeds);
-  expect(propagate.mock.calls[0]![0].seedPolygons).toEqual([p]);
   expect(propagate.mock.calls[0]![0].context?.instanceIds).toEqual(["instance-1", "instance-2"]);
   expect(store.getState().propagation.processedFrames).toBe(2);
   expect(store.getState().stagedOperations).toHaveLength(4);
   for (const frameId of ["frame-6", "frame-7"]) {
     expect(
-      store
-        .getState()
-        .document?.annotations[
-          frameInstanceKey(frameId, "instance-1")
-        ]?.polygons.map((polygon) => polygon.id),
+      polygonsOf(
+        store.getState().document?.annotations[frameInstanceKey(frameId, "instance-1")],
+      ).map((polygon) => polygon.id),
     ).toEqual([`${p.id}@${frameId}`]);
     expect(
-      store
-        .getState()
-        .document?.annotations[
-          frameInstanceKey(frameId, "instance-2")
-        ]?.polygons.map((polygon) => polygon.id),
+      polygonsOf(
+        store.getState().document?.annotations[frameInstanceKey(frameId, "instance-2")],
+      ).map((polygon) => polygon.id),
     ).toEqual([`${r.id}@${frameId}`]);
   }
   store.getState().dispose();
@@ -186,8 +188,11 @@ it("deduplicates each frame-instance while counting a multi-instance frame once"
   const { service, store } = await fixture();
   const seeds = ["instance-1", "instance-2"].map((instanceId) => ({
     instanceId,
+    kind: "polygons" as const,
     polygons: [
-      store.getState().document!.annotations[frameInstanceKey("frame-5", instanceId)]!.polygons[0]!,
+      polygonsOf(
+        store.getState().document!.annotations[frameInstanceKey("frame-5", instanceId)],
+      )[0]!,
     ],
   }));
   service.propagate = async function* (submitted) {
@@ -247,7 +252,7 @@ it("STOP keeps an already received out-of-order frame staged and never flushes o
   expect(store.getState().propagation).toMatchObject({ status: "cancelled", processedFrames: 1 });
   expect(store.getState().stagedOperations).toHaveLength(2);
   expect(
-    store.getState().document?.annotations[frameInstanceKey("frame-7", "instance-1")]?.polygons[0]
+    polygonsOf(store.getState().document?.annotations[frameInstanceKey("frame-7", "instance-1")])[0]
       ?.points,
   ).toEqual(edited);
   store.getState().dispose();
@@ -273,8 +278,10 @@ it("keeps a valid legacy seed while ignoring an intentional empty placeholder si
     yield result("frame-6", submitted.context);
   };
   await store.getState().startPropagation({ ...request(), endTimeNs: "1700000001200000000" });
-  expect(sent?.seedPolygons).toHaveLength(1);
-  expect(sent?.seedPolygons?.[0]?.id).toBe("instance-1-polygon-5");
+  expect(sent?.seeds).toHaveLength(1);
+  expect(polygonsOf(sent?.seeds?.[0]).map((polygon) => polygon.id)).toEqual([
+    "instance-1-polygon-5",
+  ]);
   expect(store.getState().propagation.processedFrames).toBe(1);
   store.getState().dispose();
 });
@@ -285,18 +292,23 @@ it("rejects empty, foreign-owner and unsupported multi-instance seeds before sen
   await expect(store.getState().startPropagation({ ...request(), seeds: [] })).rejects.toThrow(
     "nonempty",
   );
-  const p =
-    store.getState().document!.annotations[frameInstanceKey("frame-5", "instance-1")]!.polygons[0]!;
+  const p = polygonsOf(
+    store.getState().document!.annotations[frameInstanceKey("frame-5", "instance-1")],
+  )[0]!;
   await expect(
-    store
-      .getState()
-      .startPropagation({ ...request(), seeds: [{ instanceId: "instance-2", polygons: [p] }] }),
+    store.getState().startPropagation({
+      ...request(),
+      seeds: [{ instanceId: "instance-2", kind: "polygons" as const, polygons: [p] }],
+    }),
   ).rejects.toThrow("does not belong");
   service.supportsMultiInstanceSeeds = false;
   const seeds = ["instance-1", "instance-2"].map((instanceId) => ({
     instanceId,
+    kind: "polygons" as const,
     polygons: [
-      store.getState().document!.annotations[frameInstanceKey("frame-5", instanceId)]!.polygons[0]!,
+      polygonsOf(
+        store.getState().document!.annotations[frameInstanceKey("frame-5", instanceId)],
+      )[0]!,
     ],
   }));
   await expect(store.getState().startPropagation({ ...request(), seeds })).rejects.toThrow(
@@ -372,12 +384,14 @@ it("keeps playback geometry ready when streamed targets cross the initial ten-se
   expect(reads).toHaveBeenCalledTimes(1);
   expect(reads.mock.calls[0]?.slice(0, 3)).toEqual(["video-1", 10, 20]);
   expect(
-    store.getState().document?.annotations[frameInstanceKey("frame-51", "instance-2")]?.polygons[0]
-      ?.id,
+    polygonsOf(
+      store.getState().document?.annotations[frameInstanceKey("frame-51", "instance-2")],
+    )[0]?.id,
   ).toBe("instance-2-polygon-51");
   expect(
-    store.getState().document?.annotations[frameInstanceKey("frame-51", "instance-1")]?.polygons[0]
-      ?.id,
+    polygonsOf(
+      store.getState().document?.annotations[frameInstanceKey("frame-51", "instance-1")],
+    )[0]?.id,
   ).toBe("stream-frame-51");
   expect(store.getState().document?.classes.some((category) => category.id === manualClass)).toBe(
     true,
@@ -385,10 +399,10 @@ it("keeps playback geometry ready when streamed targets cross the initial ten-se
   store.getState().submit("Commit streamed replacements beyond the first window");
   await store.getState().waitForSubmissions();
   const saved = await service.loadFrameWindow("video-1", 10, 20);
-  expect(saved.annotations[frameInstanceKey("frame-51", "instance-1")]?.polygons[0]?.id).toBe(
+  expect(polygonsOf(saved.annotations[frameInstanceKey("frame-51", "instance-1")])[0]?.id).toBe(
     "stream-frame-51",
   );
-  expect(saved.annotations[frameInstanceKey("frame-51", "instance-2")]?.polygons[0]?.id).toBe(
+  expect(polygonsOf(saved.annotations[frameInstanceKey("frame-51", "instance-2")])[0]?.id).toBe(
     "instance-2-polygon-51",
   );
   detach();

@@ -14,6 +14,7 @@ import { frameInstanceKey } from "../service";
 import { MomentReferencePicker } from "./MomentReferencePicker";
 import { SubmissionControls, WorkflowControls } from "./WorkflowControls";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
+import { polygonsOf } from "../maskGeometry";
 import { setMockControls } from "../mockService";
 
 afterEach(cleanup);
@@ -52,17 +53,17 @@ it("shows exact frame/instance/type staging and confirms local-only reset while 
     expect(release).toBeDefined();
   });
   const queued = JSON.stringify(runtime.store.getState().submissionQueue[0]?.operations);
-  const polygon =
-    runtime.store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!
-      .polygons[0]!;
+  const polygon = polygonsOf(
+    runtime.store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")],
+  )[0]!;
   runtime.store.getState().setPolygonPoints(
     polygon.id,
     polygon.points.map((point) => ({ ...point, x: point.x + 0.01 })),
   );
   runtime.store.getState().setCurrentFrame("frame-1");
-  const second =
-    runtime.store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-2")]!
-      .polygons[0]!;
+  const second = polygonsOf(
+    runtime.store.getState().document!.annotations[frameInstanceKey("frame-1", "instance-2")],
+  )[0]!;
   runtime.store.getState().setPolygonPoints(
     second.id,
     second.points.map((point) => ({ ...point, x: point.x - 0.01 })),

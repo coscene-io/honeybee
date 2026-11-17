@@ -11,9 +11,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 
 import { createMuiTheme } from "@foxglove/theme";
 
+import { polygonsOf } from "../maskGeometry";
 import { createSeedDocument, setMockControls } from "../mockService";
 import { createSegmentationRuntime, segmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
+import type { SegmentationDocument } from "../types";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
 import { buildCanvasPropagationScope } from "./propagationSeeds";
@@ -28,18 +30,29 @@ const polygon = (id: string, x: number) => ({
   ],
 });
 
+/** P and Q on instance-1, R on instance-2, all on frame-0. */
+function seed(document: SegmentationDocument): void {
+  for (const [instanceId, polygons] of [
+    ["instance-1", [polygon("P", 0.1), polygon("Q", 0.3)]],
+    ["instance-2", [polygon("R", 0.6)]],
+  ] as const) {
+    document.annotations[frameInstanceKey("frame-0", instanceId)] = {
+      frameId: "frame-0",
+      instanceId,
+      kind: "polygons",
+      polygons: [...polygons],
+    };
+  }
+}
+
 async function setup(options: { open?: boolean; seeded?: boolean } = {}) {
   const document = createSeedDocument();
   if (options.seeded !== false) {
-    document.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons = [
-      polygon("P", 0.1),
-      polygon("Q", 0.3),
-    ];
-    document.annotations[frameInstanceKey("frame-0", "instance-2")]!.polygons = [polygon("R", 0.6)];
+    seed(document);
   } else {
-    for (const annotation of Object.values(document.annotations)) {
-      annotation.polygons = [];
-    }
+    // No observation on any frame: nothing to seed.
+    document.annotations = {};
+    document.annotationSummaries = {};
   }
   const runtime = createSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
@@ -71,14 +84,10 @@ afterEach(() => {
 
 it("lists every instance with a polygon on the frame and ignores tree selection", async () => {
   const document = createSeedDocument();
-  document.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons = [
-    polygon("P", 0.1),
-    polygon("Q", 0.3),
-  ];
-  document.annotations[frameInstanceKey("frame-0", "instance-2")]!.polygons = [polygon("R", 0.6)];
+  seed(document);
   const scope = buildCanvasPropagationScope(document, "frame-0");
   expect(scope?.videoId).toBe(document.frames.find((frame) => frame.id === "frame-0")!.videoId);
-  expect(scope?.seeds.map((seed) => [seed.instanceId, seed.polygons.map((p) => p.id)])).toEqual([
+  expect(scope?.seeds.map((item) => [item.instanceId, polygonsOf(item).map((p) => p.id)])).toEqual([
     ["instance-1", ["P", "Q"]],
     ["instance-2", ["R"]],
   ]);

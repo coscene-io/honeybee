@@ -16,6 +16,10 @@ import {
   Alert,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   Menu,
@@ -44,7 +48,14 @@ import { openKeyboardShortcuts } from "@foxglove/studio-base/components/Playback
 import { isAnnotationCanvasTarget } from "../annotationInput";
 import { segmentationViewControls } from "../imageSource";
 import { bitmapOfRuns, maskContains } from "../maskCodec";
-import { runsOfMask } from "../maskGeometry";
+import {
+  applyStroke,
+  maskConversionLoss,
+  maskOf,
+  polygonsOf,
+  runsOfMask,
+  strokeRuns,
+} from "../maskGeometry";
 import {
   clampUnit,
   hasPolygonArea,
@@ -54,15 +65,10 @@ import {
   translatePolygon,
 } from "./editorGeometry";
 import { maskOverlayControls } from "../maskOverlay/overlaySource";
-import {
-  quickSegment,
-  quickSegmentAvailable,
-  type QuickPoint,
-  type QuickSegmentResult,
-} from "../quickSegment";
+import { quickSegment, type QuickPoint, type QuickSegmentResult } from "../quickSegment";
 import { segmentationSession, type DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
-import type { SemanticSegmentationStore } from "../types";
+import type { CreationTool, MaskConversionLoss, SemanticSegmentationStore } from "../types";
 import type { EditorPoint } from "./editorGeometry";
 import { useEditorText } from "./editorMessages";
 import { beginPolygonEdit, findPolygonOwner, focusContains } from "./polygonEdit";
@@ -205,6 +211,30 @@ const useStyles = makeStyles()((theme) => ({
     "& .MuiAlert-message": { paddingBlock: theme.spacing(0.5) },
     "& .MuiAlert-action": { paddingTop: 0, color: "#fff" },
   },
+  toolRow: {
+    alignSelf: "flex-start",
+    alignItems: "center",
+    padding: theme.spacing(0.25),
+    borderRadius: theme.shape.borderRadius,
+    backgroundColor: theme.palette.background.paper,
+    border: `1px solid ${theme.palette.divider}`,
+    boxShadow: theme.shadows[2],
+    "& .MuiButton-root": { textTransform: "none", minWidth: 0 },
+  },
+  toolKey: {
+    marginLeft: 4,
+    opacity: 0.7,
+    fontFamily: theme.typography.fontMonospace,
+    fontSize: theme.typography.caption.fontSize,
+  },
+  toolLabel: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    paddingInline: 4,
+    fontSize: theme.typography.caption.fontSize,
+    "& input": { width: 80, accentColor: theme.palette.primary.main },
+  },
   footer: {
     paddingInline: theme.spacing(1),
     flexShrink: 0,
@@ -261,6 +291,11 @@ type Drag =
       targets: VertexGroup[];
       // The vertex that was pressed; a click without movement collapses the selection to it.
       pressed: VertexRef;
+    }
+  | {
+      // A brush or eraser stroke on the focused instance's mask (normalized points).
+      type: "stroke";
+      points: EditorPoint[];
     }
   | {
       // Rubber-band rectangle over empty canvas that selects the vertices it covers.
@@ -321,8 +356,7 @@ type PolygonTarget = {
 };
 
 type HoverTarget = { instanceId: string; polygonId: string; points: EditorPoint[] } & (
-  | { type: "vertex"; vertex: number }
-  | { type: "edge"; after: number; point: EditorPoint }
+  { type: "vertex"; vertex: number } | { type: "edge"; after: number; point: EditorPoint }
 );
 
 export function SegmentationCanvas({
@@ -382,8 +416,6 @@ export function SegmentationCanvas({
   view.current = { zoom, pan };
   const previewRef = useRef<Preview | undefined>(undefined);
   const [draft, setDraft] = useState<EditorPoint[]>([]);
-  // Quick annotation (SAM2 clicks on the local sidecar) replaces vertex-by-vertex drawing.
-  const quickEnabled = quickSegmentAvailable();
   const [quickPoints, setQuickPoints] = useState<QuickPoint[]>([]);
   const [quickResult, setQuickResult] = useState<
     (QuickSegmentResult & { url: string; x0: number; y0: number; w: number; h: number }) | undefined
@@ -394,7 +426,9 @@ export function SegmentationCanvas({
   // Dismissing the drawing help is remembered; it is a one-line hint, not a per-drawing banner.
   const [showHelp, setShowHelpState] = useState(() => {
     try {
-      return globalThis.localStorage.getItem("coStudio.semanticSegmentation.drawingHelp") !== "hidden";
+      return (
+        globalThis.localStorage.getItem("coStudio.semanticSegmentation.drawingHelp") !== "hidden"
+      );
     } catch {
       return true;
     }
@@ -409,6 +443,18 @@ export function SegmentationCanvas({
   };
   const [imageError, setImageError] = useState(false);
   const [error, setError] = useState<string>();
+  /** A representation change the last command made (e.g. polygons rasterized into a mask). */
+  const [notice, setNotice] = useState<string>();
+  /** Brush/eraser for mask observations; the radius is in source pixels. */
+  const [brush, setBrush] = useState<{ mode: "paint" | "erase"; radius: number }>({
+    mode: "paint",
+    radius: 12,
+  });
+  const [brushCursor, setBrushCursor] = useState<EditorPoint>();
+  const [stroke, setStroke] = useState<EditorPoint[]>();
+  const [conversion, setConversion] = useState<
+    { instanceId: string; loss: MaskConversionLoss } | undefined
+  >();
   const [loadedFrame, setLoadedFrame] = useState<DecodedSegmentationFrame>();
   const imageKey = useRef({ frame: decodedFrame, value: 0 });
   if (imageKey.current.frame !== decodedFrame) {
@@ -439,14 +485,88 @@ export function SegmentationCanvas({
     !source ||
     imageError ||
     (compact && !nativeView);
-  const drawingId = state.drawingPolygonId;
+  const drawing = state.drawing;
+  const tool = state.creationTool;
+  // Quick annotation (SAM2 clicks) and vertex drawing are the two ways to create geometry.
+  const quickMode = drawing != undefined && tool === "quick";
   const document = state.document;
+  /** The instance an edit applies to: the focused instance, or the owner of a focused polygon. */
+  const focusedInstanceId =
+    state.focus?.type === "instance"
+      ? state.focus.id
+      : state.focus?.type === "polygon"
+        ? findPolygonOwner(document, frameId, state.focus.id)?.instanceId
+        : undefined;
+  const focusedObservation =
+    focusedInstanceId != undefined && frameId != undefined
+      ? document?.annotations[frameInstanceKey(frameId, focusedInstanceId)]
+      : undefined;
+  /**
+   * Editing a mask, or an instance with nothing on this frame yet, paints with the brush: a mask
+   * stays pixels (lossless). Polygon observations keep vertex editing.
+   */
+  const brushActive =
+    !locked &&
+    state.editing &&
+    drawing == undefined &&
+    focusedInstanceId != undefined &&
+    state.viewMode !== "original" &&
+    focusedObservation?.kind !== "polygons";
+  const unreadableHere = Object.values(document?.unreadableObservations ?? {}).filter(
+    (item) => item.frameId === frameId,
+  );
   useEffect(() => {
     quickRequest.current?.abort();
     setQuickPoints([]);
     setQuickResult(undefined);
     setQuickBusy(false);
-  }, [drawingId, frameId]);
+  }, [drawing, frameId, tool]);
+  useEffect(() => {
+    setStroke(undefined);
+    setBrushCursor(undefined);
+  }, [brushActive, frameId, focusedInstanceId]);
+  /** The decoded source size of the shown frame's camera, which masks are bound to. */
+  function sourceSize(): { width: number; height: number } {
+    const video = document?.videos.find((item) => item.id === frame?.videoId);
+    return { width: video?.width ?? size.width, height: video?.height ?? size.height };
+  }
+  function finishStroke(points: EditorPoint[]): void {
+    if (!focusedInstanceId || points.length === 0) {
+      return;
+    }
+    const { width, height } = sourceSize();
+    const pixels = points.map((p) => ({ x: p.x * width, y: p.y * height }));
+    run(() => {
+      const runs = strokeRuns(pixels, brush.radius, width, height);
+      if (runs.area === 0) {
+        return;
+      }
+      if (focusedObservation?.kind === "polygons") {
+        throw new Error("Convert the polygons to a mask before painting");
+      }
+      const mask = applyStroke(focusedObservation, runs, brush.mode);
+      state.replaceMask(focusedInstanceId, mask, brush.mode === "paint" ? "Brush" : "Erase");
+    });
+  }
+  function openPolygonConversion(instanceId: string): void {
+    const observation =
+      frameId != undefined
+        ? document?.annotations[frameInstanceKey(frameId, instanceId)]
+        : undefined;
+    if (observation?.kind !== "mask") {
+      return;
+    }
+    run(() => {
+      const loss = maskConversionLoss(observation.mask);
+      // Lossless conversions need no confirmation.
+      if (loss.lostPixels === 0 && loss.addedPixels === 0 && loss.holes === 0) {
+        state.convertToPolygons(instanceId);
+        setNotice(text("Converted the mask to polygons.", "已将 mask 转为多边形。"));
+      } else {
+        setConversion({ instanceId, loss });
+      }
+    });
+  }
   function requestQuickMask(points: QuickPoint[]): void {
     setQuickPoints(points);
     quickRequest.current?.abort();
@@ -543,6 +663,7 @@ export function SegmentationCanvas({
     drag.current = undefined;
     previewRef.current = undefined;
     setPreview(undefined);
+    setStroke(undefined);
     setMarquee(undefined);
     setPanning(false);
     setHover(undefined);
@@ -640,7 +761,7 @@ export function SegmentationCanvas({
     state.viewMode,
     locked,
     navigationLocked,
-    drawingId,
+    drawing,
     panTool,
   ]);
 
@@ -698,15 +819,15 @@ export function SegmentationCanvas({
     setContextMenu(undefined);
     setHover(undefined);
     setError(undefined);
-  }, [drawingId, frameId, state.interactionResetVersion, store, resetTemporaryInput]);
+  }, [drawing, frameId, state.interactionResetVersion, store, resetTemporaryInput]);
   useEffect(() => {
     if (
-      store.getState().drawingPolygonId == undefined &&
+      store.getState().drawing == undefined &&
       segmentationSession.getState().strokeFrameId != undefined
     ) {
       segmentationSession.setState({ strokeFrameId: undefined });
     }
-  }, [drawingId, store]);
+  }, [drawing, store]);
   useEffect(() => {
     setImageError(false);
   }, [source]);
@@ -771,7 +892,7 @@ export function SegmentationCanvas({
       event.button === 1 ||
       space.current ||
       panTool ||
-      (event.button === 0 && !drawingId && !state.editing && !hitTarget(event))
+      (event.button === 0 && !drawing && !state.editing && !hitTarget(event))
     );
   }
   function viewportCenter(): EditorPoint | undefined {
@@ -841,21 +962,19 @@ export function SegmentationCanvas({
     const points = Object.values(document?.annotations ?? {})
       .filter((a) => a.frameId === frameId)
       .flatMap((a) => {
-        const polygonPoints = a.polygons
-          .filter((p) => inFocus(a.instanceId, p.id))
-          .flatMap((p) => p.points);
-        // A mask observation in focus contributes its bounding box.
-        const box =
-          a.mask && focusContains(document, state.focus, frameId, a.instanceId, "")
+        if (a.kind === "mask") {
+          // A mask observation in focus contributes its bounding box.
+          const box = focusContains(document, state.focus, frameId, a.instanceId, "")
             ? runsOfMask(a.mask).bbox
             : undefined;
-        return box && a.mask
-          ? [
-              ...polygonPoints,
-              { x: box.x0 / a.mask.width, y: box.y0 / a.mask.height },
-              { x: (box.x1 + 1) / a.mask.width, y: (box.y1 + 1) / a.mask.height },
-            ]
-          : polygonPoints;
+          return box
+            ? [
+                { x: box.x0 / a.mask.width, y: box.y0 / a.mask.height },
+                { x: (box.x1 + 1) / a.mask.width, y: (box.y1 + 1) / a.mask.height },
+              ]
+            : [];
+        }
+        return a.polygons.filter((p) => inFocus(a.instanceId, p.id)).flatMap((p) => p.points);
       });
     const bounds = viewport.current?.getBoundingClientRect();
     if (!bounds || points.length === 0) {
@@ -978,11 +1097,11 @@ export function SegmentationCanvas({
     }
     const live = store.getState();
     try {
-      if (live.drawingPolygonId != undefined) {
+      if (live.drawing != undefined) {
         if (segmentationSession.getState().strokeFrameId != undefined) {
           return false;
         }
-        live.retargetEmptyDrawing(shownFrameId);
+        live.retargetDrawing(shownFrameId);
       } else {
         live.setCurrentFrame(shownFrameId);
       }
@@ -1002,7 +1121,7 @@ export function SegmentationCanvas({
   ): void {
     if (
       navigationLocked ||
-      drawingId ||
+      drawing ||
       panTool ||
       space.current ||
       peekOriginal ||
@@ -1073,7 +1192,7 @@ export function SegmentationCanvas({
     if (
       locked ||
       !state.editing ||
-      drawingId ||
+      drawing ||
       panTool ||
       space.current ||
       peekOriginal ||
@@ -1088,7 +1207,7 @@ export function SegmentationCanvas({
     const targets = Object.values(document?.annotations ?? {})
       .filter((annotation) => annotation.frameId === frameId)
       .flatMap((annotation) =>
-        annotation.polygons
+        polygonsOf(annotation)
           .filter((polygon) => inFocus(annotation.instanceId, polygon.id))
           .map((polygon) => ({
             instanceId: annotation.instanceId,
@@ -1125,14 +1244,14 @@ export function SegmentationCanvas({
     clientX: number;
     clientY: number;
   }): HoverTarget | PolygonTarget | undefined {
-    if (drawingId) {
+    if (drawing) {
       return undefined;
     }
     const nearby = hitTarget(event);
     if (nearby) {
       return nearby;
     }
-    if (drawingId || peekOriginal || state.viewMode === "original") {
+    if (peekOriginal || state.viewMode === "original") {
       return undefined;
     }
     const location = point(event);
@@ -1142,7 +1261,7 @@ export function SegmentationCanvas({
     const polygons = Object.values(document?.annotations ?? {})
       .filter((a) => a.frameId === frameId)
       .flatMap((a) =>
-        a.polygons
+        polygonsOf(a)
           .filter((p) => state.viewMode === "all" || inFocus(a.instanceId, p.id))
           .map((p) => ({
             type: "polygon" as const,
@@ -1220,7 +1339,7 @@ export function SegmentationCanvas({
       locked ||
       !state.editing ||
       !inFocus(instanceId, polygonId) ||
-      drawingId ||
+      drawing ||
       panTool ||
       event.button !== 0
     ) {
@@ -1243,11 +1362,22 @@ export function SegmentationCanvas({
       setSelectedVertices([{ polygonId, vertex: edge.after + 1 }]);
     });
   }
-  function finishDrawing(): void {
-    if (!drawingId || locked || !frameId) {
+  function switchTool(next: CreationTool): void {
+    if (next === tool) {
       return;
     }
-    if (quickEnabled) {
+    setDraft([]);
+    segmentationSession.setState({ strokeFrameId: undefined });
+    run(() => {
+      state.setCreationTool(next);
+    });
+  }
+  function finishDrawing(): void {
+    if (!drawing || locked || !frameId) {
+      return;
+    }
+    const before = document?.annotations[frameInstanceKey(frameId, drawing.instanceId)]?.kind;
+    if (quickMode) {
       if (quickBusy) {
         setError("正在计算 mask，请稍候再按 Enter。");
         return;
@@ -1256,9 +1386,17 @@ export function SegmentationCanvas({
         setError("先在目标上点一下（左键正点，右键或 Shift+左键负点）。");
         return;
       }
-      const mask = quickResult.mask;
+      const mask = { ...quickResult.mask, source: "quick" as const };
       run(() => {
-        state.commitDrawingMask(mask);
+        state.addMask(drawing.instanceId, mask);
+        if (before === "polygons") {
+          setNotice(
+            text(
+              "This instance's polygons were rasterized and merged with the new mask (one geometry per instance and frame).",
+              "该实例在本帧的多边形已栅格化，并与新 mask 合并（每个实例每帧只有一种几何）。",
+            ),
+          );
+        }
       });
       segmentationSession.setState({ strokeFrameId: undefined });
       return;
@@ -1278,26 +1416,27 @@ export function SegmentationCanvas({
       );
       return;
     }
-    const annotation = Object.values(document?.annotations ?? {}).find(
-      (item) =>
-        item.frameId === frameId && item.polygons.some((polygon) => polygon.id === drawingId),
-    );
-    if (!annotation) {
-      setError("The drawing target is no longer available.");
-      return;
-    }
     run(() => {
-      state.setPolygonPoints(drawingId, draft);
-      state.setDrawingPolygonId(undefined);
+      state.addPolygon(drawing.instanceId, draft);
+      setDraft([]);
+      if (before === "mask") {
+        setNotice(
+          text(
+            "The polygon was rasterized into this instance's mask. Convert the mask to polygons to edit vertices.",
+            "多边形已栅格化并入该实例的 mask；如需编辑顶点，请先把 mask 转为多边形。",
+          ),
+        );
+      }
     });
+    segmentationSession.setState({ strokeFrameId: undefined });
   }
 
   const vertices =
-    !locked && state.editing && !drawingId && state.viewMode !== "original"
+    !locked && state.editing && !drawing && state.viewMode !== "original"
       ? Object.values(document?.annotations ?? {})
           .filter((a) => a.frameId === frameId)
           .flatMap((a) =>
-            a.polygons
+            polygonsOf(a)
               .filter((p) => inFocus(a.instanceId, p.id))
               .flatMap((p) =>
                 p.points.map((pnt, vertex) => ({
@@ -1334,7 +1473,7 @@ export function SegmentationCanvas({
   }
   /** Double-clicking a polygon edits it. */
   function doubleClickPolygon(event: ReactMouseEvent<SVGElement>, polygonId: string): void {
-    if (locked || navigationLocked || drawingId || panTool || peekOriginal || event.button !== 0) {
+    if (locked || navigationLocked || drawing || panTool || peekOriginal || event.button !== 0) {
       return;
     }
     event.stopPropagation();
@@ -1344,14 +1483,14 @@ export function SegmentationCanvas({
     });
   }
   /**
-   * Double-clicking a mask (drawn on the GPU, so no SVG element receives it) converts only that
-   * instance's observation on this frame to polygons for vertex editing.
+   * Double-clicking a mask (drawn on the GPU, so no SVG element receives it) edits that instance's
+   * mask on this frame with the brush. It stays a mask: converting to polygons is explicit.
    */
   function doubleClickMask(event: ReactMouseEvent<SVGSVGElement>): void {
     if (
       locked ||
       navigationLocked ||
-      drawingId ||
+      drawing ||
       panTool ||
       peekOriginal ||
       event.button !== 0 ||
@@ -1368,7 +1507,7 @@ export function SegmentationCanvas({
     // Topmost first, matching the overlay: a selected instance, then the highest slot.
     const candidates = document.instances
       .filter((instance) => {
-        const mask = document.annotations[frameInstanceKey(frameId, instance.id)]?.mask;
+        const mask = maskOf(document.annotations[frameInstanceKey(frameId, instance.id)]);
         return (
           mask != undefined &&
           (state.viewMode === "all" ||
@@ -1388,10 +1527,16 @@ export function SegmentationCanvas({
     event.stopPropagation();
     event.preventDefault();
     run(() => {
-      store.getState().beginMaskEdit(frameId, hit.id);
+      const live = store.getState();
+      live.setFocus({ type: "instance", id: hit.id });
+      live.setSelection([{ type: "instance", id: hit.id }]);
+      if (live.viewMode === "original") {
+        live.setViewMode("all");
+      }
+      live.setEditing(true);
     });
   }
-  /** Enter on a selected polygon: start editing it (or drawing it, when it has no vertices yet). */
+  /** Enter on a selected polygon: start editing it. */
   function enterEditMode(): void {
     if (locked) {
       return;
@@ -1554,6 +1699,32 @@ export function SegmentationCanvas({
         if (event.ctrlKey || event.metaKey || event.altKey) {
           return;
         }
+        if (drawing && !locked && ["p", "P", "q", "Q"].includes(event.key)) {
+          // P / Q switch the creation tool; the draft of the other tool is discarded.
+          event.preventDefault();
+          event.stopPropagation();
+          switchTool(event.key.toLowerCase() === "q" ? "quick" : "polygon");
+          return;
+        }
+        if (brushActive && ["b", "B", "e", "E", "[", "]"].includes(event.key)) {
+          event.preventDefault();
+          event.stopPropagation();
+          const key = event.key.toLowerCase();
+          setBrush((current) =>
+            key === "b"
+              ? { ...current, mode: "paint" }
+              : key === "e"
+                ? { ...current, mode: "erase" }
+                : {
+                    ...current,
+                    radius: Math.max(
+                      1,
+                      Math.min(200, Math.round(current.radius * (key === "]" ? 1.25 : 0.8))),
+                    ),
+                  },
+          );
+          return;
+        }
         if (["+", "=", "-", "f", "F", "0", "h", "H", "?", "o", "O"].includes(event.key)) {
           event.preventDefault();
           event.stopPropagation();
@@ -1621,7 +1792,7 @@ export function SegmentationCanvas({
             event.stopPropagation();
             return;
           }
-          if (drawingId) {
+          if (drawing) {
             event.preventDefault();
             event.stopPropagation();
             finishDrawing();
@@ -1645,11 +1816,11 @@ export function SegmentationCanvas({
         if ((event.key === "Delete" || event.key === "Backspace") && !locked) {
           event.preventDefault();
           event.stopPropagation();
-          if (drawingId && quickEnabled) {
+          if (drawing && quickMode) {
             requestQuickMask(quickPoints.slice(0, -1));
             return;
           }
-          if (drawingId || !state.editing || panTool || peekOriginal) {
+          if (drawing || !state.editing || panTool || peekOriginal) {
             return;
           }
           if (selectedEditable.length > 0) {
@@ -1660,17 +1831,18 @@ export function SegmentationCanvas({
         if (event.key === "Escape" && !locked) {
           event.preventDefault();
           event.stopPropagation();
-          if (selectedVertices.length > 0 && !drawingId) {
+          if (selectedVertices.length > 0 && !drawing) {
             setSelectedVertices([]);
             return;
           }
           setDraft([]);
           setPreview(undefined);
           setMarquee(undefined);
+          setStroke(undefined);
           previewRef.current = undefined;
           drag.current = undefined;
           setPanning(false);
-          state.setDrawingPolygonId(undefined);
+          state.cancelDrawing();
           setError(undefined);
         }
       }}
@@ -2134,7 +2306,145 @@ export function SegmentationCanvas({
               {error}
             </Alert>
           )}
-          {drawingId && active && showHelp && !draftElsewhere && (
+          {notice && active && (
+            <Alert
+              severity="info"
+              data-testid="geometry-notice"
+              onClose={() => {
+                setNotice(undefined);
+              }}
+            >
+              {notice}
+            </Alert>
+          )}
+          {unreadableHere.length > 0 && active && (
+            <Alert severity="warning" data-testid="unreadable-observations">
+              {text(
+                `${unreadableHere.length} annotation(s) on this frame cannot be shown (${unreadableHere[0]!.reason}). They are kept unchanged when this frame is saved.`,
+                `本帧有 ${unreadableHere.length} 个标注无法显示（${unreadableHere[0]!.reason}）。保存本帧时会原样保留。`,
+              )}
+            </Alert>
+          )}
+          {drawing && active && !draftElsewhere && !locked && (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              role="radiogroup"
+              aria-label={text("Creation tool", "创建工具")}
+              data-testid="creation-tools"
+              className={classes.toolRow}
+            >
+              {(
+                [
+                  ["polygon", text("Polygon", "多边形"), "P"],
+                  ["quick", text("Quick (SAM)", "快速标注"), "Q"],
+                ] as const
+              ).map(([value, label, key]) => (
+                <Button
+                  key={value}
+                  size="small"
+                  role="radio"
+                  aria-checked={tool === value}
+                  variant={tool === value ? "contained" : "text"}
+                  data-creation-tool={value}
+                  onClick={() => {
+                    switchTool(value);
+                    viewport.current?.focus({ preventScroll: true });
+                  }}
+                >
+                  {label} <span className={classes.toolKey}>{key}</span>
+                </Button>
+              ))}
+            </Stack>
+          )}
+          {state.editing &&
+            !drawing &&
+            active &&
+            !locked &&
+            focusedInstanceId != undefined &&
+            state.viewMode !== "original" && (
+              <Stack
+                direction="row"
+                spacing={0.5}
+                data-testid="edit-tools"
+                className={classes.toolRow}
+              >
+                {brushActive && (
+                  <>
+                    {(
+                      [
+                        ["paint", text("Brush", "画笔"), "B"],
+                        ["erase", text("Eraser", "橡皮"), "E"],
+                      ] as const
+                    ).map(([mode, label, key]) => (
+                      <Button
+                        key={mode}
+                        size="small"
+                        aria-pressed={brush.mode === mode}
+                        variant={brush.mode === mode ? "contained" : "text"}
+                        data-brush-mode={mode}
+                        onClick={() => {
+                          setBrush((current) => ({ ...current, mode }));
+                          viewport.current?.focus({ preventScroll: true });
+                        }}
+                      >
+                        {label} <span className={classes.toolKey}>{key}</span>
+                      </Button>
+                    ))}
+                    <label className={classes.toolLabel}>
+                      {text("Size", "大小")}
+                      <input
+                        aria-label={text("Brush size", "画笔大小")}
+                        type="range"
+                        min={1}
+                        max={200}
+                        value={brush.radius}
+                        onChange={(event) => {
+                          setBrush((current) => ({
+                            ...current,
+                            radius: Number(event.target.value),
+                          }));
+                        }}
+                      />
+                      <span className={classes.toolKey}>{brush.radius}px</span>
+                    </label>
+                  </>
+                )}
+                {focusedObservation?.kind === "mask" && (
+                  <Button
+                    size="small"
+                    data-tool="convert-to-polygons"
+                    onClick={() => {
+                      openPolygonConversion(focusedInstanceId);
+                    }}
+                  >
+                    {text("Convert to polygons…", "转为多边形…")}
+                  </Button>
+                )}
+                {focusedObservation?.kind === "polygons" && (
+                  <Tooltip
+                    describeChild
+                    title={text(
+                      "Rasterize the polygons into a mask to paint them. Only sub-pixel precision is lost.",
+                      "把多边形栅格化为 mask 后可用画笔修改，只损失亚像素精度。",
+                    )}
+                  >
+                    <Button
+                      size="small"
+                      data-tool="convert-to-mask"
+                      onClick={() => {
+                        run(() => {
+                          state.convertToMask(focusedInstanceId);
+                        });
+                      }}
+                    >
+                      {text("Convert to mask", "转为 mask")}
+                    </Button>
+                  </Tooltip>
+                )}
+              </Stack>
+            )}
+          {drawing && active && showHelp && !draftElsewhere && (
             <Alert
               severity="info"
               icon={false}
@@ -2143,18 +2453,18 @@ export function SegmentationCanvas({
                 setShowHelp("hidden");
               }}
             >
-              {quickEnabled
+              {quickMode
                 ? text(
-                    "Quick annotation: click the object (positive point); right-click or Shift+click to exclude (negative point). Backspace removes the last point, Enter saves the mask, Esc cancels.",
-                    "快速标注：左键点目标（正点），右键或 Shift+左键排除（负点）；Backspace 撤销上一个点，Enter 保存 mask，Esc 取消。",
+                    "Quick annotation: click the object (positive point); right-click or Shift+click to exclude (negative point). Backspace removes the last point, Enter saves the mask, Esc cancels. P switches to polygon drawing.",
+                    "快速标注：左键点目标（正点），右键或 Shift+左键排除（负点）；Backspace 撤销上一个点，Enter 保存 mask，Esc 取消；按 P 改为画多边形。",
                   )
                 : text(
-                    "Click to add vertices. Enter finishes with at least 3 points. Esc cancels the drawing and keeps the original polygon.",
-                    "依次点击添加顶点，至少 3 点后按 Enter 完成；按 Esc 取消本次绘制，保留原多边形。",
+                    "Click to add vertices. Enter finishes with at least 3 points; Esc cancels and adds nothing. Q switches to quick annotation.",
+                    "依次点击添加顶点，至少 3 点后按 Enter 完成；按 Esc 取消，不会添加任何东西；按 Q 改为快速标注。",
                   )}
             </Alert>
           )}
-          {drawingId && active && !showHelp && !draftElsewhere && (
+          {drawing && active && !showHelp && !draftElsewhere && (
             <Button
               size="small"
               onClick={() => {
@@ -2210,14 +2520,17 @@ export function SegmentationCanvas({
               ? "grabbing"
               : panTool || spaceHeld
                 ? "grab"
-                : drawingId
+                : drawing
                   ? "crosshair"
-                  : hover?.type === "edge"
-                    ? "copy"
-                    : "default",
+                  : brushActive
+                    ? "none"
+                    : hover?.type === "edge"
+                      ? "copy"
+                      : "default",
           }}
           onPointerLeave={() => {
             setHover(undefined);
+            setBrushCursor(undefined);
           }}
           onDoubleClick={doubleClickMask}
           onContextMenu={(event) => {
@@ -2263,8 +2576,19 @@ export function SegmentationCanvas({
             if (navigationLocked) {
               return;
             }
+            if (brushActive && !peekOriginal && !panTool && !space.current && event.button === 0) {
+              const at = point(event);
+              if (at) {
+                const start = { x: clampUnit(at.x), y: clampUnit(at.y) };
+                event.currentTarget.setPointerCapture(event.pointerId);
+                capture.current = { element: event.currentTarget, pointerId: event.pointerId };
+                drag.current = { type: "stroke", points: [start] };
+                setStroke([start]);
+              }
+              return;
+            }
             if (
-              !drawingId &&
+              !drawing &&
               !peekOriginal &&
               !locked &&
               !panTool &&
@@ -2293,8 +2617,8 @@ export function SegmentationCanvas({
               }
             }
             if (
-              drawingId &&
-              quickEnabled &&
+              drawing &&
+              quickMode &&
               !peekOriginal &&
               !locked &&
               state.viewMode !== "original" &&
@@ -2304,7 +2628,7 @@ export function SegmentationCanvas({
               return;
             }
             if (
-              drawingId &&
+              drawing &&
               !peekOriginal &&
               !locked &&
               state.viewMode !== "original" &&
@@ -2331,6 +2655,17 @@ export function SegmentationCanvas({
           }}
           onPointerMove={(event) => {
             const active = drag.current;
+            if (brushActive) {
+              const at = point(event);
+              setBrushCursor(at);
+              if (active?.type === "stroke" && at) {
+                active.points.push({ x: clampUnit(at.x), y: clampUnit(at.y) });
+                setStroke([...active.points]);
+              }
+            }
+            if (active?.type === "stroke") {
+              return;
+            }
             if (!active) {
               setHover(hitTarget(event));
               return;
@@ -2447,16 +2782,26 @@ export function SegmentationCanvas({
           }}
           onPointerUp={(event) => {
             const active = drag.current;
+            if (active?.type === "stroke") {
+              const points = active.points;
+              cancelGesture();
+              finishStroke(points);
+              return;
+            }
             if (
               active?.type === "pan" &&
               active.button === 2 &&
               !active.moved &&
               !navigationLocked
             ) {
-              if (drawingId && quickEnabled && !locked && !peekOriginal) {
+              if (drawing && quickMode && !locked && !peekOriginal) {
                 addQuickPoint(event, "negative");
               } else {
-                setContextMenu({ x: event.clientX, y: event.clientY, target: contextTarget(event) });
+                setContextMenu({
+                  x: event.clientX,
+                  y: event.clientY,
+                  target: contextTarget(event),
+                });
               }
             }
             if (active?.type === "marquee") {
@@ -2475,6 +2820,12 @@ export function SegmentationCanvas({
           }}
           onPointerCancel={resetTemporaryInput}
           onLostPointerCapture={() => {
+            const active = drag.current;
+            if (active?.type === "stroke") {
+              cancelGesture();
+              finishStroke(active.points);
+              return;
+            }
             if (drag.current) {
               // DOM remounts (late frame-window merge, viewBox resize) can drop capture
               // before pointerup; commit the preview instead of reverting the gesture.
@@ -2519,8 +2870,7 @@ export function SegmentationCanvas({
                 const polygons =
                   frameId == undefined
                     ? []
-                    : (document.annotations[frameInstanceKey(frameId, instance.id)]?.polygons ??
-                      []);
+                    : polygonsOf(document.annotations[frameInstanceKey(frameId, instance.id)]);
                 const visible = polygons.filter(
                   (polygon) => state.viewMode === "all" || inFocus(instance.id, polygon.id),
                 );
@@ -2552,7 +2902,7 @@ export function SegmentationCanvas({
                     {visible.map((polygon) => {
                       const points = preview?.[polygon.id] ?? polygon.points;
                       const editable =
-                        state.editing && inFocus(instance.id, polygon.id) && !locked && !drawingId;
+                        state.editing && inFocus(instance.id, polygon.id) && !locked && !drawing;
                       return (
                         <g key={polygon.id}>
                           <path
@@ -2648,7 +2998,7 @@ export function SegmentationCanvas({
               state.editing &&
               state.viewMode !== "original" &&
               inFocus(hover.instanceId, hover.polygonId) &&
-              !drawingId &&
+              !drawing &&
               !panTool &&
               !spaceHeld &&
               !peekOriginal && (
@@ -2671,6 +3021,34 @@ export function SegmentationCanvas({
                   />
                 </g>
               )}
+            {brushActive && stroke && stroke.length > 0 && (
+              <path
+                data-testid="brush-stroke"
+                pointerEvents="none"
+                d={`M ${stroke.map((p) => `${p.x * size.width} ${p.y * size.height}`).join(" L ")}`}
+                fill="none"
+                stroke={brush.mode === "paint" ? "#4c8dff" : "#ff5252"}
+                strokeOpacity={0.5}
+                strokeWidth={(2 * brush.radius * size.width) / sourceSize().width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+            {brushActive && brushCursor && !peekOriginal && (
+              <circle
+                data-testid="brush-cursor"
+                pointerEvents="none"
+                cx={brushCursor.x * size.width}
+                cy={brushCursor.y * size.height}
+                r={(brush.radius * size.width) / sourceSize().width}
+                fill="none"
+                stroke={brush.mode === "paint" ? "white" : "#ff5252"}
+                strokeWidth={1.5 / screenScale}
+                strokeDasharray={
+                  brush.mode === "erase" ? `${4 / screenScale} ${3 / screenScale}` : undefined
+                }
+              />
+            )}
             {marquee && (
               <rect
                 data-testid="selection-rectangle"
@@ -2687,7 +3065,7 @@ export function SegmentationCanvas({
                 vectorEffect="non-scaling-stroke"
               />
             )}
-            {drawingId && quickEnabled && state.viewMode !== "original" && !peekOriginal && (
+            {drawing && quickMode && state.viewMode !== "original" && !peekOriginal && (
               <g pointerEvents="none" data-testid="quick-annotation">
                 {quickResult && quickResult.w > 0 && (
                   <image
@@ -2724,7 +3102,7 @@ export function SegmentationCanvas({
                 ))}
               </g>
             )}
-            {drawingId && !quickEnabled && state.viewMode !== "original" && !peekOriginal && (
+            {drawing && !quickMode && state.viewMode !== "original" && !peekOriginal && (
               <g pointerEvents="none">
                 <polyline
                   points={draft.map((p) => `${p.x * size.width},${p.y * size.height}`).join(" ")}
@@ -2746,6 +3124,88 @@ export function SegmentationCanvas({
           </g>
         </svg>
       </Box>
+      <Dialog
+        open={conversion != undefined}
+        onClose={() => {
+          setConversion(undefined);
+        }}
+        aria-labelledby="mask-conversion-title"
+      >
+        <DialogTitle id="mask-conversion-title">
+          {text("Convert the mask to polygons?", "把 mask 转为多边形？")}
+        </DialogTitle>
+        {conversion && (
+          <DialogContent data-testid="mask-conversion-loss">
+            <Typography variant="body2" gutterBottom>
+              {text(
+                "Polygons are their union and cannot hold holes or one-pixel slivers, so this conversion changes the pixels:",
+                "多边形取并集，表达不了洞和单像素细条，所以转换会改变像素：",
+              )}
+            </Typography>
+            <Typography variant="body2" component="ul">
+              <li>
+                IoU {(conversion.loss.iou * 100).toFixed(2)}% ·{" "}
+                {text(
+                  `${conversion.loss.polygonCount} polygon(s)`,
+                  `${conversion.loss.polygonCount} 个多边形`,
+                )}
+              </li>
+              <li>
+                {text(
+                  `${conversion.loss.lostPixels} pixels lost, ${conversion.loss.addedPixels} pixels added`,
+                  `丢失 ${conversion.loss.lostPixels} 像素，新增 ${conversion.loss.addedPixels} 像素`,
+                )}
+              </li>
+              {conversion.loss.holes > 0 && (
+                <li>
+                  {text(
+                    `${conversion.loss.holes} hole(s) will be filled`,
+                    `${conversion.loss.holes} 个洞会被填上`,
+                  )}
+                </li>
+              )}
+              {conversion.loss.droppedComponents > 0 && (
+                <li>
+                  {text(
+                    `${conversion.loss.droppedComponents} small part(s) will be dropped`,
+                    `${conversion.loss.droppedComponents} 个细小区域会被丢弃`,
+                  )}
+                </li>
+              )}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {text(
+                "Undo restores the mask. To keep the pixels, edit with the brush instead.",
+                "撤销可恢复 mask。若要保留像素，请改用画笔编辑。",
+              )}
+            </Typography>
+          </DialogContent>
+        )}
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setConversion(undefined);
+            }}
+          >
+            {text("Cancel", "取消")}
+          </Button>
+          <Button
+            variant="contained"
+            data-testid="confirm-mask-conversion"
+            onClick={() => {
+              const target = conversion;
+              setConversion(undefined);
+              if (target) {
+                run(() => {
+                  state.convertToPolygons(target.instanceId);
+                });
+              }
+            }}
+          >
+            {text("Convert", "转换")}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Menu
         data-segmentation-input="canvas"
         open={contextMenu != undefined}
@@ -2759,7 +3219,7 @@ export function SegmentationCanvas({
           <MenuItem
             onClick={() => {
               const target = contextMenu.target!;
-              if (!drawingId) {
+              if (!drawing) {
                 state.setFocus({ type: "polygon", id: target.polygonId });
               }
               state.setSelection([{ type: "polygon", id: target.polygonId }]);
@@ -2774,12 +3234,12 @@ export function SegmentationCanvas({
             disabled={
               locked ||
               !state.editing ||
-              drawingId != undefined ||
+              drawing != undefined ||
               contextMenu.target.points.length <= 3
             }
             onClick={() => {
               const target = contextMenu.target;
-              if (target?.type === "vertex" && !locked && state.editing && !drawingId) {
+              if (target?.type === "vertex" && !locked && state.editing && !drawing) {
                 removeVertexAt(target.polygonId, target.points, target.vertex);
               }
               setContextMenu(undefined);
@@ -2788,15 +3248,15 @@ export function SegmentationCanvas({
             {text("Delete vertex", "删除顶点")}
           </MenuItem>
         )}
-        {drawingId && (
+        {drawing && (
           <MenuItem
-            disabled={locked || (quickEnabled ? !quickResult || quickBusy : draft.length < 3)}
+            disabled={locked || (quickMode ? !quickResult || quickBusy : draft.length < 3)}
             onClick={() => {
               finishDrawing();
               setContextMenu(undefined);
             }}
           >
-            {quickEnabled ? text("Finish mask", "完成 mask") : text("Finish polygon", "完成多边形")}
+            {quickMode ? text("Finish mask", "完成 mask") : text("Finish polygon", "完成多边形")}
           </MenuItem>
         )}
         <MenuItem
@@ -2837,19 +3297,27 @@ export function SegmentationCanvas({
                   `Point ${activePoint.vertex + 1} (${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}): arrows move 1 image pixel; Shift = 10; Shift+click adds points.`,
                   `顶点 ${activePoint.vertex + 1}（${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}）：方向键移动 1 图像像素；Shift 为 10；Shift+点击可多选。`,
                 )
-              : drawingId && quickEnabled
+              : drawing && quickMode
                 ? `快速标注：左键加正点，右键或 Shift+左键加负点；Backspace 撤销上一个点，Enter 完成，Esc 取消 · ${quickPoints.filter((p) => p.positive).length} 正 / ${quickPoints.filter((p) => !p.positive).length} 负${quickBusy ? " · 计算中…" : quickResult ? ` · 置信度 ${quickResult.score.toFixed(2)}` : ""}`
-                : drawingId
-                ? `Drawing: ${draft.length} vertices · Space/middle/right drag to pan`
-                : state.editing
+                : drawing
                   ? text(
-                      "Drag points/fill; drag empty canvas to box-select points; Shift+click multi-selects; click edge to add; Delete removes selected points. Arrows move selected points; Enter finishes editing. Space/right drag pans; wheel zooms; ? help.",
-                      "拖动顶点/填充；拖动空白处框选顶点；Shift+点击多选；单击边加点；Delete 删除选中顶点。方向键移动选中顶点，Enter 完成编辑。空格/右键拖动平移；滚轮缩放；? 查看帮助。",
+                      `Drawing a polygon: ${draft.length} vertices · Enter finishes, Esc cancels · Q quick annotation · Space/middle/right drag to pan`,
+                      `绘制多边形：${draft.length} 个顶点 · Enter 完成，Esc 取消 · Q 改为快速标注 · 空格/中键/右键拖动平移`,
                     )
-                  : text(
-                      "Select an instance, then enable Edit to adjust polygons.",
-                      "先选择实例，再点击“编辑”调整多边形。",
-                    )}
+                  : brushActive
+                    ? text(
+                        `${brush.mode === "paint" ? "Brush" : "Eraser"} ${brush.radius}px: drag to ${brush.mode === "paint" ? "paint" : "erase"} the mask · B brush, E eraser, [ ] size · each stroke is one undo step · Enter finishes editing.`,
+                        `${brush.mode === "paint" ? "画笔" : "橡皮"} ${brush.radius}px：拖动以${brush.mode === "paint" ? "涂抹" : "擦除"} mask · B 画笔，E 橡皮，[ ] 调整大小 · 每一笔可单独撤销 · Enter 完成编辑。`,
+                      )
+                    : state.editing
+                      ? text(
+                          "Drag points/fill; drag empty canvas to box-select points; Shift+click multi-selects; click edge to add; Delete removes selected points. Arrows move selected points; Enter finishes editing. Space/right drag pans; wheel zooms; ? help.",
+                          "拖动顶点/填充；拖动空白处框选顶点；Shift+点击多选；单击边加点；Delete 删除选中顶点。方向键移动选中顶点，Enter 完成编辑。空格/右键拖动平移；滚轮缩放；? 查看帮助。",
+                        )
+                      : text(
+                          "Select an instance, then enable Edit to adjust polygons.",
+                          "先选择实例，再点击“编辑”调整多边形。",
+                        )}
         </Typography>
       )}
     </Stack>
