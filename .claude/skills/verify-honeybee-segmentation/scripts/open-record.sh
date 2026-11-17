@@ -58,7 +58,6 @@ const facts = await page.evaluate(() => {
     topics: [...new Set(text.match(/\/astribot_camera\/[\w/]+/g) ?? [])],
     imageCanvases: [...document.querySelectorAll("canvas")].filter((c) => c.width > 200).length,
     annotationEntry: text.includes("编辑空间标注"),
-    localStorageBadge: text.includes("本机标注"),
   };
 });
 console.log(JSON.stringify({ spaceId: task.spaceId, ...facts }, null, 2));

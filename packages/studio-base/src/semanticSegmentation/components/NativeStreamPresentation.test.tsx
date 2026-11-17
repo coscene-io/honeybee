@@ -51,6 +51,11 @@ jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
   useCurrentUser: (selector: (store: { user?: { userId: string } }) => unknown) =>
     selector({ user: mockUserId ? { userId: mockUserId } : undefined }),
 }));
+// The fixture source counts as a cloud record; sessions use the in-memory mock service.
+jest.mock("@foxglove/studio-base/util/coscene/annotation", () => ({
+  isAnnotationRecordName: () => true,
+  createLiveSemanticSegmentationService: () => undefined,
+}));
 jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
   useCoreData: (selector: (store: { record: { value?: undefined } }) => unknown) =>
     selector({ record: { value: undefined } }),

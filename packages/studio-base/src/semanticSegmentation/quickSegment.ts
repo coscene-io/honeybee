@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { localSegmentUrl } from "@foxglove/studio-base/util/coscene/annotation";
-
 import { truncateToMicros } from "./frameTime";
 import type { SegmentationMask } from "./types";
 
@@ -28,18 +26,19 @@ export type QuickSegmentResult = { mask: SegmentationMask; score: number };
 /**
  * Temporary quick-annotation endpoint: a SAM2 process (tools/seg-local-propagation) behind a
  * Cloudflare Tunnel, until the AnnotationService gains SegmentFrame (cosceneapis #870). Hard-coded
- * on purpose: this is a stopgap, not deployment configuration. A loopback URL in
- * localStorage["coStudio.semanticSegmentation.segmentUrl"] overrides it for local work.
+ * on purpose: this is a stopgap, not deployment configuration, and every build uses it.
  */
 export const QUICK_SEGMENT_URL = "https://sam.reily.app";
 
-function segmentUrl(): string {
-  return localSegmentUrl() ?? QUICK_SEGMENT_URL;
+let enabledInTests = false;
+
+/** Unit tests draw manual polygons unless a test opts in; they never reach the tunnel. */
+export function setQuickSegmentInTests(state: "on" | "off"): void {
+  enabledInTests = state === "on";
 }
 
-/** Always on in the app; unit tests exercise manual polygon drawing and never reach the tunnel. */
 export function quickSegmentAvailable(): boolean {
-  return process.env.NODE_ENV !== "test" || localSegmentUrl() != undefined;
+  return process.env.NODE_ENV !== "test" || enabledInTests;
 }
 
 /** Re-encode the displayed frame as JPEG at full size: a few hundred KB instead of a large PNG. */
@@ -70,7 +69,7 @@ export async function quickSegment(
   request: QuickSegmentRequest,
   signal?: AbortSignal,
 ): Promise<QuickSegmentResult> {
-  const base = segmentUrl();
+  const base = QUICK_SEGMENT_URL;
   const frameTimeMicros = truncateToMicros(request.logTimeNs).toString();
   const key = `${request.topic}@${frameTimeMicros}`;
   const body = {

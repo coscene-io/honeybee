@@ -5,7 +5,7 @@ A user opens spatial annotation from the global app bar, sees that edits are sto
 ## Sub-features
 
 - `session-enter` opens the editor from `✎ 编辑空间标注`.
-- `session-badge` shows `正式服务` for a cloud record on the live service and `本机标注` for browser-only annotation (see `live-annotation-service.md`).
+- `session-cloud-only` disables `✎ 编辑空间标注` for a source without a cloud record (see `live-annotation-service.md`).
 - `session-frame-gate` keeps `新建` disabled until the frame window loads, then enables it.
 - `session-leave` closes the editor from `结束标注`.
 

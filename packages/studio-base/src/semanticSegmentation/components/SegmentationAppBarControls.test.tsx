@@ -12,6 +12,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import { createMuiTheme } from "@foxglove/theme";
 
+import { annotationRecord } from "../annotationRecord";
 import { createSeedDocument, setMockControls } from "../mockService";
 import { createSegmentationRuntime, segmentationSession } from "../runtime";
 import {
@@ -42,7 +43,12 @@ function renderBar(): void {
   );
 }
 
+beforeEach(() => {
+  annotationRecord.setState({ recordName: "warehouses/w/projects/p/records/r" });
+});
+
 afterEach(() => {
+  annotationRecord.setState({ recordName: undefined });
   segmentationChrome.setState({ canvases: [] });
   segmentationSession.setState({
     runtime: undefined,
@@ -70,6 +76,21 @@ it("opens and maximizes the only canvas from the app bar", () => {
     unregister();
   });
   expect(screen.queryByTitle("编辑空间标注")).toBeNull();
+});
+
+it("disables annotation for a source without a cloud record and says why", () => {
+  annotationRecord.setState({ recordName: undefined });
+  const only = canvas("panel-1", "/camera");
+  const unregister = registerSegmentationCanvas(only);
+  renderBar();
+  const enter = screen.getByTitle("只有云端记录支持空间标注");
+  expect((enter as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(enter);
+  expect(only.inline).not.toHaveBeenCalled();
+  expect(screen.queryByText(/本机|正式服务/)).toBeNull();
+  act(() => {
+    unregister();
+  });
 });
 
 it("enters annotation on one click when several image panels are open", () => {

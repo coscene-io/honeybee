@@ -55,8 +55,7 @@ Stable handles:
 - Play and pause: `page.keyboard.press("Space")` with focus outside an input.
 - Enter annotation: `✎ 编辑空间标注` in `[data-testid="segmentation-app-bar"]`. All camera surfaces join the global session; the clock does not move.
 - Leave annotation: `结束标注` inside `[data-testid="segmentation-app-bar"]`.
-- Backend badge: app-bar text `正式服务` means the session reads and saves through the live AnnotationService; `本机标注` means edits stay in this browser. See [`features/live-annotation-service.md`](features/live-annotation-service.md).
-- Local mock masks: on localhost, `segMockMasks=1` (or a JSON profile `{"instances":3,"cameras":5,"seed":7}`) in the page URL adds labelled MOCK masks from det_seg shapes to `本机标注` sessions. Use it to exercise GPU mask rendering and double-click editing; it is never inference output.
+- Backend: every session reads and saves through the live AnnotationService; there is no browser-only mode and no backend badge. A source without a cloud record shows `✎ 编辑空间标注` disabled (title `只有云端记录支持空间标注`). See [`features/live-annotation-service.md`](features/live-annotation-service.md).
 - Frame diagnostics: `[data-testid="segmentation-native-overlay"]` exposes `data-topic`, `data-log-time-ns`, `data-source-ready` for each camera. These identify the actual decoded image, not the playhead.
 - Hidden file input for local files: `input[data-puppeteer-file-upload]`.
 
@@ -82,5 +81,5 @@ Write every artifact under `/tmp/verify-seg/` with a name that says the feature 
 ## Side effects to report
 
 - Creating a layout from the empty-layout dialog writes a personal layout to the signed-in dev account. Prefer the recommended layout URL so you do not create one.
-- Annotations made in `本机标注` mode persist in this browser's storage for the open recording.
+- Quick annotation uploads the displayed frame to `https://sam.reily.app` (a SAM2 process behind a Cloudflare Tunnel on the author's Mac). Report that frames leave the browser.
 - Edits saved in `正式服务` mode write to the shared dev backend. Follow the test-data rules in `features/live-annotation-service.md`.

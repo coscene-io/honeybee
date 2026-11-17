@@ -5,13 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createClient } from "@connectrpc/connect";
-import { createGrpcWebTransport } from "@connectrpc/connect-web";
-
-import {
-  annotationBackend,
-  type ActiveAnnotationBackend,
-} from "@foxglove/studio-base/semanticSegmentation/annotationBackend";
 import {
   createLiveAnnotationService,
   type LiveSemanticSegmentationService,
@@ -37,74 +30,18 @@ export function isAnnotationRecordName(recordName: string | undefined): recordNa
   return recordName != undefined && RECORD_NAME.test(recordName);
 }
 
-/** Which backend a session for this record would use now. */
-export function resolveAnnotationBackend(recordName: string | undefined): ActiveAnnotationBackend {
-  if (!isAnnotationRecordName(recordName)) {
-    return { kind: "local", reason: "no-cloud-record" };
-  }
-  return annotationBackend.getState().mode === "live"
-    ? { kind: "live", recordName }
-    : { kind: "local", reason: "chosen" };
-}
-
-/**
- * Local propagation sidecar (tools/seg-local-propagation). Opt in per browser:
- * `localStorage.setItem("coStudio.semanticSegmentation.propagationUrl", "http://127.0.0.1:18876")`.
- * No credentials are sent to it.
- */
-export const PROPAGATION_URL_KEY = "coStudio.semanticSegmentation.propagationUrl";
-
-/**
- * Quick annotation (click-to-mask) on the same sidecar, without routing propagation there:
- * `localStorage.setItem("coStudio.semanticSegmentation.segmentUrl", "http://127.0.0.1:18876")`.
- * When unset, quick annotation follows the propagation URL.
- */
-export const SEGMENT_URL_KEY = "coStudio.semanticSegmentation.segmentUrl";
-
-function loopbackUrl(key: string): string | undefined {
-  try {
-    const url = globalThis.localStorage.getItem(key)?.trim();
-    return url != undefined && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url)
-      ? url.replace(/\/$/, "")
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function localPropagationUrl(): string | undefined {
-  return loopbackUrl(PROPAGATION_URL_KEY);
-}
-
-export function localSegmentUrl(): string | undefined {
-  return loopbackUrl(SEGMENT_URL_KEY) ?? localPropagationUrl();
-}
-
-/**
- * The live service for a cloud record, or undefined when the session should stay in this
- * browser (a local file, or the user switched to 本机标注).
- */
+/** The live service for a cloud record; undefined for sources it cannot address (local files). */
 export function createLiveSemanticSegmentationService(args: {
   recordName: string | undefined;
   startNs: bigint;
   document: SegmentationDocument;
 }): LiveSemanticSegmentationService | undefined {
-  const backend = resolveAnnotationBackend(args.recordName);
-  if (backend.kind !== "live") {
+  if (!isAnnotationRecordName(args.recordName)) {
     return undefined;
   }
-  const propagationUrl = localPropagationUrl();
   return createLiveAnnotationService({
     client: getPromiseClient(AnnotationService),
-    ...(propagationUrl
-      ? {
-          propagationClient: createClient(
-            AnnotationService,
-            createGrpcWebTransport({ baseUrl: propagationUrl }),
-          ),
-        }
-      : {}),
-    recordName: backend.recordName,
+    recordName: args.recordName,
     startNs: args.startNs,
     document: args.document,
   });

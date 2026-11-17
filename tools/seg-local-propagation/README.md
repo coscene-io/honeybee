@@ -23,8 +23,7 @@ point takes 20–70 ms on an M4 Max.
 
 With the sidecar configured, the editor's "+ polygon" becomes click-to-mask: left click adds a
 positive point, right click or Shift+click a negative one, Backspace removes the last point, Enter
-saves the mask (merged with the instance's existing geometry on that frame), Esc cancels. Without
-the sidecar the editor keeps vertex-by-vertex polygon drawing.
+saves the mask (merged with the instance's existing geometry on that frame), Esc cancels. 
 
 ## Run
 
@@ -35,23 +34,17 @@ tools/seg-local-propagation/run.sh /path/to/CJ260330-3-R154.mcap
 The first run creates `.venv` (uv, Python 3.12) and downloads the 176 MB checkpoint into `weights/`
 (both git-ignored). Startup indexes the MCAP in about 5 s.
 
-Then, in the browser that runs the editor (once per origin):
+The editor no longer talks to this process directly. Quick annotation in every build posts the
+displayed frame to `https://sam.reily.app/segment`, which a Cloudflare Tunnel forwards here; it
+needs no MCAP, so for that alone run `run.sh` without one:
 
-```js
-localStorage.setItem("coStudio.semanticSegmentation.propagationUrl", "http://127.0.0.1:18876");
+```bash
+tools/seg-local-propagation/run.sh
+cloudflared tunnel --config ~/.cloudflared/honeybee-sam.yml run honeybee-sam   # protocol: http2
 ```
 
-Reload. The app bar shows `正式服务 · 本机传播`. Remove the key to go back to the backend.
-
-Once the backend propagates (data-platform-server #2403, verified on dev 2026-11-16), keep only
-quick annotation local and send propagation to the backend:
-
-```js
-localStorage.removeItem("coStudio.semanticSegmentation.propagationUrl");
-localStorage.setItem("coStudio.semanticSegmentation.segmentUrl", "http://127.0.0.1:18876");
-```
-
-The app bar then shows `正式服务 · 本机点选`.
+Propagation in the editor always uses the backend. The gRPC-Web `PropagateAnnotation` here stays
+for direct testing with `--mcap`.
 
 Measured on an M4 Max: 30 head_rgbd frames (1280×720, 1 s) in 9–10 s.
 

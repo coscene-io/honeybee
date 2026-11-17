@@ -37,4 +37,4 @@ Each feature file starts with an H1 title and one paragraph of user-visible beha
 - [Canvas view popover](./canvas-view-popover.md) covers zoom, fit, pan, opacity, and the navigation profile on one canvas.
 - [Per-canvas propagation](./canvas-propagation.md) covers propagating every instance on one canvas from its panel toolbar.
 - [Per-camera frame strip and stepping](./camera-frame-steps.md) covers the ±20 frame strip under each polygon row and stepping the edited camera by real source frames.
-- [Live AnnotationService](./live-annotation-service.md) covers the 正式服务 / 本机标注 badge and switch, the RPCs behind each action, dev test-data rules, and what dev currently blocks.
+- [Live AnnotationService](./live-annotation-service.md) covers the cloud-only rule, the RPCs behind each action, dev test-data rules, and what dev currently blocks.

@@ -8,7 +8,6 @@
 import { createStore } from "zustand/vanilla";
 
 import type { LiveSemanticSegmentationService } from "./liveService";
-import { mockMaskProfileFromLocation } from "./mockMasks";
 import { createMockSemanticSegmentationService } from "./mockService";
 import {
   mergeSourceMetadata,
@@ -33,15 +32,12 @@ export function createSegmentationRuntime(
   options: {
     identity?: { userId: string; sessionId?: string };
     /**
-     * Live client once `createLiveSemanticSegmentationService` returns one.
-     * Omitting it keeps annotations for the captured recording in the browser.
-     * That store is not the published annotation service.
+     * The live AnnotationService client. Omitting it uses the in-memory mock service, which only
+     * unit tests and fixtures rely on; the app never opens a session without a cloud record.
      */
     service?: SemanticSegmentationService;
   } = {},
 ): SegmentationRuntime {
-  // MOCK masks: only on localhost with an explicit `segMockMasks` URL parameter.
-  const mockMasks = options.service ? undefined : mockMaskProfileFromLocation();
   const service: SemanticSegmentationService =
     options.service ??
     createMockSemanticSegmentationService({
@@ -61,7 +57,6 @@ export function createSegmentationRuntime(
             storageKey: persistence.storageKey,
           }
         : {}),
-      ...(mockMasks ? { mockMasks } : {}),
       controls: { delayMs: 500, streamDelayMs: 350 },
     });
   const store = createSemanticSegmentationStore(service);

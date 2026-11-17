@@ -216,7 +216,7 @@ export function createMockSemanticSegmentationService(
     storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">;
     storageKey?: string;
     /**
-     * MOCK masks (localhost `segMockMasks` only). Untouched mock observations are synthesized
+     * MOCK masks for tests and fixtures. Untouched mock observations are synthesized
      * deterministically when their frame window loads and are never persisted; a saved edit or
      * delete of that frame-instance, or a missing instance, suppresses them.
      */

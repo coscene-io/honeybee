@@ -19,16 +19,16 @@ import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import {
   createLiveSemanticSegmentationService,
-  resolveAnnotationBackend,
+  isAnnotationRecordName,
 } from "@foxglove/studio-base/util/coscene/annotation";
 
-import { annotationBackend } from "../annotationBackend";
 import {
   ANNOTATION_WINDOW_SEC,
   annotationWindow,
   previewWindowNeedsLoad,
   previewWindowStartSec,
 } from "../annotationFrames";
+import { annotationRecord } from "../annotationRecord";
 import {
   imageFrameIdentity,
   segmentationCachedFrames,
@@ -152,6 +152,8 @@ function sourceDocument(source: {
   };
 }
 
+export const NOT_ANNOTATABLE = "只有云端记录支持空间标注。";
+
 function serviceOption(service: SemanticSegmentationService | undefined): {
   service?: SemanticSegmentationService;
 } {
@@ -193,13 +195,11 @@ export function SegmentationImageEntry({
   const record = useCoreData((store) => store.record.value);
   const userId = useCurrentUser((store) => store.user?.userId);
   const recordName = record?.name;
-  // Re-render on a backend switch; the next session for this record uses the new choice.
-  const backendMode = useStore(annotationBackend, (state) => state.mode);
-  const backendKey = injectedService
-    ? "injected"
-    : `${resolveAnnotationBackend(recordName).kind}:${backendMode}`;
+  const backendKey = injectedService ? "injected" : "live";
+  // Annotations live only in the AnnotationService: a source without a cloud record has none.
+  const annotatable = injectedService != undefined || isAnnotationRecordName(recordName);
   useEffect(() => {
-    annotationBackend.setState({ recordName });
+    annotationRecord.setState({ recordName });
   }, [recordName]);
   const createService = useCallback(
     (startNs: bigint, document: SegmentationDocument): SemanticSegmentationService | undefined =>
@@ -313,7 +313,7 @@ export function SegmentationImageEntry({
     };
   }, [getPipeline]);
   useEffect(() => {
-    if (topic == undefined || sessionOpen || previewWindowStart == undefined) {
+    if (!annotatable || topic == undefined || sessionOpen || previewWindowStart == undefined) {
       return;
     }
     const pipeline = getPipeline();
@@ -477,6 +477,7 @@ export function SegmentationImageEntry({
       segmentationSession.setState({ previewLoading: false });
     };
   }, [
+    annotatable,
     previewCanStart,
     capture,
     containerRef,
@@ -863,6 +864,10 @@ export function SegmentationImageEntry({
         }
         return;
       }
+      if (!annotatable) {
+        setError(NOT_ANNOTATABLE);
+        return;
+      }
       const pipeline = getPipeline();
       const data = pipeline.playerState.activeData;
       const image = capture();
@@ -1004,6 +1009,7 @@ export function SegmentationImageEntry({
       }
     },
     [
+      annotatable,
       capture,
       file?.dataAssetName,
       file?.filename,

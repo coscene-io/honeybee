@@ -51,19 +51,6 @@ export function validateMockMaskProfile(profile: MockMaskProfile): MockMaskProfi
   return profile;
 }
 
-/** Only on localhost with an explicit `segMockMasks` parameter (`1` or a JSON profile). */
-export function mockMaskProfileFromLocation(): MockMaskProfile | undefined {
-  if (typeof location === "undefined" || !["localhost", "127.0.0.1"].includes(location.hostname)) {
-    return undefined;
-  }
-  const raw = new URLSearchParams(location.search).get("segMockMasks");
-  if (raw == undefined || raw === "0") {
-    return undefined;
-  }
-  const parsed = raw === "1" || raw === "" ? {} : (JSON.parse(raw) as Partial<MockMaskProfile>);
-  return validateMockMaskProfile({ ...DEFAULT_MOCK_MASK_PROFILE, ...parsed });
-}
-
 export function mockMaskCatalog(profile: MockMaskProfile): {
   classes: SegmentationClass[];
   instances: SegmentationInstance[];

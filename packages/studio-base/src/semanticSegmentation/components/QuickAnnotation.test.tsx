@@ -8,14 +8,9 @@
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
-import {
-  localPropagationUrl,
-  PROPAGATION_URL_KEY,
-  SEGMENT_URL_KEY,
-} from "@foxglove/studio-base/util/coscene/annotation";
-
 import { editor, fixture, pointer } from "../acceptance/interaction/fixtures";
 import { countsFromRuns, runsFromIntervals } from "../maskCodec";
+import { QUICK_SEGMENT_URL, setQuickSegmentInTests } from "../quickSegment";
 import { frameInstanceKey } from "../service";
 
 /** A column-major rectangle mask, columns [x0, x1) and rows [y0, y1). */
@@ -27,6 +22,7 @@ function rect(width: number, height: number, x0: number, x1: number, y0: number,
   return countsFromRuns(runsFromIntervals(Uint32Array.from(intervals), width, height));
 }
 
+let urls: string[] = [];
 let requests: {
   points: { x: number; y: number; positive: boolean }[];
   topic: string;
@@ -36,7 +32,8 @@ let requests: {
 
 beforeEach(() => {
   requests = [];
-  localStorage.setItem(PROPAGATION_URL_KEY, "http://127.0.0.1:18876");
+  urls = [];
+  setQuickSegmentInTests("on");
   // jsdom has no 2D canvas; the preview image is cosmetic.
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
@@ -66,6 +63,7 @@ beforeEach(() => {
     if (String(url).startsWith("data:")) {
       return { blob: async () => new Blob(["frame"]) };
     }
+    urls.push(String(url));
     const form = init!.body!;
     const body = JSON.parse(String(form.get("request"))) as Omit<
       (typeof requests)[number],
@@ -84,7 +82,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  localStorage.removeItem(PROPAGATION_URL_KEY);
+  setQuickSegmentInTests("off");
 });
 
 it("clicks positive and negative points, then Enter saves one mask observation", async () => {
@@ -168,21 +166,15 @@ it("merges the clicked mask with the instance's existing polygons on that frame"
   expect(merged.mask?.counts).not.toBe(rect(960, 540, 100, 300, 50, 150));
 });
 
-it("uses the segment URL for clicks while propagation stays on the backend", async () => {
-  localStorage.removeItem(PROPAGATION_URL_KEY);
-  localStorage.setItem(SEGMENT_URL_KEY, "http://127.0.0.1:18876");
-  try {
-    expect(localPropagationUrl()).toBeUndefined();
-    const { store } = await editor(fixture());
-    const canvas = screen.getByRole("img", { name: "Frame polygons" });
-    act(() => {
-      store.getState().addPolygon("instance-1");
-    });
-    pointer(canvas, "pointerdown", 200, 100);
-    await waitFor(() => {
-      expect(requests).toHaveLength(1);
-    });
-  } finally {
-    localStorage.removeItem(SEGMENT_URL_KEY);
-  }
+it("sends every click to the tunnelled quick-annotation endpoint", async () => {
+  const { store } = await editor(fixture());
+  const canvas = screen.getByRole("img", { name: "Frame polygons" });
+  act(() => {
+    store.getState().addPolygon("instance-1");
+  });
+  pointer(canvas, "pointerdown", 200, 100);
+  await waitFor(() => {
+    expect(requests).toHaveLength(1);
+  });
+  expect(urls).toEqual([`${QUICK_SEGMENT_URL}/segment`]);
 });

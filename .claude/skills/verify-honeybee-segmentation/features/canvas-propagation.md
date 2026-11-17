@@ -28,7 +28,7 @@ Preconditions:
 
 ## Gotchas
 
-- In `本机标注` mode the browser mock answers propagation, not the live API. Do not report it as an API test. On dev the live `PropagateAnnotation` is currently blocked (B2 in `live-annotation-service.md`).
+- Propagation always goes to the live `PropagateAnnotation` (model `sam2.1-motion`).
 - Drawing a polygon writes to this browser's storage for the record. Report it.
 - A finished run leaves the playhead on the last propagated frame, which now carries a propagated mask: a new run from there seeds with it.
 - The editor does not mount at the recording start. `open-record.sh mid` seeks by clicking the timeline, because the URL `time` parameter does not move the playhead.
