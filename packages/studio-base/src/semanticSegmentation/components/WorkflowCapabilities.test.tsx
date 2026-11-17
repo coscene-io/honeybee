@@ -26,7 +26,8 @@ it("uses the injected model choices and sends the supported model", async () => 
   store.getState().setFocus({ type: "instance", id: "instance-1" });
   const online = jest.spyOn(service, "propagate");
   render(<CurrentFramePropagationForm store={store} />);
-  expect(screen.getByRole("combobox", { name: "传播模型" })).toHaveProperty("value", "small");
+  // A single supported model needs no choice: the dropdown is hidden and that model is sent.
+  expect(screen.queryByRole("combobox", { name: "传播模型" })).toBeNull();
   fireEvent.click(screen.getByRole("radio", { name: "1 秒" }));
   const expected = { model: "small" };
   await waitFor(() => {

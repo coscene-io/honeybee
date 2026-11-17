@@ -60,8 +60,11 @@ type WireFrameSnapshotInit = MessageInitShape<typeof FrameSnapshotSchema>;
 /** ListFrames rejects windows longer than this; longer local windows are read in pieces. */
 const MAX_WINDOW_MICROS = BigInt(ANNOTATION_WINDOW_SEC) * 1_000_000n;
 const PAGE_SIZE = 1000;
-/** Contract examples; the service validates the model before `ready`. */
-export const LIVE_PROPAGATION_MODELS = ["sam2.1-motion", "sam3.1"];
+/**
+ * Models the backend accepts for mask/polygon seeds. data-platform-server #2403 rejects anything
+ * but sam2.1-motion with INVALID_ARGUMENT; sam3.1 in the contract example is not deployed.
+ */
+export const LIVE_PROPAGATION_MODELS = ["sam2.1-motion"];
 
 export type LiveServiceDiagnostics = {
   recordName: string;

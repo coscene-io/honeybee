@@ -175,22 +175,24 @@ export function PropagationForm({
           </button>
         ))}
       </div>
-      <label>
-        模型
-        <select
-          aria-label="传播模型"
-          value={model}
-          onChange={(event) => {
-            setModel(event.target.value);
-          }}
-        >
-          {allowedModels.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
+      {allowedModels.length > 1 && (
+        <label>
+          模型
+          <select
+            aria-label="传播模型"
+            value={model}
+            onChange={(event) => {
+              setModel(event.target.value);
+            }}
+          >
+            {allowedModels.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="seg-row">
         <button
           type="button"
