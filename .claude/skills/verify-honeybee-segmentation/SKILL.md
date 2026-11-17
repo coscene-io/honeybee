@@ -81,5 +81,5 @@ Write every artifact under `/tmp/verify-seg/` with a name that says the feature 
 ## Side effects to report
 
 - Creating a layout from the empty-layout dialog writes a personal layout to the signed-in dev account. Prefer the recommended layout URL so you do not create one.
-- Quick annotation uploads the displayed frame to `https://sam.reily.app` (a SAM2 server behind a Cloudflare Tunnel, see `tools/seg-local-propagation/`). Report that frames leave the browser.
+- Quick annotation uploads the displayed frame to `https://sam.reily.app` (a SAM2 server behind a Cloudflare Tunnel, see `tools/seg-quick-annotation/`). Report that frames leave the browser.
 - Edits saved in `正式服务` mode write to the shared dev backend. Follow the test-data rules in `features/live-annotation-service.md`.
