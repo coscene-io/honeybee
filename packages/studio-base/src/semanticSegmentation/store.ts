@@ -760,9 +760,26 @@ export function createSemanticSegmentationStore(
       setFocus(focus) {
         assertNavigation();
         const current = get();
-        // Moving focus to another class/instance/polygon completes an edit in progress.
+        // Moving focus to another object completes an edit in progress. Narrowing or widening it
+        // within one instance (the instance, or one of its polygons) keeps editing: otherwise
+        // picking a polygon of a double-clicked mask ends the mask edit and the polygons vanish.
+        const owner = (ref: SegmentationNodeRef | undefined): string | undefined => {
+          if (ref?.type === "instance") {
+            return ref.id;
+          }
+          if (ref?.type === "polygon") {
+            return Object.values(current.document?.annotations ?? {}).find(
+              (item) =>
+                item.frameId === current.currentFrameId &&
+                item.polygons.some((polygon) => polygon.id === ref.id),
+            )?.instanceId;
+          }
+          return undefined;
+        };
+        const sameInstance = owner(focus) != undefined && owner(focus) === owner(current.focus);
         const switching =
           current.editing &&
+          !sameInstance &&
           (focus?.type !== current.focus?.type || focus?.id !== current.focus?.id);
         set({ focus, drawingPolygonId: undefined, ...(switching ? { editing: false } : {}) });
       },

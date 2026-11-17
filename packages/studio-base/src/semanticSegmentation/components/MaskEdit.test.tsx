@@ -56,3 +56,44 @@ it("double-clicking a mask edits only that observation as polygons and leaves it
   expect(store.getState().document!.annotations[key]).toEqual(original);
   expect(store.getState().stagedOperations).toHaveLength(0);
 });
+
+it("keeps a double-clicked mask in edit when one of its polygons is picked in the tree", async () => {
+  const document = fixture();
+  const width = document.videos[0]!.width!;
+  const height = document.videos[0]!.height!;
+  // Two separate rectangles: two connected components, so two polygons.
+  const intervals: number[] = [];
+  for (let x = 100; x < 200; x++) {
+    intervals.push(x * height + 100, x * height + 200);
+  }
+  for (let x = 400; x < 500; x++) {
+    intervals.push(x * height + 100, x * height + 200);
+  }
+  const counts = countsFromRuns(runsFromIntervals(Uint32Array.from(intervals), width, height));
+  const key = frameInstanceKey("frame-0", "instance-1");
+  document.annotations[key] = {
+    frameId: "frame-0",
+    instanceId: "instance-1",
+    polygons: [],
+    mask: { counts, width, height },
+  };
+  document.annotationSummaries[key] = { polygonCount: 0, pointCount: 0 };
+  const { store } = await editor(document);
+  act(() => {
+    pointer(screen.getByRole("img", { name: "Frame polygons" }), "dblclick", 150, 150);
+  });
+  const polygons = store.getState().document!.annotations[key]!.polygons;
+  expect(polygons).toHaveLength(2);
+  act(() => {
+    store.getState().setFocus({ type: "polygon", id: polygons[1]!.id });
+  });
+  expect(store.getState().editing).toBe(true);
+  expect(store.getState().maskEdit).toBeDefined();
+  expect(store.getState().document!.annotations[key]!.polygons).toHaveLength(2);
+  act(() => {
+    store.getState().setFocus({ type: "instance", id: "instance-2" });
+  });
+  // Leaving the instance still ends the edit and restores the untouched mask.
+  expect(store.getState().maskEdit).toBeUndefined();
+  expect(store.getState().document!.annotations[key]!.mask?.counts).toBe(counts);
+});

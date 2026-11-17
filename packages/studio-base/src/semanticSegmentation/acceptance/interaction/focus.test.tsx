@@ -110,9 +110,10 @@ it("SEG-FOC-006/018 isolates P from sibling Q for visibility and pointer editing
   expect(
     store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!.polygons,
   ).toEqual(before);
-  // Clicking a noneditable shape changes focus and completes the edit; select P and edit it again.
+  // Clicking a sibling shape of the same instance moves focus without ending the edit; selecting
+  // P again goes straight back to editing it.
   fireEvent.click(within(row as HTMLElement).getByRole("button", { name: /^Polygon 1/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  expect(store.getState().editing).toBe(true);
   const vertex = screen.getByRole("button", { name: "Vertex 1 of polygon instance-1-polygon-0" });
   pointer(vertex, "pointerdown", 163.2, 162);
   pointer(canvas, "pointermove", 200.5, 180.25);
