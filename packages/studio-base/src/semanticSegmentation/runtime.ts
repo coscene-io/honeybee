@@ -10,7 +10,11 @@ import { createStore } from "zustand/vanilla";
 import type { LiveSemanticSegmentationService } from "./liveService";
 import { mockMaskProfileFromLocation } from "./mockMasks";
 import { createMockSemanticSegmentationService } from "./mockService";
-import { mergeSourceMetadata, type SemanticSegmentationService } from "./service";
+import {
+  mergeSourceMetadata,
+  sourceMetadataChanges,
+  type SemanticSegmentationService,
+} from "./service";
 import { createSemanticSegmentationStore } from "./store";
 import type { SegmentationDocument } from "./types";
 
@@ -168,6 +172,15 @@ export function createSegmentationRuntime(
     registerSource: (source: Pick<SegmentationDocument, "videos" | "frames">) => {
       const current = store.getState().document ?? document;
       if (!current) {
+        return;
+      }
+      // Image panels register on every rendered frame. Publishing an unchanged table would replace
+      // the document, redraw every mask layer and so render again: a frame loop for the session.
+      if (
+        current.frames === metadata?.frames &&
+        current.videos === metadata.videos &&
+        !sourceMetadataChanges(metadata, source)
+      ) {
         return;
       }
       const merged = mergeSourceMetadata(current, source);

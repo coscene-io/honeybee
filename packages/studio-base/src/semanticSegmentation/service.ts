@@ -306,6 +306,51 @@ export function validateFrameWindow(startSec: number, endSec: number): void {
   }
 }
 
+// Frame lookups by ID per frames table. Runtimes grow their table in place, so the length is
+// part of the key.
+const frameIndexes = new WeakMap<
+  readonly SegmentationDocument["frames"][number][],
+  { length: number; byId: Map<string, SegmentationDocument["frames"][number]> }
+>();
+
+/**
+ * Whether `mergeSourceMetadata(document, metadata)` would change the source tables: a new or
+ * longer video, a new decoded size, or a frame not listed yet. A conflicting entry counts as a
+ * change, so the merge still runs and rejects it.
+ */
+export function sourceMetadataChanges(
+  document: Pick<SegmentationDocument, "videos" | "frames">,
+  metadata: Pick<SegmentationDocument, "videos" | "frames">,
+): boolean {
+  for (const video of metadata.videos) {
+    const existing = document.videos.find((item) => item.id === video.id);
+    if (
+      existing?.recordId !== video.recordId ||
+      !(video.durationSec <= existing.durationSec) ||
+      (video.width != undefined &&
+        video.height != undefined &&
+        (video.width !== existing.width || video.height !== existing.height))
+    ) {
+      return true;
+    }
+  }
+  let index = frameIndexes.get(document.frames);
+  if (index?.length !== document.frames.length) {
+    index = {
+      length: document.frames.length,
+      byId: new Map(document.frames.map((frame) => [frame.id, frame])),
+    };
+    frameIndexes.set(document.frames, index);
+  }
+  for (const frame of metadata.frames) {
+    const existing = index.byId.get(frame.id);
+    if (existing?.videoId !== frame.videoId || existing.timestampSec !== frame.timestampSec) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Source IDs and timestamps are immutable; display indices follow actual presentation order. */
 export function mergeSourceMetadata(
   document: SegmentationDocument,

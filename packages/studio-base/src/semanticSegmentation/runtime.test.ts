@@ -90,6 +90,49 @@ it("appends real message/camera metadata without losing drafts or committed geom
   runtime.dispose();
 });
 
+it("ignores a re-registered source that adds nothing, so a rendered frame does not render again", async () => {
+  const runtime = createSegmentationRuntime(createSeedDocument());
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  const original = runtime.store.getState().document!.videos[0]!;
+  const second = { ...original, id: "rear-camera", name: "rear camera" };
+  const frame = {
+    id: "actual-message-456",
+    videoId: second.id,
+    index: 0,
+    timestampSec: 0.65,
+    logTimeNs: "1700000000650000000",
+    imageUrl: "",
+  };
+  runtime.registerSource({ videos: [second], frames: [frame] });
+  const update = jest.spyOn(runtime.service, "updateSourceMetadata");
+  const listener = jest.fn();
+  const unsubscribe = runtime.store.subscribe(listener);
+  const document = runtime.store.getState().document;
+
+  // What an Image panel registers again on each zoom or pan render of the same image.
+  runtime.registerSource({ videos: [{ ...second }], frames: [{ ...frame }] });
+  expect(listener).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+  expect(runtime.store.getState().document).toBe(document);
+
+  // A longer video, a new decoded size and a new frame still publish.
+  runtime.registerSource({ videos: [{ ...second, width: 640, height: 480 }], frames: [] });
+  expect(runtime.store.getState().document?.videos.find((v) => v.id === second.id)?.width).toBe(
+    640,
+  );
+  const next = { ...frame, id: "actual-message-457", timestampSec: 0.7 };
+  runtime.registerSource({ videos: [], frames: [next] });
+  expect(runtime.store.getState().document?.frames.some((item) => item.id === next.id)).toBe(true);
+  expect(update).toHaveBeenCalledTimes(2);
+  // Conflicts are still rejected rather than skipped as known frames.
+  expect(() => {
+    runtime.registerSource({ videos: [], frames: [{ ...next, timestampSec: 0.8 }] });
+  }).toThrow("Conflicting source frame metadata");
+  unsubscribe();
+  runtime.dispose();
+});
+
 it("retries a failed initial read and continues in memory when the localStorage getter throws", async () => {
   const descriptor = Object.getOwnPropertyDescriptor(window, "localStorage")!;
   Object.defineProperty(window, "localStorage", {
