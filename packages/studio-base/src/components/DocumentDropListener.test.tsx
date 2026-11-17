@@ -15,26 +15,21 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { act, render } from "@testing-library/react";
 import { SnackbarProvider } from "notistack";
-import { act } from "react";
-import ReactDOM from "react-dom";
 
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 describe("<DocumentDropListener>", () => {
-  let wrapper: HTMLDivElement;
+  let unmount: () => void;
   let windowDragoverHandler: typeof jest.fn;
 
   beforeEach(() => {
     windowDragoverHandler = jest.fn();
     window.addEventListener("dragover", windowDragoverHandler);
 
-    wrapper = document.createElement("div");
-    document.body.appendChild(wrapper);
-
-    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
-    ReactDOM.render(
+    ({ unmount } = render(
       <div>
         <SnackbarProvider>
           <ThemeProvider isDark={false}>
@@ -42,9 +37,7 @@ describe("<DocumentDropListener>", () => {
           </ThemeProvider>
         </SnackbarProvider>
       </div>,
-      wrapper,
-    );
-    (console.error as jest.Mock).mockClear();
+    ));
   });
 
   it("allows the event to bubble if the dataTransfer has no files", async () => {
@@ -70,8 +63,19 @@ describe("<DocumentDropListener>", () => {
     expect(windowDragoverHandler).not.toHaveBeenCalled();
   });
 
+  it("removes its document listeners when unmounted", () => {
+    unmount();
+
+    const event = new MouseEvent("dragover", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", { value: { types: ["Files"] } });
+    document.dispatchEvent(event);
+
+    expect(windowDragoverHandler).toHaveBeenCalledWith(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   afterEach(() => {
-    document.body.removeChild(wrapper);
+    unmount();
     window.removeEventListener("dragover", windowDragoverHandler);
   });
 });

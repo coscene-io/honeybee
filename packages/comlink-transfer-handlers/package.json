@@ -20,7 +20,6 @@
     "prepack": "yarn run -T tsc -b"
   },
   "devDependencies": {
-    "@coscene-io/comlink": "4.4.1",
-    "@foxglove/tsconfig": "3.2.0"
+    "@coscene-io/comlink": "4.4.1"
   }
 }

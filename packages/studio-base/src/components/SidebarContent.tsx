@@ -18,6 +18,7 @@ const useStyles = makeStyles()((theme) => ({
     marginLeft: theme.spacing(-1),
     gap: theme.spacing(0.5),
   },
+
   toolbar: {
     minHeight: 56,
     flexShrink: 0,
@@ -25,6 +26,11 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     padding: theme.spacing(2, 2, 0, 2),
     gap: theme.spacing(0.5),
+  },
+
+  layout1: {
+    fontWeight: 800,
+    flex: "auto",
   },
 }));
 
@@ -50,7 +56,7 @@ export function SidebarContent({
               ))}
             </div>
           )}
-          <Typography component="h2" variant="h4" fontWeight={800} flex="auto">
+          <Typography component="h2" variant="h4" className={classes.layout1}>
             {title}
           </Typography>
           {trailingItems != undefined && (

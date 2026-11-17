@@ -10,8 +10,15 @@ import { Clear as ClearIcon } from "@mui/icons-material";
 import { FormControl, InputLabel, TextField, Box, IconButton } from "@mui/material";
 import { TFunction } from "i18next";
 import { memo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { CollectionStage } from "../types";
+
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    minWidth: 200,
+  },
+}));
 
 interface TaskRelationInputProps {
   currentFocusedTask?: Task;
@@ -26,8 +33,10 @@ export const TaskRelationInput = memo(function TaskRelationInput({
   onClearTask,
   t,
 }: TaskRelationInputProps) {
+  const { classes } = useStyles();
+
   return (
-    <Box minWidth={200}>
+    <Box className={classes.layout1}>
       <FormControl fullWidth size="small">
         <InputLabel id="task-relation-select-label">{t("autoLinkToTask")}</InputLabel>
         <TextField

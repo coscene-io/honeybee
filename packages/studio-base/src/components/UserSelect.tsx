@@ -111,8 +111,8 @@ export function UserSelect({
             placeholder={selectedUsers.length > 0 ? undefined : placeholder}
           />
         )}
-        renderOption={(optionProps, option) => (
-          <Box component="li" {...optionProps} key={option.name}>
+        renderOption={({ key: _key, ...optionProps }, option) => (
+          <Box key={option.name} component="li" {...optionProps}>
             <Avatar src={option.avatar} className={classes.avatar} variant="rounded">
               {(option.avatar == undefined || option.avatar === "") && (
                 <PersonIcon color="secondary" />
@@ -165,8 +165,8 @@ export function UserSelect({
         renderInput={(params) => (
           <TextField {...params} variant="filled" error={error} placeholder={placeholder} />
         )}
-        renderOption={(optionProps, option) => (
-          <Box component="li" {...optionProps} key={option.name}>
+        renderOption={({ key: _key, ...optionProps }, option) => (
+          <Box key={option.name} component="li" {...optionProps}>
             <Avatar src={option.avatar} className={classes.avatar} variant="rounded">
               {(option.avatar == undefined || option.avatar === "") && (
                 <PersonIcon color="secondary" />

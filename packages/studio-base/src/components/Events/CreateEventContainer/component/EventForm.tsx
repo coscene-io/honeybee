@@ -52,17 +52,25 @@ const useStyles = makeStyles()((theme, _params) => ({
     overflow: "auto",
     alignContent: "flex-start",
   },
+
   row: {
     display: "contents",
   },
+
   requiredFlags: {
     color: "#ff4d4f",
     marginRight: "3px",
   },
+
   addFileButton: {
     display: "flex",
     gap: theme.spacing(0.5),
     whiteSpace: "nowrap",
+  },
+
+  layout1: {
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
   },
 }));
 
@@ -273,7 +281,7 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
       <Stack paddingTop={2}>
         <FormControl>
           <FormLabel>{t("startAndEndTime")}</FormLabel>
-          <Typography paddingY={1}>
+          <Typography className={classes.layout1}>
             <Stack alignItems="center" direction="row" gap={1}>
               {t("startAndEndTimeDesc", {
                 startTime: formattedEventStartTime,

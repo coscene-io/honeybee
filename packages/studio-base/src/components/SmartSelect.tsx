@@ -11,7 +11,7 @@ import { useForkRef } from "@mui/material/utils";
 import {
   forwardRef,
   type ForwardedRef,
-  type MutableRefObject,
+  type RefObject,
   type ReactElement,
   type Ref,
   type SyntheticEvent,
@@ -21,7 +21,7 @@ import {
   useState,
 } from "react";
 
-type AnchorRef = MutableRefObject<HTMLDivElement | ReactNull>;
+type AnchorRef = RefObject<HTMLDivElement | ReactNull>;
 
 function useSmartSelectMenuPlacement(anchorRef: AnchorRef) {
   const [menuVerticalPlacement, setMenuVerticalPlacement] = useState<"bottom" | "top">("bottom");

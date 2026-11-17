@@ -5,14 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { MathNumericType, atan2, eigs, isNumber } from "mathjs";
+import { atan2, eigs, isNumber } from "mathjs";
 
 import {
   NavSatFixMsg,
   NavSatFixPositionCovarianceType,
 } from "@foxglove/studio-base/panels/Map/types";
-
-type NumericPair = [MathNumericType, MathNumericType];
 
 /**
  * Calculates the accuracy of a NavSatFix message, based on its type, and returns
@@ -57,14 +55,13 @@ export function getAccuracy(
       // and the corresponding vector is in the rightmost column. Ellipse radii
       // are based on the eigenvalues, and orientation on the vector.
       try {
-        const eigen = eigs(Klatlon) as {
-          vectors: [NumericPair, NumericPair];
-          values: NumericPair;
-        };
-
-        // Eigenvectors are returned in columns
-        const eigenvector = [eigen.vectors[0][1], eigen.vectors[1][1]];
-        const eigenvalues = eigen.values;
+        const eigen = eigs(Klatlon);
+        const major = eigen.eigenvectors[1];
+        if (major == undefined || !Array.isArray(major.vector)) {
+          return undefined;
+        }
+        const eigenvector = major.vector;
+        const eigenvalues = Array.isArray(eigen.values) ? eigen.values : eigen.values.toArray();
 
         if (
           !isNumber(eigenvector[0]) ||

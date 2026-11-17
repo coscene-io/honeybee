@@ -8,6 +8,7 @@
 import { Link } from "@mui/material";
 import { useSnackbar, VariantType } from "notistack";
 import { useLayoutEffect, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import NotificationModal from "@foxglove/studio-base/components/NotificationModal";
 import {
@@ -18,6 +19,12 @@ import {
   NotificationSeverity,
   NotificationMessage,
 } from "@foxglove/studio-base/util/sendNotification";
+
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    fontStyle: "italic",
+  },
+}));
 
 const severityToToastAppearance = (severity: NotificationSeverity): VariantType => {
   switch (severity) {
@@ -33,6 +40,8 @@ const severityToToastAppearance = (severity: NotificationSeverity): VariantType 
 };
 
 export default function SendNotificationToastAdapter(): React.JSX.Element {
+  const { classes } = useStyles();
+
   const { enqueueSnackbar } = useSnackbar();
   const [notificationDetails, setNotificationDetails] = useState<NotificationMessage | undefined>(
     undefined,
@@ -54,9 +63,9 @@ export default function SendNotificationToastAdapter(): React.JSX.Element {
                 setNotificationDetails({ message, details, severity });
               }}
               variant="inherit"
-              fontStyle="italic"
               color="inherit"
               underline="hover"
+              className={classes.layout1}
             >
               (see details)
             </Link>
@@ -72,7 +81,7 @@ export default function SendNotificationToastAdapter(): React.JSX.Element {
     return () => {
       unsetNotificationHandler();
     };
-  }, [enqueueSnackbar]);
+  }, [classes.layout1, enqueueSnackbar]);
 
   if (notificationDetails == undefined) {
     return <></>;

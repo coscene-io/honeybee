@@ -20,7 +20,9 @@ describe("getMcapInfo", () => {
     await writer.start({ library: "", profile: "" });
     await writer.end();
 
-    const result = await getMcapInfo(new Blob([tempBuffer.get()]) as unknown as globalThis.Blob);
+    const result = await getMcapInfo(
+      new Blob([Uint8Array.from(tempBuffer.get())]) as unknown as globalThis.Blob,
+    );
 
     expect(result).toEqual({
       compressionTypes: new Set(),

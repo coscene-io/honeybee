@@ -30,7 +30,7 @@ function PreviewPolygons({
 }: {
   runtime: SegmentationRuntime;
   topic: string;
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<ReactNull | HTMLDivElement>;
 }): React.JSX.Element | undefined {
   const document = useStore(runtime.store, (state) => state.document);
   const currentTime = useMessagePipeline((state) => state.playerState.activeData?.currentTime);
@@ -143,7 +143,7 @@ export function AnnotationPreview({
   containerRef,
   topic,
 }: {
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<ReactNull | HTMLDivElement>;
   topic?: string;
 }): React.JSX.Element | undefined {
   const open = useStore(segmentationSession, (session) => session.open);

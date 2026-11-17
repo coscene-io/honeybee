@@ -33,6 +33,7 @@ const useStyles = makeStyles()((theme) => ({
   searchIcon: {
     color: theme.palette.text.secondary,
   },
+
   listContainer: {
     height: 240,
     overflow: "auto",
@@ -40,6 +41,7 @@ const useStyles = makeStyles()((theme) => ({
     borderRight: `1px solid ${theme.palette.divider}`,
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
+
   listItem: {
     minHeight: 36,
     display: "flex",
@@ -55,6 +57,7 @@ const useStyles = makeStyles()((theme) => ({
       display: "none",
     },
   },
+
   listItemText: {
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -62,6 +65,15 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
+  },
+
+  layout1: {
+    textOverflow: "ellipsis",
+  },
+
+  layout2: {
+    gap: theme.spacing(1),
+    flex: "none",
   },
 }));
 interface LayoutListProps {
@@ -120,11 +132,11 @@ export function ProjectLayoutList({
           <ListItem key={layout.name} className={classes.listItem} dense>
             <BusinessCenterOutlinedIcon fontSize="small" />
             <ListItemText className={classes.listItemText}>
-              <Typography variant="body2" noWrap textOverflow="ellipsis">
+              <Typography variant="body2" noWrap className={classes.layout1}>
                 {layout.displayName}
               </Typography>
             </ListItemText>
-            <Stack direction="row" gap={1} flex="none">
+            <Stack direction="row" className={classes.layout2}>
               <Button
                 size="small"
                 variant="outlined"

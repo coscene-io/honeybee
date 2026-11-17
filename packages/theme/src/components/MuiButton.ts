@@ -14,11 +14,11 @@ export const MuiButton: OverrideComponentReturn<"MuiButton"> = {
     disableElevation: true,
   },
   styleOverrides: {
-    root: {
+    root: ({ theme }) => ({
       transition: "none",
-    },
-    containedInherit: ({ theme }) => ({
-      backgroundColor: theme.palette.action.focus,
+      [`&.${buttonClasses.contained}.${buttonClasses.colorInherit}`]: {
+        backgroundColor: theme.palette.action.focus,
+      },
     }),
     sizeSmall: {
       [`&.${buttonClasses.text}`]: {

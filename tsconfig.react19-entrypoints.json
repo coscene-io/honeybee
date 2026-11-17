@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.ci-typecheck.json",
+  "include": [
+    "desktop/renderer/index.ts",
+    "desktop/quicklook/index.ts",
+    "desktop/integration-test/launchApp.ts",
+    "desktop/integration-test/open-extension.test.ts",
+    "desktop/integration-test/react19Builtins.test.ts",
+    "desktop/integration-test/react19Examples.test.ts",
+    "desktop/integration-test/react19Resources.test.ts",
+    "desktop/integration-test/reactUpgradeBenchmark.test.ts",
+    "benchmark/src/index.tsx",
+    "web/integration-test/reactUpgradeExtension.ts",
+    "web/integration-test/reactUpgradeExtension.test.ts",
+    "packages/**/*.d.ts"
+  ],
+  "exclude": ["node_modules/**"]
+}

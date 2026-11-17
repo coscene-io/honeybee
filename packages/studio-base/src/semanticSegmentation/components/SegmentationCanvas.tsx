@@ -77,7 +77,7 @@ const useStyles = makeStyles()((theme) => ({
     position: "relative",
     "& circle:focus": { outline: "none" },
   },
-  toolbar: { padding: theme.spacing(1), flexWrap: "wrap" },
+  toolbar: { padding: theme.spacing(1), flexWrap: "wrap", alignItems: "center" },
   // Mirrors the timeline ••• menu (TimelineToolbar): 240 px paper, 6 px padding, 32 px rows.
   toolsPanel: {
     position: "absolute",
@@ -219,7 +219,7 @@ export type SegmentationCanvasProps = {
   /** False on canvases that do not hold the edit: they show no errors or drawing help. */
   active?: boolean;
   store: StoreApi<SemanticSegmentationStore>;
-  viewportRef?: RefObject<HTMLDivElement>;
+  viewportRef?: RefObject<ReactNull | HTMLDivElement>;
   imageUrl?: string;
   disabled?: boolean;
   decodedFrame?: DecodedSegmentationFrame;
@@ -345,8 +345,8 @@ export function SegmentationCanvas({
   const content = useRef<SVGGElement>(ReactNull);
   const localViewport = useRef<HTMLDivElement>(ReactNull);
   const viewport = viewportRef ?? localViewport;
-  const drag = useRef<Drag>();
-  const capture = useRef<{ element: SVGElement; pointerId: number }>();
+  const drag = useRef<Drag | undefined>(undefined);
+  const capture = useRef<{ element: SVGElement; pointerId: number } | undefined>(undefined);
   const [size, setSize] = useState({ width: 960, height: 540 });
   const [zoom, setZoom] = useState(1);
   const [screenScale, setScreenScale] = useState(1);
@@ -380,7 +380,7 @@ export function SegmentationCanvas({
   const [opacity, setOpacity] = useState(0.5);
   const view = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
   view.current = { zoom, pan };
-  const previewRef = useRef<Preview>();
+  const previewRef = useRef<Preview | undefined>(undefined);
   const [draft, setDraft] = useState<EditorPoint[]>([]);
   // Quick annotation (SAM2 clicks on the local sidecar) replaces vertex-by-vertex drawing.
   const quickEnabled = quickSegmentAvailable();
@@ -389,7 +389,7 @@ export function SegmentationCanvas({
     (QuickSegmentResult & { url: string; x0: number; y0: number; w: number; h: number }) | undefined
   >();
   const [quickBusy, setQuickBusy] = useState(false);
-  const quickRequest = useRef<AbortController>();
+  const quickRequest = useRef<AbortController | undefined>(undefined);
   const [preview, setPreview] = useState<Preview>();
   // Dismissing the drawing help is remembered; it is a one-line hint, not a per-drawing banner.
   const [showHelp, setShowHelpState] = useState(() => {
@@ -1696,7 +1696,6 @@ export function SegmentationCanvas({
         <Stack
           direction="row"
           spacing={0.5}
-          alignItems="center"
           className={classes.toolbar}
           onClick={(event) => {
             if (

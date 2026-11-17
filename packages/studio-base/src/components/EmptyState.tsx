@@ -21,6 +21,11 @@ const useStyles = makeStyles()((theme) => ({
       padding: 0,
     },
   },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+    lineHeight: 1.4,
+  },
 }));
 
 export default function EmptyState({
@@ -41,7 +46,7 @@ export default function EmptyState({
       fullHeight
       paddingX={1}
     >
-      <Typography variant="body2" color="text.secondary" lineHeight={1.4} align="center">
+      <Typography variant="body2" align="center" className={classes.layout1}>
         {children}
       </Typography>
     </Stack>

@@ -323,8 +323,7 @@ export class StateTransitionsChartRenderer {
 
     // Add functions to datalabels config (can't be serialized)
     const datalabelsOptions = fullOptions.plugins?.datalabels as
-      | DatalabelsPluginOptions
-      | undefined;
+      DatalabelsPluginOptions | undefined;
     if (datalabelsOptions) {
       datalabelsOptions.listeners = {
         click: (context: DatalabelContext) => {

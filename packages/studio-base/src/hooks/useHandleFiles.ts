@@ -26,7 +26,7 @@ export function useHandleFiles(): {
   openHandle: (handle: FileSystemFileHandle) => Promise<void>;
   openFiles: (files: File[]) => Promise<void>;
   dropHandler: (event: { files?: File[]; handles?: FileSystemFileHandle[] }) => void;
-  handleFilesRef: React.MutableRefObject<(files: File[]) => Promise<void>>;
+  handleFilesRef: React.RefObject<(files: File[]) => Promise<void>>;
 } {
   const { enqueueSnackbar } = useSnackbar();
   const { availableSources, selectSource } = usePlayerSelection();

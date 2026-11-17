@@ -45,6 +45,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     marginLeft: theme.spacing(2.5),
     paddingBottom: "12px",
   },
+
   bagBox: {
     display: "flex",
     // justifyContent: "space-between",
@@ -62,6 +63,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     position: "relative",
     backgroundColor: theme.palette.background.default,
   },
+
   triangle: {
     width: 0,
     height: 0,
@@ -72,6 +74,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     left: 0,
     top: 0,
   },
+
   shadowIcon: {
     position: "absolute",
     left: "2px",
@@ -80,15 +83,18 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     height: "10px",
     color: theme.palette.primary.main,
   },
+
   tooltip: {
     position: "absolute",
     width: "24px",
     left: 0,
     top: 0,
   },
+
   isCurrentBag: {
     color: `${theme.palette.primary.main} !important`,
   },
+
   bagName: {
     fontFamily: "Inter",
     fontStyle: "normal",
@@ -101,6 +107,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+
   bagStartTime: {
     display: "flex",
     width: "100%",
@@ -112,9 +119,11 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     lineHeight: "16px",
     color: theme.palette.text.secondary,
   },
+
   bagMetadata: {
     padding: theme.spacing(1),
   },
+
   bagLength: {
     fontFamily: "Inter",
     fontStyle: "normal",
@@ -123,22 +132,27 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     lineHeight: "16px",
     color: theme.palette.text.secondary,
   },
+
   unableToPlay: {
     opacity: 0.5,
     cursor: "not-allowed",
   },
+
   barChartIcon: {
     color: theme.palette.primary.main,
     height: "16px",
     width: "16px",
     marginBottom: "-2px",
   },
+
   hiddenBarChartIcon: {
     display: "none",
   },
+
   hideActionButtons: {
     display: "none",
   },
+
   actionButtons: {
     position: "absolute",
     top: "50%",
@@ -147,6 +161,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
     display: "flex",
     gap: theme.spacing(0.5),
   },
+
   actionButton: {
     color: theme.palette.text.secondary,
     padding: theme.spacing(0.5),
@@ -155,9 +170,11 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
       color: theme.palette.text.primary,
     },
   },
+
   bagFileName: {
     color: theme.palette.text.primary,
   },
+
   generateSuccess: {
     backgroundColor: theme.palette.success.main,
     color: theme.palette.success.contrastText,
@@ -171,6 +188,43 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   generateProcessing: {
     backgroundColor: theme.palette.warning.main,
     color: theme.palette.warning.contrastText,
+  },
+
+  layout1: {
+    gap: "4px",
+  },
+
+  layout2: {
+    marginLeft: "12px",
+    marginRight: "15px",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "4px",
+    paddingBottom: "4px",
+    borderRadius: "0 0 4px 4px",
+    gap: "4px",
+  },
+
+  layout3: {
+    marginLeft: "12px",
+    marginRight: "15px",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "4px",
+    paddingBottom: "4px",
+    borderRadius: "0 0 4px 4px",
+    gap: "4px",
+  },
+
+  layout4: {
+    marginLeft: "12px",
+    marginRight: "15px",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "4px",
+    paddingBottom: "4px",
+    borderRadius: "0 0 4px 4px",
+    gap: "4px",
   },
 }));
 
@@ -333,10 +387,13 @@ function BagViewComponent(params: {
   return (
     <div className={classes.lineBox}>
       <Stack
-        className={cx(classes.bagBox, {
-          [classes.unableToPlay]: !bag.startTime && !isLogFile,
-          [classes.isCurrentBag]: isCurrent || isHovered,
-        })}
+        className={cx(
+          cx(classes.bagBox, {
+            [classes.unableToPlay]: !bag.startTime && !isLogFile,
+            [classes.isCurrentBag]: isCurrent || isHovered,
+          }),
+          classes.layout1,
+        )}
         onClick={() => {
           onClick(bag);
         }}
@@ -348,8 +405,9 @@ function BagViewComponent(params: {
           onHoverEnd(bag);
           setBoxIsHovered(false);
         }}
-        borderRadius={bag.mediaStatues === "OK" ? "4px" : "4px 4px 0 0"}
-        gap="4px"
+        style={{
+          borderRadius: bag.mediaStatues === "OK" ? "4px" : "4px 4px 0 0",
+        }}
       >
         <Stack
           className={cx(classes.bagName, {
@@ -454,46 +512,19 @@ function BagViewComponent(params: {
         )}
       </Stack>
       {bag.mediaStatues === "GENERATED_SUCCESS" && (
-        <Stack
-          marginLeft="12px"
-          marginRight="15px"
-          paddingX="12px"
-          paddingY="4px"
-          className={classes.generateSuccess}
-          borderRadius="0 0 4px 4px"
-          direction="row"
-          gap="4px"
-        >
+        <Stack className={cx(classes.generateSuccess, classes.layout2)} direction="row">
           {t("generateMediaSuccess")}
         </Stack>
       )}
 
       {bag.mediaStatues === "ERROR" && (
-        <Stack
-          marginLeft="12px"
-          marginRight="15px"
-          paddingX="12px"
-          paddingY="4px"
-          className={classes.generateError}
-          borderRadius="0 0 4px 4px"
-          direction="row"
-          gap="4px"
-        >
+        <Stack className={cx(classes.generateError, classes.layout3)} direction="row">
           {t("generateMediaFailed")}
         </Stack>
       )}
 
       {bag.mediaStatues === "PROCESSING" && (
-        <Stack
-          marginLeft="12px"
-          marginRight="15px"
-          paddingX="12px"
-          paddingY="4px"
-          className={classes.generateProcessing}
-          borderRadius="0 0 4px 4px"
-          direction="row"
-          gap="4px"
-        >
+        <Stack className={cx(classes.generateProcessing, classes.layout4)} direction="row">
           {t("generateMediaProcessing")}
         </Stack>
       )}

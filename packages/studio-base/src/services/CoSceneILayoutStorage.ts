@@ -15,11 +15,7 @@ export type ISO8601Timestamp = string & { __brand: "ISO8601Timestamp" };
 export type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
 
 export type LayoutSyncStatus =
-  | "new"
-  | "updated"
-  | "tracked"
-  | "locally-deleted"
-  | "remotely-deleted";
+  "new" | "updated" | "tracked" | "locally-deleted" | "remotely-deleted";
 
 export type Layout = {
   id: LayoutID;

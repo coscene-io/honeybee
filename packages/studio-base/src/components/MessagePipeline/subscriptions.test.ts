@@ -5,8 +5,30 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { mergeSubscriptions } from "@foxglove/studio-base/components/MessagePipeline/subscriptions";
+import {
+  makeSubscriptionMemoizer,
+  mergeSubscriptions,
+} from "@foxglove/studio-base/components/MessagePipeline/subscriptions";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
+
+describe("subscription identity", () => {
+  it("reuses a subscription after switching fields and switching back", () => {
+    const memoize = makeSubscriptionMemoizer();
+    const original = memoize({ topic: "/points", fields: ["x", "y"], preloadType: "full" });
+    const changed = memoize({ topic: "/points", fields: ["z"], preloadType: "full" });
+    expect(changed).not.toBe(original);
+    expect(memoize({ topic: "/points", fields: ["x", "y"], preloadType: "full" })).toBe(original);
+  });
+
+  it("does not share subscriptions between independent player scopes", () => {
+    const first = makeSubscriptionMemoizer();
+    const second = makeSubscriptionMemoizer();
+    const subscription: SubscribePayload = { topic: "/points", preloadType: "partial" };
+    expect(first(subscription)).toBe(subscription);
+    expect(second({ ...subscription })).not.toBe(subscription);
+    expect(first({ ...subscription, preloadType: "full" })).not.toBe(subscription);
+  });
+});
 
 describe("mergeSubscriptions", () => {
   it("combines full and partial subscriptions", () => {

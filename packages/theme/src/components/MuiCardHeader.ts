@@ -9,8 +9,10 @@ import { OverrideComponentReturn } from "../types";
 
 export const MuiCardHeader: OverrideComponentReturn<"MuiCardHeader"> = {
   defaultProps: {
-    titleTypographyProps: {
-      variant: "h4",
+    slotProps: {
+      title: {
+        variant: "h4",
+      },
     },
   },
   styleOverrides: {

@@ -9,6 +9,7 @@ import { ReOrderDotsVertical16Regular } from "@fluentui/react-icons";
 import { Badge, Typography } from "@mui/material";
 import { FzfResultItem } from "fzf";
 import { useCallback, useMemo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { HighlightChars } from "@foxglove/studio-base/components/HighlightChars";
 import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtensionAdapter";
@@ -17,6 +18,12 @@ import { useMessagePathDrag } from "@foxglove/studio-base/services/messagePathDr
 
 import { MessagePathSearchItem } from "./getMessagePathSearchItems";
 import { useTopicListStyles } from "./useTopicListStyles";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 export function MessagePathRow({
   messagePathResult,
@@ -31,7 +38,9 @@ export function MessagePathRow({
   onClick: React.MouseEventHandler<HTMLDivElement>;
   onContextMenu: React.MouseEventHandler<HTMLDivElement>;
 }): React.JSX.Element {
-  const { cx, classes } = useTopicListStyles();
+  const { classes } = useStyles();
+
+  const { cx, classes: topicClasses } = useTopicListStyles();
 
   const {
     fullPath,
@@ -67,16 +76,20 @@ export function MessagePathRow({
   return (
     <div
       ref={combinedRef}
-      className={cx(classes.row, classes.fieldRow, {
-        [classes.isDragging]: isDragging,
-        [classes.selected]: selected,
+      className={cx(topicClasses.row, topicClasses.fieldRow, {
+        [topicClasses.isDragging]: isDragging,
+        [topicClasses.selected]: selected,
       })}
       style={{ ...style, cursor }}
       onClick={onClick}
       onContextMenu={onContextMenu}
     >
       {draggedItemCount > 1 && (
-        <Badge color="primary" className={classes.countBadge} badgeContent={draggedItemCount} />
+        <Badge
+          color="primary"
+          className={topicClasses.countBadge}
+          badgeContent={draggedItemCount}
+        />
       )}
       <Stack flex="auto" direction="row" gap={2} overflow="hidden">
         <Typography variant="body2" noWrap>
@@ -86,11 +99,11 @@ export function MessagePathRow({
             offset={messagePathResult.item.offset}
           />
         </Typography>
-        <Typography variant="caption" color="text.secondary" noWrap>
+        <Typography variant="caption" noWrap className={classes.layout1}>
           {type}
         </Typography>
       </Stack>
-      <div data-testid="TopicListDragHandle" style={{ cursor }} className={classes.dragHandle}>
+      <div data-testid="TopicListDragHandle" style={{ cursor }} className={topicClasses.dragHandle}>
         <ReOrderDotsVertical16Regular />
       </div>
     </div>

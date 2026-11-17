@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-10",
+  "machine": {
+    "cpu": "Apple M4 Pro",
+    "memoryGiB": 48,
+    "platform": "macOS arm64"
+  },
+  "baselineCommit": "68cf3381eca61d8aaec4b69bcd281328af165e60",
+  "upgradedPullRequest": "https://github.com/coscene-io/honeybee/pull/1563",
+  "generatorCommitUsedForMeasurements": "9776ba0f764133a4b4799c6df69455553f741c2e",
+  "finalGeneratorCommit": "067f303469454c7a192f231e1e3455f531e55722",
+  "identicalFixtureBundleSha256": "6d84a2defe6ea96b6ee6fa03d516253c38d19445d7874e23a43985475705229b",
+  "dataset": "packages/studio-base/src/test/fixtures/example.bag",
+  "datasetSha256": "6f8b495a7215a03099836955e1ffbf80f2abaff7f8bd65a1bdf9e52c809cef5d",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "upgradedRendererSha256": "983aec53029a9ca8a3b59f5cf603dcad816c348b9dfabf361be46448fee13cb4",
+  "note": "Same idle measurement window; original firstDataMs gate retained. Commit rate is panel time-update throughput, not GPU FPS.",
+  "react18": [
+    {
+      "run": 1,
+      "firstDataMs": 199,
+      "fileSelectionOverheadMs": 4.100000023841858,
+      "inputToFirstDataMs": 194.89999997615814,
+      "seekMs": [23.600000023841858, 19.30000001192093, 19.399999976158142],
+      "elapsedMs": 5087.699999988079,
+      "panelCommits": 294,
+      "commitsPerSecond": 57.786426086579176
+    },
+    {
+      "run": 2,
+      "firstDataMs": 194.10000002384186,
+      "fileSelectionOverheadMs": 3.5,
+      "inputToFirstDataMs": 190.60000002384186,
+      "seekMs": [20.400000035762787, 22.100000023841858, 21.599999964237213],
+      "elapsedMs": 5089,
+      "panelCommits": 295,
+      "commitsPerSecond": 57.96816663391629
+    },
+    {
+      "run": 3,
+      "firstDataMs": 196,
+      "fileSelectionOverheadMs": 4,
+      "inputToFirstDataMs": 192,
+      "seekMs": [22.099999964237213, 22.099999964237213, 21.899999976158142],
+      "elapsedMs": 5087.800000011921,
+      "panelCommits": 294,
+      "commitsPerSecond": 57.78529030215636
+    }
+  ],
+  "react19": [
+    {
+      "run": 1,
+      "firstDataMs": 209.89999997615814,
+      "fileSelectionOverheadMs": 4.199999988079071,
+      "inputToFirstDataMs": 205.69999998807907,
+      "seekMs": [20.19999998807907, 21.5, 20.100000023841858],
+      "elapsedMs": 5087.5,
+      "panelCommits": 295,
+      "commitsPerSecond": 57.98525798525799
+    },
+    {
+      "run": 2,
+      "firstDataMs": 214.69999998807907,
+      "fileSelectionOverheadMs": 3.899999976158142,
+      "inputToFirstDataMs": 210.80000001192093,
+      "seekMs": [17.799999952316284, 22, 21.5],
+      "elapsedMs": 5075.5,
+      "panelCommits": 294,
+      "commitsPerSecond": 57.925327553935574
+    },
+    {
+      "run": 3,
+      "firstDataMs": 210.69999998807907,
+      "fileSelectionOverheadMs": 3.699999988079071,
+      "inputToFirstDataMs": 207,
+      "seekMs": [23.19999998807907, 21.5, 21.19999998807907],
+      "elapsedMs": 5070.099999964237,
+      "panelCommits": 293,
+      "commitsPerSecond": 57.78978718409237
+    }
+  ]
+}

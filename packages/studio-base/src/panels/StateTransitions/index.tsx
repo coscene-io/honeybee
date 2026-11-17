@@ -179,7 +179,7 @@ function StateTransitions(props: Props) {
   );
   const rangeSessionIdRef = useRef(0);
   const topicPlansRef = useRef(topicPlans);
-  const rangeManagerRef = useRef<{ apply: () => void }>();
+  const rangeManagerRef = useRef<{ apply: () => void }>(undefined);
 
   // Crash the panel when a worker fails to load or encounters an error
   const handleWorkerError = useRethrow(

@@ -108,7 +108,7 @@ function CopyButtonComponent(
       color="inherit"
       startIcon={copied ? checkIcon : copyIcon}
     >
-      <Typography color={copied ? "text.primary" : color} variant="body2">
+      <Typography color={copied ? "textPrimary" : color} variant="body2">
         {children}
       </Typography>
     </Button>

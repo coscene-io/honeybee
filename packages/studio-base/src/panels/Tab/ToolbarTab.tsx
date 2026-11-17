@@ -17,7 +17,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import { IconButton, InputBase } from "@mui/material";
 import React, { Ref as ReactRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import textMetrics from "text-metrics";
+import * as textMetrics from "text-metrics";
 import { makeStyles } from "tss-react/mui";
 
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";

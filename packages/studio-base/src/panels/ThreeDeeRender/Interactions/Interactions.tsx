@@ -4,6 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 //
 // This file incorporates work covered by the following copyright and
 // permission notice:
@@ -16,6 +17,7 @@
 
 import { Cursor20Regular } from "@fluentui/react-icons";
 import { Typography } from "@mui/material";
+import { makeStyles } from "tss-react/mui";
 
 import type { LayoutActions } from "@foxglove/studio";
 import ExpandingToolbar, {
@@ -27,6 +29,12 @@ import ObjectDetails from "./ObjectDetails";
 import TopicLink from "./TopicLink";
 import { InteractionData } from "./types";
 import { Pose } from "../transforms";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.disabled,
+  },
+}));
 
 export const OBJECT_TAB_TYPE = "Selected object";
 export type TabType = typeof OBJECT_TAB_TYPE;
@@ -56,6 +64,8 @@ const InteractionsBaseComponent = React.memo<Props>(function InteractionsBaseCom
   setInteractionsTabType,
   timezone,
 }: Props) {
+  const { classes } = useStyles();
+
   const selectedInteractionData = selectedObject?.object.interactionData;
   const originalMessage = selectedInteractionData?.originalMessage;
   const instanceDetails = selectedInteractionData?.instanceDetails;
@@ -92,7 +102,7 @@ const InteractionsBaseComponent = React.memo<Props>(function InteractionsBaseCom
               />
             </>
           ) : (
-            <Typography variant="body2" color="text.disabled" gutterBottom>
+            <Typography variant="body2" gutterBottom className={classes.layout1}>
               Click an object in the 3D view to select it.
             </Typography>
           )}

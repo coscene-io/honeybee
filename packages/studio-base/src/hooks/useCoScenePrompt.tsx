@@ -6,11 +6,22 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Dialog, DialogActions, DialogContent, TextField, Typography } from "@mui/material";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SubmitEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useKeyPressEvent } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    fontWeight: 600,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 type PromptOptions = {
   title: string;
@@ -40,6 +51,8 @@ function ModalPrompt({
   label,
   transformer,
 }: ModalPromptProps) {
+  const { classes } = useStyles();
+
   const [value, setValue] = useState(initialValue ?? "");
   const { t } = useTranslation("general");
   const errorMessage = useMemo<string | undefined>(() => {
@@ -61,7 +74,7 @@ function ModalPrompt({
     }
   };
 
-  const onSubmitAction = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmitAction = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onConfirmAction();
   };
@@ -98,11 +111,11 @@ function ModalPrompt({
     >
       <form onSubmit={onSubmitAction}>
         <Stack paddingX={3} paddingTop={2}>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
+          <Typography variant="h4" gutterBottom className={classes.layout1}>
             {title}
           </Typography>
           {subText && (
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" className={classes.layout2}>
               {subText}
             </Typography>
           )}

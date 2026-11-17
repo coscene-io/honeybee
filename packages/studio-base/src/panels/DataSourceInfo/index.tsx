@@ -30,6 +30,7 @@ const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
       backgroundColor: "transparent",
     },
   },
+
   table: {
     borderCollapse: "collapse",
     display: "block",
@@ -66,6 +67,10 @@ const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
       },
     },
   },
+
+  layout1: {
+    fontSize: "0.5rem",
+  },
 }));
 
 function TopicRow({ topic }: { topic: Topic }): React.JSX.Element {
@@ -83,7 +88,7 @@ function TopicRow({ topic }: { topic: Topic }): React.JSX.Element {
           getText={() => topic.name}
         />
         {topic.aliasedFromName && (
-          <Typography variant="subtitle2" fontSize="0.5rem">
+          <Typography variant="subtitle2" className={classes.layout1}>
             from {topic.aliasedFromName}
           </Typography>
         )}

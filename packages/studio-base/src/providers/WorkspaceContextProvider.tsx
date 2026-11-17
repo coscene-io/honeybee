@@ -7,7 +7,6 @@
 
 import * as _ from "lodash-es";
 import { ReactNode, useContext, useRef } from "react";
-import { DeepPartial } from "ts-essentials";
 import { StoreApi, createStore, useStore } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -15,6 +14,7 @@ import { CoreDataContext, CoreDataStore } from "@foxglove/studio-base/context/Co
 import {
   WorkspaceContext,
   WorkspaceContextStore,
+  WorkspaceInitialState,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { migrateV0WorkspaceState } from "@foxglove/studio-base/context/Workspace/migrations";
 import {
@@ -84,7 +84,7 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
 }
 
 function createWorkspaceContextStore(
-  initialState?: DeepPartial<WorkspaceContextStore>,
+  initialState?: WorkspaceInitialState,
   options?: { disablePersistence?: boolean; kind?: WorkspaceStoreKind },
 ): StoreApi<WorkspaceContextStore> {
   // The `coscene-share-manifest` store gets its own default panel layout (sidebars
@@ -134,7 +134,10 @@ function createWorkspaceContextStore(
 // intentionally absent (this store exists solely so `useStore` has something to read
 // when there is no CoreDataProvider).
 const EMPTY_CORE_DATA_STORE = createStore<CoreDataStore>()(
-  () => ({ dataSource: undefined }) as CoreDataStore,
+  () =>
+    ({
+      dataSource: undefined,
+    }) as CoreDataStore,
 );
 
 const selectDataSourceId = (state: CoreDataStore): string | undefined => state.dataSource?.id;
@@ -160,9 +163,9 @@ function resolveStoreKind(dataSourceId: string | undefined): WorkspaceStoreKind 
 export type WorkspaceContextProviderProps = {
   children?: ReactNode;
   disablePersistence?: boolean;
-  initialState?: DeepPartial<WorkspaceContextStore>;
+  initialState?: WorkspaceInitialState;
   workspaceStoreCreator?: (
-    initialState?: DeepPartial<WorkspaceContextStore>,
+    initialState?: WorkspaceInitialState,
     options?: { disablePersistence?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
 };

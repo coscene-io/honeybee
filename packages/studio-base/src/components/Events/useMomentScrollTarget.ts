@@ -27,7 +27,7 @@ export function useMomentScrollTarget({
     hovered: ReadonlySet<string>;
     order: ReadonlyMap<string, number>;
     disabled: boolean;
-  }>();
+  }>(undefined);
   const [target, setTarget] = useState<WindowedScrollRequest | undefined>();
   useLayoutEffect(() => {
     const old = previous.current;

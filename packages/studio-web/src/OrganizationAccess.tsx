@@ -33,9 +33,11 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: theme.shape.borderRadius,
     [theme.breakpoints.down("sm")]: { flexDirection: "column", alignItems: "flex-start" },
   },
+
   organizationName: { minWidth: 0, overflowWrap: "anywhere" },
   rowAction: { flexShrink: 0 },
   content: { maxWidth: 520, width: "100%", padding: theme.spacing(2) },
+
   page: {
     minHeight: "100vh",
     display: "grid",
@@ -43,6 +45,19 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.default,
     color: theme.palette.text.primary,
     padding: theme.spacing(3),
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    flexWrap: "wrap",
+    gap: theme.spacing(1),
+  },
+
+  layout3: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -131,7 +146,7 @@ export function OrganizationAccessView({
   onRetry: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     // If the browser's unsaved-edit confirmation cancels navigation, the action
@@ -190,7 +205,7 @@ export function OrganizationAccessView({
             </Button>
           </Box>
           <Box className={classes.row}>
-            <Typography className={classes.organizationName} color="text.secondary">
+            <Typography className={cx(classes.organizationName, classes.layout1)}>
               {t("currentOrganization", {
                 organization:
                   access.currentOrganization?.displayName ?? t("organizationNameUnavailable"),
@@ -210,7 +225,7 @@ export function OrganizationAccessView({
       {access.status === "unavailable" && <Typography>{t("linkUnavailable")}</Typography>}
       {access.status === "error" && <Alert severity="error">{t("accessCheckFailed")}</Alert>}
       {!loading && (!mismatch || login) && (
-        <Stack direction="row" flexWrap="wrap" gap={1}>
+        <Stack direction="row" className={classes.layout2}>
           {login ? (
             <Button
               variant="contained"
@@ -251,7 +266,7 @@ export function OrganizationAccessView({
         </Stack>
       )}
       {(mismatch || changed) && (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" className={classes.layout3}>
           {t("organizationSwitchAffectsTabs")}
         </Typography>
       )}
@@ -260,7 +275,7 @@ export function OrganizationAccessView({
   return modal ? (
     <Dialog
       open
-      disableEscapeKeyDown
+
       aria-labelledby="organization-access-title"
       maxWidth="sm"
       fullWidth

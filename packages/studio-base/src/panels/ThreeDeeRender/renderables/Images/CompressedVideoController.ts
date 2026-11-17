@@ -52,7 +52,11 @@ export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
 type VideoInputEvent = MessageEvent<VideoFrameInfo["frame"]>;
 type ControllerRenderer = Pick<
   IRenderer,
-  "currentTime" | "startTime" | "subscribeMessageRange" | "isPlaybackStopped"
+  | "currentTime"
+  | "startTime"
+  | "subscribeMessageRange"
+  | "isPlaybackStopped"
+  | "acquireKeyframeSearchLock"
 >;
 
 export class CompressedVideoController {
@@ -71,6 +75,7 @@ export class CompressedVideoController {
   #decoderFrontier: VideoInputEvent | undefined;
   #continuous = false;
   #seekTargetNs: bigint | undefined;
+  #releaseSeekPlaybackLock: (() => void) | undefined;
   #seekReplayFrames: MessageEvent[] | undefined;
   #cacheNeedsKeyframe = false;
   #lastInputPublishTimeNs: bigint | undefined;
@@ -126,23 +131,21 @@ export class CompressedVideoController {
     }
     let frames = input
       .filter((event) => event.topic === this.#topic)
-      .map(
-        (event): VideoInputEvent => ({
-          ...event,
-          message: {
-            timestamp: {
-              sec: event.message.timestamp?.sec ?? 0,
-              nsec: event.message.timestamp?.nsec ?? 0,
-            },
-            frame_id: event.message.frame_id ?? "",
-            format: event.message.format ?? "",
-            data:
-              event.message.data instanceof Uint8Array || Array.isArray(event.message.data)
-                ? event.message.data
-                : [],
+      .map((event): VideoInputEvent => ({
+        ...event,
+        message: {
+          timestamp: {
+            sec: event.message.timestamp?.sec ?? 0,
+            nsec: event.message.timestamp?.nsec ?? 0,
           },
-        }),
-      );
+          frame_id: event.message.frame_id ?? "",
+          format: event.message.format ?? "",
+          data:
+            event.message.data instanceof Uint8Array || Array.isArray(event.message.data)
+              ? event.message.data
+              : [],
+        },
+      }));
     if (frames.length === 0 || this.#disposed) {
       await this.#work;
       return;
@@ -277,7 +280,14 @@ export class CompressedVideoController {
   }
 
   public handleSeek(): void {
+    if (this.#disposed) {
+      return;
+    }
+    // Acquire the replacement before cancelling the old seek so controls never unlock
+    // between two seeks. Each controller holds its lock until recovery settles or is cancelled.
+    const release = this.#renderer.acquireKeyframeSearchLock?.();
     this.resetPlaybackState();
+    this.#releaseSeekPlaybackLock = release;
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cacheNeedsKeyframe = true;
     this.#cache.handleSeek(fromNanoSec(this.#renderer.currentTime));
@@ -301,6 +311,9 @@ export class CompressedVideoController {
     this.#lastInputPublishTimeNs = undefined;
     this.#cancelLateTarget?.();
     this.#resetDecoder?.();
+    const release = this.#releaseSeekPlaybackLock;
+    this.#releaseSeekPlaybackLock = undefined;
+    release?.();
   }
 
   public handleTimestampRegression(): void {
@@ -386,6 +399,9 @@ export class CompressedVideoController {
         this.#seekReplayFrames = undefined;
         this.#state.lookbackGeneration = undefined;
         this.#onSeekKeyframeSearchChange?.({ active: false });
+        const release = this.#releaseSeekPlaybackLock;
+        this.#releaseSeekPlaybackLock = undefined;
+        release?.();
       }
     }
   }

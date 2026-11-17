@@ -55,27 +55,23 @@ export class ImageMode extends SceneExtension {
     const { imageTopic, calibrationTopic } = config.imageMode;
 
     const imageTopics = filterMap(this.renderer.topics ?? [], (topic) => {
-      if (
-        !(
-          topicIsConvertibleToSchema(topic, ROS_IMAGE_DATATYPES) ||
-          topicIsConvertibleToSchema(topic, ROS_COMPRESSED_IMAGE_DATATYPES) ||
-          topicIsConvertibleToSchema(topic, RAW_IMAGE_DATATYPES) ||
-          topicIsConvertibleToSchema(topic, COMPRESSED_IMAGE_DATATYPES) ||
-          topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)
-        )
-      ) {
+      if (!(
+        topicIsConvertibleToSchema(topic, ROS_IMAGE_DATATYPES) ||
+        topicIsConvertibleToSchema(topic, ROS_COMPRESSED_IMAGE_DATATYPES) ||
+        topicIsConvertibleToSchema(topic, RAW_IMAGE_DATATYPES) ||
+        topicIsConvertibleToSchema(topic, COMPRESSED_IMAGE_DATATYPES) ||
+        topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)
+      )) {
         return;
       }
       return { label: topic.name, value: topic.name };
     });
 
     const calibrationTopics = filterMap(this.renderer.topics ?? [], (topic) => {
-      if (
-        !(
-          topicIsConvertibleToSchema(topic, CAMERA_INFO_DATATYPES) ||
-          topicIsConvertibleToSchema(topic, CAMERA_CALIBRATION_DATATYPES)
-        )
-      ) {
+      if (!(
+        topicIsConvertibleToSchema(topic, CAMERA_INFO_DATATYPES) ||
+        topicIsConvertibleToSchema(topic, CAMERA_CALIBRATION_DATATYPES)
+      )) {
         return;
       }
       return { label: topic.name, value: topic.name };

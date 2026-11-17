@@ -44,26 +44,80 @@ const useStyles = makeStyles()((theme, _params) => ({
     backgroundColor: theme.palette.background.default,
     border: `1px solid rgba(0, 0, 0, 0)`,
   },
+
   momentDisplayName: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     flex: 1,
   },
+
   momentImage: {
     width: "28px",
     height: "18px",
     display: "block",
   },
+
   container: {
     backgroundColor: theme.palette.background.paper,
   },
+
   eventSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
   },
+
   eventHovered: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
     border: `1px solid ${theme.palette.info.main}`,
+  },
+
+  layout1: {
+    height: "46px",
+    padding: "2px",
+    paddingRight: "8px",
+    borderRadius: "4px",
+    display: "flex",
+    flexDirection: "row",
+    width: "160px",
+    minWidth: "160px",
+  },
+
+  layout2: {
+    width: "2px",
+    borderRadius: "1px",
+    height: "100%",
+    marginRight: "8px",
+  },
+
+  layout3: {
+    justifyContent: "space-between",
+    flex: 1,
+    width: "0",
+  },
+
+  layout4: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignContent: "center",
+  },
+
+  layout5: {
+    display: "block",
+  },
+
+  layout6: {
+    flex: 1,
+    justifyContent: "center",
+    flexDirection: "column-reverse",
+  },
+
+  layout7: {
+    display: "block",
+  },
+
+  layout8: {
+    width: "100%",
   },
 }));
 
@@ -94,18 +148,13 @@ const SingleMomentView = memo(function SingleMomentView({
   return (
     <div>
       <Stack
-        height="46px"
-        padding="2px"
-        paddingRight="8px"
-        borderRadius="4px"
-        display="flex"
-        flexDirection="row"
-        width="160px"
-        minWidth="160px"
-        className={cx(classes.momentMain, {
-          [classes.eventSelected]: isSelected,
-          [classes.eventHovered]: isHovered,
-        })}
+        className={cx(
+          cx(classes.momentMain, {
+            [classes.eventSelected]: isSelected,
+            [classes.eventHovered]: isHovered,
+          }),
+          classes.layout1,
+        )}
         onClick={() => {
           onClick(event);
         }}
@@ -117,22 +166,18 @@ const SingleMomentView = memo(function SingleMomentView({
         }}
       >
         <Stack
-          width="2px"
-          borderRadius="1px"
-          height={1}
-          marginRight="8px"
           style={{
             backgroundColor: isMomentDoubtful(currentEvent.event.customizedFields)
               ? DOUBTFUL_MOMENT_COLOR
               : currentEvent.color,
           }}
+          className={classes.layout2}
         />
-        <Stack justifyContent="space-between" flex={1} width="0">
-          <Stack flex={1} flexDirection="row" justifyContent="center" alignContent="center">
+        <Stack className={classes.layout3}>
+          <Stack className={classes.layout4}>
             <Typography
               variant="button"
-              display="block"
-              className={classes.momentDisplayName}
+              className={cx(classes.momentDisplayName, classes.layout5)}
               gutterBottom
             >
               {currentEvent.event.displayName}
@@ -141,8 +186,8 @@ const SingleMomentView = memo(function SingleMomentView({
               <img className={classes.momentImage} src={currentEvent.imgUrl} />
             )}
           </Stack>
-          <Stack flex={1} justifyContent="center" flexDirection="column-reverse">
-            <Typography variant="caption" display="block" gutterBottom>
+          <Stack className={classes.layout6}>
+            <Typography variant="caption" gutterBottom className={classes.layout7}>
               {formatTime(currentEvent.startTime)}
             </Typography>
           </Stack>
@@ -164,7 +209,7 @@ export default function MomentsList({
   const seek = useMessagePipeline(selectSeek);
   const selectEvent = useEvents(selectSelectEvent);
 
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const [disabledScroll, setDisabledScroll] = useState(false);
   const pointerInside = useRef(false);
   const selectedRef = useRef(selectedEventId);
@@ -226,8 +271,7 @@ export default function MomentsList({
 
   return events.length > 0 ? (
     <Stack
-      width={1}
-      className={classes.container}
+      className={cx(classes.container, classes.layout8)}
       onMouseEnter={() => {
         pointerInside.current = true;
         setDisabledScroll(true);

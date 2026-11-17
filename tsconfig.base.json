@@ -16,7 +16,6 @@
       "protobufjs",
       "cytoscape-dagre",
       "memoize-weak",
-      "react-hover-observer",
       "text-metrics",
       "wicg-file-system-access"
     ],

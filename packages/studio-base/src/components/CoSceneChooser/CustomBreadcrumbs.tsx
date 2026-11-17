@@ -13,11 +13,22 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { Breadcrumbs, Link, Typography, Button } from "@mui/material";
 import { memo, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
 import { CustomBreadcrumbsProps } from "./types";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.primary,
+  },
+
+  layout2: {
+    color: theme.palette.text.primary,
+  },
+}));
 
 const selectUser = (store: UserStore) => store.user;
 
@@ -43,11 +54,15 @@ const BreadcrumbLink = ({
 );
 
 // Helper component for static breadcrumb text
-const BreadcrumbText = ({ itemKey, children }: { itemKey: string; children: React.ReactNode }) => (
-  <Typography key={itemKey} color="text.primary">
-    {children}
-  </Typography>
-);
+const BreadcrumbText = ({ itemKey, children }: { itemKey: string; children: React.ReactNode }) => {
+  const { classes } = useStyles();
+
+  return (
+    <Typography key={itemKey} className={classes.layout1}>
+      {children}
+    </Typography>
+  );
+};
 
 export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
   ({
@@ -63,6 +78,8 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
     disableProjectSelect,
     disableCreateRecord,
   }) => {
+    const { classes } = useStyles();
+
     const { t } = useTranslation("general");
     const currentUser = useCurrentUser(selectUser);
 
@@ -192,8 +209,8 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
             items.push(
               <Typography
                 key={`folder-${index}`}
-                color="text.primary"
                 style={{ display: "flex", alignItems: "center", gap: 4 }}
+                className={classes.layout2}
               >
                 <FolderIcon fontSize="small" />
                 {folder}
@@ -218,18 +235,19 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
 
       return items;
     }, [
-      project,
-      record,
-      clearProject,
-      clearRecord,
-      handleClearAll,
-      handleResetFolder,
-      t,
       mode,
       isProjectDisabled,
       currentFolderPath,
-      onNavigateToFolder,
+      t,
+      project,
+      record,
+      clearProject,
       listType,
+      handleResetFolder,
+      clearRecord,
+      handleClearAll,
+      classes.layout2,
+      onNavigateToFolder,
     ]);
 
     const actionButton = useMemo(() => {

@@ -133,7 +133,7 @@ export default function SeekStepControls({
           component="label"
           htmlFor={id}
           className={classes.label}
-          color={disabled ? "text.disabled" : "text.primary"}
+          color={disabled ? "textDisabled" : "textPrimary"}
         >
           {t("seekStep")}
         </Typography>

@@ -34,13 +34,23 @@ const useStyles = makeStyles()((theme) => ({
     borderColor: theme.palette.divider,
     height: "100%",
   },
+
   paper: {
     maxWidth: 480,
   },
+
   dialogTitle: {
     textAlign: "center",
     fontSize: theme.typography.h2.fontSize,
     paddingBlock: theme.spacing(3),
+  },
+
+  layout1: {
+    color: theme.palette.text.primary,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -97,10 +107,10 @@ export function LaunchPreferenceScreen(): ReactElement {
                 onClick={action.onClick}
               >
                 <Stack flex="auto" zeroMinWidth>
-                  <Typography variant="subtitle1" color="text.primary">
+                  <Typography variant="subtitle1" className={classes.layout1}>
                     {action.primary}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" className={classes.layout2}>
                     {action.secondary}
                   </Typography>
                 </Stack>

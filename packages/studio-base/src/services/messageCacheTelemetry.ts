@@ -196,7 +196,7 @@ export function logMessageCacheMetric(
 
 /** Final PostHog hook: SDK URL/referrer enrichment happens after capture() is called. */
 export const sanitizeMessageCacheCaptureResult: BeforeSendFn = (result) => {
-  if (result?.event !== AppEvent.MESSAGE_CACHE) {
+  if (result.event !== AppEvent.MESSAGE_CACHE) {
     return result;
   }
 
@@ -212,7 +212,7 @@ export const sanitizeMessageCacheCaptureResult: BeforeSendFn = (result) => {
 /** Strip SDK-added page data from privacy-safe aggregate telemetry after PostHog enrichment. */
 export const sanitizeAnalyticsCaptureResult: BeforeSendFn = (result) => {
   const cacheResult = sanitizeMessageCacheCaptureResult(result);
-  if (!result || cacheResult !== result) {
+  if (cacheResult !== result) {
     return cacheResult;
   }
   if (!PLAYER_PERFORMANCE_EVENTS.has(result.event as AppEvent)) {

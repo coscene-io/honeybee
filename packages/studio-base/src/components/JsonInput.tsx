@@ -32,10 +32,15 @@ const useStyles = makeStyles()((theme) => ({
     fontFamily: `${theme.typography.fontMonospace} !important`,
     overflow: "auto",
   },
+
   error: {
     "*": {
       color: `${theme.palette.error.main} !important`,
     },
+  },
+
+  layout1: {
+    color: theme.palette.error.main,
   },
 }));
 
@@ -188,7 +193,7 @@ function ValidatedInputBase({
       {error.length > 0 && (
         <Stack direction="row" alignItems="center" gap={0.25} padding={0.5}>
           <ErrorIcon fontSize="inherit" color="error" />
-          <Typography variant="caption" color="error.main">
+          <Typography variant="caption" className={classes.layout1}>
             {error}
           </Typography>
         </Stack>

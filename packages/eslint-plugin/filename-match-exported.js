@@ -73,7 +73,14 @@ module.exports = {
         }
 
         context.report({
-          node,
+          // Report at the export so a file-level directive after the license also applies.
+          node:
+            node.body.find(
+              (statement) =>
+                statement.type === "ExportDefaultDeclaration" ||
+                (statement.type === "ExpressionStatement" &&
+                  statement.expression.type === "AssignmentExpression"),
+            ) ?? node,
           messageId: isIndex ? "indexMismatch" : "mismatch",
           data: isIndex
             ? { directory: expected, exportName: name }

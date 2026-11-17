@@ -34,11 +34,20 @@ import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { SelectFolder } from "./SelectFolder";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   dialogContent: {
     minWidth: 400,
   },
-});
+
+  layout1: {
+    gap: theme.spacing(2),
+  },
+
+  layout2: {
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+  },
+}));
 
 export function ImportFromFileDialog({
   open,
@@ -142,7 +151,7 @@ export function ImportFromFileDialog({
     >
       <DialogTitle>{t("importFromFile")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
-        <Stack gap={2}>
+        <Stack className={classes.layout1}>
           <input
             style={{ display: "none" }}
             {...form.register("selectedFile", { required: true })}
@@ -175,7 +184,7 @@ export function ImportFromFileDialog({
 
           <Stack>
             <FormLabel>
-              <Stack direction="row" alignItems="center" gap={0.5}>
+              <Stack direction="row" className={classes.layout2}>
                 {t("type")}
               </Stack>
             </FormLabel>

@@ -12,12 +12,9 @@ export const MuiOutlinedInput: OverrideComponentReturn<"MuiOutlinedInput"> = {
     notched: false,
   },
   styleOverrides: {
-    input: ({ theme }) => ({
+    input: ({ theme, ownerState }) => ({
       boxSizing: "content-box",
-      padding: theme.spacing(1, 1.25),
-    }),
-    inputSizeSmall: ({ theme }) => ({
-      padding: theme.spacing(0.75, 1),
+      padding: ownerState.size === "small" ? theme.spacing(0.75, 1) : theme.spacing(1, 1.25),
     }),
   },
 };

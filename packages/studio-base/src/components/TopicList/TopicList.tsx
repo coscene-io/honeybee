@@ -19,7 +19,6 @@ import {
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLatest } from "react-use";
-import { AutoSizer } from "react-virtualized";
 import { ListChildComponentProps, VariableSizeList } from "react-window";
 import { makeStyles } from "tss-react/mui";
 import { useDebounce } from "use-debounce";
@@ -27,6 +26,7 @@ import { useDebounce } from "use-debounce";
 import { filterMap } from "@foxglove/den/collection";
 import { quoteTopicNameIfNeeded } from "@foxglove/message-path";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
+import AutoSizer from "@foxglove/studio-base/components/AutoSizer";
 import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import {
@@ -283,21 +283,25 @@ export function TopicList(): React.JSX.Element {
         </header>
         {treeItems.length > 0 ? (
           <div style={{ flex: "1 1 100%" }}>
-            <AutoSizer>
-              {({ width, height }) => (
-                <VariableSizeList
-                  ref={listRef}
-                  width={width}
-                  height={height}
-                  itemCount={treeItems.length}
-                  itemSize={(index) => (treeItems[index]?.type === "topic" ? 50 : 28)}
-                  itemData={itemData}
-                  overscanCount={10}
-                >
-                  {renderRow}
-                </VariableSizeList>
-              )}
-            </AutoSizer>
+            <AutoSizer
+              renderProp={({ width, height }) =>
+                width != undefined && height != undefined && width > 0 && height > 0 ? (
+                  <VariableSizeList
+                    ref={listRef}
+                    width={width}
+                    height={height}
+                    itemCount={treeItems.length}
+                    itemSize={(index) => (treeItems[index]?.type === "topic" ? 50 : 28)}
+                    itemData={itemData}
+                    overscanCount={10}
+                  >
+                    {renderRow}
+                  </VariableSizeList>
+                ) : (
+                  ReactNull
+                )
+              }
+            />
           </div>
         ) : (
           <EmptyState>

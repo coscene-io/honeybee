@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// eslint-disable-next-line @coscene-io/filename-match-exported
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 const datatypes: RosDatatypes = new Map(
@@ -317,4 +316,5 @@ const datatypes: RosDatatypes = new Map(
   }),
 );
 
+// eslint-disable-next-line @coscene-io/filename-match-exported -- Fixture filename describes its input.
 export default datatypes;

@@ -29,14 +29,89 @@ const useStyles = makeStyles()((theme) => ({
   root: {
     backgroundColor: theme.palette.background.paper,
   },
+
   line: {
     backgroundColor: theme.palette.divider,
   },
+
   taskStateSelector: {
     "& .MuiSelect-select": {
       paddingBottom: "4px",
       paddingTop: "4px",
     },
+  },
+
+  layout1: {
+    overflow: "auto",
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+  },
+
+  layout2: {
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    alignItems: "center",
+  },
+
+  layout3: {
+    flex: "auto",
+    padding: theme.spacing(2),
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  layout4: {
+    flex: "auto",
+    padding: theme.spacing(2),
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  layout5: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout6: {
+    flexDirection: "row",
+  },
+
+  layout7: {
+    marginLeft: theme.spacing(0),
+    marginRight: theme.spacing(1.5),
+    gap: theme.spacing(0.5),
+    width: 12,
+    marginTop: theme.spacing(0.5),
+    alignItems: "center",
+  },
+
+  layout8: {
+    borderRadius: "50%",
+    width: 12,
+    height: 12,
+  },
+
+  layout9: {
+    width: "1px",
+    height: "15px",
+  },
+
+  layout10: {
+    paddingBottom: theme.spacing(10),
+    flex: 1,
+  },
+
+  layout11: {
+    flex: "auto",
+    padding: theme.spacing(2),
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  layout12: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -81,16 +156,14 @@ export function TasksList(): React.JSX.Element {
   const { classes, cx } = useStyles();
 
   return (
-    <Stack className={classes.root} overflow="auto" paddingX={2}>
+    <Stack className={cx(classes.root, classes.layout1)}>
       <Stack
         style={{
           position: "sticky",
           top: 0,
           padding: "8px 0",
         }}
-        flexDirection="row"
-        gap={1}
-        alignItems="center"
+        className={classes.layout2}
       >
         <Select
           size="small"
@@ -144,37 +217,28 @@ export function TasksList(): React.JSX.Element {
         </Select>
       </Stack>
       {projectTasks.loading && (
-        <Stack flex="auto" padding={2} height="100%" alignItems="center" justifyContent="center">
+        <Stack className={classes.layout3}>
           <CircularProgress />
         </Stack>
       )}
       {projectTasks.value?.length === 0 && (
-        <Stack flex="auto" padding={2} height="100%" alignItems="center" justifyContent="center">
-          <Typography align="center" color="text.secondary">
+        <Stack className={classes.layout4}>
+          <Typography align="center" className={classes.layout5}>
             {t("noContent")}
           </Typography>
         </Stack>
       )}
 
       {projectTasks.value && projectTasks.value.length > 0 && (
-        <Stack flexDirection="row">
-          <Stack
-            marginLeft={0}
-            marginRight={1.5}
-            gap={0.5}
-            width={12}
-            marginTop={0.5}
-            alignItems="center"
-          >
+        <Stack className={classes.layout6}>
+          <Stack className={classes.layout7}>
             <Stack
-              borderRadius="50%"
-              width={12}
-              height={12}
               style={{
                 backgroundColor: "#3b82f6",
               }}
+              className={classes.layout8}
             />
-            <Stack width="1px" height="15px" className={classes.line} />
+            <Stack className={cx(classes.line, classes.layout9)} />
           </Stack>
 
           <Typography variant="button" gutterBottom>
@@ -183,14 +247,14 @@ export function TasksList(): React.JSX.Element {
         </Stack>
       )}
 
-      <Stack paddingBottom={10} flex={1}>
+      <Stack className={classes.layout10}>
         {projectTasks.value?.map((task) => {
           return <TaskView key={task.name} task={task} />;
         })}
 
         {projectTasks.value && projectTasks.value.length > 0 && (
-          <Stack flex="auto" padding={2} height="100%" alignItems="center" justifyContent="center">
-            <Typography align="center" color="text.secondary">
+          <Stack className={classes.layout11}>
+            <Typography align="center" className={classes.layout12}>
               {t("allLoaded")}
             </Typography>
           </Stack>

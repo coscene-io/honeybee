@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import Logger from "@foxglove/log";
 import { initI18n } from "@foxglove/studio-base";
@@ -22,7 +22,7 @@ if (!rootEl) {
   throw new Error("missing #root element");
 }
 
-async function main() {
+async function main(container: HTMLElement) {
   const { overwriteFetch, waitForFonts } = await import("@foxglove/studio-base");
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
@@ -32,8 +32,7 @@ async function main() {
 
   const { Root } = await import("./Root");
 
-  // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
-  ReactDOM.render(<Root />, rootEl);
+  createRoot(container).render(<Root />);
 }
 
-void main();
+void main(rootEl);

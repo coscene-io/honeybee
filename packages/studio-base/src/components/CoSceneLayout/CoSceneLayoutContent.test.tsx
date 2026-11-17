@@ -112,7 +112,7 @@ describe("CoSceneLayoutContent", () => {
     if (!(reviewRow instanceof HTMLElement)) {
       throw new Error("Recommended layout row was not rendered");
     }
-    fireEvent.click(within(reviewRow).getByRole("menuitem", { name: "Save a personal copy" }));
+    fireEvent.click(within(reviewRow).getByRole("button", { name: "Save a personal copy" }));
     expect(onCopyRecommendedLayout).toHaveBeenCalledWith(recommendation("default"));
   });
 

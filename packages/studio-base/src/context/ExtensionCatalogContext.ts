@@ -47,8 +47,7 @@ export type ExtensionCatalog = Immutable<{
   installedExtensions: undefined | ExtensionInfo[];
   installedPanels: undefined | Record<string, RegisteredPanel>;
   installedMessageConverters:
-    | undefined
-    | Omit<RegisterMessageConverterArgs<unknown>, "panelSettings">[];
+    undefined | Omit<RegisterMessageConverterArgs<unknown>, "panelSettings">[];
   installedTopicAliasFunctions: undefined | TopicAliasFunctions;
   panelSettings: undefined | Record<string, Record<string, PanelSettings<unknown>>>;
 }>;

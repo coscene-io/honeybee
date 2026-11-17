@@ -1,0 +1,102 @@
+import { PanelExtensionContext } from "@coscene/extension";
+import { ReactElement, useEffect, useLayoutEffect, useState, version } from "react";
+import { createRoot } from "react-dom/client";
+
+let nextInstance = 0;
+
+// This fixture is compiled by the actual extension generator. The document events are observability
+// only: the application receives no test APIs or injected React modules.
+export function initExamplePanel(context: PanelExtensionContext): () => void {
+  const instance = ++nextInstance;
+  let sequence = 0;
+  const emit = (type: string, details: Record<string, unknown> = {}) => {
+    context.panelElement.ownerDocument.dispatchEvent(
+      new CustomEvent("honeybee-react-fixture", {
+        detail: { type, instance, at: performance.now(), reactVersion: version, ...details },
+      }),
+    );
+  };
+
+  function ExamplePanel(): ReactElement {
+    const [clicks, setClicks] = useState(() => {
+      const initial = context.initialState;
+      return typeof initial === "object" &&
+        initial != null &&
+        "clicks" in initial &&
+        typeof initial.clicks === "number"
+        ? initial.clicks
+        : 0;
+    });
+    const [frame, setFrame] = useState<{
+      sequence: number;
+      currentTime?: number;
+      messages: number;
+      done: () => void;
+    }>();
+    useLayoutEffect(() => {
+      emit("mount");
+      let previousTopics: unknown;
+      context.onRender = (state, done) => {
+        const currentTime = state.currentTime
+          ? state.currentTime.sec + state.currentTime.nsec / 1e9
+          : undefined;
+        const renderSequence = ++sequence;
+        emit("render", { sequence: renderSequence, currentTime });
+        setFrame({
+          sequence: renderSequence,
+          currentTime,
+          messages: state.currentFrame?.length ?? 0,
+          done,
+        });
+        if (state.topics && state.topics !== previousTopics) {
+          previousTopics = state.topics;
+          context.subscribe(state.topics.map((topic) => ({ topic: topic.name })));
+        }
+      };
+      context.watch("topics");
+      context.watch("currentFrame");
+      context.watch("currentTime");
+      return () => {
+        context.onRender = undefined;
+        emit("effect-cleanup");
+      };
+    }, []);
+    useEffect(() => {
+      if (frame) {
+        frame.done();
+        emit("done", {
+          sequence: frame.sequence,
+          currentTime: frame.currentTime,
+          messages: frame.messages,
+        });
+      }
+    }, [frame]);
+    return (
+      <section data-testid="react-upgrade-extension" style={{ padding: 16 }}>
+        <h2>React upgrade fixture</h2>
+        <output data-testid="fixture-react-version">{version}</output>
+        <button
+          data-testid="fixture-increment"
+          onClick={() => {
+            const nextClicks = clicks + 1;
+            context.saveState({ clicks: nextClicks });
+            setClicks(nextClicks);
+          }}
+        >
+          Clicks: {clicks}
+        </button>
+        <output data-testid="fixture-frame">{frame?.sequence ?? 0}</output>
+        <output data-testid="fixture-time">{frame?.currentTime ?? "no data"}</output>
+        <output data-testid="fixture-messages">{frame?.messages ?? 0}</output>
+      </section>
+    );
+  }
+
+  emit("init");
+  const root = createRoot(context.panelElement);
+  root.render(<ExamplePanel />);
+  return () => {
+    root.unmount();
+    emit("cleanup");
+  };
+}

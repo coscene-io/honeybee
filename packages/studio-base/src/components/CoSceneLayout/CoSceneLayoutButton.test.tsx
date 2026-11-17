@@ -262,8 +262,7 @@ describe("<CoSceneLayoutButton />", () => {
     });
 
     const currentButtonProps = mockCurrentLayoutButtonRender.mock.lastCall?.[0] as
-      | { onClick: () => void }
-      | undefined;
+      { onClick: () => void } | undefined;
     if (!currentButtonProps) {
       throw new Error("Current layout button props were not captured");
     }
@@ -274,8 +273,7 @@ describe("<CoSceneLayoutButton />", () => {
       expect(mockLayoutDrawerRender).toHaveBeenCalled();
     });
     const drawerProps = mockLayoutDrawerRender.mock.lastCall?.[0] as
-      | { onSelectLayout: (layout: Layout) => Promise<void> }
-      | undefined;
+      { onSelectLayout: (layout: Layout) => Promise<void> } | undefined;
     if (!drawerProps) {
       throw new Error("Layout drawer props were not captured");
     }

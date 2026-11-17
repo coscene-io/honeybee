@@ -52,8 +52,7 @@ async function getSessionMetadata(
   try {
     const tx = db.transaction("sessions", "readonly");
     const metadata = (await tx.objectStore("sessions").get(sessionId)) as
-      | CacheSessionMetadata
-      | undefined;
+      CacheSessionMetadata | undefined;
     await tx.done;
     return metadata;
   } finally {
@@ -138,7 +137,7 @@ describe("IndexedDbMessageStore", () => {
     const originalSetTimeout = globalThis.setTimeout;
     const timeoutSpy = jest
       .spyOn(globalThis, "setTimeout")
-      .mockImplementation((handler, timeout, ...args) => {
+      .mockImplementation((handler, timeout, ...args: unknown[]) => {
         if (timeout !== 0) {
           return originalSetTimeout(handler, timeout, ...args);
         }
@@ -208,7 +207,7 @@ describe("IndexedDbMessageStore", () => {
       let writeError: unknown;
       const timeoutSpy = jest
         .spyOn(globalThis, "setTimeout")
-        .mockImplementation((handler, timeout, ...args) => {
+        .mockImplementation((handler, timeout, ...args: unknown[]) => {
           if (timeout !== 0 || ++yields !== 2) {
             return originalSetTimeout(handler, timeout, ...args);
           }
@@ -2086,7 +2085,11 @@ describe("IndexedDbMessageStore", () => {
         db.createObjectStore("messages");
       },
     });
-    const onBlocked = jest.fn();
+    let markBlocked = () => {};
+    const blocked = new Promise<void>((resolve) => {
+      markBlocked = resolve;
+    });
+    const onBlocked = jest.fn(markBlocked);
     const secondOnBlocked = jest.fn();
     const deleteDBSpy = jest.spyOn(indexedDbMessageCacheApi, "deleteDB");
 
@@ -2094,6 +2097,7 @@ describe("IndexedDbMessageStore", () => {
       const cancelFirst = scheduleLegacyMessageCacheDatabaseDeletion({ onBlocked });
       scheduleLegacyMessageCacheDatabaseDeletion({ onBlocked: secondOnBlocked });
       await jest.advanceTimersByTimeAsync(1_000);
+      await blocked;
       cancelFirst();
       expect(onBlocked).toHaveBeenCalledTimes(1);
       expect(secondOnBlocked).toHaveBeenCalledTimes(1);
@@ -2106,6 +2110,7 @@ describe("IndexedDbMessageStore", () => {
       jest.mocked(console.warn).mockClear();
 
       blocker.close();
+      await deleteDBSpy.mock.results[0]!.value;
       await jest.advanceTimersByTimeAsync(0);
       scheduleLegacyMessageCacheDatabaseDeletion();
       await jest.advanceTimersByTimeAsync(1_000);

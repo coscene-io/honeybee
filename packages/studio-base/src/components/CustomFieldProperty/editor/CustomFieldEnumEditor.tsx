@@ -12,7 +12,7 @@ import {
   EnumValue,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { Autocomplete, TextField, Chip } from "@mui/material";
-import _orderBy from "lodash/orderBy";
+import _orderBy from "lodash-es/orderBy";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -100,8 +100,10 @@ export function CustomFieldEnumEditor({
             variant="filled"
             placeholder={value.length > 0 ? undefined : property.description || t("pleaseSelect")}
             slotProps={{
+              ...params.slotProps,
+
               htmlInput: {
-                ...params.inputProps,
+                ...params.slotProps.htmlInput,
                 "aria-label": property.description || t("pleaseSelect"),
               },
             }}
@@ -142,8 +144,10 @@ export function CustomFieldEnumEditor({
           variant="filled"
           placeholder={property?.description ?? t("pleaseSelect")}
           slotProps={{
+            ...params.slotProps,
+
             htmlInput: {
-              ...params.inputProps,
+              ...params.slotProps.htmlInput,
               "aria-label": property?.description ?? t("pleaseSelect"),
             },
           }}

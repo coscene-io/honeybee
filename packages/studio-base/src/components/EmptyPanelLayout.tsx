@@ -39,11 +39,13 @@ const useStyles = makeStyles()((theme) => ({
     height: "100%",
     overflowY: "auto",
   },
+
   dropTarget: {
     width: "100%",
     height: "100%",
     minHeight: 0,
   },
+
   isOver: {
     "&:after": {
       content: "''",
@@ -56,6 +58,12 @@ const useStyles = makeStyles()((theme) => ({
       bottom: 0,
       zIndex: theme.zIndex.appBar,
     },
+  },
+
+  layout1: {
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    paddingTop: theme.spacing(2),
   },
 }));
 
@@ -82,15 +90,22 @@ export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
     [addPanel, tabId],
   );
 
+  const dropRef = useCallback(
+    (element: HTMLDivElement | ReactNull) => {
+      drop(element);
+    },
+    [drop],
+  );
+
   return (
     <div
-      ref={drop}
+      ref={dropRef}
       data-testid="empty-drop-target"
       className={cx(classes.dropTarget, { [classes.isOver]: isOver })}
     >
       <div className={classes.root}>
         <Stack paddingBottom={2}>
-          <Typography variant="body2" paddingX={2} paddingTop={2}>
+          <Typography variant="body2" className={classes.layout1}>
             {t("selectPanelToAddToLayout")}
             <Link color="primary" target="_blank" href={getDocsLink("/viz/layout/")}>
               {t("userGuide", { ns: "general" })}

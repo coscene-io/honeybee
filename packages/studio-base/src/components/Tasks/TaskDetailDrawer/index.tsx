@@ -7,13 +7,6 @@
 
 // export { default as TaskDetailDrawer } from "./TaskDetailDrawer";
 
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
-// SPDX-License-Identifier: MPL-2.0
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import CloseIcon from "@mui/icons-material/Close";
 import { Drawer, Typography, IconButton, Box, Stack, Chip, Tabs, Tab } from "@mui/material";
 import React, { useEffect, useState } from "react";
@@ -52,26 +45,35 @@ const useStyles = makeStyles<{ showPlaybackControls: boolean }>()(
         ? "calc(100% - 48px - 80px)" // Adjust height to account for AppBar and PlaybackControls
         : "calc(100% - 48px)", // Only account for AppBar when PlaybackControls is not shown
     },
+
     content: {
       padding: theme.spacing(2),
       height: "100%",
       display: "flex",
       flexDirection: "column",
     },
+
     header: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "flex-start",
       flexShrink: 0,
     },
+
     tabs: {
       borderBottom: `1px solid ${theme.palette.divider}`,
       flexShrink: 0,
     },
+
     tableContainer: {
       flex: 1,
       minHeight: 0,
       marginTop: theme.spacing(1),
+    },
+
+    layout1: {
+      alignItems: "flex-start",
+      gap: theme.spacing(1),
     },
   }),
 );
@@ -223,7 +225,7 @@ export default function TaskDetailDrawer(): React.ReactElement {
     >
       <Box className={classes.content}>
         <Box className={classes.header}>
-          <Stack direction="row" alignItems="flex-start" gap={1}>
+          <Stack direction="row" className={classes.layout1}>
             <Chip label={`#${viewingTask?.number}`} size="small" />
             <Typography variant="h6">{viewingTask?.title}</Typography>
           </Stack>

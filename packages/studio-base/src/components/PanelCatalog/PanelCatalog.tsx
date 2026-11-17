@@ -175,6 +175,8 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
         ? fuzzySort
             .go(searchQuery, panels, {
               keys: ["title", "description"],
+              // The catalog has no pagination; fuzzysort 4 otherwise returns only ten matches.
+              limit: Infinity,
               // Weigh title matches more heavily than description matches.
               scoreFn: (a) => Math.max(a[0] ? a[0].score : -1000, a[1] ? a[1].score - 100 : -1000),
               threshold: -900,

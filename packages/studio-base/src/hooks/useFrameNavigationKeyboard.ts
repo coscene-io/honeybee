@@ -15,7 +15,7 @@ type UseFrameNavigationKeyboardArgs = {
   readonly onNextFrame: () => void;
 };
 
-function panelContainsFocus(panelRef: RefObject<HTMLDivElement>): boolean {
+function panelContainsFocus(panelRef: RefObject<HTMLDivElement | ReactNull>): boolean {
   return (
     panelRef.current != undefined &&
     document.activeElement != undefined &&
@@ -24,7 +24,7 @@ function panelContainsFocus(panelRef: RefObject<HTMLDivElement>): boolean {
 }
 
 export function useFrameNavigationKeyboard(args: UseFrameNavigationKeyboardArgs): {
-  readonly panelRef: RefObject<HTMLDivElement>;
+  readonly panelRef: RefObject<HTMLDivElement | ReactNull>;
   readonly keyDownHandlers: KeyHandlers;
   readonly keyUpHandlers: KeyHandlers;
 } {

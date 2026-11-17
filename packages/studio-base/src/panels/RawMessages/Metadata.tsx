@@ -42,6 +42,16 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: "transparent",
     },
   },
+
+  layout1: {
+    lineHeight: 1.2,
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    lineHeight: 1.2,
+    color: theme.palette.text.secondary,
+  },
 }));
 
 type Props = {
@@ -83,7 +93,7 @@ export default function Metadata({
   return (
     <Stack alignItems="flex-start" paddingInline={0.25} paddingBlockStart={0.75}>
       <Stack direction="row" alignItems="center" gap={0.5}>
-        <Typography variant="caption" lineHeight={1.2} color="text.secondary">
+        <Typography variant="caption" className={classes.layout1}>
           {diffMessage ? (
             "base"
           ) : docsLink ? (
@@ -114,9 +124,8 @@ export default function Metadata({
           <Stack direction="row" alignItems="center" gap={0.5}>
             <Typography
               variant="caption"
-              lineHeight={1.2}
-              color="text.secondary"
               title={formatTimeRaw(diffMessage.receiveTime)}
+              className={classes.layout2}
             >
               {timeFormat === "REL"
                 ? `diff @ ${formatTime(diffMessage.receiveTime)}`

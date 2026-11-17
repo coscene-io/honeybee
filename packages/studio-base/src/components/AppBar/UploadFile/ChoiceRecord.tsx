@@ -13,19 +13,22 @@ import { makeStyles } from "tss-react/mui";
 
 import { ChooserComponent } from "@foxglove/studio-base/components/CoSceneChooser/ChooserComponent";
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   dialogPaper: {
     height: "80vh",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
   },
+
   header: {
     flexShrink: 0,
   },
+
   contentWrapper: {
     minHeight: 0,
   },
+
   chooserContainer: {
     flex: 1,
     minHeight: 0,
@@ -35,8 +38,27 @@ const useStyles = makeStyles()(() => ({
       minHeight: 0,
     },
   },
+
   footer: {
     flexShrink: 0,
+  },
+
+  layout1: {
+    paddingTop: theme.spacing(2),
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+  },
+
+  layout2: {
+    flex: 1,
+  },
+
+  layout3: {
+    justifyContent: "flex-end",
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    paddingBottom: theme.spacing(2),
+    gap: theme.spacing(1),
   },
 }));
 
@@ -54,7 +76,7 @@ export function ChoiceRecordDialog({
   mode?: "select-record" | "create-record";
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const [targetRecord, setTargetRecord] = useState<Record | undefined>(undefined);
   const [targetProject, setTargetProject] = useState<Project | undefined>(undefined);
 
@@ -68,10 +90,10 @@ export function ChoiceRecordDialog({
         },
       }}
     >
-      <Stack pt={2} px={2} className={classes.header}>
+      <Stack className={cx(classes.header, classes.layout1)}>
         <Typography variant="h6">{t("uploadTo")}</Typography>
       </Stack>
-      <Stack flex={1} className={classes.contentWrapper}>
+      <Stack className={cx(classes.contentWrapper, classes.layout2)}>
         <Stack className={classes.chooserContainer}>
           <ChooserComponent
             mode={mode}
@@ -91,14 +113,7 @@ export function ChoiceRecordDialog({
             createRecordConfirmText={t("createRecordAndUpload")}
           />
         </Stack>
-        <Stack
-          direction="row"
-          justifyContent="flex-end"
-          paddingX={2}
-          paddingBottom={2}
-          gap={1}
-          className={classes.footer}
-        >
+        <Stack direction="row" className={cx(classes.footer, classes.layout3)}>
           <Button variant="outlined" size="large" color="inherit" onClick={onClose}>
             {t("cancel", {
               ns: "general",

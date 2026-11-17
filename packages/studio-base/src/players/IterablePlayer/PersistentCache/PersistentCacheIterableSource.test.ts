@@ -66,7 +66,7 @@ describe("PersistentCacheIterableSource", () => {
       const originalSetTimeout = globalThis.setTimeout;
       const timeoutSpy = jest
         .spyOn(globalThis, "setTimeout")
-        .mockImplementation((handler, timeout, ...args) => {
+        .mockImplementation((handler, timeout, ...args: unknown[]) => {
           if (timeout !== 0) {
             return originalSetTimeout(handler, timeout, ...args);
           }

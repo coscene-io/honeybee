@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 import useIndexedDbRecents from "@foxglove/studio-base/hooks/useIndexedDbRecents";
 
@@ -34,8 +34,8 @@ describe("useIndexedDbRecents", () => {
         });
       });
 
-      await act(async () => {
-        await Promise.resolve();
+      await waitFor(() => {
+        expect(result.current.recents).toHaveLength(1);
       });
 
       unmount();
@@ -46,21 +46,19 @@ describe("useIndexedDbRecents", () => {
       const { result, unmount } = renderHook(() => useIndexedDbRecents());
       expect(result.current.recents).toEqual([]);
 
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(result.current.recents).toEqual([
-        {
-          id: expect.any(String),
-          sourceId: "foo",
-          title: "my-title",
-          type: "connection",
-          extra: {
-            foo: "bar",
+      await waitFor(() => {
+        expect(result.current.recents).toEqual([
+          {
+            id: expect.any(String),
+            sourceId: "foo",
+            title: "my-title",
+            type: "connection",
+            extra: {
+              foo: "bar",
+            },
           },
-        },
-      ]);
+        ]);
+      });
 
       unmount();
     }

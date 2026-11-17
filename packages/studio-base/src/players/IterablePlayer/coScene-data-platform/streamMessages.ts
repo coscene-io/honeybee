@@ -300,9 +300,9 @@ export async function* streamMessages({
       let normalReturn = false;
       parseLoop: try {
         const reader = new McapStreamReader({ decompressHandlers });
-        for (let result; (result = await streamReader.read()), !result.done; ) {
+        for (let result; (result = await streamReader.read()), !result.done;) {
           reader.append(result.value);
-          for (let record; (record = reader.nextRecord()); ) {
+          for (let record; (record = reader.nextRecord());) {
             if (record.type === "DataEnd") {
               normalReturn = true;
               break;

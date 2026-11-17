@@ -1,17 +1,16 @@
 name: CD
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-      - main
   release:
     types:
       - released
       - prereleased
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A called workflow inherits github.workflow from CI; do not cancel its caller.
+  group: CD-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -39,14 +39,12 @@ export const MuiInputBase: OverrideComponentReturn<"MuiInputBase"> = {
         paddingInlineEnd: theme.spacing(0.75),
       },
     }),
-    input: {
+    input: ({ theme, ownerState }) => ({
       "::placeholder": {
         transition: "none",
         opacity: 0.6,
       },
-    },
-    inputSizeSmall: ({ theme }) => ({
-      fontSize: theme.typography.body2.fontSize,
+      ...(ownerState.size === "small" && { fontSize: theme.typography.body2.fontSize }),
     }),
   },
 };

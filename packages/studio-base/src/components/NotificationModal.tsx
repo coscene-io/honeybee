@@ -21,10 +21,12 @@ const useStyles = makeStyles()((theme) => ({
     marginBlockEnd: theme.spacing(3),
     marginInline: theme.spacing(3),
   },
+
   paper: {
     maxWidth: 700,
     width: "70%",
   },
+
   text: {
     backgroundColor: theme.palette.background.default,
     color: theme.palette.text.primary,
@@ -34,10 +36,15 @@ const useStyles = makeStyles()((theme) => ({
     overflowY: "auto",
     whiteSpace: "pre-wrap",
   },
+
   iconButton: {
     position: "absolute",
     right: theme.spacing(1),
     top: theme.spacing(1),
+  },
+
+  layout1: {
+    marginBottom: theme.spacing(3),
   },
 }));
 
@@ -74,9 +81,9 @@ export default function NotificationModal({
 
   return (
     <Dialog classes={{ paper: classes.paper }} fullWidth open onClose={() => onRequestClose?.()}>
-      <DialogTitle color={displayPropsBySeverity[severity]}>{message}</DialogTitle>
+      <DialogTitle style={{ color: displayPropsBySeverity[severity] }}>{message}</DialogTitle>
       <div className={classes.container}>
-        {subText && <Typography mb={3}>{subText}</Typography>}
+        {subText && <Typography className={classes.layout1}>{subText}</Typography>}
         {detailsElement}
       </div>
       <IconButton

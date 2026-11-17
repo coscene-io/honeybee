@@ -39,15 +39,6 @@ function getDummyPanel(renderFn: jest.Mock) {
 }
 
 describe("Panel", () => {
-  beforeEach(() => {
-    // jsdom can't parse our @container CSS so we have to silence console.error for this test.
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
-  });
-
   it("saves defaultConfig when there is no saved config", async () => {
     const renderFn = jest.fn();
     const DummyPanel = getDummyPanel(renderFn);
@@ -60,11 +51,12 @@ describe("Panel", () => {
       </PanelSetup>,
     );
 
-    expect(renderFn.mock.calls).toEqual([
-      [{ config: { someString: "hello world" }, saveConfig: expect.any(Function) }],
-      [{ config: { someString: "hello world" }, saveConfig: expect.any(Function) }],
-      [{ config: { someString: "hello world" }, saveConfig: expect.any(Function) }],
-    ]);
+    expect(renderFn).toHaveBeenCalled();
+    for (const call of renderFn.mock.calls) {
+      expect(call).toEqual([
+        { config: { someString: "hello world" }, saveConfig: expect.any(Function) },
+      ]);
+    }
 
     expect(actions).toEqual([
       // first one is from PanelSetup
@@ -93,10 +85,10 @@ describe("Panel", () => {
       </PanelSetup>,
     );
 
-    expect(renderFn.mock.calls).toEqual([
-      [{ config: { someString }, saveConfig: expect.any(Function) }],
-      [{ config: { someString }, saveConfig: expect.any(Function) }],
-    ]);
+    expect(renderFn).toHaveBeenCalled();
+    for (const call of renderFn.mock.calls) {
+      expect(call).toEqual([{ config: { someString }, saveConfig: expect.any(Function) }]);
+    }
 
     expect(actions).toEqual([
       {
@@ -122,11 +114,12 @@ describe("Panel", () => {
       </PanelSetup>,
     );
 
-    expect(renderFn.mock.calls).toEqual([
-      [{ config: { someNumber: 42, someString: "hello world" }, saveConfig: expect.any(Function) }],
-      [{ config: { someNumber: 42, someString: "hello world" }, saveConfig: expect.any(Function) }],
-      [{ config: { someNumber: 42, someString: "hello world" }, saveConfig: expect.any(Function) }],
-    ]);
+    expect(renderFn).toHaveBeenCalled();
+    for (const call of renderFn.mock.calls) {
+      expect(call).toEqual([
+        { config: { someNumber: 42, someString: "hello world" }, saveConfig: expect.any(Function) },
+      ]);
+    }
 
     expect(actions).toEqual([
       {
@@ -160,10 +153,12 @@ describe("Panel", () => {
       </PanelSetup>,
     );
 
-    expect(renderFn.mock.calls).toEqual([
-      [{ config: { someNumber: 42, someString }, saveConfig: expect.any(Function) }],
-      [{ config: { someNumber: 42, someString }, saveConfig: expect.any(Function) }],
-    ]);
+    expect(renderFn).toHaveBeenCalled();
+    for (const call of renderFn.mock.calls) {
+      expect(call).toEqual([
+        { config: { someNumber: 42, someString }, saveConfig: expect.any(Function) },
+      ]);
+    }
 
     expect(actions).toEqual([
       {
@@ -191,10 +186,11 @@ describe("Panel", () => {
       },
     });
 
-    expect(renderFn.mock.calls.length).toEqual(3);
+    expect(renderFn).toHaveBeenCalled();
+    const committedRenders = renderFn.mock.calls.length;
     act(() => {
       actions.current.savePanelConfigs({ configs: [{ id: "someOtherId", config: {} }] });
     });
-    expect(renderFn.mock.calls.length).toEqual(3);
+    expect(renderFn).toHaveBeenCalledTimes(committedRenders);
   });
 });

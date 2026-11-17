@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import moize from "moize";
+import { memoize } from "micro-memoize";
 import * as R from "ramda";
 
 import type { Immutable } from "@foxglove/studio";
@@ -18,7 +18,11 @@ import type { SubscribePayload } from "@foxglove/studio-base/players/types";
  * Note that this has unlimited cache size so it should be managed by some containing scope.
  */
 export function makeSubscriptionMemoizer(): (val: SubscribePayload) => SubscribePayload {
-  return moize((val: SubscribePayload) => val, { isDeepEqual: true, maxSize: Infinity });
+  return memoize((val: SubscribePayload) => val, {
+    isKeyItemEqual: "deep",
+    // micro-memoize treats Infinity as invalid and silently falls back to a single entry.
+    maxSize: Number.MAX_SAFE_INTEGER,
+  });
 }
 
 /**

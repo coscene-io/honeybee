@@ -119,9 +119,7 @@ type PersistentCacheDataSourceArgs = {
 };
 
 export type DataSourceArgs =
-  | FileDataSourceArgs
-  | ConnectionDataSourceArgs
-  | PersistentCacheDataSourceArgs;
+  FileDataSourceArgs | ConnectionDataSourceArgs | PersistentCacheDataSourceArgs;
 
 /**
  * PlayerSelectionContext exposes the available data sources and a function to set the current data source

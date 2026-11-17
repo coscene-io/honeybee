@@ -31,11 +31,8 @@ export const MuiInput: OverrideComponentReturn<"MuiInput"> = {
         backgroundColor: alpha(theme.palette.error.main, theme.palette.action.hoverOpacity),
       },
     }),
-    input: ({ theme }) => ({
-      padding: theme.spacing(1, 1.125),
-    }),
-    inputSizeSmall: ({ theme }) => ({
-      padding: theme.spacing(0.75, 1),
+    input: ({ theme, ownerState }) => ({
+      padding: ownerState.size === "small" ? theme.spacing(0.75, 1) : theme.spacing(1, 1.125),
     }),
   },
 };

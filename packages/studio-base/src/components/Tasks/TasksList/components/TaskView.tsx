@@ -25,16 +25,19 @@ const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
   line: {
     backgroundColor: theme.palette.divider,
   },
+
   ring: {
     height: "8px",
     width: "8px",
     borderRadius: "14px",
     border: "2px solid",
   },
+
   taskTitle: {
     fontSize: 12,
     color: theme.palette.text.secondary,
   },
+
   task: {
     wordBreak: "break-all",
     flexDirection: "column",
@@ -50,23 +53,74 @@ const useStyles = makeStyles<void, "taskSelected">()((theme, _params) => ({
       backgroundColor: theme.palette.background.default,
     },
   },
+
   taskTitleClamp: {
     display: "-webkit-box",
     WebkitLineClamp: 3,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required with -webkit-line-clamp in supported Chromium.
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
     textOverflow: "ellipsis",
     wordBreak: "break-word",
   },
+
   taskSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
     boxShadow: `0 0 0 1px ${theme.palette.info.main}`,
   },
+
   taskStateSelector: {
     "& .MuiSelect-select": {
       paddingBottom: "4px",
       paddingTop: "4px",
     },
+  },
+
+  layout1: {
+    flexDirection: "row",
+  },
+
+  layout2: {
+    marginLeft: theme.spacing(0),
+    marginRight: theme.spacing(1.5),
+    gap: theme.spacing(0.5),
+    alignItems: "center",
+  },
+
+  layout3: {
+    width: "1px",
+    height: "5px",
+  },
+
+  layout4: {
+    width: "1px",
+    flex: "1",
+  },
+
+  layout5: {
+    flex: 1,
+    gap: theme.spacing(1),
+  },
+
+  layout6: {
+    flex: 1,
+    width: "0",
+    marginTop: theme.spacing(1),
+  },
+
+  layout7: {
+    gap: theme.spacing(1.5),
+  },
+
+  layout8: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  layout9: {
+    paddingTop: theme.spacing(2),
+    gap: theme.spacing(2),
   },
 }));
 
@@ -113,37 +167,39 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
   };
 
   return (
-    <Stack flexDirection="row" ref={scrollRef}>
-      <Stack marginLeft={0} marginRight={1.5} gap={0.5} alignItems="center">
-        <Stack width="1px" height="5px" className={classes.line} />
+    <Stack ref={scrollRef} className={classes.layout1}>
+      <Stack className={classes.layout2}>
+        <Stack className={cx(classes.line, classes.layout3)} />
         <div
           className={classes.ring}
           style={{
             borderColor: "#3b82f6",
           }}
         />
-        <Stack width="1px" flex="1" className={classes.line} />
+        <Stack className={cx(classes.line, classes.layout4)} />
       </Stack>
 
-      <Stack flex={1} gap={1}>
-        <Stack flex={1} width="0" marginTop={1}>
+      <Stack className={classes.layout5}>
+        <Stack className={classes.layout6}>
           <Stack className={classes.taskTitle}>#{Number(task.number)}</Stack>
         </Stack>
 
         <Stack
           data-testid="sidebar-event"
-          className={cx(classes.task, {
-            [classes.taskSelected]: focusedTask?.name === task.name,
-          })}
+          className={cx(
+            cx(classes.task, {
+              [classes.taskSelected]: focusedTask?.name === task.name,
+            }),
+            classes.layout7,
+          )}
           onClick={() => {
             setFocusedTask(task);
           }}
-          gap={1.5}
         >
           <Tooltip title={task.title} placement="bottom-end" arrow>
             <Stack className={classes.taskTitleClamp}>{task.title}</Stack>
           </Tooltip>
-          <Stack flexDirection="row" justifyContent="space-between" alignItems="center">
+          <Stack className={classes.layout8}>
             <Select
               size="small"
               value={task.state}
@@ -220,7 +276,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
           </Stack>
           <Divider /> */}
 
-          <Stack paddingTop={2} gap={2}>
+          <Stack className={classes.layout9}>
             {/* custom field */}
             <CustomFieldValuesFields
               variant="secondary"

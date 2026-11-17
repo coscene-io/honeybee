@@ -7,11 +7,22 @@
 
 import { Typography, List } from "@mui/material";
 import { MouseEvent } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import LayoutRow from "./CoSceneLayoutRow";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 export default function LayoutSection({
   title,
@@ -48,11 +59,13 @@ export default function LayoutSection({
   onMakePersonalCopy: (item: Layout) => void;
   searchQuery: string;
 }): React.JSX.Element {
+  const { classes } = useStyles();
+
   return (
     <Stack>
       {title != undefined && (
         <Stack paddingX={2}>
-          <Typography variant="overline" color="text.secondary">
+          <Typography variant="overline" className={classes.layout1}>
             {title}
           </Typography>
         </Stack>
@@ -60,7 +73,7 @@ export default function LayoutSection({
       <List>
         {items?.length === 0 && (
           <Stack paddingX={2}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" className={classes.layout2}>
               {emptyText}
             </Typography>
           </Stack>

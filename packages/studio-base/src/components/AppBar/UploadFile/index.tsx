@@ -34,9 +34,37 @@ const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
 const selectSetUpdateUploadingFiles = (store: UploadFilesStore) => store.setUpdateUploadingFiles;
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   tooltip: {
     maxWidth: "none",
+  },
+
+  layout1: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  layout2: {
+    position: "relative",
+    display: "inline-flex",
+    width: 32,
+    height: 32,
+  },
+
+  layout3: {
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+    position: "absolute",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  layout4: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -169,28 +197,19 @@ export function UploadFile(): React.JSX.Element {
             }
           }}
         >
-          <Stack display="flex" alignItems="center" justifyContent="center">
+          <Stack className={classes.layout1}>
             {currentFileStatus?.status === "uploading" && (
-              <Stack position="relative" display="inline-flex" width={32} height={32}>
+              <Stack className={classes.layout2}>
                 <CircularProgress
                   variant="determinate"
                   size={32}
                   value={currentFileStatus.progress ?? 0}
                 />
-                <Stack
-                  top={0}
-                  left={0}
-                  bottom={0}
-                  right={0}
-                  position="absolute"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                >
+                <Stack className={classes.layout3}>
                   <Typography
                     variant="caption"
                     component="div"
-                    color="text.secondary"
+                    className={classes.layout4}
                   >{`${Math.round(currentFileStatus.progress ?? 0)}%`}</Typography>
                 </Stack>
               </Stack>

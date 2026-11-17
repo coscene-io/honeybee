@@ -54,37 +54,36 @@ function LayoutConfigProbe(): React.JSX.Element {
 }
 
 describe("UnconnectedPanelLayout", () => {
-  beforeEach(() => {
-    // jsdom can't parse our @container CSS so we have to silence console.error for this test.
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
-  });
-
   it("does not remount panels when changing split percentage", async () => {
-    jest.spyOn(console, "error").mockImplementation(() => undefined);
-
-    const renderA = jest.fn().mockReturnValue(<>A</>);
-    const moduleA = jest.fn().mockResolvedValue({
-      default: Panel(Object.assign(renderA, { panelType: "a", defaultConfig: {} })),
-    });
-
-    const renderB = jest.fn().mockReturnValue(<>B</>);
-    const moduleB = jest.fn().mockResolvedValue({
-      default: Panel(Object.assign(renderB, { panelType: "b", defaultConfig: {} })),
-    });
-
-    const renderC = jest.fn().mockReturnValue(<>C</>);
-    const moduleC = jest.fn().mockResolvedValue({
-      default: Panel(Object.assign(renderC, { panelType: "c", defaultConfig: {} })),
-    });
+    function createTrackedPanel(type: string) {
+      const renderPanel = jest.fn();
+      const mounted = jest.fn();
+      const unmounted = jest.fn();
+      function TrackedPanel() {
+        renderPanel();
+        useEffect(() => {
+          mounted();
+          return unmounted;
+        }, []);
+        return <>{type.toUpperCase()}</>;
+      }
+      return {
+        renderPanel,
+        mounted,
+        unmounted,
+        module: jest.fn().mockResolvedValue({
+          default: Panel(Object.assign(TrackedPanel, { panelType: type, defaultConfig: {} })),
+        }),
+      };
+    }
+    const panelA = createTrackedPanel("a");
+    const panelB = createTrackedPanel("b");
+    const panelC = createTrackedPanel("c");
 
     const panels: PanelInfo[] = [
-      { title: "A", type: "a", module: moduleA },
-      { title: "B", type: "b", module: moduleB },
-      { title: "C", type: "c", module: moduleC },
+      { title: "A", type: "a", module: panelA.module },
+      { title: "B", type: "b", module: panelB.module },
+      { title: "C", type: "c", module: panelC.module },
     ];
 
     const panelCatalog = new MockPanelCatalog(panels);
@@ -121,15 +120,23 @@ describe("UnconnectedPanelLayout", () => {
     );
 
     await waitFor(() => {
-      expect(renderA).toHaveBeenCalled();
+      expect(panelA.mounted).toHaveBeenCalledTimes(1);
+      expect(panelB.mounted).toHaveBeenCalledTimes(1);
     });
-    // Each panel module should have only been loaded once
-    expect(moduleA).toHaveBeenCalledTimes(1);
-    expect(moduleB).toHaveBeenCalledTimes(1);
-    expect(moduleC).toHaveBeenCalledTimes(0);
-    expect(renderA).toHaveBeenCalledTimes(4);
-    expect(renderB).toHaveBeenCalledTimes(4);
-    expect(renderC).toHaveBeenCalledTimes(0);
+    const rendersA = panelA.renderPanel.mock.calls.length;
+    const rendersB = panelB.renderPanel.mock.calls.length;
+    rerender(
+      <UnconnectedPanelLayout
+        layout={{ first: "a", second: "b", direction: "row", splitPercentage: 40 }}
+        onChange={onChange}
+      />,
+    );
+    expect(panelA.mounted).toHaveBeenCalledTimes(1);
+    expect(panelB.mounted).toHaveBeenCalledTimes(1);
+    expect(panelA.unmounted).not.toHaveBeenCalled();
+    expect(panelB.unmounted).not.toHaveBeenCalled();
+    expect(panelA.renderPanel).toHaveBeenCalledTimes(rendersA);
+    expect(panelB.renderPanel).toHaveBeenCalledTimes(rendersB);
 
     rerender(
       <UnconnectedPanelLayout
@@ -138,17 +145,19 @@ describe("UnconnectedPanelLayout", () => {
       />,
     );
     await waitFor(() => {
-      expect(renderC).toHaveBeenCalledTimes(4);
+      expect(panelC.mounted).toHaveBeenCalledTimes(1);
     });
-    // Each panel module should have only been loaded once; panels A and B should not render again
-    expect(moduleA).toHaveBeenCalledTimes(1);
-    expect(moduleB).toHaveBeenCalledTimes(1);
-    expect(moduleC).toHaveBeenCalledTimes(1);
-    expect(renderA).toHaveBeenCalledTimes(4);
-    expect(renderB).toHaveBeenCalledTimes(4);
-    expect(renderC).toHaveBeenCalledTimes(4);
+    expect(panelA.module).toHaveBeenCalledTimes(1);
+    expect(panelB.module).toHaveBeenCalledTimes(1);
+    expect(panelC.module).toHaveBeenCalledTimes(1);
+    expect(panelA.renderPanel).toHaveBeenCalledTimes(rendersA);
+    expect(panelB.renderPanel).toHaveBeenCalledTimes(rendersB);
+    expect(panelA.unmounted).not.toHaveBeenCalled();
+    expect(panelB.unmounted).toHaveBeenCalledTimes(1);
 
     unmount();
+    expect(panelA.unmounted).toHaveBeenCalledTimes(1);
+    expect(panelC.unmounted).toHaveBeenCalledTimes(1);
   });
 
   it("renders built-in panels while the extension catalog is still loading", async () => {

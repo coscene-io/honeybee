@@ -9,10 +9,21 @@ import WarningIcon from "@mui/icons-material/Warning";
 import { Typography, Button, ThemeProvider as MuiThemeProvider } from "@mui/material";
 import { useMemo, ReactElement, PropsWithChildren, CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { getWebAssetPath } from "@foxglove/studio-base/util/appConfig";
 import { createMuiTheme } from "@foxglove/theme";
+
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    color: "#111827",
+  },
+
+  layout2: {
+    color: "#111827",
+  },
+}));
 
 const MINIMUM_CHROME_VERSION = 104;
 
@@ -41,6 +52,8 @@ const BannerContainer = (props: PropsWithChildren<{ isDismissable: boolean }>) =
 
 // if chrome version is too low, in this case, i18next cannot be init, so we hard code the text
 const FullSizeStack = () => {
+  const { classes } = useStyles();
+
   const style: CSSProperties = {
     position: "absolute",
     top: 0,
@@ -60,7 +73,7 @@ const FullSizeStack = () => {
     <div style={style}>
       <Stack alignItems="center" fullHeight fullWidth justifyContent="center" gap={3}>
         <img src={getWebAssetPath("logo-with-text.svg")} alt="logo" />
-        <Typography align="center" color="#111827" variant="body1">
+        <Typography align="center" variant="body1" className={classes.layout1}>
           {browserLang === "zh-CN"
             ? "当前使用的 Chrome 版本过低，建议升级至最新版本以获得最佳体验"
             : "You’re using an outdated version of Chrome. Please upgrade to the latest version for the best experience."}
@@ -91,6 +104,8 @@ const VersionBanner = function ({
   currentVersion: number;
   isDismissable: boolean;
 }): ReactElement | ReactNull {
+  const { classes } = useStyles();
+
   const { i18n, t } = useTranslation("versionBanner");
 
   const muiTheme = useMemo(() => createMuiTheme("dark", i18n.language), [i18n.language]);
@@ -118,7 +133,7 @@ const VersionBanner = function ({
         >
           <Stack direction="row" alignItems="center" gap={1}>
             <WarningIcon color="warning" />
-            <Typography align="center" color="#111827" variant="body1">
+            <Typography align="center" variant="body1" className={classes.layout2}>
               {t("browserVersionError")}
             </Typography>
           </Stack>

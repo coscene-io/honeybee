@@ -191,18 +191,14 @@ export function Gauge({ context }: Props): React.JSX.Element {
     ...(context.initialState as Partial<Config>),
   }));
 
-  const [state, dispatch] = useReducer(
-    reducer,
-    config,
-    ({ path }): State => ({
-      path,
-      parsedPath: parseMessagePath(path),
-      latestMessage: undefined,
-      latestMatchingQueriedData: undefined,
-      pathParseError: undefined,
-      error: undefined,
-    }),
-  );
+  const [state, dispatch] = useReducer(reducer, config, ({ path }): State => ({
+    path,
+    parsedPath: parseMessagePath(path),
+    latestMessage: undefined,
+    latestMatchingQueriedData: undefined,
+    pathParseError: undefined,
+    error: undefined,
+  }));
 
   useLayoutEffect(() => {
     dispatch({ type: "path", path: config.path });

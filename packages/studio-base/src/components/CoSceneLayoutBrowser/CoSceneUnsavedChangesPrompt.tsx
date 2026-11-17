@@ -20,10 +20,17 @@ import {
 import { ChangeEvent, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLatest, useUnmount } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.error.main,
+  },
+}));
 
 type UnsavedChangesResolution =
   | { type: "cancel" }
@@ -44,6 +51,8 @@ export function UnsavedChangesPrompt({
   defaultSelectedKey?: Exclude<UnsavedChangesResolution["type"], "cancel">;
   defaultPersonalCopyName?: string;
 }): React.JSX.Element {
+  const { classes } = useStyles();
+
   const { t } = useTranslation("layout");
   const [selectedKey, setSelectedKey] = useState<string>(defaultSelectedKey);
 
@@ -69,7 +78,7 @@ export function UnsavedChangesPrompt({
   );
 
   const handleSubmit = useCallback(
-    (event: React.FormEvent) => {
+    (event: React.SubmitEvent) => {
       event.preventDefault();
       switch (selectedKey) {
         case "discard":
@@ -128,7 +137,7 @@ export function UnsavedChangesPrompt({
               />
             </RadioGroup>
             {selectedKey === "discard" && (
-              <Typography variant="body2" color="error.main">
+              <Typography variant="body2" className={classes.layout1}>
                 {t("discardTip")}
               </Typography>
             )}
@@ -175,7 +184,7 @@ export function useUnsavedChangesPrompt(): {
   openUnsavedChangesPrompt: (item: Layout) => Promise<UnsavedChangesResolution>;
 } {
   const [layout, setLayout] = useState<Layout | undefined>();
-  const resolveRef = useRef<(res: UnsavedChangesResolution) => void>();
+  const resolveRef = useRef<(res: UnsavedChangesResolution) => void>(undefined);
 
   const layoutManager = useLayoutManager();
   const [isOnline, setIsOnline] = useState(layoutManager.isOnline);

@@ -6,7 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
-import { AccessTime, Autorenew, CheckCircleOutline } from "@mui/icons-material";
+import {
+  AccessTime,
+  Autorenew,
+  CheckCircleOutlined as CheckCircleOutline,
+} from "@mui/icons-material";
 import { Chip } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";

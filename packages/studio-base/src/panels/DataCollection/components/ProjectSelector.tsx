@@ -7,6 +7,13 @@
 
 import { FormControl, InputLabel, Select, MenuItem, Box, SelectChangeEvent } from "@mui/material";
 import { memo } from "react";
+import { makeStyles } from "tss-react/mui";
+
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    minWidth: 200,
+  },
+}));
 
 interface ProjectSelectorProps {
   projectName: string;
@@ -25,8 +32,10 @@ export const ProjectSelector = memo(function ProjectSelector({
   disabled = false,
   label,
 }: ProjectSelectorProps) {
+  const { classes } = useStyles();
+
   return (
-    <Box minWidth={200}>
+    <Box className={classes.layout1}>
       <FormControl fullWidth size="small">
         <InputLabel id="project-select-label" required>
           {label}

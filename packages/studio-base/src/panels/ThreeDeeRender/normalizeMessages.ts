@@ -180,8 +180,7 @@ export function normalizeTFMessage(tfMessage: PartialMessage<TFMessage> | undefi
 
 export function normalizeFrameTransform(
   frameTransform:
-    | (PartialMessage<FrameTransform> & PartialMessage<LegacyFrameTransform>)
-    | undefined,
+    (PartialMessage<FrameTransform> & PartialMessage<LegacyFrameTransform>) | undefined,
 ): FrameTransform {
   return {
     timestamp: normalizeTime(frameTransform?.timestamp),

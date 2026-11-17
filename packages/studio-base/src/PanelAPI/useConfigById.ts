@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback } from "react";
-import { DeepPartial } from "ts-essentials";
 
 import {
   LayoutState,
@@ -26,10 +25,11 @@ export default function useConfigById<Config extends Record<string, unknown>>(
   const { getCurrentLayoutState, savePanelConfigs } = useCurrentLayoutActions();
 
   const configSelector = useCallback(
-    (state: DeepPartial<LayoutState>) => {
+    (state: LayoutState) => {
       if (panelId == undefined) {
         return undefined;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Retain the previous guard for partially initialized/legacy layout data.
       return maybeCast<Config>(state.selectedLayout?.data?.configById?.[panelId]);
     },
     [panelId],
@@ -47,8 +47,7 @@ export default function useConfigById<Config extends Record<string, unknown>>(
         // We use a getter here instead of referring directly to the config object
         // so that this callback is stable across config changes.
         const currentConfig = getCurrentLayoutState().selectedLayout?.data?.configById[panelId] as
-          | undefined
-          | Config;
+          undefined | Config;
         if (currentConfig) {
           savePanelConfigs({
             configs: [{ id: panelId, config: newConfig(currentConfig) }],

@@ -11,12 +11,7 @@ import { Rule } from "./types";
 
 export function getMatchingRule(
   rawValue:
-    | undefined
-    | boolean
-    | bigint
-    | number
-    | string
-    | { data?: boolean | bigint | number | string },
+    undefined | boolean | bigint | number | string | { data?: boolean | bigint | number | string },
   rules: readonly Rule[],
 ): Rule | undefined {
   const value = typeof rawValue === "object" ? rawValue.data : rawValue;

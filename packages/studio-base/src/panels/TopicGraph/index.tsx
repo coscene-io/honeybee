@@ -31,7 +31,7 @@ import {
 import Cytoscape from "cytoscape";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import textMetrics from "text-metrics";
+import * as textMetrics from "text-metrics";
 import { makeStyles } from "tss-react/mui";
 
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
@@ -345,7 +345,7 @@ function TopicGraph() {
     showServices,
   ]);
 
-  const graph = useRef<GraphMutation>();
+  const graph = useRef<GraphMutation>(undefined);
 
   const onZoomFit = useCallback(() => {
     graph.current?.fit();

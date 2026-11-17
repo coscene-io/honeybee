@@ -9,6 +9,7 @@ import { Divider, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUnmount } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { SettingsTree } from "@foxglove/studio";
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
@@ -32,6 +33,12 @@ import { PanelConfig } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+}));
+
 const singlePanelIdSelector = (state: LayoutState) =>
   typeof state.selectedLayout?.data?.layout === "string"
     ? state.selectedLayout.data.layout
@@ -50,6 +57,8 @@ export default function PanelSettings({
   disableToolbar?: boolean;
   selectedPanelIdsForTests?: readonly string[];
 }>): React.JSX.Element {
+  const { classes } = useStyles();
+
   const { t } = useTranslation("panelSettings");
   const singlePanelId = useCurrentLayoutSelector(singlePanelIdSelector);
   const {
@@ -185,7 +194,7 @@ export default function PanelSettings({
             />
           ) : (
             <Stack flex="auto" alignItems="center" justifyContent="center" paddingX={1}>
-              <Typography variant="body2" color="text.secondary" align="center">
+              <Typography variant="body2" align="center" className={classes.layout1}>
                 {t("panelDoesNotHaveSettings")}
               </Typography>
             </Stack>

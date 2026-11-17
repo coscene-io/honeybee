@@ -295,6 +295,8 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   subscribeMessageRange: SubscribeMessageRange | undefined;
   /** Live playback state; EOF is checked against endTime separately. */
   getPlaybackIsPlaying?: () => boolean;
+  /** Hold global playback controls while a video seek is being recovered. */
+  acquireKeyframeSearchLock?: () => () => void;
   endTime?: bigint;
   isPlaybackStopped(): boolean;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */

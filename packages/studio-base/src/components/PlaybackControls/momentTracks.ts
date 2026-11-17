@@ -98,6 +98,7 @@ export function getGroupingProperties(schema?: MomentCustomFieldSchema): Propert
 export function getTrackProperties(schema?: MomentCustomFieldSchema): Property[] {
   const properties = new Map(schema?.properties.map((property) => [property.id, property]));
   // Even a malformed grouping rule must not give a field two simultaneous purposes.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Older schema objects can omit groupingRules even though the current generated type requires it.
   const seen = new Set(schema?.groupingRules?.map((rule) => rule.propertyId));
   const result: Property[] = [];
   for (const rule of schema?.trackRules ?? []) {

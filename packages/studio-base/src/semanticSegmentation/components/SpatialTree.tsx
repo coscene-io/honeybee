@@ -169,7 +169,7 @@ const useStyles = makeStyles()((theme) => ({
     width: 1,
     height: 1,
     overflow: "hidden",
-    clip: "rect(0, 0, 0, 0)",
+    clipPath: "inset(50%)",
     whiteSpace: "nowrap",
   },
   rowButton: {
@@ -179,7 +179,7 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "flex-start",
     overflow: "hidden",
   },
-  labelStack: { minWidth: 0 },
+  labelStack: { minWidth: 0, alignItems: "flex-start" },
   label: { maxWidth: 160 },
   tree: { overflowY: "auto", flex: 1, minHeight: 80 },
   emptyClass: { paddingLeft: theme.spacing(3) },
@@ -378,7 +378,7 @@ export function SpatialTree({
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [creationError, setCreationError] = useState<string>();
-  const creationRecordId = useRef<string>();
+  const creationRecordId = useRef<string | undefined>(undefined);
   const creationStore = useRef(store);
   const [target, setTarget] = useState("");
   const [scope, setScope] = useState<"frame" | "all">("frame");
@@ -386,9 +386,9 @@ export function SpatialTree({
   const [dragSource, setDragSource] = useState<SegmentationNodeRef>();
   const [dropTarget, setDropTarget] = useState<string>();
   const [dropMessage, setDropMessage] = useState<string>();
-  const dragContext = useRef<{ key: string; document: typeof document }>();
-  const dialogDragSource = useRef<SegmentationNodeRef>();
-  const dialogContext = useRef<{ key: string; document: typeof document }>();
+  const dragContext = useRef<{ key: string; document: typeof document } | undefined>(undefined);
+  const dialogDragSource = useRef<SegmentationNodeRef | undefined>(undefined);
+  const dialogContext = useRef<{ key: string; document: typeof document } | undefined>(undefined);
   const videoId =
     state.currentFrameId == undefined
       ? undefined
@@ -893,7 +893,7 @@ export function SpatialTree({
               }}
               className={classes.rowButton}
             >
-              <Stack alignItems="flex-start" className={classes.labelStack}>
+              <Stack className={classes.labelStack}>
                 <Typography variant="body2" noWrap className={classes.label}>
                   {presence == undefined ? (
                     label

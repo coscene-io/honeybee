@@ -35,7 +35,7 @@ export function useVirtualRows({
   estimate,
   overscan = 400,
 }: {
-  container: RefObject<HTMLElement>;
+  container: RefObject<ReactNull | HTMLElement>;
   keys: readonly string[];
   estimate: (index: number) => number;
   /** Extra pixels rendered above and below the viewport. */

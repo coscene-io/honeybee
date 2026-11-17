@@ -69,7 +69,7 @@ export function getWebLoginRedirectUrl(
 
 function ExpiredShareManifestDialog(): React.JSX.Element {
   return (
-    <Dialog open disableEscapeKeyDown>
+    <Dialog open>
       <DialogTitle>分享链接已过期</DialogTitle>
       <DialogContent>
         <Typography>该分享链接已过期，请联系分享者获取新的链接。</Typography>
@@ -169,7 +169,7 @@ export function DeepLinksSyncAdapter({
   // 处理状态标记
   const isSourceProcessed = useRef(false);
   const hasShownInvalidDomainToast = useRef(false);
-  const loginRedirectTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const loginRedirectTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // ========== 工具函数 ==========
   // 防抖的登录提示

@@ -11,8 +11,10 @@ export const MuiTextField: OverrideComponentReturn<"MuiTextField"> = {
   defaultProps: {
     variant: "outlined",
     color: "primary",
-    FormHelperTextProps: {
-      variant: "standard",
+    slotProps: {
+      formHelperText: {
+        variant: "standard",
+      },
     },
   },
 };

@@ -11,7 +11,7 @@ import type {
   Property,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import _debounce from "lodash/debounce";
+import _debounce from "lodash-es/debounce";
 import { memo, useEffect, useMemo } from "react";
 
 import { CustomFieldValueField } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValueField";

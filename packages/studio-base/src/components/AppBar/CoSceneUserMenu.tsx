@@ -42,9 +42,20 @@ import {
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   menuList: {
     minWidth: 200,
+  },
+
+  layout1: {
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    gap: theme.spacing(0.5),
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -183,15 +194,9 @@ export function UserMenu({
 
         {checkSupportCoStudioDownload() && (
           <MenuItem onClick={downloadLatestStudio} className="test">
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              width="100%"
-              gap={0.5}
-            >
+            <Stack direction="row" className={classes.layout1}>
               <span>{t("downloadLatestStudio")}</span>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" className={classes.layout2}>
                 {latestVersion ? `v${latestVersion}` : "latest"}
               </Typography>
               <CoStudioEnvBadge />

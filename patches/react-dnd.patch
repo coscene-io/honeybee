@@ -1,9 +1,7 @@
 diff --git a/dist/internals/SourceConnector.js b/dist/internals/SourceConnector.js
-index f8332d6ec9ef88aa74d8a04d055461377fdb2047..376771caa79a1d505a190c9127a657248a225085 100644
 --- a/dist/internals/SourceConnector.js
 +++ b/dist/internals/SourceConnector.js
-@@ -42,11 +42,12 @@ export class SourceConnector {
-             this.lastConnectedDragSource = dragSource;
+@@ -43,9 +43,10 @@
              return didChange;
          }
 -        if (didChange) {
@@ -15,9 +13,7 @@ index f8332d6ec9ef88aa74d8a04d055461377fdb2047..376771caa79a1d505a190c9127a65724
 +            this.isDragSourceConnected = true;
          }
          return didChange;
-     }
-@@ -64,11 +65,12 @@ export class SourceConnector {
-             this.lastConnectedDragPreview = dragPreview;
+@@ -65,9 +66,10 @@
              return;
          }
 -        if (didChange) {
@@ -29,15 +25,13 @@ index f8332d6ec9ef88aa74d8a04d055461377fdb2047..376771caa79a1d505a190c9127a65724
 +            this.isDragPreviewConnected = true;
          }
      }
-     didHandlerIdChange() {
-@@ -91,14 +93,14 @@ export class SourceConnector {
-             this.dragSourceUnsubscribe();
+@@ -92,4 +94,5 @@
              this.dragSourceUnsubscribe = undefined;
          }
 +        this.isDragSourceConnected = false;
      }
      disconnectDragPreview() {
-         if (this.dragPreviewUnsubscribe) {
+@@ -97,7 +100,6 @@
              this.dragPreviewUnsubscribe();
              this.dragPreviewUnsubscribe = undefined;
 -            this.dragPreviewNode = null;
@@ -46,78 +40,134 @@ index f8332d6ec9ef88aa74d8a04d055461377fdb2047..376771caa79a1d505a190c9127a65724
 +        this.isDragPreviewConnected = false;
      }
      get dragSource() {
-         return this.dragSourceNode || this.dragSourceRef && this.dragSourceRef.current;
-@@ -144,6 +146,8 @@ export class SourceConnector {
-         // The drag preview may either be attached via ref or connect function
+@@ -145,4 +147,6 @@
          this.dragPreviewRef = null;
          this.dragPreviewOptionsInternal = null;
 +        this.isDragSourceConnected = false;
 +        this.isDragPreviewConnected = false;
          this.lastConnectedHandlerId = null;
          this.lastConnectedDragSource = null;
-         this.lastConnectedDragSourceOptions = null;
+diff --git a/dist/internals/wrapConnectorHooks.js b/dist/internals/wrapConnectorHooks.js
+--- a/dist/internals/wrapConnectorHooks.js
++++ b/dist/internals/wrapConnectorHooks.js
+@@ -48,5 +48,5 @@
+ function setRef(ref, node) {
+     if (typeof ref === 'function') {
+-        ref(node);
++        return ref(node);
+     } else {
+         ref.current = node;
+@@ -54,5 +54,5 @@
+ }
+ function cloneWithRef(element, newRef) {
+-    const previousRef = element.ref;
++    const previousRef = element.props.ref;
+     invariant(typeof previousRef !== 'string', 'Cannot connect React DnD to an element with an existing string ref. ' + 'Please convert it to use a callback ref instead, or wrap it into a <span> or <div>. ' + 'Read more: https://reactjs.org/docs/refs-and-the-dom.html#callback-refs');
+     if (!previousRef) {
+@@ -64,6 +64,16 @@
+         return cloneElement(element, {
+             ref: (node)=>{
+-                setRef(previousRef, node);
+-                setRef(newRef, node);
++                const previousCleanup = setRef(previousRef, node);
++                const newCleanup = setRef(newRef, node);
++                if (node === null) return;
++                return ()=>{
++                    try {
++                        if (typeof previousCleanup === 'function') previousCleanup();
++                        else setRef(previousRef, null);
++                    } finally {
++                        if (typeof newCleanup === 'function') newCleanup();
++                        else setRef(newRef, null);
++                    }
++                };
+             }
+         });
 diff --git a/src/internals/SourceConnector.ts b/src/internals/SourceConnector.ts
-index 7ac4ced60f5248295b3099ded72696b4b79459b7..a87ff5733ebdf1cfeb6adc80e90725bdabdf883b 100644
 --- a/src/internals/SourceConnector.ts
 +++ b/src/internals/SourceConnector.ts
-@@ -53,6 +53,8 @@ export class SourceConnector implements Connector {
- 	private dragPreviewOptionsInternal: DragPreviewOptions | null = null
+@@ -54,4 +54,6 @@
  	private dragPreviewUnsubscribe: Unsubscribe | undefined
  
 +	private isDragSourceConnected = false
 +	private isDragPreviewConnected = false
  	private lastConnectedHandlerId: Identifier | null = null
  	private lastConnectedDragSource: any = null
- 	private lastConnectedDragSourceOptions: any = null
-@@ -118,7 +120,7 @@ export class SourceConnector implements Connector {
- 			return didChange
+@@ -119,5 +121,5 @@
  		}
  
 -		if (didChange) {
 +		if (didChange || !this.isDragSourceConnected) {
  			this.lastConnectedHandlerId = this.handlerId
  			this.lastConnectedDragSource = dragSource
- 			this.lastConnectedDragSourceOptions = this.dragSourceOptions
-@@ -127,6 +129,7 @@ export class SourceConnector implements Connector {
- 				dragSource,
+@@ -128,4 +130,5 @@
  				this.dragSourceOptions,
  			)
 +			this.isDragSourceConnected = true
  		}
  		return didChange
- 	}
-@@ -152,7 +155,7 @@ export class SourceConnector implements Connector {
- 			return
+@@ -153,5 +156,5 @@
  		}
  
 -		if (didChange) {
 +		if (didChange || !this.isDragPreviewConnected) {
  			this.lastConnectedHandlerId = this.handlerId
  			this.lastConnectedDragPreview = dragPreview
- 			this.lastConnectedDragPreviewOptions = this.dragPreviewOptions
-@@ -161,6 +164,7 @@ export class SourceConnector implements Connector {
- 				dragPreview,
+@@ -162,4 +165,5 @@
  				this.dragPreviewOptions,
  			)
 +			this.isDragPreviewConnected = true
  		}
  	}
- 
-@@ -195,15 +199,15 @@ export class SourceConnector implements Connector {
- 			this.dragSourceUnsubscribe()
+@@ -196,4 +200,5 @@
  			this.dragSourceUnsubscribe = undefined
  		}
 +		this.isDragSourceConnected = false
  	}
  
- 	public disconnectDragPreview() {
- 		if (this.dragPreviewUnsubscribe) {
+@@ -202,7 +207,6 @@
  			this.dragPreviewUnsubscribe()
  			this.dragPreviewUnsubscribe = undefined
 -			this.dragPreviewNode = null
 -			this.dragPreviewRef = null
- 		}
+-		}
++		}
 +		this.isDragPreviewConnected = false
  	}
  
- 	private get dragSource() {
+diff --git a/src/internals/wrapConnectorHooks.ts b/src/internals/wrapConnectorHooks.ts
+--- a/src/internals/wrapConnectorHooks.ts
++++ b/src/internals/wrapConnectorHooks.ts
+@@ -63,5 +63,5 @@
+ function setRef(ref: any, node: any) {
+ 	if (typeof ref === 'function') {
+-		ref(node)
++		return ref(node)
+ 	} else {
+ 		ref.current = node
+@@ -70,5 +70,5 @@
+ 
+ function cloneWithRef(element: any, newRef: any): ReactElement<any> {
+-	const previousRef = element.ref
++	const previousRef = element.props.ref
+ 	invariant(
+ 		typeof previousRef !== 'string',
+@@ -86,6 +86,16 @@
+ 		return cloneElement(element, {
+ 			ref: (node: any) => {
+-				setRef(previousRef, node)
+-				setRef(newRef, node)
++				const previousCleanup = setRef(previousRef, node)
++				const newCleanup = setRef(newRef, node)
++				if (node === null) return
++				return () => {
++					try {
++						if (typeof previousCleanup === 'function') previousCleanup()
++						else setRef(previousRef, null)
++					} finally {
++						if (typeof newCleanup === 'function') newCleanup()
++						else setRef(newRef, null)
++					}
++				}
+ 			},
+ 		})

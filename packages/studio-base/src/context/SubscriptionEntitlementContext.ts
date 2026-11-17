@@ -37,8 +37,7 @@ const selectGetEntitlement = (state: SubscriptionEntitlementStore) => state.getE
 
 export function useEntitlementWithDialog(
   feature:
-    | PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC
-    | PlanFeatureEnum_PlanFeature.INTERNAL_STORAGE,
+    PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC | PlanFeatureEnum_PlanFeature.INTERNAL_STORAGE,
 ): [Entitlement | undefined, () => void] {
   const { t } = useTranslation("workspace");
   const confirm = useConfirm();

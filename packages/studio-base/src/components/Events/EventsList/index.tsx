@@ -78,16 +78,19 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
+
   deleteAllButton: {
     alignSelf: "stretch",
     flexShrink: 0,
     margin: 0,
     whiteSpace: "nowrap",
   },
+
   root: {
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
   },
+
   accordionTitle: {
     display: "flex",
     flex: 1,
@@ -98,10 +101,12 @@ const useStyles = makeStyles()((theme) => ({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+
   accordion: {
     padding: 0,
     position: "relative",
   },
+
   colorBlock: {
     width: "8px",
     minWidth: "8px",
@@ -109,6 +114,7 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: "8px",
     borderRadius: "100%",
   },
+
   line: {
     position: "absolute",
     width: "1px",
@@ -117,11 +123,13 @@ const useStyles = makeStyles()((theme) => ({
     top: "-12px",
     backgroundColor: theme.palette.divider,
   },
+
   accordionRoot: {
     "&.MuiAccordion-root": {
       boxShadow: "none !important",
     },
   },
+
   accordionSummary: {
     ".MuiAccordionSummary-contentGutters": {
       width: "100%",
@@ -133,6 +141,10 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: "14px",
     fontWeight: 500,
     lineheight: "20px",
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -633,7 +645,7 @@ export function EventsList(): React.JSX.Element {
       )}
       {events.value?.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
-          <Typography align="center" color="text.secondary">
+          <Typography align="center" className={classes.layout1}>
             {t("noMoment")}
           </Typography>
         </Stack>

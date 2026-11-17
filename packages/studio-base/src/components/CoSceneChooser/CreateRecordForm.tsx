@@ -12,9 +12,13 @@ import { makeStyles } from "tss-react/mui";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   textField: {
     width: "400px",
+  },
+
+  layout1: {
+    gap: theme.spacing(2),
   },
 }));
 
@@ -49,7 +53,7 @@ export function CreateRecordForm({
   };
 
   return (
-    <Stack gap={2}>
+    <Stack className={classes.layout1}>
       <Typography variant="h6">{t("createRecord")}</Typography>
       <TextField
         label={t("recordName")}

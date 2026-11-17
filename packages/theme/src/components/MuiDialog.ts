@@ -9,8 +9,10 @@ import { OverrideComponentReturn } from "../types";
 
 export const MuiDialog: OverrideComponentReturn<"MuiDialog"> = {
   defaultProps: {
-    PaperProps: {
-      elevation: 4,
+    slotProps: {
+      paper: {
+        elevation: 4,
+      },
     },
   },
   styleOverrides: {

@@ -7,7 +7,6 @@
 
 import { Components, Theme } from "@mui/material";
 
-import type {} from "@mui/lab/themeAugmentation";
 import type {} from "@mui/x-data-grid/themeAugmentation";
 
 export type OverrideComponentReturn<T extends keyof Components> = Components<Theme>[T];

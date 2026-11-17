@@ -152,7 +152,7 @@ export function SemanticSegmentationWorkbench({
           </div>
         )}
       </div>
-      <fieldset className="seg-disabled" disabled={locked} {...(locked ? { inert: "" } : {})}>
+      <fieldset className="seg-disabled" disabled={locked} {...(locked ? { inert: true } : {})}>
         <div
           className="seg-body"
           style={showTree ? undefined : { gridTemplateColumns: "minmax(320px, 1fr) 320px" }}

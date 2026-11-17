@@ -17,7 +17,6 @@
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ReactHoverObserver from "react-hover-observer";
 import { useTranslation } from "react-i18next";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
@@ -53,6 +52,7 @@ import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
 
 import { DiffSpan } from "./DiffSpan";
 import DiffStats from "./DiffStats";
+import { HoverValue } from "./HoverValue";
 import MaybeCollapsedValue from "./MaybeCollapsedValue";
 import Metadata from "./Metadata";
 import Value from "./Value";
@@ -85,9 +85,14 @@ const useStyles = makeStyles()((theme) => ({
     fontFamily: theme.typography.body1.fontFamily,
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
+
   hoverObserver: {
     display: "inline-flex",
     alignItems: "center",
+  },
+
+  layout1: {
+    whiteSpace: "pre-wrap",
   },
 }));
 
@@ -337,8 +342,8 @@ function RawMessages(props: Props) {
       itemValue: unknown,
       ...keyPath: (number | string)[]
     ) => (
-      <ReactHoverObserver className={classes.hoverObserver}>
-        {({ isHovering }: { isHovering: boolean }) => {
+      <HoverValue className={classes.hoverObserver}>
+        {({ isHovering }) => {
           const lastKeyPath = _.last(keyPath) as number;
           let valueAction: ValueAction | undefined;
           if (isHovering) {
@@ -386,7 +391,7 @@ function RawMessages(props: Props) {
             />
           );
         }}
-      </ReactHoverObserver>
+      </HoverValue>
     ),
     [classes.hoverObserver, enumMapping, getValueLabels, onTopicPathChange, openSiblingPanel],
   );
@@ -461,9 +466,11 @@ function RawMessages(props: Props) {
         {shouldDisplaySingleVal ? (
           <Typography
             variant="h1"
-            fontSize={fontSize}
-            whiteSpace="pre-wrap"
-            style={{ wordWrap: "break-word" }}
+            style={{
+              fontSize,
+              ...{ wordWrap: "break-word" },
+            }}
+            className={classes.layout1}
           >
             <MaybeCollapsedValue itemLabel={String(singleVal)} />
           </Typography>
@@ -651,26 +658,27 @@ function RawMessages(props: Props) {
       </Stack>
     );
   }, [
-    baseItem,
-    classes.topic,
-    fontSize,
+    topicPath,
     diffEnabled,
-    diffItem,
     diffMethod,
-    diffTopicPath,
-    expansion,
+    baseItem,
+    diffItem,
+    showFullMessageForDiff,
+    classes.topic,
+    classes.layout1,
+    topic,
+    fontSize,
+    t,
     getItemString,
     jsonTreeTheme,
-    onLabelClick,
-    renderDiffLabel,
-    rootStructureItem,
+    expansion,
+    diffTopicPath,
     saveConfig,
-    showFullMessageForDiff,
-    themePreference,
-    t,
-    topic,
-    topicPath,
+    onLabelClick,
     valueRenderer,
+    rootStructureItem,
+    renderDiffLabel,
+    themePreference,
   ]);
 
   const actionHandler = useCallback(

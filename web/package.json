@@ -6,11 +6,16 @@
     "@foxglove/log": "workspace:*",
     "@foxglove/studio-desktop": "workspace:*",
     "@foxglove/studio-web": "workspace:*",
-    "@rspack/cli": "2.2.9",
-    "@rspack/core": "2.2.9",
-    "@types/serve-handler": "^6",
-    "electron": "35.0.3",
-    "playwright": "1.60.0",
-    "serve-handler": "6.1.5"
+    "@rspack/cli": "2.3.2",
+    "@rspack/core": "2.3.2",
+    "@svgr/webpack": "8.1.0",
+    "@types/serve-handler": "6.1.4",
+    "css-loader": "7.1.5",
+    "electron": "45.3.0",
+    "playwright": "1.65.0",
+    "serve-handler": "6.1.8",
+    "string-replace-loader": "3.3.0",
+    "style-loader": "4.0.0",
+    "webpack": "5.112.2"
   }
 }

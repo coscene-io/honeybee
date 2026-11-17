@@ -30,14 +30,17 @@ const useStyles = makeStyles()((theme) => ({
     right: 0,
     pointerEvents: "none",
   },
+
   row: {
     paddingInline: theme.spacing(1, 0.5),
     pointerEvents: "none",
   },
+
   dismissIcon: {
     paddingInline: theme.spacing(0.5),
     minWidth: "auto !important",
   },
+
   buttonGroup: {
     minWidth: "auto",
     textAlign: "left",
@@ -60,6 +63,11 @@ const useStyles = makeStyles()((theme) => ({
       marginRight: theme.spacing(-0.75),
     },
   },
+
+  layout1: {
+    position: "absolute",
+    paddingTop: theme.spacing(0.5),
+  },
 }));
 
 export const PathLegend = React.memo(function PathLegend(props: {
@@ -72,7 +80,7 @@ export const PathLegend = React.memo(function PathLegend(props: {
   const { setSelectedPanelIds } = useSelectedPanels();
   const { id: panelId } = usePanelContext();
   const { openPanelSettings } = useWorkspaceActions();
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const { t } = useTranslation("stateTransitions");
 
   const handleDeletePath = useCallback(
@@ -93,7 +101,7 @@ export const PathLegend = React.memo(function PathLegend(props: {
   );
 
   return (
-    <Stack className={classes.chartOverlay} position="absolute" paddingTop={0.5}>
+    <Stack className={cx(classes.chartOverlay, classes.layout1)}>
       {(paths.length === 0 ? [DEFAULT_PATH] : paths).map((path, index) => (
         <div className={classes.row} key={index} style={{ height: heightPerTopic }}>
           <ButtonGroup

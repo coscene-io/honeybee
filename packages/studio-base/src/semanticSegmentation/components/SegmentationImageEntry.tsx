@@ -171,7 +171,7 @@ export function SegmentationImageEntry({
   onAvailabilityChange,
   service: injectedService,
 }: {
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<ReactNull | HTMLDivElement>;
   topic?: string;
   panelId: string;
   onMaximize: () => void;
@@ -239,7 +239,7 @@ export function SegmentationImageEntry({
         sizeBytes: undefined as bigint | undefined,
       }
     : undefined;
-  const active = useRef<Binding>();
+  const active = useRef<Binding | undefined>(undefined);
   useEffect(() => {
     // Masks render on the GPU in every Image panel, in preview, editing and playback alike.
     installMaskOverlaySource();
@@ -250,9 +250,9 @@ export function SegmentationImageEntry({
   );
   const generation = useRef(0);
   const previewGeneration = useRef(0);
-  const pending = useRef<{ runtime: SegmentationRuntime; epoch: number }>();
-  const blockedImage = useRef<object>();
-  const lastSyncedImage = useRef<object>();
+  const pending = useRef<{ runtime: SegmentationRuntime; epoch: number } | undefined>(undefined);
+  const blockedImage = useRef<object | undefined>(undefined);
+  const lastSyncedImage = useRef<object | undefined>(undefined);
   // What the last source registration read; see `sync`.
   const registeredImage = useRef<{
     image: object;
@@ -262,7 +262,7 @@ export function SegmentationImageEntry({
     blockMessages: number;
     messages: unknown;
     canvasFrames: number;
-  }>();
+  } | undefined>(undefined);
   const [error, setError] = useState<string>();
   // Bumped when the first decoded frame arrives after the preview effect found none.
   const [previewRetry, setPreviewRetry] = useState(0);

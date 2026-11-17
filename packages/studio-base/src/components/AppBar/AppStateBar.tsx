@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoIcon from "@mui/icons-material/Info";
 import WarningIcon from "@mui/icons-material/Warning";
@@ -50,22 +50,87 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.warning.main,
     color: theme.palette.warning.contrastText,
   },
+
   mediaGeneratSuccessStatusBar: {
     backgroundColor: theme.palette.success.main,
     color: theme.palette.success.contrastText,
   },
+
   loadingStatusBar: {
     backgroundColor: theme.palette.background.menu,
     color: theme.palette.text.primary,
     borderBottom: `1px solid ${theme.palette.divider}`,
   },
+
   mediaGenerationErrorStatusBar: {
     backgroundColor: theme.palette.error.main,
     color: theme.palette.error.contrastText,
   },
+
   autoDisconnectionTips: {
     backgroundColor: theme.palette.warning.main,
     color: theme.palette.warning.contrastText,
+  },
+
+  layout1: {
+    paddingLeft: theme.spacing(1),
+    paddingRight: theme.spacing(1),
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing(1),
+  },
+
+  layout2: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+    gap: theme.spacing(1),
+  },
+
+  layout3: {
+    paddingLeft: theme.spacing(3),
+    paddingRight: theme.spacing(3),
+    gap: theme.spacing(1),
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  layout4: {
+    gap: theme.spacing(1),
+    alignItems: "center",
+  },
+
+  layout5: {
+    paddingLeft: theme.spacing(3),
+    paddingRight: theme.spacing(3),
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  layout6: {
+    gap: theme.spacing(1),
+    alignItems: "center",
+  },
+
+  layout7: {
+    gap: theme.spacing(1),
+    alignItems: "center",
+  },
+
+  layout8: {
+    paddingLeft: theme.spacing(3),
+    paddingRight: theme.spacing(3),
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  layout9: {
+    gap: theme.spacing(1),
+    alignItems: "center",
   },
 }));
 
@@ -77,7 +142,7 @@ const selectUser = (store: UserStore) => store.user;
 
 export function AppStateBar(): React.JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
-  const { classes, theme } = useStyles();
+  const { classes, theme, cx } = useStyles();
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
   const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
@@ -212,15 +277,7 @@ export function AppStateBar(): React.JSX.Element {
   useEffect(() => {
     if (showLoadingStatus && loading && fileLoadingToastId == undefined) {
       const toastId = toast.custom(() => (
-        <Stack
-          paddingX={1}
-          paddingY={1}
-          alignItems="center"
-          direction="row"
-          justifyContent="center"
-          className={classes.loadingStatusBar}
-          gap={1}
-        >
+        <Stack direction="row" className={cx(classes.loadingStatusBar, classes.layout1)}>
           {/* loading status bar */}
           <CircularProgress
             size={18}
@@ -240,20 +297,14 @@ export function AppStateBar(): React.JSX.Element {
     t,
     theme.palette.appBar.primary,
     fileLoadingToastId,
+    cx,
+    classes.layout1,
   ]);
 
   return (
     <>
       {remainingTime < DEFAULT_WARNING_TIMEOUT && (
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="center"
-          position="relative"
-          className={classes.autoDisconnectionTips}
-          paddingY={1}
-          gap={1}
-        >
+        <Stack direction="row" className={cx(classes.autoDisconnectionTips, classes.layout2)}>
           <WarningIcon fontSize="small" />
           {t("autoDisconnectionTips", {
             time: dayjs(remainingTime).format("mm:ss"),
@@ -264,15 +315,8 @@ export function AppStateBar(): React.JSX.Element {
       {generatingMediaCount > 0 &&
         generatedMediaCount + normalBagFileCount < bagFileCount &&
         showGeneratingMedia && (
-          <Stack
-            direction="row"
-            paddingX={3}
-            gap={1}
-            alignItems="center"
-            justifyContent="space-between"
-            className={classes.mediaGenerationStatusBar}
-          >
-            <Stack direction="row" gap={1} alignItems="center">
+          <Stack direction="row" className={cx(classes.mediaGenerationStatusBar, classes.layout3)}>
+            <Stack direction="row" className={classes.layout4}>
               <InfoIcon />
               {t("mediaGeneratingTips", {
                 successfulCount: generatedMediaCount + normalBagFileCount,
@@ -296,19 +340,16 @@ export function AppStateBar(): React.JSX.Element {
       {isGeneratingMediaSuccess && showGeneratingMediaSuccess && (
         <Stack
           direction="row"
-          paddingX={3}
-          alignItems="center"
-          justifyContent="space-between"
-          className={classes.mediaGeneratSuccessStatusBar}
+          className={cx(classes.mediaGeneratSuccessStatusBar, classes.layout5)}
         >
-          <Stack direction="row" gap={1} alignItems="center">
+          <Stack direction="row" className={classes.layout6}>
             <CheckCircleOutlineIcon />
             {t("mediaSuccessfulGeneration", {
               count: bagFileCount,
             })}
           </Stack>
 
-          <Stack direction="row" gap={1} alignItems="center">
+          <Stack direction="row" className={classes.layout7}>
             <Button
               // variant="text"
               onClick={() => {
@@ -344,12 +385,9 @@ export function AppStateBar(): React.JSX.Element {
       {isGeneratingMediaError && showGeneratingMediaError && (
         <Stack
           direction="row"
-          paddingX={3}
-          alignItems="center"
-          justifyContent="space-between"
-          className={classes.mediaGenerationErrorStatusBar}
+          className={cx(classes.mediaGenerationErrorStatusBar, classes.layout8)}
         >
-          <Stack direction="row" gap={1} alignItems="center">
+          <Stack direction="row" className={classes.layout9}>
             <InfoIcon />
             {t("mediaGenerationError")}
           </Stack>

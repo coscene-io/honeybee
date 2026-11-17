@@ -170,8 +170,7 @@ export class IterablePlayer implements Player {
   #hasError = false;
   #lastRangeMillis?: number;
   #pendingPlaybackResults:
-    | { results: readonly Readonly<IteratorResult>[]; index: number }
-    | undefined;
+    { results: readonly Readonly<IteratorResult>[]; index: number } | undefined;
   #lastStamp?: Time;
   #publishedTopics = new Map<string, Set<string>>();
   #seekTarget?: Time;

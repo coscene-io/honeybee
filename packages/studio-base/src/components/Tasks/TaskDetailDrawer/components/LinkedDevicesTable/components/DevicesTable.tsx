@@ -5,13 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
-// SPDX-License-Identifier: MPL-2.0
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { ListProjectDevicesResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/device_pb";
 import type {
@@ -68,6 +61,7 @@ const useStyles = makeStyles()((theme) => ({
       },
     },
   },
+
   customFooter: {
     display: "flex",
     alignItems: "center",
@@ -81,11 +75,13 @@ const useStyles = makeStyles()((theme) => ({
       display: "none",
     },
   },
+
   selectionInfo: {
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
   },
+
   playButton: {
     marginLeft: theme.spacing(1),
     opacity: 0,
@@ -98,17 +94,23 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: alpha(theme.palette.grey[400], 0.8),
     },
   },
+
   deviceId: {
     position: "relative",
     width: "100%",
     overflow: "hidden",
   },
+
   vizButton: {
     position: "absolute",
     right: 0,
     top: 0,
     bottom: 0,
     margin: "auto",
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -139,7 +141,7 @@ function CustomFooter({
     <GridFooterContainer className={classes.customFooter}>
       <Box className={classes.selectionInfo}>
         {selectedCount > 0 && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" className={classes.layout1}>
             {t("selectedRowsCount", { count: selectedCount })}
           </Typography>
         )}

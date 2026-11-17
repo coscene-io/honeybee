@@ -226,9 +226,7 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
 
     render(<DeepLinksSyncAdapter deepLinks={[url]} />);
     await act(async () => {
-      await Promise.resolve();
-      jest.advanceTimersByTime(1000);
-      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(1000);
     });
 
     expect(mockToastError).toHaveBeenCalledTimes(1);

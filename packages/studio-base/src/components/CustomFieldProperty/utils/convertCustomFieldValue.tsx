@@ -12,8 +12,23 @@ import dayjs from "dayjs";
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    alignItems: "center",
+    gap: theme.spacing(1),
+    maxWidth: "100%",
+  },
+
+  layout2: {
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+    flexShrink: 0,
+  },
+}));
 
 export function ConvertCustomFieldValue({
   customFieldValue,
@@ -22,6 +37,8 @@ export function ConvertCustomFieldValue({
   customFieldValue?: CustomFieldValue;
   noWrap?: boolean;
 }): ReactNode {
+  const { classes } = useStyles();
+
   let value: ReactNode;
 
   const consoleApi = useConsoleApi();
@@ -118,14 +135,14 @@ export function ConvertCustomFieldValue({
       value = (
         <Stack
           direction="row"
-          alignItems="center"
-          gap={1}
-          maxWidth="100%"
-          flexWrap={noWrap ? "nowrap" : "wrap"}
-          style={noWrap ? { overflow: "hidden" } : undefined}
+          style={{
+            flexWrap: noWrap ? "nowrap" : "wrap",
+            ...(noWrap ? { overflow: "hidden" } : undefined),
+          }}
+          className={classes.layout1}
         >
           {users.value?.map((user) => (
-            <Stack direction="row" alignItems="center" gap={0.5} key={user.name} flexShrink={0}>
+            <Stack direction="row" key={user.name} className={classes.layout2}>
               <Avatar
                 src={user.avatar ?? undefined}
                 variant="circular"
