@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 
 import { editor, fixture, pointer } from "../acceptance/interaction/fixtures";
 import { countsFromRuns, runsFromIntervals } from "../maskCodec";
@@ -96,4 +96,23 @@ it("keeps a double-clicked mask in edit when one of its polygons is picked in th
   // Leaving the instance still ends the edit and restores the untouched mask.
   expect(store.getState().maskEdit).toBeUndefined();
   expect(store.getState().document!.annotations[key]!.mask?.counts).toBe(counts);
+});
+
+it("forwards view and history shortcuts from the tree to the canvas", async () => {
+  const { store, container } = await editor(fixture());
+  const viewportKeys: string[] = [];
+  screen
+    .getByTestId("segmentation-viewport")
+    .addEventListener("keydown", (event) => viewportKeys.push(`${event.shiftKey ? "Shift+" : ""}${event.key}`));
+  const row = container.querySelector('[data-node-id="instance-1"]')!;
+  act(() => {
+    store.getState().renameInstance("instance-1", "renamed");
+  });
+  expect(store.getState().stagedOperations).toHaveLength(1);
+  fireEvent.keyDown(row, { key: "F", shiftKey: true });
+  fireEvent.keyDown(row, { key: "z", metaKey: true });
+  // Arrows and Enter stay with the tree and the app.
+  fireEvent.keyDown(row, { key: "ArrowRight" });
+  expect(viewportKeys).toEqual(["Shift+F", "z"]);
+  expect(store.getState().stagedOperations).toHaveLength(0);
 });

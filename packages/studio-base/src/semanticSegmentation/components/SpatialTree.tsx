@@ -28,7 +28,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useId, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { makeStyles } from "tss-react/mui";
 import type { StoreApi } from "zustand";
 import { useStore } from "zustand";
@@ -263,6 +263,62 @@ function nodeExists(document: SegmentationDocument, node: SegmentationNodeRef): 
   return Object.values(document.annotations).some((annotation) =>
     annotation.polygons.some((polygon) => polygon.id === node.id),
   );
+}
+
+/**
+ * Canvas shortcuts that also apply with focus in the tree: view (F, Shift+F, 0, +/-, hold O),
+ * history (Cmd/Ctrl+Z, Shift+Z, Y), help (?) and Esc while drawing. They act on the canvas that
+ * holds the edit. Tree-only keys (Enter, typing in a name field) and keys with a different meaning
+ * here (Space plays, arrows step frames, Delete) stay with the tree and the app.
+ */
+const TREE_FORWARDED_KEYS = new Set(["f", "F", "0", "+", "=", "-", "o", "O", "?"]);
+
+function activeCanvasViewport(): HTMLElement | undefined {
+  return (
+    globalThis.document.querySelector<HTMLElement>(
+      '.seg-canvas-focused [data-testid="segmentation-viewport"]',
+    ) ??
+    globalThis.document.querySelector<HTMLElement>('[data-testid="segmentation-viewport"]') ??
+    undefined
+  );
+}
+
+function forwardCanvasShortcut(event: ReactKeyboardEvent<HTMLElement>): void {
+  const target = event.target;
+  if (
+    event.defaultPrevented ||
+    (target instanceof Element &&
+      target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"]'))
+  ) {
+    return;
+  }
+  const history =
+    (event.ctrlKey || event.metaKey) && ["z", "Z", "y", "Y"].includes(event.key) && !event.altKey;
+  const view = !event.ctrlKey && !event.metaKey && !event.altKey && TREE_FORWARDED_KEYS.has(event.key);
+  const escape = event.key === "Escape";
+  if (!history && !view && !escape) {
+    return;
+  }
+  const viewport = activeCanvasViewport();
+  if (!viewport) {
+    return;
+  }
+  const forwarded = new KeyboardEvent("keydown", {
+    key: event.key,
+    code: event.code,
+    shiftKey: event.shiftKey,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    altKey: event.altKey,
+    repeat: event.repeat,
+    bubbles: true,
+    cancelable: true,
+  });
+  viewport.dispatchEvent(forwarded);
+  if (forwarded.defaultPrevented) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 }
 
 function ownsRowEvent(target: EventTarget, row: Element): boolean {
@@ -1266,7 +1322,7 @@ export function SpatialTree({
           ).join(", "),
         };
   return (
-    <Stack spacing={1} className={classes.root}>
+    <Stack spacing={1} className={classes.root} onKeyDown={forwardCanvasShortcut}>
       <Box className={classes.header}>
         <Typography variant="subtitle1">{text("Instances", "实例")}</Typography>
         <Typography className={classes.headerCount} component="span">
