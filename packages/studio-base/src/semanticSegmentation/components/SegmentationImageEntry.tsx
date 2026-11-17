@@ -253,6 +253,16 @@ export function SegmentationImageEntry({
   const pending = useRef<{ runtime: SegmentationRuntime; epoch: number }>();
   const blockedImage = useRef<object>();
   const lastSyncedImage = useRef<object>();
+  // What the last source registration read; see `sync`.
+  const registeredImage = useRef<{
+    image: object;
+    bindingKey: string;
+    runtime: object;
+    blocks: unknown;
+    blockMessages: number;
+    messages: unknown;
+    canvasFrames: number;
+  }>();
   const [error, setError] = useState<string>();
   // Bumped when the first decoded frame arrives after the preview effect found none.
   const [previewRetry, setPreviewRetry] = useState(0);
@@ -582,6 +592,20 @@ export function SegmentationImageEntry({
           decodedFrame: surface.decodedFrame ?? previous?.decodedFrame,
           sourceReady: surface.sourceReady,
         };
+        // Runs on every rendered frame: an unchanged surface must not notify subscribers.
+        if (
+          previous &&
+          next.frameId === previous.frameId &&
+          next.imageUrl === previous.imageUrl &&
+          next.decodedFrame === previous.decodedFrame &&
+          next.sourceReady === previous.sourceReady &&
+          (!focused ||
+            (current.imageUrl === next.imageUrl &&
+              current.decodedFrame === next.decodedFrame &&
+              current.sourceReady === next.sourceReady))
+        ) {
+          return current;
+        }
         return {
           surfaces: { ...current.surfaces, [panelId]: next },
           ...(focused
@@ -620,17 +644,36 @@ export function SegmentationImageEntry({
     const matchesClock =
       toNanoSec(image.receiveTime) <= toNanoSec(data.currentTime) &&
       (!latest || toNanoSec(latest.receiveTime) === toNanoSec(image.receiveTime));
-    if (matchesClock && state.document) {
+    // Zoom and pan render the same decoded image again. Rebuild the source table only when the
+    // image or a frame source (player cache, tick messages, the panel's decoder cache) changed.
+    const blocks = getPipeline().playerState.progress.messageCache?.blocks;
+    const canvasFrames = cachedCanvasFrames(containerRef.current);
+    const sources = {
+      image: image.decodedIdentity,
+      bindingKey: binding.key,
+      runtime: binding.runtime,
+      blocks,
+      blockMessages:
+        blocks?.reduce((count, block) => count + (block?.messagesByTopic[topic]?.length ?? 0), 0) ??
+        0,
+      messages: data.messages,
+      canvasFrames: canvasFrames.length,
+    };
+    const previousSources = registeredImage.current;
+    const registered =
+      frame != undefined &&
+      previousSources != undefined &&
+      (Object.keys(sources) as (keyof typeof sources)[]).every(
+        (key) => previousSources[key] === sources[key],
+      );
+    if (matchesClock && state.document && !registered) {
       const video = state.document.videos.find((item) => item.id === binding.videoId);
       if (video) {
-        const pipeline = getPipeline();
         const stamps = receivedFrameStamps(
           [
-            ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
-              (block) => block?.messagesByTopic[topic] ?? [],
-            ) ?? []),
+            ...(blocks?.flatMap((block) => block?.messagesByTopic[topic] ?? []) ?? []),
             ...data.messages,
-            ...cachedCanvasFrames(containerRef.current),
+            ...canvasFrames,
           ],
           topic,
         );
@@ -650,6 +693,7 @@ export function SegmentationImageEntry({
           .document?.frames.find(
             (item) => item.id === `${binding.videoId}:${imageFrameIdentity(image)}`,
           );
+        registeredImage.current = frame ? sources : undefined;
       }
     }
     if (focused && binding.frames) {
