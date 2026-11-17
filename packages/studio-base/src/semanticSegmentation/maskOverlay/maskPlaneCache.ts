@@ -202,7 +202,7 @@ export class MaskPlaneCache {
       this.stats.buildMs.splice(0, 1000);
     }
     while (this.#bytes > this.budgetBytes && this.#entries.size > 1) {
-      const [oldest, value] = this.#entries.entries().next().value as [number, MaskPlanes];
+      const [oldest, value] = this.#entries.entries().next().value!;
       this.#entries.delete(oldest);
       this.#bytes -= planeBytes(value.width, value.height, value.slots);
       this.stats.evicted++;

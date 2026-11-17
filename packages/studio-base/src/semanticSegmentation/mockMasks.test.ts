@@ -68,14 +68,14 @@ describe("mock service with MOCK masks", () => {
   it("serves masks for loaded windows, never persists untouched ones, and honours deletes", async () => {
     const storage = new Map<string, string>();
     const mock = service(storage);
-    const window = await mock.loadFrameWindow("video-side", 0, 1);
+    const frameWindow = await mock.loadFrameWindow("video-side", 0, 1);
     const key = frameInstanceKey("side-0", "mock-mask-0");
-    expect(maskOf(window.annotations[key])).toMatchObject({
+    expect(maskOf(frameWindow.annotations[key])).toMatchObject({
       width: 1280,
       height: 720,
       source: "mock",
     });
-    expect(polygonsOf(window.annotations[key])).toEqual([]);
+    expect(polygonsOf(frameWindow.annotations[key])).toEqual([]);
 
     await mock.submit({
       id: "delete-1",

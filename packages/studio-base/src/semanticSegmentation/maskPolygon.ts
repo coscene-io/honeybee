@@ -745,12 +745,13 @@ export function polygonsToRuns(polygons: PixelPolygon[], width: number, height: 
   const w = x1 - x0 + 1;
   const h = y1 - y0 + 1;
   const bits = new Uint8Array(w * h);
+  const [left, top] = [x0, y0];
   for (const polygon of rounded) {
     fillPolygon(
       bits,
       w,
       h,
-      polygon.map(([x, y]) => [x - x0, y - y0]),
+      polygon.map(([x, y]) => [x - left, y - top]),
     );
   }
   return runsOfBitmap(bits, { x0, y0, w, h }, width, height);

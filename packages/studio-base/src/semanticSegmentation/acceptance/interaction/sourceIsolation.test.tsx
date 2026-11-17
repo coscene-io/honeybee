@@ -22,8 +22,7 @@ const selectItem = jest.fn();
 const maximize = jest.fn();
 let mockUserId = "fixture-user";
 let mockFile:
-  | { dataAssetName: string; name: string; filename: string; sizeBytes: bigint }
-  | undefined;
+  { dataAssetName: string; name: string; filename: string; sizeBytes: bigint } | undefined;
 const pipeline = {
   playerState: {
     playerId: "image-player",

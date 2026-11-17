@@ -578,7 +578,7 @@ export function SegmentationCanvas({
     const video = document?.videos.find((item) => item.id === frame?.videoId);
     const width = video?.width ?? size.width;
     const height = video?.height ?? size.height;
-    if (!frame || video?.topic == undefined || !width || !height || !source) {
+    if (!frame || video?.topic == undefined || !(width > 0) || !(height > 0) || !source) {
       setError("当前帧还没有可用的 topic、源图尺寸或画面，稍后再试。");
       return;
     }
@@ -3397,5 +3397,3 @@ export function SegmentationCanvas({
     </Stack>
   );
 }
-
-export default SegmentationCanvas;

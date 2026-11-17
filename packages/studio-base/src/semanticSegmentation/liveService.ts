@@ -281,7 +281,12 @@ export function createLiveAnnotationService(options: {
   ): Promise<void> {
     await Promise.all(
       doc.videos
-        .filter((video) => video.topic && !(topics === "unread" && timelineTopics.has(video.topic)))
+        .filter(
+          (video) =>
+            video.topic != undefined &&
+            video.topic !== "" &&
+            !(topics === "unread" && timelineTopics.has(video.topic)),
+        )
         .map(async (video) => {
           timelineTopics.add(video.topic!);
           const topic = video.topic!;
@@ -719,7 +724,12 @@ export function createLiveAnnotationService(options: {
       reindex();
       rebuildSummaries();
       // Another camera joined after the document read: read its timeline once.
-      if (doc.videos.some((video) => video.topic && !timelineTopics.has(video.topic))) {
+      if (
+        doc.videos.some(
+          (video) =>
+            video.topic != undefined && video.topic !== "" && !timelineTopics.has(video.topic),
+        )
+      ) {
         void refreshTimeline(undefined, "unread").then(() => {
           for (const listener of timelineListeners) {
             listener();

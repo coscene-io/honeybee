@@ -425,7 +425,7 @@ export function SegmentationImageEntry({
           recordId: stableRecordId,
           recordName: file?.filename ?? pipeline.playerState.name ?? "当前媒体",
           videoId,
-          topic: topic,
+          topic,
           image,
           durationSec,
           sizeBytes: Number(file?.sizeBytes ?? 0n),

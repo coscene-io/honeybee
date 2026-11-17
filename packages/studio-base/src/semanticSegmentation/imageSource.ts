@@ -124,7 +124,7 @@ export type SegmentationMaskOverlaySource = {
   upcoming: (
     topic: string,
     logTimeNs: string,
-    window: { minFrames: number; maxFrames: number; horizonNs: bigint },
+    range: { minFrames: number; maxFrames: number; horizonNs: bigint },
   ) => SegmentationMaskGeometry[];
 };
 

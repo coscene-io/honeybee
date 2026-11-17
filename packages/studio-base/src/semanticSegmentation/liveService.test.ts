@@ -291,13 +291,13 @@ describe("live annotation service", () => {
     const { server, service, document } = setup();
     seedServer(server);
     await service.loadDocument();
-    const window = await service.loadFrameWindow("video", 0, 10);
+    const frameWindow = await service.loadFrameWindow("video", 0, 10);
     for (const request of server.listFrames) {
       expect(request.startTime!.nanos % 1000).toBe(0);
       expect(request.endTime!.nanos % 1000).toBe(0);
     }
     expect(server.listFrames).toHaveLength(2);
-    const observation = window.annotations[frameInstanceKey(document.frames[1]!.id, OTHER_ID)];
+    const observation = frameWindow.annotations[frameInstanceKey(document.frames[1]!.id, OTHER_ID)];
     expect(polygonsOf(observation)[0]?.points[0]).toEqual({ x: 0.1, y: 0.1 });
     expect(polygonsOf(observation)[0]?.topic).toBe(TOPIC);
     // Loaded geometry replaces timeline presence.
@@ -750,7 +750,8 @@ describe("live annotation service", () => {
       yield { event: { case: "error", value: { code: 14, message: "GPU unavailable" } } };
     };
     const run = async () => {
-      for await (const _ of service.propagate(
+      const received: unknown[] = [];
+      for await (const result of service.propagate(
         {
           instanceId: OTHER_ID,
           fromFrameId: document.frames[1]!.id,
@@ -758,8 +759,9 @@ describe("live annotation service", () => {
         },
         new AbortController().signal,
       )) {
-        // drain
+        received.push(result);
       }
+      return received;
     };
     await expect(run()).rejects.toThrow(/GPU unavailable/);
     server.propagate = async function* () {

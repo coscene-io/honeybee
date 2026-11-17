@@ -1884,5 +1884,3 @@ export function SpatialTree({
     </Stack>
   );
 }
-
-export default SpatialTree;

@@ -16,7 +16,10 @@
 
 import { ReactElement, useCallback, useEffect, useRef } from "react";
 
-import { isAnnotationCanvasTarget, isAnnotationViewportTarget } from "@foxglove/studio-base/semanticSegmentation/annotationInput";
+import {
+  isAnnotationCanvasTarget,
+  isAnnotationViewportTarget,
+} from "@foxglove/studio-base/semanticSegmentation/annotationInput";
 
 // Invoke handler for matching key.
 // By default, preventDefault() is invoked on the event. Return false to allow the default.
