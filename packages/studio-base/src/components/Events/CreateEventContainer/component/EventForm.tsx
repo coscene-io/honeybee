@@ -420,6 +420,7 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
                     <div>
                       <TextField
                         {...valueField}
+                        fullWidth
                         size="small"
                         variant="filled"
                         placeholder={t("attributeValue")}
@@ -447,7 +448,9 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
                         value={valueField.value}
                         onChange={(value) => {
                           valueField.onChange(value);
-                          handleAutoAppendRow(index);
+                          setTimeout(() => {
+                            handleAutoAppendRow(index);
+                          }, 0);
                         }}
                       />
                     </div>

@@ -139,11 +139,7 @@ function ImagePanelAdapter(props: Props) {
     [topicMessageFrequencies],
   );
   const propagateIcon = useMemo(
-    () => (
-      <>
-        <SegmentationPropagateButton panelId={panel.id} />
-      </>
-    ),
+    () => <SegmentationPropagateButton panelId={panel.id} />,
     [panel.id],
   );
   const onActionsChange = useCallback(

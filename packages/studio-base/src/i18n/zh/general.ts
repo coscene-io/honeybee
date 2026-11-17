@@ -43,6 +43,8 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   pause: "暂停",
   play: "播放",
   seekForward: "前进",
+  seekBackwardCamera: "上一帧（{{camera}}）",
+  seekForwardCamera: "下一帧（{{camera}}）",
   seekStep: "步长",
   seekStepHelp: "暂停时每次前进或后退的间隔",
   seekStepDescription: "步长，暂停时，使用前进和后退按钮控制回放的进退时间",

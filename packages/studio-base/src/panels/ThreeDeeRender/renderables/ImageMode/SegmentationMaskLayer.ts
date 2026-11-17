@@ -225,6 +225,7 @@ export class SegmentationMaskLayer {
       return false;
     }
     const topic = renderable.userData.topic;
+    // For recorded data the message receive time is its MCAP log time: the frame identity masks use.
     const logTimeNs = displayed.receiveTime.toString();
     const frame = source.frame(topic, logTimeNs);
     const prefetch = this.#prefetchWindow(topic, displayed.receiveTime);

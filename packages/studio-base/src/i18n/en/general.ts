@@ -43,6 +43,8 @@ export const general = {
   pause: "Pause",
   play: "Play",
   seekForward: "Seek forward",
+  seekBackwardCamera: "Previous frame ({{camera}})",
+  seekForwardCamera: "Next frame ({{camera}})",
   seekStep: "Step size",
   seekStepHelp: "Step interval when paused",
   seekStepDescription: "Step size: Controls the forward/backward playback interval when paused",

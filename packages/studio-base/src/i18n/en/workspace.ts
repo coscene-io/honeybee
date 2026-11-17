@@ -26,6 +26,7 @@ export const workspace = {
   upgradeSubscriptionPlan: "Upgrade Subscription Plan",
   playlist: "Playlist",
   moment: "Moment",
+  space: "Space",
   tasks: "Tasks",
   legacyMessageCacheDeleteBlocked:
     "Close other Honeybee tabs to finish clearing the legacy message cache.",

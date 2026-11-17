@@ -470,9 +470,13 @@ export default function PlaybackControls(props: {
   const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
   const stepCamera = useSegmentationStepLabel();
   const seekBackwardLabel =
-    stepCamera == undefined ? t("seekBackward", { ns: "general" }) : `上一帧（${stepCamera}）`;
+    stepCamera == undefined
+      ? t("seekBackward", { ns: "general" })
+      : t("seekBackwardCamera", { ns: "general", camera: stepCamera });
   const seekForwardLabel =
-    stepCamera == undefined ? t("seekForward", { ns: "general" }) : `下一帧（${stepCamera}）`;
+    stepCamera == undefined
+      ? t("seekForward", { ns: "general" })
+      : t("seekForwardCamera", { ns: "general", camera: stepCamera });
 
   return (
     <>
