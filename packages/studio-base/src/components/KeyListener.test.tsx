@@ -114,13 +114,23 @@ describe("<KeyListener />", () => {
       );
 
       for (const target of ["viewport", "vertex", "retry"]) {
-        for (const key of [" ", "ArrowRight"]) {
-          const event = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
-          fireEvent(screen.getByTestId(target), event);
-          expect(event.defaultPrevented).toBe(false);
-        }
+        const event = new KeyboardEvent(type, { key: " ", bubbles: true, cancelable: true });
+        fireEvent(screen.getByTestId(target), event);
+        expect(event.defaultPrevented).toBe(false);
       }
+      // A native control inside the viewport keeps its arrows.
+      fireEvent(
+        screen.getByTestId("retry"),
+        new KeyboardEvent(type, { key: "ArrowRight", bubbles: true, cancelable: true }),
+      );
       expect(handler).not.toHaveBeenCalled();
+      // ←/→ the canvas did not consume step frames; the canvas stops the ones it uses.
+      fireEvent(
+        screen.getByTestId("viewport"),
+        new KeyboardEvent(type, { key: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+      expect(handler).toHaveBeenCalledTimes(1);
+      handler.mockClear();
 
       fireEvent(
         screen.getByTestId("timeline"),

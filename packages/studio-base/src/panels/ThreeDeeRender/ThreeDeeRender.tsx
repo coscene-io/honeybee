@@ -35,6 +35,7 @@ import {
   segmentationCachedFrames,
   segmentationImageMetadataSources,
   segmentationImageSources,
+  segmentationViewControls,
 } from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
@@ -967,12 +968,26 @@ export function ThreeDeeRender(props: {
       imageMode()?.captureSegmentationImageMetadata(),
     );
     segmentationImageSources.set(canvas, () => imageMode()?.captureSegmentationImage());
+    segmentationViewControls.set(canvas, {
+      reset: () => {
+        imageMode()?.resetViewModifications();
+        renderer.queueAnimationFrame();
+      },
+      zoom: (ratio, clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        imageMode()?.zoomViewAt(ratio, clientX - rect.left, clientY - rect.top);
+      },
+      panBy: (dx, dy) => {
+        imageMode()?.panViewBy(dx, dy);
+      },
+    });
     const onFrame = () => {
       canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
     };
     renderer.on("endFrame", onFrame);
     return () => {
       segmentationCachedFrames.delete(canvas);
+      segmentationViewControls.delete(canvas);
       segmentationImageMetadataSources.delete(canvas);
       segmentationImageSources.delete(canvas);
       renderer.off("endFrame", onFrame);

@@ -256,6 +256,25 @@ export class ImageMode
     return this.#hasModifiedView;
   }
 
+  /** Zoom around a canvas-pixel point, as the wheel does (annotation view shortcuts). */
+  public zoomViewAt(ratio: number, canvasX: number, canvasY: number): void {
+    this.#camera.updateZoomFromWheel(ratio, new THREE.Vector2(canvasX, canvasY));
+    this.#updateAnnotationsScale();
+    this.#hasModifiedView = true;
+    this.dispatchEvent({ type: "hasModifiedViewChanged" });
+    this.renderer.queueAnimationFrame();
+  }
+
+  /** Pan by screen pixels, as a drag does. */
+  public panViewBy(dx: number, dy: number): void {
+    const offset = new THREE.Vector2();
+    this.#camera.getPanOffset(offset);
+    this.#camera.setPanOffset(offset.add(new THREE.Vector2(dx, dy)));
+    this.#hasModifiedView = true;
+    this.dispatchEvent({ type: "hasModifiedViewChanged" });
+    this.renderer.queueAnimationFrame();
+  }
+
   public resetViewModifications(): void {
     this.#hasModifiedView = false;
     this.#camera.resetModifications();

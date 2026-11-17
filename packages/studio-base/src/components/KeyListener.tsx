@@ -16,7 +16,7 @@
 
 import { ReactElement, useCallback, useEffect, useRef } from "react";
 
-import { isAnnotationViewportTarget } from "@foxglove/studio-base/semanticSegmentation/annotationInput";
+import { isAnnotationCanvasTarget, isAnnotationViewportTarget } from "@foxglove/studio-base/semanticSegmentation/annotationInput";
 
 // Invoke handler for matching key.
 // By default, preventDefault() is invoked on the event. Return false to allow the default.
@@ -70,7 +70,14 @@ export default function KeyListener(props: Props): ReactElement {
         return;
       }
       const { target, type } = event;
-      if (props.global === true && isAnnotationViewportTarget(target)) {
+      if (
+        props.global === true &&
+        isAnnotationViewportTarget(target) &&
+        // ←/→ step the editing camera's frames unless the canvas used them (nudging selected
+        // points, or panning with Space), in which case it stopped propagation before this
+        // document listener ran.
+        !(isAnnotationCanvasTarget(target) && ["ArrowLeft", "ArrowRight"].includes(event.key))
+      ) {
         // Native listeners can run before React's annotation handlers. Scope ownership
         // must therefore be checked even when the event has not yet been consumed.
         return;

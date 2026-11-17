@@ -36,6 +36,17 @@ export const segmentationImageMetadataSources = new WeakMap<
 /** Bridges the Image renderer's separate React root to its enclosing coStudio panel. */
 export const segmentationImageSources = new WeakMap<HTMLCanvasElement, SegmentationImageSource>();
 
+/**
+ * The Image panel's own camera, for an annotation canvas laid over it. Points are client (CSS)
+ * pixels; zoom ratios multiply the current zoom around that point; pan moves by screen pixels.
+ */
+export type SegmentationViewControls = {
+  reset: () => void;
+  zoom: (ratio: number, clientX: number, clientY: number) => void;
+  panBy: (dx: number, dy: number) => void;
+};
+export const segmentationViewControls = new WeakMap<HTMLCanvasElement, SegmentationViewControls>();
+
 /** Frames the panel's decoder cache still holds, keyed by the same canvas as the capture. */
 export const segmentationCachedFrames = new WeakMap<HTMLCanvasElement, () => MessageEvent[]>();
 

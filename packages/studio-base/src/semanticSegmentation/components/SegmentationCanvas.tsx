@@ -42,8 +42,17 @@ import {
 import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { isAnnotationCanvasTarget } from "../annotationInput";
+import { segmentationViewControls } from "../imageSource";
 import { bitmapOfRuns, maskContains } from "../maskCodec";
 import { runsOfMask } from "../maskGeometry";
+import {
+  clampUnit,
+  hasPolygonArea,
+  nearestPolygonEdge,
+  polygonPath,
+  screenToNormalized,
+  translatePolygon,
+} from "./editorGeometry";
 import { maskOverlayControls } from "../maskOverlay/overlaySource";
 import {
   quickSegment,
@@ -54,14 +63,6 @@ import {
 import { segmentationSession, type DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
 import type { SemanticSegmentationStore } from "../types";
-import {
-  clampUnit,
-  hasPolygonArea,
-  nearestPolygonEdge,
-  polygonPath,
-  screenToNormalized,
-  translatePolygon,
-} from "./editorGeometry";
 import type { EditorPoint } from "./editorGeometry";
 import { useEditorText } from "./editorMessages";
 import { beginPolygonEdit, findPolygonOwner, focusContains } from "./polygonEdit";
@@ -240,6 +241,8 @@ type Drag =
       button: number;
       moved: boolean;
       temporarySpace: boolean;
+      /** Last pointer position, for incremental pans of the Image panel's camera. */
+      last?: EditorPoint;
     }
   | {
       type: "polygon";
@@ -753,8 +756,35 @@ export function SegmentationCanvas({
       globalThis.document.removeEventListener("visibilitychange", visibility);
     };
   }, [cancelGesture, resetTemporaryInput]);
+  /** Over the Image panel the view is the panel's camera; drive it instead of our own zoom. */
+  function panelView(): ReturnType<typeof segmentationViewControls.get> {
+    const canvas = compact ? decodedFrame?.nativeCanvas : undefined;
+    return canvas ? segmentationViewControls.get(canvas) : undefined;
+  }
+  /**
+   * Presses that belong to the Image panel alone: middle button, Space or the pan tool, and a
+   * left press on empty canvas when not editing. While editing, a left drag on empty canvas
+   * box-selects vertices (handled by the canvas); right-drag pans.
+   */
+  function nativePanOnly(event: { button: number; clientX: number; clientY: number }): boolean {
+    return (
+      event.button === 1 ||
+      space.current ||
+      panTool ||
+      (event.button === 0 && !drawingId && !state.editing && !hitTarget(event))
+    );
+  }
+  function viewportCenter(): EditorPoint | undefined {
+    const bounds = viewport.current?.getBoundingClientRect();
+    return bounds ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 } : undefined;
+  }
   function zoomAt(next: number, client?: EditorPoint): void {
     if (compact) {
+      const native = panelView();
+      const at = client ?? viewportCenter();
+      if (!navigationLocked && native && at && zoom > 0) {
+        native.zoom(next / zoom, at.x, at.y);
+      }
       return;
     }
     if (navigationLocked) {
@@ -793,6 +823,10 @@ export function SegmentationCanvas({
     if (navigationLocked) {
       return;
     }
+    if (compact) {
+      panelView()?.reset();
+      return;
+    }
     cancelGesture();
     view.current = { zoom: 1, pan: { x: 0, y: 0 } };
     setZoom(1);
@@ -806,11 +840,51 @@ export function SegmentationCanvas({
     cancelGesture();
     const points = Object.values(document?.annotations ?? {})
       .filter((a) => a.frameId === frameId)
-      .flatMap((a) =>
-        a.polygons.filter((p) => inFocus(a.instanceId, p.id)).flatMap((p) => p.points),
-      );
+      .flatMap((a) => {
+        const polygonPoints = a.polygons
+          .filter((p) => inFocus(a.instanceId, p.id))
+          .flatMap((p) => p.points);
+        // A mask observation in focus contributes its bounding box.
+        const box =
+          a.mask && focusContains(document, state.focus, frameId, a.instanceId, "")
+            ? runsOfMask(a.mask).bbox
+            : undefined;
+        return box && a.mask
+          ? [
+              ...polygonPoints,
+              { x: box.x0 / a.mask.width, y: box.y0 / a.mask.height },
+              { x: (box.x1 + 1) / a.mask.width, y: (box.y1 + 1) / a.mask.height },
+            ]
+          : polygonPoints;
+      });
     const bounds = viewport.current?.getBoundingClientRect();
     if (!bounds || points.length === 0) {
+      return;
+    }
+    if (compact) {
+      // Selection bounds on screen through the native transform, then zoom and center them.
+      const native = panelView();
+      const matrix = content.current?.getScreenCTM();
+      if (!native || !matrix) {
+        return;
+      }
+      const onScreen = points.map((p) => ({
+        x: matrix.a * p.x * size.width + matrix.c * p.y * size.height + matrix.e,
+        y: matrix.b * p.x * size.width + matrix.d * p.y * size.height + matrix.f,
+      }));
+      const left = Math.min(...onScreen.map((p) => p.x));
+      const right = Math.max(...onScreen.map((p) => p.x));
+      const top = Math.min(...onScreen.map((p) => p.y));
+      const bottom = Math.max(...onScreen.map((p) => p.y));
+      const center = { x: (left + right) / 2, y: (top + bottom) / 2 };
+      const ratio =
+        0.85 *
+        Math.min(
+          bounds.width / Math.max(1, right - left),
+          bounds.height / Math.max(1, bottom - top),
+        );
+      native.zoom(ratio, center.x, center.y);
+      native.panBy(bounds.x + bounds.width / 2 - center.x, bounds.y + bounds.height / 2 - center.y);
       return;
     }
     const xs = points.map((p) => p.x),
@@ -1511,12 +1585,22 @@ export function SegmentationCanvas({
           return;
         }
         if (event.key.startsWith("Arrow")) {
+          // Arrows belong to the canvas only to pan (with Space) or to nudge selected points.
+          // Otherwise ←/→ step the editing camera's frames: let them reach the playback shortcuts.
+          if (!peekOriginal && !space.current && selectedEditable.length === 0) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           if (peekOriginal) {
             return;
           }
-          if (space.current && !navigationLocked) {
+          const panel = panelView();
+          if (space.current && !navigationLocked && panel) {
+            const dx = event.key === "ArrowLeft" ? 20 : event.key === "ArrowRight" ? -20 : 0;
+            const dy = event.key === "ArrowUp" ? 20 : event.key === "ArrowDown" ? -20 : 0;
+            panel.panBy(dx, dy);
+          } else if (space.current && !navigationLocked) {
             const step = 20 / (screenScale / zoom);
             const p = view.current.pan;
             const next = {
@@ -2006,18 +2090,12 @@ export function SegmentationCanvas({
         role="group"
         aria-label="Annotation viewport"
         onPointerDownCapture={(event) => {
-          if (
-            compact &&
-            (event.button === 1 || space.current || panTool || (!drawingId && !hitTarget(event)))
-          ) {
+          if (compact && nativePanOnly(event)) {
             event.stopPropagation();
           }
         }}
         onMouseDownCapture={(event) => {
-          if (
-            compact &&
-            (event.button === 1 || space.current || panTool || (!drawingId && !hitTarget(event)))
-          ) {
+          if (compact && nativePanOnly(event)) {
             decodedFrame?.nativeCanvas?.dispatchEvent(
               new MouseEvent("mousedown", event.nativeEvent),
             );
@@ -2271,6 +2349,14 @@ export function SegmentationCanvas({
                 return;
               }
               active.moved = true;
+              const panel = panelView();
+              if (panel) {
+                // Over the Image panel, pan its camera by the pointer's screen movement.
+                const last = active.last ?? active.origin;
+                panel.panBy(event.clientX - last.x, event.clientY - last.y);
+                active.last = { x: event.clientX, y: event.clientY };
+                return;
+              }
               const matrix = event.currentTarget.getScreenCTM();
               if (matrix) {
                 const origin = screenToNormalized(active.origin, matrix, 1, 1);
