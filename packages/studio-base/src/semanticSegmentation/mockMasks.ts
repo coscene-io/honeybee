@@ -27,7 +27,7 @@ import type {
 } from "./types";
 
 export const MOCK_MASK_CLASS_ID = "mock-mask-class";
-export const MOCK_MASK_CLASS_NAME = "MOCK · 合成 mask（非推理结果）";
+const MOCK_MASK_CLASS_NAME = "MOCK · 合成 mask（非推理结果）";
 
 export type MockMaskProfile = {
   seed: number;

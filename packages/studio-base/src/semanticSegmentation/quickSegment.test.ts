@@ -12,8 +12,8 @@ type Sent = { frameToken: string; hasImage: boolean };
 
 /** The parts of a fetch Response that quickSegment reads (jsdom has no Response). */
 type FakeResponse = { ok: boolean; status: number; json: () => Promise<unknown> };
-function respond(status: number, body: string): FakeResponse {
-  return { ok: status >= 200 && status < 300, status, json: async () => JSON.parse(body) };
+function respond(status: number, body: string | undefined): FakeResponse {
+  return { ok: status >= 200 && status < 300, status, json: async () => JSON.parse(body ?? "") };
 }
 
 function setup(responses: (() => FakeResponse)[]) {

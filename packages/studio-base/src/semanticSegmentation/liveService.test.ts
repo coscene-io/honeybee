@@ -500,7 +500,7 @@ describe("live annotation service", () => {
     );
     const mine = snapshot!.annotations.find((item) => item.instance.endsWith(newInstance))!;
     expect(mine.geometry.case).toBe("polygons");
-    // The in-progress one-vertex polygon stays a local draft.
+    // The one-vertex polygon is dropped before the wire (drafts never enter the document).
     expect(mine.geometry.case === "polygons" && mine.geometry.value.polygons).toHaveLength(1);
     expect(
       mine.geometry.case === "polygons" && mine.geometry.value.polygons[0]!.points[0],

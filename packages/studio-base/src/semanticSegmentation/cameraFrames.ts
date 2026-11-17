@@ -35,7 +35,7 @@ export function sortCameraFrames<T extends TimedFrame>(frames: readonly T[]): T[
  * Orders two log times written as canonical non-negative decimal nanoseconds without allocating
  * BigInts: a shorter string is a smaller number, and equal lengths compare as text.
  */
-export function compareLogTimeNs(a: string, b: string): number {
+function compareLogTimeNs(a: string, b: string): number {
   if (a.length !== b.length) {
     return a.length - b.length;
   }
@@ -150,9 +150,9 @@ export function cameraStepTarget(
 }
 
 /** The camera the playback bar steps while annotating: the canvas that receives edits. */
-export type CameraStepCamera = { panelId: string; label: string; topic?: string };
+type CameraStepCamera = { panelId: string; label: string; topic?: string };
 
-export function segmentationStepCamera(): CameraStepCamera | undefined {
+function segmentationStepCamera(): CameraStepCamera | undefined {
   const session = segmentationSession.getState();
   if (!session.open || session.panelId == undefined || !session.runtime) {
     return undefined;

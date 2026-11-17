@@ -128,7 +128,7 @@ export function createSemanticSegmentationStore(
 ): StoreApi<SemanticSegmentationStore> {
   let base: SegmentationDocument | undefined;
   let windowController: AbortController | undefined;
-  /** Background playback reads, keyed by window. Aborted with every foreground reset. */
+  /** Background playback reads, keyed by window. Aborted when the store is disposed. */
   const prefetches = new Map<string, { controller: AbortController; done: Promise<void> }>();
   const abortPrefetches = () => {
     for (const { controller } of prefetches.values()) {
@@ -478,12 +478,21 @@ export function createSemanticSegmentationStore(
         options,
       );
     }
-    function checkedName(name: string): string {
+    function checkedName(name: string, kind: "Class" | "Instance"): string {
       const value = name.trim();
       if (value.length === 0 || value.length > 100) {
-        throw new Error("Class names must contain 1–100 characters");
+        throw new Error(`${kind} names must contain 1–100 characters`);
       }
       return value;
+    }
+    /** A mask is bound to the size the current frame's camera decodes at; never rescaled. */
+    function assertMaskFitsFrame(mask: { width: number; height: number }): void {
+      const size = sourceSize(frameId());
+      if (mask.width !== size.width || mask.height !== size.height) {
+        throw new Error(
+          `The mask is ${mask.width}×${mask.height}, but this camera decodes at ${size.width}×${size.height}`,
+        );
+      }
     }
     // Instances are numbered "#N" across the whole record; the next one is max(existing N) + 1.
     function nextInstanceName(instances: readonly { name: string }[]): string {
@@ -894,7 +903,7 @@ export function createSemanticSegmentationStore(
       },
       addClass(name = "New class") {
         assertEditable();
-        const trimmed = checkedName(name);
+        const trimmed = checkedName(name, "Class");
         const existing = document().classes.find((item) => item.name === trimmed);
         if (existing) {
           return existing.id;
@@ -914,7 +923,7 @@ export function createSemanticSegmentationStore(
         if (!item) {
           throw new Error("Unknown class");
         }
-        const trimmed = checkedName(name);
+        const trimmed = checkedName(name, "Class");
         if (document().classes.some((value) => value.id !== id && value.name === trimmed)) {
           throw new Error("Class name already exists");
         }
@@ -941,7 +950,9 @@ export function createSemanticSegmentationStore(
         if (!instance) {
           throw new Error("Unknown instance");
         }
-        stage("Rename instance", { instances: { [id]: { ...instance, name: checkedName(name) } } });
+        stage("Rename instance", {
+          instances: { [id]: { ...instance, name: checkedName(name, "Instance") } },
+        });
         exitEditing();
       },
       mergeClasses(sourceIds, targetClassId) {
@@ -1023,12 +1034,7 @@ export function createSemanticSegmentationStore(
         return id;
       },
       addMask(instanceId, mask, label = "Quick annotate") {
-        const size = sourceSize(frameId());
-        if (mask.width !== size.width || mask.height !== size.height) {
-          throw new Error(
-            `The mask is ${mask.width}×${mask.height}, but this camera decodes at ${size.width}×${size.height}`,
-          );
-        }
+        assertMaskFitsFrame(mask);
         const added = maskObservation(frameId(), instanceId, cloneSegmentation(mask));
         if (!added) {
           throw new Error("The mask has no foreground pixels");
@@ -1042,12 +1048,7 @@ export function createSemanticSegmentationStore(
         set({ focus: { type: "instance", id: instanceId }, editing: true, drawing: undefined });
       },
       replaceMask(instanceId, mask, label = "Brush") {
-        const size = sourceSize(frameId());
-        if (mask.width !== size.width || mask.height !== size.height) {
-          throw new Error(
-            `The mask is ${mask.width}×${mask.height}, but this camera decodes at ${size.width}×${size.height}`,
-          );
-        }
+        assertMaskFitsFrame(mask);
         observation(instanceId);
         stageObservation(
           label,
@@ -1235,7 +1236,7 @@ export function createSemanticSegmentationStore(
             {
               id,
               message: commitMessage,
-              // Stage owns immutable operation/patch values; detach this exact click snapshot first.
+              // Staged operations are immutable, so the queue can take them as they are.
               operations: get().stagedOperations,
               status: "queued",
             },

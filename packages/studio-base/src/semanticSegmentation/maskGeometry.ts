@@ -138,7 +138,7 @@ export function observationHasGeometry(annotation: ObservationGeometry | undefin
   return annotation?.polygons.some((polygon) => polygon.points.length >= 3) === true;
 }
 
-export function pixelPolygonsOf(
+function pixelPolygonsOf(
   polygons: readonly SegmentationPolygon[],
   width: number,
   height: number,
@@ -198,7 +198,7 @@ export function maskToEditorPolygons(
 }
 
 /** Pixel runs of any observation at the given source size (polygons are rasterized). */
-export function runsOfObservation(
+function runsOfObservation(
   annotation: ObservationGeometry,
   width: number,
   height: number,

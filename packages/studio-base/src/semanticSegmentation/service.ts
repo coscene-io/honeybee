@@ -7,8 +7,8 @@
 
 import * as _ from "lodash-es";
 
+import { ANNOTATION_WINDOW_SEC } from "./annotationFrames";
 import {
-  maskArea,
   mergeObservations,
   polygonObservation,
   polygonsOf,
@@ -102,15 +102,18 @@ export function resolvePropagationSeeds(
   const masks = new Map<string, SegmentationMask>();
   for (const seed of supplied) {
     if (seed.kind === "mask") {
+      if (!seed.instanceId.trim()) {
+        throw new Error("A mask seed requires an instance");
+      }
       // A mask seed is one authoritative representation; it cannot be combined with polygons.
-      if (!seed.instanceId.trim() || instances.has(seed.instanceId)) {
+      if (instances.has(seed.instanceId)) {
         throw new Error("A mask seed cannot be combined with polygons for the same instance");
       }
       const existing = masks.get(seed.instanceId);
       if (existing && existing.counts !== seed.mask.counts) {
         throw new Error("Conflicting geometry for the same seed mask");
       }
-      if (runsOfMask(seed.mask).area === 0 || maskArea(seed.mask.counts) === 0) {
+      if (runsOfMask(seed.mask).area === 0) {
         throw new Error("Propagation requires a nonempty seed mask");
       }
       masks.set(seed.instanceId, cloneSegmentation(seed.mask));
@@ -326,9 +329,9 @@ export function validateFrameWindow(startSec: number, endSec: number): void {
     !Number.isFinite(endSec) ||
     startSec < 0 ||
     endSec < startSec ||
-    endSec - startSec > 10
+    endSec - startSec > ANNOTATION_WINDOW_SEC
   ) {
-    throw new Error("Frame windows must span between 0 and 10 seconds");
+    throw new Error(`Frame windows must span between 0 and ${ANNOTATION_WINDOW_SEC} seconds`);
   }
 }
 

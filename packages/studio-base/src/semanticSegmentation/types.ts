@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-/** IDs are opaque and remain stable across edits, propagation and references. */
-export type SegmentationId = string;
 /** Coordinates are floating point values in [0, 1], relative to the original image. */
 export type NormalizedPoint = { x: number; y: number };
 export type SegmentationClass = { id: string; name: string; color: string };

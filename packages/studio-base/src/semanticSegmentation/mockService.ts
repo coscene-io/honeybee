@@ -204,8 +204,8 @@ export function setMockControls(
 }
 
 /**
- * Local annotations for the open recording when no annotation service is configured (本机标注).
- * Saves keep current state in memory and, when `storage` is given, in the browser.
+ * In-memory annotation service for tests and fixtures. Saves keep current state in memory and,
+ * when `storage` is given, in that storage.
  */
 export function createMockSemanticSegmentationService(
   options: {
@@ -251,7 +251,7 @@ export function createMockSemanticSegmentationService(
     stored = options.storage?.getItem(storageKey) ?? undefined;
   } catch {
     persistenceError =
-      "Local storage is unavailable; changes remain in memory. Export annotations before closing.";
+      "Local storage is unavailable; changes remain in memory and are lost when the page closes.";
   }
   function isUntouchedMock(doc: SegmentationDocument, key: string): boolean {
     const annotation = doc.annotations[key];
@@ -313,8 +313,7 @@ export function createMockSemanticSegmentationService(
       );
       persistenceError = undefined;
     } catch {
-      persistenceError =
-        "Local storage is full or unavailable; saved in memory only. Export annotations or reset the local cache.";
+      persistenceError = "Local storage is full or unavailable; saved in memory only.";
     }
     return persistenceError;
   }

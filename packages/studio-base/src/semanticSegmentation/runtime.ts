@@ -9,6 +9,7 @@ import { createStore } from "zustand/vanilla";
 
 import type { LiveSemanticSegmentationService } from "./liveService";
 import { createMockSemanticSegmentationService } from "./mockService";
+import type { NativeImageView } from "./nativeImageTransform";
 import {
   mergeSourceMetadata,
   sourceMetadataChanges,
@@ -213,7 +214,7 @@ export type DecodedSegmentationFrame = {
   seekTime: number;
   decodedIdentity: object;
   imageUrl: string;
-  nativeView?: import("./nativeImageTransform").NativeImageView;
+  nativeView?: NativeImageView;
   nativeCanvas?: HTMLCanvasElement;
   presentation?: { id: number; signal: AbortSignal };
 };

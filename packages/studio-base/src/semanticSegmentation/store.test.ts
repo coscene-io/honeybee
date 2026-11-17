@@ -537,7 +537,7 @@ describe("local segmentation service", () => {
     store.getState().submit();
     await store.getState().waitForSubmissions();
     expect(store.getState().submissionQueue[0]!.status).toBe("succeeded");
-    expect(store.getState().error).toMatch(/Export annotations/);
+    expect(store.getState().error).toMatch(/saved in memory only/);
     expect((await service.loadDocument()).classes[0]!.name).toBe("In-memory name");
   });
 });

@@ -67,7 +67,7 @@ const PAGE_SIZE = 1000;
  * Models the backend accepts for mask/polygon seeds. data-platform-server #2403 rejects anything
  * but sam2.1-motion with INVALID_ARGUMENT; sam3.1 in the contract example is not deployed.
  */
-export const LIVE_PROPAGATION_MODELS = ["sam2.1-motion"];
+const LIVE_PROPAGATION_MODELS = ["sam2.1-motion"];
 
 export type LiveServiceDiagnostics = {
   recordName: string;
@@ -97,7 +97,7 @@ export type LiveSemanticSegmentationService = SemanticSegmentationService & {
 };
 
 /** gRPC status as a short user-facing message, e.g. "FAILED_PRECONDITION: …". */
-export function describeRpcError(error: unknown): string {
+function describeRpcError(error: unknown): string {
   if (error instanceof ConnectError) {
     return `${Code[error.code]}: ${error.rawMessage}`;
   }
@@ -142,8 +142,8 @@ function throwIfAborted(signal?: AbortSignal): void {
 /**
  * Adapter from the editor's service boundary to the published AnnotationService
  * (cosceneapis PR #866). The backend keeps only current state, with no revisions or version
- * checks. Saves from other tabs or users simply overwrite the frames they send (see the
- * integration report).
+ * checks. Saves from other tabs or users simply overwrite the frames they send (see
+ * docs/segmentation-api-integration.md).
  */
 export function createLiveAnnotationService(options: {
   client: AnnotationClient;
@@ -301,6 +301,8 @@ export function createLiveAnnotationService(options: {
             ranges.set(video.id, items);
             delete diagnostics.timelineErrors[topic];
           } catch (error) {
+            // Unread again, so the next camera registration retries it.
+            timelineTopics.delete(topic);
             throwIfAborted(signal);
             // The catalog stays usable without a timeline; the error is shown, not hidden.
             ranges.delete(video.id);
@@ -479,42 +481,43 @@ export function createLiveAnnotationService(options: {
     size: { width: number; height: number },
     topic: string,
   ) {
-    return polygons
-      .filter((polygon) => {
-        if (polygon.topic != undefined && polygon.topic !== topic) {
-          throw new Error(`Polygon ${polygon.id} belongs to ${polygon.topic}, not ${topic}`);
-        }
-        // An in-progress polygon stays a local draft (the contract rejects < 3 vertices).
-        return polygon.points.length >= 3;
-      })
-      .map((polygon, index) => {
-        const points = polygon.points
-          .map((point) => {
-            if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-              throw new Error("Annotation coordinate must be finite");
-            }
-            return {
-              x: clamp(point.x * size.width, size.width),
-              y: clamp(point.y * size.height, size.height),
-            };
-          })
-          // A vertex clicked twice, or two vertices clamped onto the same frame edge point, is
-          // the same outline with one vertex fewer; the contract rejects the repeat.
-          .filter((point, i, all) => {
-            const next = all[(i + 1) % all.length]!;
-            return all.length === 1 || point.x !== next.x || point.y !== next.y;
-          });
-        // Check what AnnotationGeometry checks before any request, so a bad polygon is named
-        // here instead of failing the whole save or propagation with INVALID_ARGUMENT.
-        const violation = polygonViolation(points);
-        if (violation) {
-          throw new Error(
-            `${topic} 上第 ${index + 1} 个多边形不符合标注契约（${describeViolation(violation)}），` +
-              `请修改该多边形的顶点后重试。服务端规则：${violation}`,
-          );
-        }
-        return { id: polygonWireId(recordName, instanceName, polygon.id), points };
-      });
+    return polygons.map((polygon, index) => {
+      if (polygon.topic != undefined && polygon.topic !== topic) {
+        throw new Error(`Polygon ${polygon.id} belongs to ${polygon.topic}, not ${topic}`);
+      }
+      // Drafts never reach the document; a stored polygon below the contract minimum is a bug.
+      if (polygon.points.length < 3) {
+        throw new Error(
+          `Polygon ${polygon.id} has ${polygon.points.length} vertices; a polygon needs at least 3`,
+        );
+      }
+      const points = polygon.points
+        .map((point) => {
+          if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+            throw new Error("Annotation coordinate must be finite");
+          }
+          return {
+            x: clamp(point.x * size.width, size.width),
+            y: clamp(point.y * size.height, size.height),
+          };
+        })
+        // A vertex clicked twice, or two vertices clamped onto the same frame edge point, is
+        // the same outline with one vertex fewer; the contract rejects the repeat.
+        .filter((point, i, all) => {
+          const next = all[(i + 1) % all.length]!;
+          return all.length === 1 || point.x !== next.x || point.y !== next.y;
+        });
+      // Check what AnnotationGeometry checks before any request, so a bad polygon is named
+      // here instead of failing the whole save or propagation with INVALID_ARGUMENT.
+      const violation = polygonViolation(points);
+      if (violation) {
+        throw new Error(
+          `${topic} 上第 ${index + 1} 个多边形不符合标注契约（${describeViolation(violation)}），` +
+            `请修改该多边形的顶点后重试。服务端规则：${violation}`,
+        );
+      }
+      return { id: polygonWireId(recordName, instanceName, polygon.id), points };
+    });
   }
 
   /**
@@ -730,11 +733,15 @@ export function createLiveAnnotationService(options: {
             video.topic != undefined && video.topic !== "" && !timelineTopics.has(video.topic),
         )
       ) {
-        void refreshTimeline(undefined, "unread").then(() => {
-          for (const listener of timelineListeners) {
-            listener();
-          }
-        });
+        void refreshTimeline(undefined, "unread")
+          .then(() => {
+            for (const listener of timelineListeners) {
+              listener();
+            }
+          })
+          .catch(() => {
+            // Each topic's read failure is already in diagnostics.timelineErrors.
+          });
       } else {
         for (const listener of timelineListeners) {
           listener();

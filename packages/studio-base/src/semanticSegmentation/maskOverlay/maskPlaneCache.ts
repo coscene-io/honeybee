@@ -118,9 +118,15 @@ export class MaskPlaneCache {
     if (
       this.#entries.has(geometry.id) ||
       this.#pending.has(geometry.id) ||
-      this.#errors.has(geometry.id) ||
-      planeBytes(geometry.width, geometry.height, geometry.counts.length) > this.budgetBytes / 4
+      this.#errors.has(geometry.id)
     ) {
+      return;
+    }
+    if (
+      planeBytes(geometry.width, geometry.height, geometry.counts.length) >
+      this.budgetBytes / 4
+    ) {
+      this.#fail(geometry.id, "Mask planes exceed the cache budget");
       return;
     }
     this.#pending.set(geometry.id, { geometry });
@@ -153,6 +159,8 @@ export class MaskPlaneCache {
     this.#worker = undefined;
     this.#entries.clear();
     this.#pending.clear();
+    this.#errors.clear();
+    this.#evictedIds.clear();
     this.#listeners.clear();
     this.#bytes = 0;
   }
@@ -176,6 +184,7 @@ export class MaskPlaneCache {
       worker.onerror = () => {
         // Fall back to in-thread builds for whatever was in flight.
         this.#workerFailed = true;
+        worker.terminate();
         this.#worker = undefined;
         const pending = [...this.#pending.values()];
         this.#pending.clear();

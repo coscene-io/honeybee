@@ -39,6 +39,9 @@ function hexColor(hex: string | undefined): [number, number, number] {
   return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
 }
 
+/** Frames whose geometry id survives document changes; past this the oldest-used is dropped. */
+const LAST_GEOMETRY_LIMIT = 2048;
+
 export type MaskOverlaySourceStats = {
   truncatedFrames: number;
   sizeMismatches: number;
@@ -48,8 +51,7 @@ export type MaskOverlaySourceStats = {
 
 /**
  * Reads the shared segmentation session: the editing runtime when the session is open, otherwise
- * the read-only preview runtime. Mask observations only; polygons stay on the SVG layer, and an
- * observation opened for vertex editing is already polygons in the store's view document.
+ * the read-only preview runtime. Mask observations only; polygons stay on the SVG layer.
  */
 export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
   stats: MaskOverlaySourceStats;
@@ -69,7 +71,8 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
   /**
    * Last geometry per topic + log time. It outlives document changes, so registering frames during
    * playback (a new frame list every frame) keeps ids, and so the built bit planes, of unchanged
-   * frames. Any change of size, instances or counts gets a new id.
+   * frames. Any change of size, instances or counts gets a new id. An LRU bounded by
+   * LAST_GEOMETRY_LIMIT, so switching records does not keep every frame ever shown.
    */
   const lastGeometry = new Map<string, SegmentationMaskGeometry>();
   const stats: MaskOverlaySourceStats = {
@@ -174,10 +177,12 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
         : { id: nextId++, topic, logTimeNs: frame.logTimeNs, width, height, instanceIds, counts };
     }
     geometries.set(cacheKey, { doc, geometry });
+    lastGeometry.delete(cacheKey);
     if (geometry) {
       lastGeometry.set(cacheKey, geometry);
-    } else {
-      lastGeometry.delete(cacheKey);
+      if (lastGeometry.size > LAST_GEOMETRY_LIMIT) {
+        lastGeometry.delete(lastGeometry.keys().next().value!);
+      }
     }
     return geometry;
   }
@@ -260,13 +265,14 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
   };
 }
 
-let installed: (() => void) | undefined;
+let installed = false;
 
 /** Publishes the session's masks to every Image panel. Idempotent; lives for the page. */
 export function installMaskOverlaySource(): void {
   if (installed) {
     return;
   }
+  installed = true;
   const source = createMaskOverlaySource();
   segmentationMaskOverlay.set(source);
   let unsubscribeRuntime: (() => void) | undefined;
@@ -294,7 +300,7 @@ export function installMaskOverlaySource(): void {
     invalidate();
   };
   watch();
-  const unsubscribeSession = segmentationSession.subscribe((next, previous) => {
+  segmentationSession.subscribe((next, previous) => {
     if (
       next.open !== previous.open ||
       next.runtime !== previous.runtime ||
@@ -303,11 +309,5 @@ export function installMaskOverlaySource(): void {
       watch();
     }
   });
-  const unsubscribeControls = maskOverlayControls.subscribe(invalidate);
-  installed = () => {
-    unsubscribeSession();
-    unsubscribeControls();
-    unsubscribeRuntime?.();
-    segmentationMaskOverlay.set(undefined);
-  };
+  maskOverlayControls.subscribe(invalidate);
 }

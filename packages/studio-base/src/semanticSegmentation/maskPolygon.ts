@@ -8,12 +8,11 @@
 /**
  * Mask <-> polygon conversion, a line-by-line TypeScript port of det_seg
  * `annotated/server-go/internal/poly` (itself matching OpenCV findContours RETR_CCOMP +
- * CHAIN_APPROX_NONE, approxPolyDP and fillPoly LINE_8). The editor uses it only when one
- * observation is opened for vertex editing; mask observations stay authoritative otherwise.
+ * CHAIN_APPROX_NONE, approxPolyDP and fillPoly LINE_8). The editor uses `maskToSimplePolygons`
+ * only for the explicit mask-to-polygon conversion; mask observations stay authoritative otherwise.
  *
- * Polygons are pixel coordinates of border pixel centres. Each 8-connected component yields one
- * ring; its holes are bridged into the ring at the closest vertex pair, so an even-odd fill of the
- * ring carves them back out.
+ * Polygons are pixel coordinates of border pixel centres. `maskToPolygons` (with `bridgeHole`,
+ * which bridges each hole into its ring for an even-odd fill) is kept for the det_seg parity tests.
  */
 
 import { bitmapOfRuns, runsOfBitmap, type MaskRuns } from "./maskCodec";
