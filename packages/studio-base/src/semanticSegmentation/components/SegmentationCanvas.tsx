@@ -458,15 +458,15 @@ export function SegmentationCanvas({
     const video = document?.videos.find((item) => item.id === frame?.videoId);
     const width = video?.width ?? size.width;
     const height = video?.height ?? size.height;
-    if (!frame || video?.topic == undefined || !width || !height) {
-      setError("当前帧还没有可用的 topic 或源图尺寸，稍后再试。");
+    if (!frame || video?.topic == undefined || !width || !height || !source) {
+      setError("当前帧还没有可用的 topic、源图尺寸或画面，稍后再试。");
       return;
     }
     const controller = new AbortController();
     quickRequest.current = controller;
     setQuickBusy(true);
     void quickSegment(
-      { topic: video.topic, logTimeNs: frame.logTimeNs, width, height, points },
+      { topic: video.topic, logTimeNs: frame.logTimeNs, width, height, imageUrl: source, points },
       controller.signal,
     )
       .then((result) => {

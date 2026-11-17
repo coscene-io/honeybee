@@ -27,18 +27,57 @@ function rect(width: number, height: number, x0: number, x1: number, y0: number,
   return countsFromRuns(runsFromIntervals(Uint32Array.from(intervals), width, height));
 }
 
-let requests: { points: { x: number; y: number; positive: boolean }[]; topic: string }[] = [];
+let requests: {
+  points: { x: number; y: number; positive: boolean }[];
+  topic: string;
+  /** Whether the displayed frame was uploaded with this click. */
+  image: boolean;
+}[] = [];
 
 beforeEach(() => {
   requests = [];
   localStorage.setItem(PROPAGATION_URL_KEY, "http://127.0.0.1:18876");
   // jsdom has no 2D canvas; the preview image is cosmetic.
-  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", { configurable: true, value: () => undefined });
-  Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", { configurable: true, value: () => "data:," });
-  globalThis.fetch = jest.fn(async (_url: unknown, init?: { body?: string }) => {
-    const body = JSON.parse(init!.body!) as (typeof requests)[number];
-    requests.push(body);
-    const result = { counts: rect(960, 540, 100, 300, 50, 150), width: 960, height: 540, score: 0.9 };
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: () => undefined,
+  });
+  Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+    configurable: true,
+    value: () => "data:,",
+  });
+  // jsdom cannot decode or encode images: the frame upload sees a 960×540 frame and a JPEG blob.
+  Object.defineProperty(globalThis, "createImageBitmap", {
+    configurable: true,
+    value: async () => ({ width: 960, height: 540, close: () => {} }),
+  });
+  Object.defineProperty(globalThis, "OffscreenCanvas", {
+    configurable: true,
+    value: class {
+      public getContext() {
+        return { drawImage: () => {} };
+      }
+      public async convertToBlob() {
+        return new Blob(["jpeg"], { type: "image/jpeg" });
+      }
+    },
+  });
+  globalThis.fetch = jest.fn(async (url: unknown, init?: { body?: FormData }) => {
+    if (String(url).startsWith("data:")) {
+      return { blob: async () => new Blob(["frame"]) };
+    }
+    const form = init!.body!;
+    const body = JSON.parse(String(form.get("request"))) as Omit<
+      (typeof requests)[number],
+      "image"
+    >;
+    requests.push({ ...body, image: form.get("image") != undefined });
+    const result = {
+      counts: rect(960, 540, 100, 300, 50, 150),
+      width: 960,
+      height: 540,
+      score: 0.9,
+    };
     return { ok: true, status: 200, json: async () => result };
   }) as unknown as typeof fetch;
 });
@@ -62,10 +101,25 @@ it("clicks positive and negative points, then Enter saves one mask observation",
 
   pointer(canvas, "pointerdown", 200, 100);
   // Right click without dragging is a negative point.
-  fireEvent(canvas, new MouseEvent("pointerdown", { clientX: 250, clientY: 120, button: 2, bubbles: true }));
-  fireEvent(canvas, new MouseEvent("pointerup", { clientX: 250, clientY: 120, button: 2, bubbles: true }));
+  fireEvent(
+    canvas,
+    new MouseEvent("pointerdown", { clientX: 250, clientY: 120, button: 2, bubbles: true }),
+  );
+  fireEvent(
+    canvas,
+    new MouseEvent("pointerup", { clientX: 250, clientY: 120, button: 2, bubbles: true }),
+  );
   // Shift+click is a negative point too; Backspace removes it again.
-  fireEvent(canvas, new MouseEvent("pointerdown", { clientX: 260, clientY: 130, button: 0, shiftKey: true, bubbles: true }));
+  fireEvent(
+    canvas,
+    new MouseEvent("pointerdown", {
+      clientX: 260,
+      clientY: 130,
+      button: 0,
+      shiftKey: true,
+      bubbles: true,
+    }),
+  );
   await waitFor(() => {
     expect(requests).toHaveLength(3);
   });
@@ -75,9 +129,10 @@ it("clicks positive and negative points, then Enter saves one mask observation",
   });
 
   expect(requests[0]!.topic).toBe("/camera/front");
-  expect(
-    requests[3]!.points.map((p) => [Math.round(p.x), Math.round(p.y), p.positive]),
-  ).toEqual([
+  // Clicks upload the displayed frame until one answer arrives; then the server's copy is reused.
+  expect(requests[0]!.image).toBe(true);
+  expect(requests[3]!.image).toBe(false);
+  expect(requests[3]!.points.map((p) => [Math.round(p.x), Math.round(p.y), p.positive])).toEqual([
     [200, 100, true],
     [250, 120, false],
   ]);

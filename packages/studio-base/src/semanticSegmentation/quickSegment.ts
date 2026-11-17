@@ -18,59 +18,107 @@ export type QuickSegmentRequest = {
   logTimeNs: string;
   width: number;
   height: number;
+  /** The displayed frame (data URL or object URL) at its decoded size. */
+  imageUrl: string;
   points: QuickPoint[];
 };
 
 export type QuickSegmentResult = { mask: SegmentationMask; score: number };
 
 /**
- * Quick annotation: SAM2 click-to-mask on the local sidecar (tools/seg-local-propagation).
- * Not part of the AnnotationService contract. Undefined when no sidecar is configured.
+ * Temporary quick-annotation endpoint: a SAM2 process (tools/seg-local-propagation) behind a
+ * Cloudflare Tunnel, until the AnnotationService gains SegmentFrame (cosceneapis #870). Hard-coded
+ * on purpose: this is a stopgap, not deployment configuration. A loopback URL in
+ * localStorage["coStudio.semanticSegmentation.segmentUrl"] overrides it for local work.
  */
-export function quickSegmentAvailable(): boolean {
-  return localSegmentUrl() != undefined;
+export const QUICK_SEGMENT_URL = "https://sam.reily.app";
+
+function segmentUrl(): string {
+  return localSegmentUrl() ?? QUICK_SEGMENT_URL;
 }
+
+/** Always on in the app; unit tests exercise manual polygon drawing and never reach the tunnel. */
+export function quickSegmentAvailable(): boolean {
+  return process.env.NODE_ENV !== "test" || localSegmentUrl() != undefined;
+}
+
+/** Re-encode the displayed frame as JPEG at full size: a few hundred KB instead of a large PNG. */
+async function frameJpeg(imageUrl: string, width: number, height: number): Promise<Blob> {
+  const bitmap = await createImageBitmap(await (await fetch(imageUrl)).blob());
+  try {
+    if (bitmap.width !== width || bitmap.height !== height) {
+      throw new Error(
+        `当前帧图像是 ${bitmap.width}×${bitmap.height}，源图尺寸是 ${width}×${height}`,
+      );
+    }
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("无法读取当前帧图像");
+    }
+    context.drawImage(bitmap, 0, 0);
+    return await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Last uploaded frame: the server caches its embedding, so later clicks skip the upload. */
+let uploaded: { key: string; url: string } | undefined;
 
 export async function quickSegment(
   request: QuickSegmentRequest,
   signal?: AbortSignal,
 ): Promise<QuickSegmentResult> {
-  const base = localSegmentUrl();
-  if (base == undefined) {
-    throw new Error("快速标注需要本机 SAM2 服务（tools/seg-local-propagation）");
+  const base = segmentUrl();
+  const frameTimeMicros = truncateToMicros(request.logTimeNs).toString();
+  const key = `${request.topic}@${frameTimeMicros}`;
+  const body = {
+    topic: request.topic,
+    // The wire frame identity: log time truncated to microseconds.
+    frameTimeMicros,
+    points: request.points.map((point) => ({
+      x: point.x * request.width,
+      y: point.y * request.height,
+      positive: point.positive,
+    })),
+  };
+  const send = async (frame: "upload" | "cached") => {
+    const form = new FormData();
+    form.set("request", JSON.stringify(body) ?? "{}");
+    if (frame === "upload") {
+      const jpeg: Blob = await frameJpeg(request.imageUrl, request.width, request.height);
+      form.set("image", jpeg, "frame.jpg");
+    }
+    return await fetch(`${base}/segment`, {
+      method: "POST",
+      body: form,
+      ...(signal ? { signal } : {}),
+    });
+  };
+  let response = await send(uploaded?.key === key && uploaded.url === base ? "cached" : "upload");
+  if (response.status === 400 && uploaded?.key === key) {
+    // The server lost the cached frame (restart, or another user's frame): upload it now.
+    response = await send("upload");
   }
-  const response = await fetch(`${base}/segment`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      topic: request.topic,
-      // The wire frame identity: log time truncated to microseconds.
-      frameTimeMicros: truncateToMicros(request.logTimeNs).toString(),
-      points: request.points.map((point) => ({
-        x: point.x * request.width,
-        y: point.y * request.height,
-        positive: point.positive,
-      })),
-    }),
-    ...(signal ? { signal } : {}),
-  });
-  const body = (await response.json()) as {
+  const result = (await response.json()) as {
     counts?: string;
     width?: number;
     height?: number;
     score?: number;
     error?: string;
   };
-  if (!response.ok || body.counts == undefined) {
-    throw new Error(body.error ?? `快速标注失败（HTTP ${response.status}）`);
+  if (!response.ok || result.counts == undefined) {
+    throw new Error(result.error ?? `快速标注失败（HTTP ${response.status}）`);
   }
-  if (body.width !== request.width || body.height !== request.height) {
+  uploaded = { key, url: base };
+  if (result.width !== request.width || result.height !== request.height) {
     throw new Error(
-      `本机服务返回 ${body.width}×${body.height}，但 ${request.topic} 解码尺寸是 ${request.width}×${request.height}`,
+      `点选服务返回 ${result.width}×${result.height}，但 ${request.topic} 解码尺寸是 ${request.width}×${request.height}`,
     );
   }
   return {
-    mask: { counts: body.counts, width: request.width, height: request.height },
-    score: body.score ?? 0,
+    mask: { counts: result.counts, width: request.width, height: request.height },
+    score: result.score ?? 0,
   };
 }

@@ -13,6 +13,7 @@ both topics carry identical log times. frame_time is the log time truncated to m
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import shutil
@@ -163,7 +164,9 @@ class Tracker:
     def segment(self, key, jpeg, points, labels, box):
         """Best mask for clicks (pixel coords, 1 positive / 0 negative) and an optional box."""
         with self.lock, self.torch.inference_mode():
-            if self.image_key != key:
+            if self.image_key != key or jpeg is not None:
+                if jpeg is None:
+                    raise RpcError(INVALID_ARGUMENT, "Upload the displayed frame as `image`")
                 rgb = cv2.cvtColor(cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
                 self.image.set_image(rgb)
                 self.image_key = key
@@ -271,6 +274,8 @@ async def propagate(request):
             raise RpcError(INVALID_ARGUMENT, "end_time must be later than the seed frame")
         if len({s.instance for s in p.seeds}) != len(p.seeds):
             raise RpcError(INVALID_ARGUMENT, "Duplicate seed instance")
+        if app["media"] is None:
+            raise RpcError(FAILED_PRECONDITION, "Started without --mcap: propagation is not served here")
         topic = app["media"].source_topic(p.topic)
         if app["lock"].locked():
             raise RpcError(RESOURCE_EXHAUSTED, "Another propagation is running on this machine")
@@ -361,13 +366,36 @@ async def propagate(request):
 
 async def segment(request):
     """Quick annotation (not in the contract): {topic, frameTimeMicros, points:[{x,y,positive}], box?}
-    in source pixels → {counts, width, height, score}. COCO RLE at the source frame size."""
+    in source pixels → {counts, width, height, score}. COCO RLE at the source frame size.
+
+    The browser uploads the frame it displays as multipart (`image` file + `request` JSON), so any
+    recording works. A plain JSON body reads the frame from --mcap instead (local recording only)."""
     headers = cors(request)
     try:
-        body = await request.json()
+        image = None
+        multipart = request.content_type.startswith("multipart/")
+        if multipart:
+            form = await request.post()
+            body = json.loads(form["request"])
+            upload = form.get("image")
+            if upload is not None:
+                image = upload.file.read()
+                if len(image) > 16 * 1024 * 1024:
+                    raise RpcError(INVALID_ARGUMENT, "Image larger than 16 MiB")
+        else:
+            body = await request.json()
         media = request.app["media"]
-        topic = media.source_topic(body["topic"])
         micros = int(body["frameTimeMicros"])
+        if multipart:
+            # Browser uploads: a request without `image` may only reuse the cached embedding of
+            # the same frame; it never falls back to --mcap, which may be another recording.
+            topic = str(body["topic"])
+            if image is None and request.app["tracker"].image_key != (topic, micros):
+                raise RpcError(INVALID_ARGUMENT, "Upload the displayed frame as `image`")
+        elif media is None:
+            raise RpcError(INVALID_ARGUMENT, "Upload the displayed frame as `image`")
+        else:
+            topic = media.source_topic(body["topic"])
         points = [[float(p["x"]), float(p["y"])] for p in body.get("points", [])]
         labels = [1 if p.get("positive", True) else 0 for p in body.get("points", [])]
         box = body.get("box")
@@ -381,9 +409,13 @@ async def segment(request):
         def work():
             tracker = request.app["tracker"]
             # The embedding of the last clicked frame is cached; skip the MCAP read too.
-            jpeg = None if tracker.image_key == (topic, micros) else media.frame(topic, micros)
-            mask, score = request.app["tracker"].segment((topic, micros), jpeg, points, labels, box)
-            return mask, score
+            if image is not None:
+                jpeg = image
+            elif multipart:
+                jpeg = None  # checked against the cache in segment(), under the model lock
+            else:
+                jpeg = None if tracker.image_key == (topic, micros) else media.frame(topic, micros)
+            return tracker.segment((topic, micros), jpeg, points, labels, box)
 
         mask, score = await loop.run_in_executor(None, work)
         height, width = mask.shape
@@ -396,6 +428,9 @@ async def segment(request):
         return web.json_response({"error": str(error)}, status=400, headers=headers)
     except (KeyError, ValueError, TypeError) as error:
         return web.json_response({"error": f"bad request: {error}"}, status=400, headers=headers)
+    except Exception as error:  # noqa: BLE001 - report model failures to the browser
+        log.exception("segment failed")
+        return web.json_response({"error": f"segment failed: {error}"}, status=500, headers=headers)
 
 
 async def unimplemented(request):
@@ -407,7 +442,7 @@ async def unimplemented(request):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mcap", required=True)
+    parser.add_argument("--mcap", help="local MCAP for propagation and JSON quick segment; optional")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18876)
     parser.add_argument("--checkpoint", default=str(HERE / "weights" / "sam2.1_hiera_small.pt"))
@@ -415,7 +450,7 @@ def main():
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     app = web.Application(client_max_size=64 * 1024 * 1024)
-    app["media"] = Media(args.mcap)
+    app["media"] = Media(args.mcap) if args.mcap else None
     app["tracker"] = Tracker(args.checkpoint, args.config)
     app["lock"] = asyncio.Lock()
     app.router.add_route("OPTIONS", "/{tail:.*}", options)
