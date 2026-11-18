@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { QuickSegmentRequest, QuickSegmentResult } from "./quickSegment";
+
 /** Coordinates are floating point values in [0, 1], relative to the original image. */
 export type NormalizedPoint = { x: number; y: number };
 export type SegmentationClass = { id: string; name: string; color: string };
@@ -305,6 +307,8 @@ export type SemanticSegmentationStore = {
   startPropagation: (request: PropagationRequest) => Promise<void>;
   /** A mounted native workspace can serialize streamed display; pure stores need no presenter. */
   stopPropagation: () => void;
+  /** Quick annotation through the service; rejects when the service cannot segment (local files). */
+  segmentFrame: (request: QuickSegmentRequest, signal?: AbortSignal) => Promise<QuickSegmentResult>;
   addMomentReference: (
     momentId: string,
     targetType: "class" | "instance",

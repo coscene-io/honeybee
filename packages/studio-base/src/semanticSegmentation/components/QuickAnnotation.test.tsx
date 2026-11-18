@@ -6,12 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { MessageInitShape } from "@bufbuild/protobuf";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+
+import type { SegmentFrameRequestSchema } from "@foxglove/studio-base/services/api/spatial-annotation/generated/coscene/dataplatform/v1alpha3/services/annotation_pb";
 
 import { editor, fixture, pointer } from "../acceptance/interaction/fixtures";
 import { countsFromRuns, runsFromIntervals } from "../maskCodec";
 import { maskOf, polygonsOf } from "../maskGeometry";
-import { QUICK_SEGMENT_URL } from "../quickSegment";
+import { quickSegment } from "../quickSegment";
 import { frameInstanceKey } from "../service";
 
 /** A column-major rectangle mask, columns [x0, x1) and rows [y0, y1). */
@@ -23,17 +26,44 @@ function rect(width: number, height: number, x0: number, x1: number, y0: number,
   return countsFromRuns(runsFromIntervals(Uint32Array.from(intervals), width, height));
 }
 
-let urls: string[] = [];
+type SegmentFrameRequestInit = MessageInitShape<typeof SegmentFrameRequestSchema>;
+
+const RECORD = "warehouses/w/projects/p/records/r";
+
+/** SegmentFrame requests as sent on the wire: source pixels, negative flags. */
 let requests: {
-  points: { x: number; y: number; positive: boolean }[];
+  record: string;
   topic: string;
-  /** Whether the displayed frame was uploaded with this click. */
-  image: boolean;
+  points: { x: number; y: number; negative: boolean }[];
+  imageBytes: number;
 }[] = [];
+
+/** The editor with a live-like service: real quickSegment over a recording AnnotationService. */
+async function quickEditor(document = fixture()) {
+  const result = await editor(document);
+  const client = {
+    segmentFrame: jest.fn(async (request: SegmentFrameRequestInit) => {
+      requests.push({
+        record: request.record!,
+        topic: request.topic!,
+        points: request.points!.map((p) => ({ x: p.x!, y: p.y!, negative: p.negative ?? false })),
+        imageBytes: request.image!.length,
+      });
+      return {
+        mask: { counts: rect(960, 540, 100, 300, 50, 150) },
+        score: 0.9,
+        width: 960,
+        height: 540,
+      };
+    }),
+  } as unknown as Parameters<typeof quickSegment>[0];
+  result.service.segmentFrame = async (request, signal) =>
+    await quickSegment(client, RECORD, request, signal);
+  return result;
+}
 
 beforeEach(() => {
   requests = [];
-  urls = [];
   window.localStorage.removeItem("coStudio.semanticSegmentation.creationTool");
   // jsdom has no 2D canvas; the preview image is cosmetic.
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
@@ -56,29 +86,15 @@ beforeEach(() => {
         return { drawImage: () => {} };
       }
       public async convertToBlob() {
-        return new Blob(["jpeg"], { type: "image/jpeg" });
+        // jsdom Blobs have no arrayBuffer(); browsers do.
+        return { arrayBuffer: async () => new TextEncoder().encode("jpeg").buffer };
       }
     },
   });
-  globalThis.fetch = jest.fn(async (url: unknown, init?: { body?: FormData }) => {
-    if (String(url).startsWith("data:")) {
-      return { blob: async () => new Blob(["frame"]) };
-    }
-    urls.push(String(url));
-    const form = init!.body!;
-    const body = JSON.parse(form.get("request") as string) as Omit<
-      (typeof requests)[number],
-      "image"
-    >;
-    requests.push({ ...body, image: form.get("image") != undefined });
-    const result = {
-      counts: rect(960, 540, 100, 300, 50, 150),
-      width: 960,
-      height: 540,
-      score: 0.9,
-    };
-    return { ok: true, status: 200, json: async () => result };
-  }) as unknown as typeof fetch;
+  // Reading the displayed frame is the only fetch left: quick annotation itself is a gRPC call.
+  globalThis.fetch = jest.fn(async () => ({
+    blob: async () => new Blob(["frame"]),
+  })) as unknown as typeof fetch;
 });
 
 afterEach(() => {
@@ -90,7 +106,7 @@ it("clicks positive and negative points, then Enter saves one mask observation",
   const document = fixture();
   const width = document.videos[0]!.width!;
   const height = document.videos[0]!.height!;
-  const { store } = await editor(document);
+  const { store } = await quickEditor(document);
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   let instanceId = "";
   act(() => {
@@ -128,12 +144,12 @@ it("clicks positive and negative points, then Enter saves one mask observation",
   });
 
   expect(requests[0]!.topic).toBe("/camera/front");
-  // Clicks upload the displayed frame until one answer arrives; then the server's copy is reused.
-  expect(requests[0]!.image).toBe(true);
-  expect(requests[3]!.image).toBe(false);
-  expect(requests[3]!.points.map((p) => [Math.round(p.x), Math.round(p.y), p.positive])).toEqual([
-    [200, 100, true],
-    [250, 120, false],
+  expect(requests[0]!.record).toBe(RECORD);
+  // The server keeps no session: every click uploads the displayed frame with all its points.
+  expect(requests.every((request) => request.imageBytes > 0)).toBe(true);
+  expect(requests[3]!.points.map((p) => [Math.round(p.x), Math.round(p.y), p.negative])).toEqual([
+    [200, 100, false],
+    [250, 120, true],
   ]);
   expect(canvas.querySelectorAll('[data-quick-point="negative"]')).toHaveLength(1);
 
@@ -154,7 +170,7 @@ it("clicks positive and negative points, then Enter saves one mask observation",
 });
 
 it("merges the clicked mask with the instance's existing polygons on that frame", async () => {
-  const { store } = await editor(fixture());
+  const { store } = await quickEditor(fixture());
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   const key = frameInstanceKey("frame-0", "instance-1");
   expect(polygonsOf(store.getState().document!.annotations[key]).length).toBeGreaterThan(0);
@@ -197,7 +213,26 @@ it("P and Q switch the creation tool during a drawing and discard the other tool
   expect(requests).toHaveLength(0);
 });
 
-it("sends every click to the tunnelled quick-annotation endpoint", async () => {
+it("keeps the previous mask when the next click selects no foreground", async () => {
+  const { store, service } = await quickEditor();
+  const canvas = screen.getByRole("img", { name: "Frame polygons" });
+  act(() => {
+    store.getState().startDrawing("instance-1", "quick");
+  });
+  pointer(canvas, "pointerdown", 200, 100);
+  await waitFor(() => {
+    expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
+  });
+  service.segmentFrame = async () => await Promise.resolve({ mask: undefined, score: 0 });
+  pointer(canvas, "pointerdown", 400, 300);
+  await waitFor(() => {
+    expect(screen.getByText(/select nothing/)).not.toBeNull();
+  });
+  expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
+});
+
+it("explains that quick annotation needs a cloud record when the service cannot segment", async () => {
+  // The mock service stands in for sources without an AnnotationService (local files).
   const { store } = await editor(fixture());
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   act(() => {
@@ -205,7 +240,7 @@ it("sends every click to the tunnelled quick-annotation endpoint", async () => {
   });
   pointer(canvas, "pointerdown", 200, 100);
   await waitFor(() => {
-    expect(requests).toHaveLength(1);
+    expect(screen.getByText(/快速标注需要打开云端记录/)).not.toBeNull();
   });
-  expect(urls).toEqual([`${QUICK_SEGMENT_URL}/segment`]);
+  expect(requests).toHaveLength(0);
 });

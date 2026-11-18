@@ -15,6 +15,7 @@ import {
   runsOfMask,
   summarizeObservation,
 } from "./maskGeometry";
+import type { QuickSegmentRequest, QuickSegmentResult } from "./quickSegment";
 import {
   FrameWindow,
   ObservationGeometry,
@@ -50,6 +51,8 @@ export interface SemanticSegmentationService {
   getPropagationCapabilities?(): Promise<PropagationCapabilities>;
   cancelPropagation?(context: PropagationContext): Promise<PropagationCancellation>;
   propagate(request: PropagationRequest, signal: AbortSignal): AsyncIterable<PropagationResult>;
+  /** Quick annotation: one object's mask from clicks on the displayed frame. Unsaved draft. */
+  segmentFrame?(request: QuickSegmentRequest, signal?: AbortSignal): Promise<QuickSegmentResult>;
   getPersistenceError?(): string | undefined;
 }
 
