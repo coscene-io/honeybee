@@ -136,19 +136,6 @@ const useStyles = makeStyles()((theme) => ({
       "& svg": { color: theme.palette.text.secondary },
     },
   },
-  menuValue: {
-    marginLeft: "auto",
-    minWidth: 0,
-    maxWidth: 120,
-    height: 26,
-    padding: theme.spacing(0, 0.5),
-    border: `1px solid ${theme.palette.divider}`,
-    borderRadius: 4,
-    backgroundColor: theme.palette.background.default,
-    color: theme.palette.text.primary,
-    font: "inherit",
-    fontSize: theme.typography.caption.fontSize,
-  },
   menuSlider: {
     marginLeft: "auto",
     width: 100,
@@ -316,10 +303,6 @@ type VertexGroup = {
 type Preview = Record<string, EditorPoint[]>;
 
 /** Moves the given vertices by (dx, dy), shrinking the delta so none leaves the image. */
-const NAVIGATION_STORAGE_KEY = "coStudio.semanticSegmentation.navigation";
-/** Read as a fallback so an earlier saved choice survives the rename. */
-const LEGACY_NAVIGATION_STORAGE_KEY = "bombus.segmentation.navigation.v1";
-
 function moveVertices(
   points: EditorPoint[],
   indices: readonly number[],
@@ -406,16 +389,6 @@ export function SegmentationCanvas({
     keyboard?: boolean;
     target?: HoverTarget | PolygonTarget;
   }>();
-  const [profile, setProfile] = useState<"mouse" | "trackpad">(() => {
-    try {
-      const saved =
-        localStorage.getItem(NAVIGATION_STORAGE_KEY) ??
-        localStorage.getItem(LEGACY_NAVIGATION_STORAGE_KEY);
-      return saved === "trackpad" ? "trackpad" : "mouse";
-    } catch {
-      return "mouse";
-    }
-  });
   const [opacity, setOpacity] = useState(0.5);
   const view = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
   view.current = { zoom, pan };
@@ -1067,21 +1040,10 @@ export function SegmentationCanvas({
       }
       const unit =
         event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (element?.clientHeight ?? 400) : 1;
-      if (profile === "mouse" || event.ctrlKey || event.metaKey) {
-        zoomAt(
-          view.current.zoom * Math.exp(-Math.max(-240, Math.min(240, event.deltaY * unit)) * 0.003),
-          { x: event.clientX, y: event.clientY },
-        );
-      } else {
-        cancelGesture();
-        const outerScale = screenScale / zoom;
-        const next = {
-          x: view.current.pan.x - (event.deltaX * unit) / outerScale,
-          y: view.current.pan.y - (event.deltaY * unit) / outerScale,
-        };
-        view.current = { ...view.current, pan: next };
-        setPan(next);
-      }
+      zoomAt(
+        view.current.zoom * Math.exp(-Math.max(-240, Math.min(240, event.deltaY * unit)) * 0.003),
+        { x: event.clientX, y: event.clientY },
+      );
     };
     element?.addEventListener("wheel", wheel, { passive: false });
     return () => {
@@ -1666,16 +1628,6 @@ export function SegmentationCanvas({
     });
   }
 
-  const changeProfile = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = event.target.value === "trackpad" ? "trackpad" : "mouse";
-    setProfile(next);
-    try {
-      localStorage.setItem(NAVIGATION_STORAGE_KEY, next);
-    } catch {
-      /* Navigation remains usable without local persistence. */
-    }
-  };
-
   return (
     <Stack
       ref={root}
@@ -2088,16 +2040,6 @@ export function SegmentationCanvas({
           <Typography variant="caption" data-tool="size">
             {size.width} × {size.height}
           </Typography>
-          <select
-            aria-label="Navigation profile"
-            data-tool="profile"
-            disabled={navigationLocked}
-            value={profile}
-            onChange={changeProfile}
-          >
-            <option value="mouse">{text("Mouse: wheel zoom", "鼠标：滚轮缩放")}</option>
-            <option value="trackpad">{text("Trackpad: scroll pan", "触控板：滑动平移")}</option>
-          </select>
           <label data-tool="opacity">
             {text("Opacity", "透明度")}{" "}
             <input
@@ -2239,20 +2181,6 @@ export function SegmentationCanvas({
             </span>
           </Button>
           <Divider className={classes.menuDivider} />
-          <label className={classes.menuRow}>
-            {text("Mouse mode", "鼠标模式")}
-            <select
-              className={classes.menuValue}
-              aria-label="Navigation profile"
-              data-tool="profile"
-              disabled={navigationLocked}
-              value={profile}
-              onChange={changeProfile}
-            >
-              <option value="mouse">{text("Mouse", "鼠标")}</option>
-              <option value="trackpad">{text("Trackpad", "触控板")}</option>
-            </select>
-          </label>
           <label className={classes.menuRow} data-tool="opacity">
             {text("Opacity", "透明度")}
             <input

@@ -438,13 +438,11 @@ it("retains the view across same-video frame/image changes and resets for a new 
   expect(transform()).toBe("translate(0 0) scale(1)");
 });
 
-it("offers trackpad pan/pinch, actual pixel 100%, Fit and Fit selection without writes", async () => {
+it("zooms on wheel in mouse mode, offers actual pixel 100%, Fit and Fit selection without writes", async () => {
   const { store, canvas, transform, content } = await setup();
-  fireEvent.change(screen.getByLabelText("Navigation profile"), { target: { value: "trackpad" } });
   fireEvent.wheel(canvas, { deltaX: 20, deltaY: 10 });
-  expect(transform()).toBe("translate(-40 -20) scale(1)");
-  fireEvent.wheel(canvas, { deltaY: -100, ctrlKey: true, clientX: 200, clientY: 150 });
   expect(transform()).not.toBe("translate(-40 -20) scale(1)");
+  expect(transform()).not.toBe("translate(0 0) scale(1)");
   fireEvent.click(screen.getByRole("button", { name: "100%" }));
   expect((content() as SVGGraphicsElement).getScreenCTM()!.a).toBeCloseTo(1);
   fireEvent.click(screen.getByRole("button", { name: "Fit" }));
@@ -601,7 +599,6 @@ it("closes annotation portals and disables navigation when propagation locks the
     expect(screen.queryByRole("menu")).toBeNull();
   });
   expect(screen.getByRole("button", { name: "Pan" })).toHaveProperty("disabled", true);
-  expect(screen.getByLabelText("Navigation profile")).toHaveProperty("disabled", true);
   fireEvent.wheel(canvas, { deltaY: -100, clientX: 200, clientY: 150 });
   expect(transform()).toBe("translate(0 0) scale(1)");
   expect(store.getState().stagedOperations).toHaveLength(0);
