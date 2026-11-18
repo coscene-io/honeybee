@@ -164,10 +164,11 @@ function segmentationStepCamera(): CameraStepCamera | undefined {
 }
 
 /**
- * A step requested while the canvas still showed `fromNs`. Until another frame is shown, repeated
- * presses continue from the requested frame instead of repeating the same step.
+ * A step requested while the canvas still showed `fromNs`, with the player clock at that moment.
+ * Until another frame is shown, repeated presses continue from the requested frame instead of
+ * repeating the same step.
  */
-let pendingStep: { videoId: string; fromNs: bigint; ns: bigint } | undefined;
+let pendingStep: { videoId: string; fromNs: bigint; ns: bigint; clockNs?: bigint } | undefined;
 
 /**
  * Steps the target camera by whole frames. Returns undefined when no annotation session is open,
@@ -178,6 +179,12 @@ let pendingStep: { videoId: string; fromNs: bigint; ns: bigint } | undefined;
 export function segmentationCameraStep(
   direction: 1 | -1,
   count = 1,
+  /**
+   * The player clock. While the camera shows no frame for it (after a seek, e.g. to the recording
+   * start before any camera frame), the step starts here: the surface still names the last frame
+   * it showed, which may be far away.
+   */
+  clockNs?: bigint,
 ): Promise<bigint | undefined> | undefined {
   const camera = segmentationStepCamera();
   if (!camera) {
@@ -186,20 +193,35 @@ export function segmentationCameraStep(
   const session = segmentationSession.getState();
   const state = session.runtime!.store.getState();
   const document = state.document;
-  const frameId = session.surfaces[camera.panelId]?.frameId;
-  const shown = document?.frames.find((frame) => frame.id === frameId);
+  const surface = session.surfaces[camera.panelId];
+  const shown = document?.frames.find((frame) => frame.id === surface?.frameId);
   const busy =
     state.drawing != undefined ||
     session.strokeFrameId != undefined ||
     ["running", "stopping"].includes(state.propagation.status);
-  if (!document || !shown || busy) {
+  const videoId =
+    shown?.videoId ??
+    (camera.topic == undefined
+      ? undefined
+      : document?.videos.find((video) => video.topic === camera.topic)?.id);
+  // No decoded frame for the clock: the surface's frameId is the last frame shown, not this one.
+  const fromClock = clockNs != undefined && (surface?.sourceReady !== true || !shown);
+  if (!document || videoId == undefined || (!shown && !fromClock) || busy) {
     return Promise.resolve(undefined);
   }
-  const videoId = shown.videoId;
-  const shownNs = BigInt(shown.logTimeNs);
+  const shownNs = shown ? BigInt(shown.logTimeNs) : undefined;
   const pending =
-    pendingStep?.videoId === videoId && pendingStep.fromNs === shownNs ? pendingStep.ns : undefined;
-  const currentNs = pending ?? shownNs;
+    pendingStep?.videoId === videoId && pendingStep.fromNs === shownNs ? pendingStep : undefined;
+  let currentNs: bigint;
+  if (fromClock) {
+    // A step still decoding keeps going from its target; any other clock is a seek elsewhere.
+    currentNs =
+      pending != undefined && (clockNs === pending.ns || clockNs === pending.clockNs)
+        ? pending.ns
+        : clockNs;
+  } else {
+    currentNs = pending?.ns ?? shownNs!;
+  }
   const loader = sourceFrameLoaders.get(videoId);
   const ready = loader
     ? direction > 0
@@ -213,7 +235,18 @@ export function segmentationCameraStep(
         (frame) => frame.videoId === videoId,
       );
       const target = cameraStepTarget(frames, currentNs, direction, count);
-      pendingStep = target == undefined ? pendingStep : { videoId, fromNs: shownNs, ns: target };
+      if (target != undefined) {
+        // Without a shown frame there is nothing to key a pending step on; the clock moves instead.
+        pendingStep =
+          shownNs == undefined
+            ? undefined
+            : {
+                videoId,
+                fromNs: shownNs,
+                ns: target,
+                ...(clockNs != undefined ? { clockNs } : {}),
+              };
+      }
       return target;
     });
 }
@@ -229,6 +262,7 @@ export function segmentationPlaybackStep(
   direction: 1 | -1,
   event: StepModifiers | undefined,
   seek: (logTimeNs: bigint) => void,
+  clockNs?: bigint,
 ): { handled: true } | { handled: false; modifiers: StepModifiers | undefined } {
   if (segmentationStepCamera() == undefined) {
     return { handled: false, modifiers: event };
@@ -236,11 +270,13 @@ export function segmentationPlaybackStep(
   if (event?.altKey === true) {
     return { handled: false, modifiers: { altKey: false, shiftKey: event.shiftKey } };
   }
-  void segmentationCameraStep(direction, event?.shiftKey === true ? 10 : 1)?.then((target) => {
-    if (target != undefined) {
-      seek(target);
-    }
-  });
+  void segmentationCameraStep(direction, event?.shiftKey === true ? 10 : 1, clockNs)?.then(
+    (target) => {
+      if (target != undefined) {
+        seek(target);
+      }
+    },
+  );
   return { handled: true };
 }
 

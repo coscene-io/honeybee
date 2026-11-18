@@ -274,6 +274,40 @@ describe("segmentationPlaybackStep", () => {
     await expect(segmentationCameraStep(1)).resolves.toBe(BigInt(head[13]!.logTimeNs));
   });
 
+  it("steps from the player clock while the camera shows no frame for it", async () => {
+    // Annotated at frame 30, then the timeline was dragged to the recording start, before any
+    // camera frame: the surface still names frame 30 but has nothing decoded.
+    openSession("Image!head", { "Image!head": head[30]!.id });
+    segmentationSession.setState({
+      surfaces: { "Image!head": { frameId: head[30]!.id, sourceReady: false } },
+    });
+    const start = BigInt(head[0]!.logTimeNs) - 50_000_000n;
+    const seek = jest.fn();
+    segmentationPlaybackStep(1, undefined, seek, start);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(seek).toHaveBeenLastCalledWith(BigInt(head[0]!.logTimeNs));
+    expect(ensured.at(-1)).toEqual(["head", start, 1]);
+    // Backward from the start: no earlier frame, so nothing moves.
+    seek.mockClear();
+    segmentationPlaybackStep(-1, undefined, seek, start);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(seek).not.toHaveBeenCalled();
+  });
+
+  it("keeps stepping from a requested frame while it decodes", async () => {
+    openSession("Image!head", { "Image!head": head[10]!.id });
+    const clock = BigInt(head[10]!.logTimeNs);
+    await expect(segmentationCameraStep(1, 1, clock)).resolves.toBe(BigInt(head[11]!.logTimeNs));
+    // The seek is under way: the old frame is no longer ready and the clock has not moved yet.
+    segmentationSession.setState({
+      surfaces: { "Image!head": { frameId: head[10]!.id, sourceReady: false } },
+    });
+    await expect(segmentationCameraStep(1, 1, clock)).resolves.toBe(BigInt(head[12]!.logTimeNs));
+    await expect(segmentationCameraStep(1, 1, BigInt(head[12]!.logTimeNs))).resolves.toBe(
+      BigInt(head[13]!.logTimeNs),
+    );
+  });
+
   it("does not move while a polygon is being drawn", async () => {
     const store = openSession("Image!head", { "Image!head": head[10]!.id });
     store.setState({ drawing: { instanceId: "instance-1", frameId: head[10]!.id } });

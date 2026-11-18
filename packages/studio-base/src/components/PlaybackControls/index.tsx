@@ -33,7 +33,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { useLatest, useWindowSize } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, areEqual, clampTime, compare, fromNanoSec } from "@foxglove/rostime";
+import { Time, areEqual, clampTime, compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -353,9 +353,14 @@ export default function PlaybackControls(props: {
         return;
       }
       // While annotating, the buttons step the target camera's frames instead.
-      const step = segmentationPlaybackStep(1, ev, (ns) => {
-        seekIfAllowed(fromNanoSec(ns));
-      });
+      const step = segmentationPlaybackStep(
+        1,
+        ev,
+        (ns) => {
+          seekIfAllowed(fromNanoSec(ns));
+        },
+        toNanoSec(currentTime),
+      );
       if (step.handled) {
         return;
       }
@@ -395,9 +400,14 @@ export default function PlaybackControls(props: {
       if (!currentTime) {
         return;
       }
-      const step = segmentationPlaybackStep(-1, ev, (ns) => {
-        seekIfAllowed(fromNanoSec(ns));
-      });
+      const step = segmentationPlaybackStep(
+        -1,
+        ev,
+        (ns) => {
+          seekIfAllowed(fromNanoSec(ns));
+        },
+        toNanoSec(currentTime),
+      );
       if (step.handled) {
         return;
       }
