@@ -29,6 +29,7 @@ import {
   previewWindowStartSec,
 } from "../annotationFrames";
 import { annotationRecord } from "../annotationRecord";
+import { cameraStepTarget } from "../cameraFrames";
 import {
   imageFrameIdentity,
   segmentationCachedFrames,
@@ -991,6 +992,32 @@ export function SegmentationImageEntry({
           if (canvas.panelId !== panelId) {
             canvas.enterInline();
           }
+        }
+      }
+      // Entered where this camera shows no frame (e.g. the recording start, before any camera
+      // frame): every canvas is blank and nothing can be edited. Move to this camera's first frame.
+      if (!joining && image == undefined && frames) {
+        const clockNs = toNanoSec(data.currentTime);
+        await frames.ensureFollowing(clockNs - 1n, 1).catch(() => undefined);
+        const first = cameraStepTarget(
+          (runtime.store.getState().document?.frames ?? []).filter(
+            (item) => item.videoId === videoId,
+          ),
+          clockNs - 1n,
+          1,
+          1,
+        );
+        const live = getPipeline().playerState.activeData;
+        const session = segmentationSession.getState();
+        // Skip if the user moved the clock meanwhile or left this session.
+        if (
+          first != undefined &&
+          live != undefined &&
+          toNanoSec(live.currentTime) === clockNs &&
+          session.open &&
+          session.runtime === runtime
+        ) {
+          getPipeline().seekPlayback?.(fromNanoSec(first));
         }
       }
     },
