@@ -1,3 +1,3 @@
-.venv/
-weights/
+.venv
+weights
 __pycache__/
