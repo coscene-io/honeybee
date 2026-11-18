@@ -27,6 +27,7 @@ import {
   applySegmentationPatches,
   cloneSegmentation,
   frameInstanceKey,
+  propagationTargets,
   resolvePropagationSeeds,
   SemanticSegmentationService,
   validateFrameWindow,
@@ -1280,11 +1281,13 @@ export function createSemanticSegmentationStore(
         if (!sourceFrame || (!request.seeds && !source)) {
           throw new Error("Source annotation is not loaded");
         }
+        // Forward or backward from the seed, in the order results arrive and playback follows.
+        const targets = propagationTargets(initial.frames, sourceFrame, request.endTimeNs);
         if (
-          !/^\d+$/.test(request.endTimeNs) ||
-          BigInt(request.endTimeNs) <= BigInt(sourceFrame.logTimeNs)
+          BigInt(request.endTimeNs) < BigInt(sourceFrame.logTimeNs) &&
+          get().propagationCapabilities?.backward !== true
         ) {
-          throw new Error("End time must be later than the seed frame");
+          throw new Error("This propagation service only propagates forward");
         }
         const seeds = resolvePropagationSeeds(request, source);
         for (const seed of seeds) {
@@ -1324,14 +1327,6 @@ export function createSemanticSegmentationStore(
           seeds,
           instanceId: seeds[0]!.instanceId,
         });
-        const targets = initial.frames
-          .filter(
-            (frame) =>
-              frame.videoId === sourceFrame.videoId &&
-              BigInt(frame.logTimeNs) > BigInt(sourceFrame.logTimeNs) &&
-              BigInt(frame.logTimeNs) <= BigInt(request.endTimeNs),
-          )
-          .sort((a, b) => a.index - b.index);
         const targetIds = new Set(targets.map((frame) => frame.id));
         const received = new Set<string>();
         const receivedFrames = new Map<string, Set<string>>();

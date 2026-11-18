@@ -18,6 +18,7 @@ import {
   frameInstanceKey,
   mergeSourceMetadata,
   patchAnnotationKeys,
+  propagationTargets,
   resolvePropagationSeeds,
   SemanticSegmentationService,
   validateFrameWindow,
@@ -234,6 +235,7 @@ export function createMockSemanticSegmentationService(
   };
   const capabilities = cloneSegmentation<PropagationCapabilities>({
     models: ["sam2.1-motion", "sam3.1"],
+    backward: true,
     ...options.capabilities,
   });
   let document = cloneSegmentation(seed);
@@ -451,20 +453,7 @@ export function createMockSemanticSegmentationService(
         sourceVideo?.width != undefined && sourceVideo.height != undefined
           ? { width: sourceVideo.width, height: sourceVideo.height }
           : undefined;
-      if (
-        !/^\d+$/.test(request.endTimeNs) ||
-        BigInt(request.endTimeNs) <= BigInt(source.logTimeNs)
-      ) {
-        throw new Error("End time must be later than the seed frame");
-      }
-      const ordered = document.frames
-        .filter(
-          (frame) =>
-            frame.videoId === source.videoId &&
-            BigInt(frame.logTimeNs) > BigInt(source.logTimeNs) &&
-            BigInt(frame.logTimeNs) <= BigInt(request.endTimeNs),
-        )
-        .sort((a, b) => a.index - b.index);
+      const ordered = propagationTargets(document.frames, source, request.endTimeNs);
       for (const [frameOffset, frame] of ordered.entries()) {
         await delay(controls.streamDelayMs, signal);
         for (const seed of seeds) {

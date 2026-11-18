@@ -10,7 +10,7 @@ import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
 import { sourceFrameLoaders } from "../sourceFrames";
-import type { PropagationRequest, SemanticSegmentationStore } from "../types";
+import type { PropagationRequest, SegmentationFrame, SemanticSegmentationStore } from "../types";
 import type { CanvasPropagationScope } from "./propagationSeeds";
 
 /**
@@ -21,9 +21,17 @@ import type { CanvasPropagationScope } from "./propagationSeeds";
 export const PROPAGATION_RANGES_SEC = [1, 3, 10] as const;
 const DEFAULT_RANGE_SEC = 10;
 
+export type PropagationDirection = "forward" | "backward" | "both";
+const DIRECTION_LABELS: Record<PropagationDirection, string> = {
+  forward: "向后",
+  backward: "向前",
+  both: "双向",
+};
+
 /**
- * One-click propagation for one canvas: every seeded instance on the canvas's current frame
- * goes forward from that frame for the chosen range, starting at once.
+ * One-click propagation for one canvas: the checked seeded instances on the canvas's current
+ * frame go forward, backward (when the service supports it) or both from that frame for the
+ * chosen range, starting at once. "Both" runs forward, then backward if forward completed.
  */
 export function PropagationForm({
   store,
@@ -40,11 +48,18 @@ export function PropagationForm({
   const state = useStore(store);
   const [rangeSec, setRangeSec] = useState<number>(DEFAULT_RANGE_SEC);
   const [model, setModel] = useState("sam2.1-motion");
+  const [direction, setDirection] = useState<PropagationDirection>("forward");
+  /** Instances the user checked; undefined follows the default (tree selection, else all). */
+  const [checked, setChecked] = useState<string[] | undefined>();
   const [localError, setLocalError] = useState<string>();
   const [busy, setBusy] = useState<"idle" | "preparing" | "starting">("idle");
   useEffect(() => {
     setLocalError(undefined);
   }, [store, state.document?.record.id, state.interactionResetVersion]);
+  // Another frame or canvas has other seeds: return to the default choice.
+  useEffect(() => {
+    setChecked(undefined);
+  }, [scope?.frameId]);
   const document = state.document;
   const frame = document?.frames.find((item) => item.id === scope?.frameId);
   const capabilities = state.propagationCapabilities;
@@ -61,25 +76,40 @@ export function PropagationForm({
       setModel(capabilities.models[0]);
     }
   }, [capabilities, model]);
-  const seeds = scope?.seeds ?? [];
+  const backwardSupported = capabilities?.backward === true;
+  const effectiveDirection: PropagationDirection = backwardSupported ? direction : "forward";
+  const allSeeds = scope?.seeds ?? [];
+  const treeSelected = new Set(
+    state.selection.filter((node) => node.type === "instance").map((node) => node.id),
+  );
+  const defaultChoice = allSeeds.some((seed) => treeSelected.has(seed.instanceId))
+    ? allSeeds.filter((seed) => treeSelected.has(seed.instanceId)).map((seed) => seed.instanceId)
+    : allSeeds.map((seed) => seed.instanceId);
+  const chosen = new Set(checked ?? defaultChoice);
+  const seeds = allSeeds.filter((seed) => chosen.has(seed.instanceId));
   const firstSeed = seeds[0];
   const hasSeed = seeds.length > 0;
+  const instanceName = (id: string) =>
+    document?.instances.find((instance) => instance.id === id)?.name ?? id;
   const running = ["running", "stopping"].includes(state.propagation.status);
 
-  /** Frames of the seed's video after the seed and within the range, in time order. */
-  const framesAfter = () => {
+  /** Frames of the seed's video within the range on one side of the seed, in time order. */
+  const framesTowards = (side: "forward" | "backward"): SegmentationFrame[] => {
     if (!frame) {
       return [];
     }
     const seedNs = BigInt(frame.logTimeNs);
-    const endNs = seedNs + BigInt(rangeSec) * 1_000_000_000n;
+    const rangeNs = BigInt(rangeSec) * 1_000_000_000n;
     return (store.getState().document?.frames ?? [])
-      .filter(
-        (item) =>
-          item.videoId === frame.videoId &&
-          BigInt(item.logTimeNs) > seedNs &&
-          BigInt(item.logTimeNs) <= endNs,
-      )
+      .filter((item) => {
+        if (item.videoId !== frame.videoId) {
+          return false;
+        }
+        const time = BigInt(item.logTimeNs);
+        return side === "forward"
+          ? time > seedNs && time <= seedNs + rangeNs
+          : time < seedNs && time >= seedNs - rangeNs;
+      })
       .sort((a, b) => (BigInt(a.logTimeNs) < BigInt(b.logTimeNs) ? -1 : 1));
   };
 
@@ -94,23 +124,47 @@ export function PropagationForm({
       // propagated frame has a local frame to land on.
       const loader = sourceFrameLoaders.get(frame.videoId);
       const seedNs = BigInt(frame.logTimeNs);
-      await loader?.ensureRange(seedNs, seedNs + BigInt(rangeSec) * 1_000_000_000n);
-      const targets = framesAfter();
-      const last = targets.at(-1);
-      if (!last) {
-        throw new Error("种子帧之后没有可传播的帧（已到录像结尾）。");
+      const rangeNs = BigInt(rangeSec) * 1_000_000_000n;
+      const sides: ("forward" | "backward")[] =
+        effectiveDirection === "both" ? ["forward", "backward"] : [effectiveDirection];
+      await loader?.ensureRange(
+        sides.includes("backward") ? seedNs - rangeNs : seedNs,
+        sides.includes("forward") ? seedNs + rangeNs : seedNs,
+      );
+      // The end of each run: the last frame forward, the earliest frame backward.
+      const runs = sides.flatMap((side) => {
+        const targets = framesTowards(side);
+        const end = side === "forward" ? targets.at(-1) : targets[0];
+        return end ? [{ side, endTimeNs: end.logTimeNs }] : [];
+      });
+      if (runs.length === 0) {
+        throw new Error(
+          effectiveDirection === "backward"
+            ? "种子帧之前没有可传播的帧（已到录像开头）。"
+            : effectiveDirection === "forward"
+              ? "种子帧之后没有可传播的帧（已到录像结尾）。"
+              : "种子帧前后都没有可传播的帧。",
+        );
       }
-      const request: PropagationRequest = {
-        instanceId: firstSeed.instanceId,
-        fromFrameId: frame.id,
-        endTimeNs: last.logTimeNs,
-        model,
-        seeds,
-      };
       setBusy("starting");
-      const running = store.getState().startPropagation(request);
-      onStarted?.();
-      await running;
+      for (const [index, run] of runs.entries()) {
+        // A stopped or failed run ends the sequence; its received frames stay as drafts.
+        if (index > 0 && store.getState().propagation.status !== "completed") {
+          break;
+        }
+        const request: PropagationRequest = {
+          instanceId: firstSeed.instanceId,
+          fromFrameId: frame.id,
+          endTimeNs: run.endTimeNs,
+          model,
+          seeds,
+        };
+        const running = store.getState().startPropagation(request);
+        if (index === 0) {
+          onStarted?.();
+        }
+        await running;
+      }
     })()
       .catch((error: unknown) => {
         setLocalError(error instanceof Error ? error.message : String(error));
@@ -148,9 +202,51 @@ export function PropagationForm({
           </button>
         </>
       )}
+      {allSeeds.length > 1 && (
+        <fieldset className="seg-section" aria-label="传播实例">
+          <legend>传播哪些实例</legend>
+          {allSeeds.map((seed) => (
+            <label key={seed.instanceId} className="seg-row">
+              <input
+                type="checkbox"
+                checked={chosen.has(seed.instanceId)}
+                onChange={(event) => {
+                  const next = new Set(chosen);
+                  if (event.target.checked) {
+                    next.add(seed.instanceId);
+                  } else {
+                    next.delete(seed.instanceId);
+                  }
+                  setChecked(allSeeds.map((item) => item.instanceId).filter((id) => next.has(id)));
+                }}
+              />
+              {instanceName(seed.instanceId)}
+              {seed.kind === "mask" ? " · mask" : ` · ${seed.polygons.length} 个多边形`}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {backwardSupported && (
+        <div className="seg-row" role="radiogroup" aria-label="传播方向">
+          {(Object.keys(DIRECTION_LABELS) as PropagationDirection[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={direction === value}
+              className={direction === value ? "seg-primary" : undefined}
+              onClick={() => {
+                setDirection(value);
+              }}
+            >
+              {DIRECTION_LABELS[value]}
+            </button>
+          ))}
+        </div>
+      )}
       {frame && (
         <p aria-label="有效传播范围" className="seg-muted">
-          从源帧 {frame.index + 1} 向后
+          从源帧 {frame.index + 1} {DIRECTION_LABELS[effectiveDirection]}
         </p>
       )}
       <div className="seg-row" role="radiogroup" aria-label="传播范围">
@@ -198,8 +294,8 @@ export function PropagationForm({
         </button>
       </div>
       <p className="seg-muted">
-        点击后立即开始，最多向后传播 {rangeSec} 秒。结果逐帧出现，画面跟着走；想提前结束就点顶部
-        STOP，已收到的帧保留为草稿，提交后才保存。
+        点击后立即开始，最多{DIRECTION_LABELS[effectiveDirection]}传播 {rangeSec}{" "}
+        秒。结果逐帧出现，画面跟着走；想提前结束就点顶部 STOP，已收到的帧保留为草稿，提交后才保存。
       </p>
       {state.propagation.status !== "idle" && (
         <p aria-live="polite">

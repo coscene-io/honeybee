@@ -108,25 +108,32 @@ class Media:
         raise RpcError(INVALID_ARGUMENT, f"Topic {topic} is not an image topic of the local MCAP")
 
     def frames(self, topic, seed_micros, end_micros):
-        """[(log_time_ns, jpeg_bytes)] for the seed frame and every frame with seed < t <= end."""
+        """[(log_time_ns, jpeg_bytes)] in propagation order, seed frame first.
+
+        Forward (end > seed): the seed, then every frame with seed < t <= end, increasing.
+        Backward (end < seed): the seed, then every frame with end <= t < seed, decreasing."""
         times = self.topics[topic]
         micros = [x // 1000 for x in times]
         if len(set(micros)) != len(micros):
             raise RpcError(FAILED_PRECONDITION, "Source frames collide after truncation to microseconds")
         try:
-            start = micros.index(seed_micros)
+            seed = micros.index(seed_micros)
         except ValueError:
             raise RpcError(INVALID_ARGUMENT, "Seed frame_time does not match a source frame") from None
-        last = start
-        while last + 1 < len(micros) and micros[last + 1] <= end_micros:
-            last += 1
+        first = last = seed
+        if end_micros > seed_micros:
+            while last + 1 < len(micros) and micros[last + 1] <= end_micros:
+                last += 1
+        else:
+            while first > 0 and micros[first - 1] >= end_micros:
+                first -= 1
         out = []
         with open(self.path, "rb") as f:
             for _, _, message in make_reader(f).iter_messages(
-                topics=[topic], start_time=times[start], end_time=times[last] + 1
+                topics=[topic], start_time=times[first], end_time=times[last] + 1
             ):
                 out.append((message.log_time, ros1_compressed_image_data(message.data)))
-        out.sort(key=lambda item: item[0])
+        out.sort(key=lambda item: item[0], reverse=end_micros < seed_micros)
         return out
 
 
@@ -270,8 +277,10 @@ async def propagate(request):
             raise RpcError(INVALID_ARGUMENT, "All seeds must share one frame_time")
         seed_micros = seed_micros.pop()
         end_micros = micros_of(p.end_time)
-        if end_micros <= seed_micros:
-            raise RpcError(INVALID_ARGUMENT, "end_time must be later than the seed frame")
+        # Local extension of the contract: an end_time earlier than the seed propagates backward,
+        # with frames streamed in decreasing frame_time. Later end_times behave exactly as before.
+        if end_micros == seed_micros:
+            raise RpcError(INVALID_ARGUMENT, "end_time must differ from the seed frame")
         if len({s.instance for s in p.seeds}) != len(p.seeds):
             raise RpcError(INVALID_ARGUMENT, "Duplicate seed instance")
         if app["media"] is None:
@@ -353,7 +362,11 @@ async def propagate(request):
             event.done.processed_frames, event.done.total_frames = processed, total
             await response.write(data_frame(event))
             await response.write(trailer_frame(0))
-            log.info("%s: %d/%d frames in %.1fs", p.topic, processed, total, time.time() - started)
+            log.info(
+                "%s %s: %d/%d frames in %.1fs",
+                p.topic, "backward" if end_micros < seed_micros else "forward",
+                processed, total, time.time() - started,
+            )
         except (ConnectionResetError, asyncio.CancelledError):
             log.info("client stopped after %d/%d frames", processed, total)
             raise

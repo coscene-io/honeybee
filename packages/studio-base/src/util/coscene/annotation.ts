@@ -5,6 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { createClient } from "@connectrpc/connect";
+import { createGrpcWebTransport } from "@connectrpc/connect-web";
+
 import {
   createLiveAnnotationService,
   type LiveSemanticSegmentationService,
@@ -30,6 +33,27 @@ export function isAnnotationRecordName(recordName: string | undefined): recordNa
   return recordName != undefined && RECORD_NAME.test(recordName);
 }
 
+/**
+ * Development switch: send PropagateAnnotation to the local SAM2 sidecar
+ * (tools/seg-local-propagation), which also propagates backward. Opt in per browser:
+ * `localStorage.setItem("coStudio.semanticSegmentation.propagationUrl", "https://sam.reily.app")`
+ * (or `http://127.0.0.1:18876`). Every other RPC still goes to the backend, and no credentials
+ * are sent to the sidecar.
+ */
+export const PROPAGATION_URL_KEY = "coStudio.semanticSegmentation.propagationUrl";
+
+export function localPropagationUrl(): string | undefined {
+  try {
+    const url = globalThis.localStorage.getItem(PROPAGATION_URL_KEY)?.trim();
+    return url != undefined &&
+      /^(https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?|https:\/\/sam\.reily\.app)\/?$/.test(url)
+      ? url.replace(/\/$/, "")
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The live service for a cloud record; undefined for sources it cannot address (local files). */
 export function createLiveSemanticSegmentationService(args: {
   recordName: string | undefined;
@@ -39,8 +63,17 @@ export function createLiveSemanticSegmentationService(args: {
   if (!isAnnotationRecordName(args.recordName)) {
     return undefined;
   }
+  const propagationUrl = localPropagationUrl();
   return createLiveAnnotationService({
     client: getPromiseClient(AnnotationService),
+    ...(propagationUrl
+      ? {
+          propagationClient: createClient(
+            AnnotationService,
+            createGrpcWebTransport({ baseUrl: propagationUrl }),
+          ),
+        }
+      : {}),
     recordName: args.recordName,
     startNs: args.startNs,
     document: args.document,

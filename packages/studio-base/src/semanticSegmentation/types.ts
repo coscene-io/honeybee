@@ -169,11 +169,16 @@ export type PropagationCancellation = { requestId: string; status: "cancelled" }
 export type PropagationSeed = { instanceId: string } & ObservationGeometry;
 export type PropagationCapabilities = {
   models: string[];
+  /** True when an end time before the seed (backward propagation) is served. */
+  backward?: boolean;
 };
 export type PropagationRequest = {
   instanceId: string;
   fromFrameId: string;
-  /** Propagation only follows later frames. Inclusive end: the last frame's log_time (decimal ns). */
+  /**
+   * Inclusive end: the last frame's log_time (decimal ns). Later than the seed propagates forward;
+   * earlier propagates backward (the local sidecar only; the published contract is forward-only).
+   */
   endTimeNs: string;
   /** Without `seeds`: limit a polygon source observation to these polygons. */
   polygonIds?: string[];

@@ -147,6 +147,11 @@ function throwIfAborted(signal?: AbortSignal): void {
  */
 export function createLiveAnnotationService(options: {
   client: AnnotationClient;
+  /**
+   * PropagateAnnotation only, e.g. the local SAM2 sidecar (tools/seg-local-propagation); every
+   * other RPC keeps using `client`. Defaults to `client`.
+   */
+  propagationClient?: Pick<AnnotationClient, "propagateAnnotation">;
   /** `warehouses/{w}/projects/{p}/records/{r}` */
   recordName: string;
   /** Recording start; frame windows are offsets from it. */
@@ -712,7 +717,12 @@ export function createLiveAnnotationService(options: {
     diagnostics: () => cloneSegmentation(diagnostics),
     supportsPropagationContext: true,
     supportsMultiInstanceSeeds: true,
-    getPropagationCapabilities: async () => await Promise.resolve({ models: [...models] }),
+    getPropagationCapabilities: async () =>
+      await Promise.resolve({
+        models: [...models],
+        // The published contract is forward-only; the local sidecar also goes backward.
+        ...(options.propagationClient ? { backward: true } : {}),
+      }),
     // Cancelling the RPC (the abort signal passed to `propagate`) is the STOP; there is no task to ack.
     cancelPropagation: async (context) =>
       await Promise.resolve({ requestId: context.requestId, status: "cancelled" as const }),
@@ -922,8 +932,9 @@ export function createLiveAnnotationService(options: {
       const index = indexOf(source.videoId);
       const seedMicros = index.frameTimeOf(source.id);
       const endMicros = truncateToMicros(request.endTimeNs);
-      if (endMicros <= seedMicros) {
-        throw new Error("End time must be later than the seed frame");
+      // Earlier than the seed propagates backward: only the local sidecar serves it so far.
+      if (endMicros === seedMicros) {
+        throw new Error("End time must differ from the seed frame");
       }
       const seeds =
         request.seeds ??
@@ -936,7 +947,7 @@ export function createLiveAnnotationService(options: {
         wireObservation({ ...seed, frameId: source.id }, video.topic, size, frameTime),
       );
       const instanceIds = seeds.map((seed) => seed.instanceId);
-      const stream = client.propagateAnnotation(
+      const stream = (options.propagationClient ?? client).propagateAnnotation(
         {
           record: recordName,
           propagation: {
@@ -994,7 +1005,9 @@ export function createLiveAnnotationService(options: {
       if (!finished) {
         throwIfAborted(signal);
         // Received frames stay drafts; without `done` the run is not a complete success.
-        throw new Error(`传播连接在完成前断开（${microsToIso(seedMicros)} 之后）`);
+        throw new Error(
+          `传播连接在完成前断开（${microsToIso(seedMicros)} ${endMicros < seedMicros ? "之前" : "之后"}）`,
+        );
       }
     },
   };

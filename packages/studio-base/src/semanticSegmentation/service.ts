@@ -29,8 +29,35 @@ import {
   SegmentationPatch,
   SegmentationPolygon,
   SubmitRequest,
+  SegmentationFrame,
   SubmitResult,
 } from "./types";
+
+/**
+ * Frames a propagation run writes, in the order results arrive. An end after the seed goes
+ * forward over seed < t <= end; an end before it goes backward over end <= t < seed, latest first.
+ */
+export function propagationTargets(
+  frames: readonly SegmentationFrame[],
+  source: SegmentationFrame,
+  endTimeNs: string,
+): SegmentationFrame[] {
+  if (!/^\d+$/.test(endTimeNs) || BigInt(endTimeNs) === BigInt(source.logTimeNs)) {
+    throw new Error("End time must differ from the seed frame");
+  }
+  const seed = BigInt(source.logTimeNs);
+  const end = BigInt(endTimeNs);
+  const backward = end < seed;
+  return frames
+    .filter((frame) => {
+      if (frame.videoId !== source.videoId) {
+        return false;
+      }
+      const time = BigInt(frame.logTimeNs);
+      return backward ? time >= end && time < seed : time > seed && time <= end;
+    })
+    .sort((a, b) => (backward ? b.index - a.index : a.index - b.index));
+}
 
 /** Replace this boundary with a production adapter; the workbench has no transport dependency. */
 export interface SemanticSegmentationService {

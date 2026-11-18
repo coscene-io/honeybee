@@ -12,6 +12,9 @@ method over gRPC-Web on `127.0.0.1:18876`; every other annotation RPC still goes
 - Seeds: polygons are rasterized at the source size; masks are COCO counts decoded at that size.
   Results stream as one `frame` event per later source frame with a `mask` per instance.
 - One run at a time. Closing the connection (STOP) cancels it. Nothing is saved.
+- Backward (local extension of the contract): an `end_time` earlier than the seed propagates
+  backward over `end_time <= t < seed`, streaming frames in decreasing `frame_time`. Later
+  `end_time`s behave exactly as before, so older clients are unaffected.
 
 ## Quick annotation (`POST /segment`)
 
@@ -43,8 +46,16 @@ tools/seg-local-propagation/run.sh
 cloudflared tunnel --config ~/.cloudflared/honeybee-sam.yml run honeybee-sam   # protocol: http2
 ```
 
-Propagation in the editor always uses the backend. The gRPC-Web `PropagateAnnotation` here stays
-for direct testing with `--mcap`.
+Propagation in the editor uses the backend unless a browser opts in to this sidecar:
+
+```js
+localStorage.setItem("coStudio.semanticSegmentation.propagationUrl", "https://sam.reily.app");
+// or "http://127.0.0.1:18876"; removeItem(...) to go back to the backend
+```
+
+Then only `PropagateAnnotation` comes here (without credentials); every other RPC stays on the
+backend. The propagation panel then offers 向后 / 向前 / 双向 and a checkbox per seeded instance.
+Only the recording passed as `--mcap` can propagate.
 
 Measured on an M4 Max: 30 head_rgbd frames (1280×720, 1 s) in 9–10 s.
 
