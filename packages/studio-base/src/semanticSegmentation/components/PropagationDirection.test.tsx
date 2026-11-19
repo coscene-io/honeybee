@@ -14,7 +14,7 @@ import { createMuiTheme } from "@foxglove/theme";
 import { createSeedDocument, setMockControls } from "../mockService";
 import { createSegmentationRuntime, segmentationSession } from "../runtime";
 import { frameInstanceKey, propagationTargets } from "../service";
-import type { PropagationRequest, SegmentationDocument } from "../types";
+import type { SegmentationDocument } from "../types";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
 
 const theme = createMuiTheme("light", "en");

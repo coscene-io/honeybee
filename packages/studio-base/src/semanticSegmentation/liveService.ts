@@ -13,9 +13,10 @@ import type {
   FrameSchema,
   FrameSnapshotSchema,
 } from "@foxglove/studio-base/services/api/spatial-annotation/generated/coscene/dataplatform/v1alpha3/resources/annotation_pb";
-import type {
-  AnnotationService,
-  ListTimelineRangesResponse_TimelineRange as WireTimelineRange,
+import {
+  PropagateAnnotationRequest_PropagateAnnotation_Direction as PropagationDirection,
+  type AnnotationService,
+  type ListTimelineRangesResponse_TimelineRange as WireTimelineRange,
 } from "@foxglove/studio-base/services/api/spatial-annotation/generated/coscene/dataplatform/v1alpha3/services/annotation_pb";
 
 import { ANNOTATION_WINDOW_SEC } from "./annotationFrames";
@@ -721,8 +722,8 @@ export function createLiveAnnotationService(options: {
     getPropagationCapabilities: async () =>
       await Promise.resolve({
         models: [...models],
-        // The published contract is forward-only; the local sidecar also goes backward.
-        ...(options.propagationClient ? { backward: true } : {}),
+        // The contract's `direction` (cosceneapis 66758a9) and the local sidecar both go backward.
+        backward: true,
       }),
     segmentFrame: async (request, signal) => {
       try {
@@ -940,7 +941,7 @@ export function createLiveAnnotationService(options: {
       const index = indexOf(source.videoId);
       const seedMicros = index.frameTimeOf(source.id);
       const endMicros = truncateToMicros(request.endTimeNs);
-      // Earlier than the seed propagates backward: only the local sidecar serves it so far.
+      // Earlier than the seed propagates backward (`direction: BACKWARD`).
       if (endMicros === seedMicros) {
         throw new Error("End time must differ from the seed frame");
       }
@@ -963,6 +964,9 @@ export function createLiveAnnotationService(options: {
             seeds: wireSeeds,
             endTime: microsToTimestamp(endMicros),
             model: request.model ?? models[0]!,
+            // The sidecar also infers it from end_time; the backend requires it explicitly.
+            direction:
+              endMicros < seedMicros ? PropagationDirection.BACKWARD : PropagationDirection.FORWARD,
           },
         },
         { signal },

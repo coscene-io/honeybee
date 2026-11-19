@@ -17,6 +17,7 @@ import {
   AnnotationService,
   type ListFramesRequest,
   type PropagateAnnotationRequest,
+  PropagateAnnotationRequest_PropagateAnnotation_Direction as PropagationDirection,
   type SaveAnnotationRequest,
 } from "@foxglove/studio-base/services/api/spatial-annotation/generated/coscene/dataplatform/v1alpha3/services/annotation_pb";
 
@@ -787,9 +788,31 @@ describe("live annotation service", () => {
     ]);
   });
 
-  it("is forward-only against the backend", async () => {
-    const { service } = setup();
-    expect((await service.getPropagationCapabilities!()).backward).toBeUndefined();
+  it("sends the propagation direction the backend requires", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    await service.loadDocument();
+    await service.loadFrameWindow("video", 0, 5);
+    expect((await service.getPropagationCapabilities!()).backward).toBe(true);
+    const requests: PropagateAnnotationRequest[] = [];
+    server.propagate = async function* (request) {
+      requests.push(request);
+      yield { event: { case: "done", value: { processedFrames: 0n, totalFrames: 0n } } };
+    };
+    for (const end of [LOG_TIMES[0]!, LOG_TIMES[3]!]) {
+      const results: PropagationResult[] = [];
+      for await (const result of service.propagate(
+        { instanceId: OTHER_ID, fromFrameId: document.frames[1]!.id, endTimeNs: end.toString() },
+        new AbortController().signal,
+      )) {
+        results.push(result);
+      }
+      expect(results).toEqual([]);
+    }
+    expect(requests.map((request) => request.propagation!.direction)).toEqual([
+      PropagationDirection.BACKWARD,
+      PropagationDirection.FORWARD,
+    ]);
   });
 
   it("fails a stream that ends without done or reports an error event", async () => {
