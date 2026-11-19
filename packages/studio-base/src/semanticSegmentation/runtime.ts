@@ -135,10 +135,17 @@ export function createSegmentationRuntime(
   const detachFollow = store.subscribe((state, previous) => {
     const running = state.propagation.status === "running";
     const justEnded = previous.propagation.status === "running" && !running;
-    if ((!running && !justEnded) || state.currentFrameId === previous.currentFrameId) {
-      if (justEnded && followTimer == undefined) {
-        followPropagation();
+    if (justEnded) {
+      // Seek to the last result now. A throttled seek still waiting would fire after the
+      // unlocked image panel has already pulled the current frame back to the picture it shows,
+      // so a run whose results arrive in one burst would end a frame from its seed.
+      if (followTimer != undefined) {
+        clearTimeout(followTimer);
       }
+      followPropagation();
+      return;
+    }
+    if (!running || state.currentFrameId === previous.currentFrameId) {
       return;
     }
     if (followTimer != undefined) {

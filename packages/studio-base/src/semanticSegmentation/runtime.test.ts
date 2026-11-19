@@ -9,7 +9,7 @@
 
 import { polygonsOf } from "./maskGeometry";
 import { createSeedDocument, setMockControls } from "./mockService";
-import { createSegmentationRuntime } from "./runtime";
+import { createSegmentationRuntime, segmentationSession } from "./runtime";
 import { frameInstanceKey } from "./service";
 
 it("persists committed actual-source identities across reload and isolates a different source", async () => {
@@ -156,3 +156,34 @@ it("retries a failed initial read and continues in memory when the localStorage 
     Object.defineProperty(window, "localStorage", descriptor);
   }
 });
+
+it.each(["forward", "backward"] as const)(
+  "seeks to the last %s result as soon as a burst of results ends",
+  async (direction) => {
+    const document = createSeedDocument();
+    const runtime = createSegmentationRuntime(document);
+    setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
+    await runtime.initialize();
+    const seek = jest.fn();
+    segmentationSession.setState({ seek });
+    try {
+      const { store } = runtime;
+      store.getState().setCurrentFrame("frame-20");
+      const frames = store.getState().document!.frames;
+      const last = direction === "forward" ? "frame-25" : "frame-15";
+      await store.getState().startPropagation({
+        instanceId: "instance-1",
+        fromFrameId: "frame-20",
+        endTimeNs: frames.find((frame) => frame.id === last)!.logTimeNs,
+      });
+      expect(store.getState().propagation.status).toBe("completed");
+      // No timer has run: the final seek must not wait for the one-per-second throttle.
+      expect(seek).toHaveBeenLastCalledWith(
+        BigInt(frames.find((frame) => frame.id === last)!.logTimeNs),
+      );
+    } finally {
+      segmentationSession.setState({ seek: undefined });
+      runtime.dispose();
+    }
+  },
+);
