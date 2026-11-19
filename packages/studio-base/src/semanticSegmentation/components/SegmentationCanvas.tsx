@@ -65,10 +65,15 @@ import {
   translatePolygon,
 } from "./editorGeometry";
 import { maskOverlayControls } from "../maskOverlay/overlaySource";
-import { quickSegment, type QuickPoint, type QuickSegmentResult } from "../quickSegment";
+import type { QuickPoint } from "../quickSegment";
 import { segmentationSession, type DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
-import type { CreationTool, MaskConversionLoss, SemanticSegmentationStore } from "../types";
+import type {
+  CreationTool,
+  MaskConversionLoss,
+  SegmentationMask,
+  SemanticSegmentationStore,
+} from "../types";
 import type { EditorPoint } from "./editorGeometry";
 import { useEditorText } from "./editorMessages";
 import { beginPolygonEdit, findPolygonOwner, focusContains } from "./polygonEdit";
@@ -396,7 +401,16 @@ export function SegmentationCanvas({
   const [draft, setDraft] = useState<EditorPoint[]>([]);
   const [quickPoints, setQuickPoints] = useState<QuickPoint[]>([]);
   const [quickResult, setQuickResult] = useState<
-    (QuickSegmentResult & { url: string; x0: number; y0: number; w: number; h: number }) | undefined
+    | {
+        mask: SegmentationMask;
+        score: number;
+        url: string;
+        x0: number;
+        y0: number;
+        w: number;
+        h: number;
+      }
+    | undefined
   >();
   const [quickBusy, setQuickBusy] = useState(false);
   const quickRequest = useRef<AbortController | undefined>(undefined);
@@ -573,15 +587,29 @@ export function SegmentationCanvas({
     const controller = new AbortController();
     quickRequest.current = controller;
     setQuickBusy(true);
-    void quickSegment(
-      { topic: video.topic, logTimeNs: frame.logTimeNs, width, height, imageUrl: source, points },
-      controller.signal,
-    )
+    void store
+      .getState()
+      .segmentFrame(
+        { topic: video.topic, logTimeNs: frame.logTimeNs, width, height, imageUrl: source, points },
+        controller.signal,
+      )
       .then((result) => {
         if (controller.signal.aborted) {
           return;
         }
-        const bitmap = bitmapOfRuns(runsOfMask(result.mask));
+        if (result.mask == undefined) {
+          // The contract: no foreground selected, keep the previous result.
+          setNotice(
+            text(
+              "These points select nothing; the previous mask is kept.",
+              "这些点没有选中任何区域，保留上一次的结果。",
+            ),
+          );
+          setError(undefined);
+          return;
+        }
+        const mask = result.mask;
+        const bitmap = bitmapOfRuns(runsOfMask(mask));
         const canvas = window.document.createElement("canvas");
         canvas.width = Math.max(bitmap.w, 1);
         canvas.height = Math.max(bitmap.h, 1);
@@ -595,7 +623,7 @@ export function SegmentationCanvas({
           }
           context.putImageData(pixels, 0, 0);
         }
-        setQuickResult({ ...result, url: canvas.toDataURL(), ...bitmap });
+        setQuickResult({ mask, score: result.score, url: canvas.toDataURL(), ...bitmap });
         setError(undefined);
       })
       .catch((err: unknown) => {

@@ -6,75 +6,100 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { QUICK_SEGMENT_URL, quickSegment } from "./quickSegment";
+import { quickSegment } from "./quickSegment";
 
-type Sent = { frameToken: string; hasImage: boolean };
+const RECORD = "warehouses/w/projects/p/records/r";
 
-/** The parts of a fetch Response that quickSegment reads (jsdom has no Response). */
-type FakeResponse = { ok: boolean; status: number; json: () => Promise<unknown> };
-function respond(status: number, body: string | undefined): FakeResponse {
-  return { ok: status >= 200 && status < 300, status, json: async () => JSON.parse(body ?? "") };
-}
+type Response = {
+  mask?: { counts: string };
+  score: number;
+  width: number;
+  height: number;
+};
 
-function setup(responses: (() => FakeResponse)[]) {
-  const sent: Sent[] = [];
+function setup(response: Response, frame = { width: 4, height: 2 }) {
   Object.assign(globalThis, {
-    createImageBitmap: jest.fn(async () => ({ width: 4, height: 2, close: () => undefined })),
+    createImageBitmap: jest.fn(async () => ({ ...frame, close: () => undefined })),
     OffscreenCanvas: class {
       public getContext() {
         return { drawImage: () => undefined };
       }
       public async convertToBlob() {
-        return new Blob(["jpeg"]);
+        // jsdom Blobs have no arrayBuffer(); browsers do.
+        return { arrayBuffer: async () => new TextEncoder().encode("jpeg").buffer };
       }
     },
-    fetch: jest.fn(async (url: string, init?: RequestInit) => {
-      if (url !== `${QUICK_SEGMENT_URL}/segment`) {
-        return { blob: async () => new Blob(["frame"]) };
-      }
-      const form = init!.body as FormData;
-      const request = JSON.parse(form.get("request") as string) as { frameToken: string };
-      sent.push({ frameToken: request.frameToken, hasImage: form.get("image") != undefined });
-      return responses.shift()!();
-    }),
+    fetch: jest.fn(async () => ({ blob: async () => new Blob(["frame"]) })),
   });
-  return sent;
+  const segmentFrame = jest.fn(async () => response);
+  return {
+    segmentFrame,
+    client: { segmentFrame } as unknown as Parameters<typeof quickSegment>[0],
+  };
 }
 
-const ok = () => respond(200, JSON.stringify({ counts: "08", width: 4, height: 2, score: 0.9 }));
-const request = (imageUrl: string) => ({
+const request = {
   topic: "/camera",
+  // 1000.000123456 s: the wire time truncates to 1000.000123 s.
   logTimeNs: "1000000123456",
   width: 4,
   height: 2,
-  imageUrl,
-  points: [{ x: 0.5, y: 0.5, positive: true }],
-});
+  imageUrl: "blob:frame",
+  points: [
+    { x: 0.5, y: 0.5, positive: true },
+    { x: 1, y: 0, positive: false },
+  ],
+};
 
-it("uploads a frame once under a random token and reuses it for further clicks on that frame", async () => {
-  const sent = setup([ok, ok, ok]);
-  await quickSegment(request("blob:a"));
-  await quickSegment(request("blob:a"));
-  // The same topic and time on another displayed image (e.g. another recording) uploads again.
-  await quickSegment(request("blob:b"));
-  expect(sent.map((item) => item.hasImage)).toEqual([true, false, true]);
-  expect(sent[1]!.frameToken).toBe(sent[0]!.frameToken);
-  expect(sent[2]!.frameToken).not.toBe(sent[0]!.frameToken);
-});
-
-it("uploads again when the server no longer holds the cached frame", async () => {
-  const sent = setup([
-    ok,
-    () => respond(400, JSON.stringify({ error: "Upload the displayed frame" })),
-    ok,
+it("sends the displayed frame and every point in source pixels to SegmentFrame", async () => {
+  const { client, segmentFrame } = setup({
+    mask: { counts: "152" },
+    score: 0.9,
+    width: 4,
+    height: 2,
+  });
+  const signal = new AbortController().signal;
+  const result = await quickSegment(client, RECORD, request, signal);
+  expect(result).toEqual({ mask: { counts: "152", width: 4, height: 2 }, score: 0.9 });
+  const [sent, options] = segmentFrame.mock.calls[0] as unknown as [
+    {
+      record: string;
+      topic: string;
+      frameTime: { seconds: bigint; nanos: number };
+      image: Uint8Array;
+      points: { x: number; y: number; negative: boolean }[];
+    },
+    { signal?: AbortSignal },
+  ];
+  expect(sent.record).toBe(RECORD);
+  expect(sent.topic).toBe("/camera");
+  expect(sent.frameTime).toEqual({ seconds: 1000n, nanos: 123000 });
+  expect(new TextDecoder().decode(sent.image)).toBe("jpeg");
+  expect(sent.points).toEqual([
+    { x: 2, y: 1, negative: false },
+    { x: 4, y: 0, negative: true },
   ]);
-  await quickSegment(request("blob:c"));
-  await quickSegment(request("blob:c"));
-  expect(sent.map((item) => item.hasImage)).toEqual([true, false, true]);
-  expect(sent[2]!.frameToken).not.toBe(sent[0]!.frameToken);
+  expect(options.signal).toBe(signal);
 });
 
-it("reports the HTTP status when a proxy answers with a page instead of JSON", async () => {
-  setup([() => respond(502, "<html>Bad gateway</html>")]);
-  await expect(quickSegment(request("blob:d"))).rejects.toThrow("HTTP 502");
+it("reports no foreground as an unset mask", async () => {
+  const { client } = setup({ score: 0, width: 4, height: 2 });
+  await expect(quickSegment(client, RECORD, request)).resolves.toEqual({
+    mask: undefined,
+    score: 0,
+  });
+});
+
+it("rejects a displayed frame whose size differs from the source", async () => {
+  const { client, segmentFrame } = setup(
+    { score: 0, width: 4, height: 2 },
+    { width: 2, height: 1 },
+  );
+  await expect(quickSegment(client, RECORD, request)).rejects.toThrow("2×1");
+  expect(segmentFrame).not.toHaveBeenCalled();
+});
+
+it("rejects a mask the server computed at another size", async () => {
+  const { client } = setup({ mask: { counts: "8" }, score: 1, width: 8, height: 1 });
+  await expect(quickSegment(client, RECORD, request)).rejects.toThrow("8×1");
 });

@@ -1572,6 +1572,12 @@ export function createSemanticSegmentationStore(
           requestStop(propagationSession);
         }
       },
+      async segmentFrame(request, signal) {
+        if (!service.segmentFrame) {
+          throw new Error("快速标注需要打开云端记录");
+        }
+        return await service.segmentFrame(request, signal);
+      },
       addMomentReference(momentId, targetType, targetId) {
         const exists =
           targetType === "class"

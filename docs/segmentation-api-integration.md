@@ -59,7 +59,9 @@
 
 `PropagateAnnotation` 走 gRPC-Web 服务端流：`ready` 忽略；每个 `frame` 对每个已选实例产出一条结果（服务端没返回的实例记为清除）；`error` 抛出 `传播失败（gRPC code）：message`；`done` 正常结束；没收到 `done` 就断开时报错，已收到的帧保留为草稿。停止就是中止 RPC。模型列表是 `LIVE_PROPAGATION_MODELS`（目前只有后端支持的 `sam2.1-motion`）。
 
-快速标注（点击生成 mask）的接口还没进契约（cosceneapis #870），暂时调用固定的 SAM2 服务，见 `semanticSegmentation/quickSegment.ts` 和 `tools/seg-quick-annotation/`。
+## 快速标注
+
+快速标注（点击生成 mask）调用 `SegmentFrame`（cosceneapis #870）：每次点击把当前显示帧按源图尺寸编码成 JPEG，连同该对象目前全部点（源图像素坐标、`negative` 标记背景点）和微秒截断的 `frame_time` 一起发送。服务端无会话，所以每次都上传图像。返回的 mask 未设置表示这些点没有选中前景，编辑器保留上一次结果并提示。结果只是草稿，按 Enter 后跟其他编辑一样经 `SaveAnnotation` 保存。没有云端 record 的会话（本地文件）不能快速标注。见 `semanticSegmentation/quickSegment.ts`。
 
 ## 生成代码
 

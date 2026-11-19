@@ -30,6 +30,7 @@ import {
 import { maskRunsFromCounts } from "./maskCodec";
 import { maskObservation, observationHasGeometry, polygonObservation } from "./maskGeometry";
 import { describeViolation, polygonViolation } from "./polygonContract";
+import { quickSegment } from "./quickSegment";
 import {
   applySegmentationPatches,
   cloneSegmentation,
@@ -723,6 +724,13 @@ export function createLiveAnnotationService(options: {
         // The published contract is forward-only; the local sidecar also goes backward.
         ...(options.propagationClient ? { backward: true } : {}),
       }),
+    segmentFrame: async (request, signal) => {
+      try {
+        return await quickSegment(client, recordName, request, signal);
+      } catch (error) {
+        throw new Error(`快速标注失败：${describeRpcError(error)}`);
+      }
+    },
     // Cancelling the RPC (the abort signal passed to `propagate`) is the STOP; there is no task to ack.
     cancelPropagation: async (context) =>
       await Promise.resolve({ requestId: context.requestId, status: "cancelled" as const }),
