@@ -11,6 +11,11 @@ import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { ProjectSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { RecordSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import {
+  CustomFieldSchemaSchema,
+  CustomFieldValueSchema,
+  PropertySchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
@@ -33,6 +38,7 @@ import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api/moment-custom-field/types";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
@@ -61,6 +67,7 @@ type DeleteFile = (args: { name: string }) => Promise<unknown>;
 const selectDialogs = (store: DialogsStore) => store.dialogs;
 const DELETE_CONFIRM_PROMPT =
   "After deletion, moments cannot be restored. Please proceed with caution.";
+const FILTER_PROJECT = "warehouses/warehouse/projects/project";
 
 function TestDialogs(): React.JSX.Element {
   const dialogs = useDialogs(selectDialogs);
@@ -123,12 +130,23 @@ function SeedCoreData({
   return ReactNull;
 }
 
-function SeedEvents({ events }: { events: TimelinePositionedEvent[] }): ReactNull {
+function SeedEvents({
+  events,
+  schema,
+}: {
+  events: TimelinePositionedEvent[];
+  schema?: MomentCustomFieldSchema;
+}): ReactNull {
   const setEvents = useEvents((store: EventsStore) => store.setEvents);
+  const setSchema = useEvents((store: EventsStore) => store.setCustomFieldSchema);
 
   useEffect(() => {
     setEvents({ loading: false, value: events });
   }, [events, setEvents]);
+
+  useEffect(() => {
+    setSchema(schema, FILTER_PROJECT);
+  }, [schema, setSchema]);
 
   return ReactNull;
 }
@@ -182,6 +200,7 @@ function Wrapper({
   consoleApi,
   view = "sidebar",
   events,
+  schema,
   projectArchived,
   recordArchived,
   seekPlayback,
@@ -190,6 +209,7 @@ function Wrapper({
   consoleApi: React.ContextType<typeof CoSceneConsoleApiContext>;
   view?: "sidebar" | "moments";
   events: TimelinePositionedEvent[];
+  schema?: MomentCustomFieldSchema;
   projectArchived?: boolean;
   recordArchived?: boolean;
   seekPlayback?: (time: { sec: number; nsec: number }) => void;
@@ -214,7 +234,7 @@ function Wrapper({
                         projectArchived={projectArchived}
                         recordArchived={recordArchived}
                       />
-                      <SeedEvents events={events} />
+                      <SeedEvents events={events} schema={schema} />
                       <EventFetchCountProbe />
                       <EventToModifyProbe />
                       <HoverProbe />
@@ -250,6 +270,66 @@ function makeConsoleApi({
     updateEvent: Object.assign(jest.fn(), { permission: () => true }),
   } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
 }
+
+it("applies and clears a project custom field filter without refreshing the events", async () => {
+  const property = create(PropertySchema, {
+    id: "issue",
+    name: "Issue category",
+    description: "Enter issue category",
+    type: { case: "text", value: {} },
+  });
+  const schema = create(CustomFieldSchemaSchema, { properties: [property] });
+  const first = makeEvent({ name: `${FILTER_PROJECT}/events/first`, startSec: 1 });
+  first.event.displayName = "First Moment";
+  first.event.customFieldValues = [
+    create(CustomFieldValueSchema, {
+      property,
+      value: { case: "text", value: { value: "Emergency brake" } },
+    }),
+  ];
+  const second = makeEvent({ name: `${FILTER_PROJECT}/events/second`, startSec: 2 });
+  second.event.displayName = "Second Moment";
+  const otherProject = makeEvent({
+    name: "warehouses/warehouse/projects/other/events/third",
+    startSec: 3,
+  });
+  otherProject.event.displayName = "Other project Moment";
+  otherProject.event.customFieldValues = first.event.customFieldValues;
+  render(
+    <Wrapper
+      events={[first, second, otherProject]}
+      consoleApi={makeConsoleApi()}
+      schema={schema}
+    />,
+  );
+  const openFilters = () => {
+    fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Filter by custom fields" }));
+    return within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  };
+
+  let dialog = openFilters();
+  fireEvent.change(dialog.getByPlaceholderText("Enter issue category"), {
+    target: { value: "BRAKE" },
+  });
+  expect(screen.queryByText("Second Moment")).not.toBeNull();
+  fireEvent.click(dialog.getByRole("button", { name: "Apply" }));
+
+  await waitFor(() => {
+    expect(screen.queryByText("First Moment")).not.toBeNull();
+    expect(screen.queryByText("Second Moment")).toBeNull();
+    expect(screen.queryByText("Other project Moment")).toBeNull();
+  });
+
+  dialog = openFilters();
+  fireEvent.click(dialog.getByRole("button", { name: "Clear filters" }));
+  fireEvent.click(dialog.getByRole("button", { name: "Apply" }));
+  await waitFor(() => {
+    expect(screen.queryByText("Second Moment")).not.toBeNull();
+    expect(screen.queryByText("Other project Moment")).not.toBeNull();
+  });
+  expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
+});
 
 it("filters doubtful display with keyword AND semantics while Delete All retains the complete collection", async () => {
   const first = makeEvent({ name: "Doubtful target", startSec: 1 });

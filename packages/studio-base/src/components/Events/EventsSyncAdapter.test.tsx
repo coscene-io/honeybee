@@ -115,6 +115,7 @@ function makeEventsStore({
     toModifyEvent: undefined,
     customFieldSchema: undefined,
     customFieldSchemaProjectName: undefined,
+    setCustomFieldFilters: jest.fn(),
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
