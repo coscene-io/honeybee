@@ -38,7 +38,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { IAppTimeFormat } from "@foxglove/studio-base/hooks/useAppTimeFormat";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import {
-  formatDate,
+  format,
   formatTime,
   formatSourceTime,
   getValidatedTimeAndMethodFromString,
@@ -60,6 +60,8 @@ type PlaybackTimeDisplayMethodProps = {
   onPause: () => void;
   isPlaying: boolean;
 };
+
+type InputError = { kind: "format" } | { kind: "range"; method: TimeDisplayMethod };
 
 const useStyles = makeStyles<{
   timeDisplayMethod: TimeDisplayMethod;
@@ -239,21 +241,17 @@ export function UnconnectedPlaybackTimeDisplay({
   onPause,
   isPlaying,
 }: PlaybackTimeDisplayMethodProps): React.JSX.Element {
-  const { t } = useTranslation("general");
+  const { t } = useTranslation(["general", "appSettings"]);
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const editingRef = useRef(false);
   const originalInputRef = useRef<string>(undefined);
-  const timeOutID = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const timeRawString = useMemo(
     () => (currentTime ? formatTimeRaw(currentTime) : undefined),
     [currentTime],
   );
   const timeOfDayString = useMemo(
-    () =>
-      currentTime
-        ? `${formatDate(currentTime, timezone)} ${formatTime(currentTime, timezone)}`
-        : undefined,
+    () => (currentTime ? format(currentTime, timezone) : undefined),
     [currentTime, timezone],
   );
   const relativeTimeString = useMemo(
@@ -278,7 +276,37 @@ export function UnconnectedPlaybackTimeDisplay({
         : timeOfDayString;
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [inputText, setInputText] = useState<string | undefined>(currentTimeString ?? undefined);
-  const [hasError, setHasError] = useState<boolean>(false);
+  const [inputError, setInputError] = useState<InputError>();
+  const hasError = inputError != undefined;
+
+  let errorMessage: string | undefined;
+  if (inputError?.kind === "format") {
+    errorMessage = t(
+      appTimeFormat.timeFormat === "REL"
+        ? "playbackTimeInvalidRelativeFormat"
+        : "playbackTimeInvalidAbsoluteFormat",
+    );
+  } else if (inputError?.kind === "range" && startTime && endTime) {
+    if (inputError.method === "REL") {
+      errorMessage = t("playbackTimeOutOfRange", {
+        start: "0",
+        end: formatTimeRaw(subtract(endTime, startTime)),
+        format: t("relativeTimeSeconds"),
+      });
+    } else {
+      // Only use date/time when both bounds can be entered at millisecond precision.
+      const showDateTime =
+        inputError.method === "TOD" &&
+        startTime.sec > 0 &&
+        startTime.nsec % 1_000_000 === 0 &&
+        endTime.nsec % 1_000_000 === 0;
+      errorMessage = t("playbackTimeOutOfRange", {
+        start: showDateTime ? format(startTime, timezone) : formatTimeRaw(startTime),
+        end: showDateTime ? format(endTime, timezone) : formatTimeRaw(endTime),
+        format: t(showDateTime ? "appSettings:dateTime" : "appSettings:unixTime"),
+      });
+    }
+  }
 
   useLayoutEffect(() => {
     if (isEditing) {
@@ -293,7 +321,6 @@ export function UnconnectedPlaybackTimeDisplay({
     }
     if (inputText === originalInputRef.current || !inputText?.trim()) {
       editingRef.current = false;
-      setHasError(false);
       return true;
     }
     if (!startTime || !endTime) {
@@ -305,12 +332,19 @@ export function UnconnectedPlaybackTimeDisplay({
       timeFormat: appTimeFormat.timeFormat,
       playbackOrigin: startTime,
     });
-    if (!parsed?.time || !isTimeInRangeInclusive(parsed.time, startTime, endTime)) {
-      setHasError(true);
+    if (parsed?.time == undefined) {
+      setInputError({ kind: "format" });
+      return false;
+    }
+    if (
+      parsed.time === "unrepresentable" ||
+      !isTimeInRangeInclusive(parsed.time, startTime, endTime)
+    ) {
+      setInputError({ kind: "range", method: parsed.method });
       return false;
     }
     editingRef.current = false;
-    setHasError(false);
+    setInputError(undefined);
     onSeek(parsed.time);
     if (parsed.method !== appTimeFormat.timeFormat) {
       void appTimeFormat.setTimeFormat(parsed.method);
@@ -332,22 +366,16 @@ export function UnconnectedPlaybackTimeDisplay({
   useEffect(() => {
     editingRef.current = false;
     setIsEditing(false);
-    setHasError(false);
+    setInputError(undefined);
   }, [appTimeFormat.timeFormat, startTime?.sec, startTime?.nsec]);
 
   useEffect(() => {
-    // If user submits an empty input field or resumes playback, clear error state and show current timestamp
-    if (hasError && (inputText == undefined || inputText.length === 0 || isPlaying)) {
+    if (hasError && isPlaying) {
+      editingRef.current = false;
       setIsEditing(false);
-      setHasError(false);
+      setInputError(undefined);
     }
-
-    return () => {
-      if (timeOutID.current != undefined) {
-        clearTimeout(timeOutID.current);
-      }
-    };
-  }, [hasError, inputText, isPlaying]);
+  }, [hasError, isPlaying]);
 
   return (
     <Stack direction="row" alignItems="center" flexGrow={0} gap={0.5}>
@@ -355,11 +383,12 @@ export function UnconnectedPlaybackTimeDisplay({
         <form onSubmit={onSubmit} style={{ width: "100%" }}>
           <Tooltip
             title={
-              !isEditing
+              errorMessage ??
+              (!isEditing
                 ? appTimeFormat.timeFormat === "REL"
                   ? formatSourceTime(currentTime, timezone)
                   : currentTimeString
-                : ""
+                : "")
             }
           >
             <TextField
@@ -382,12 +411,8 @@ export function UnconnectedPlaybackTimeDisplay({
                   return;
                 }
                 onPause();
-                if (timeOutID.current != undefined) {
-                  clearTimeout(timeOutID.current);
-                }
                 editingRef.current = true;
                 originalInputRef.current = currentTimeString;
-                setHasError(false);
                 setIsEditing(true);
                 setInputText(currentTimeString);
               }}
@@ -396,27 +421,26 @@ export function UnconnectedPlaybackTimeDisplay({
                 commitInput();
                 editingRef.current = false;
                 setIsEditing(false);
-                timeOutID.current = setTimeout(() => {
-                  setHasError(false);
-                }, 600);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();
                   event.stopPropagation();
                   editingRef.current = false;
-                  setHasError(false);
+                  setInputError(undefined);
                   setIsEditing(false);
                   inputRef.current?.blur();
                 }
               }}
               onChange={(event) => {
+                setInputError(undefined);
                 setInputText(event.target.value);
               }}
               slotProps={{
                 htmlInput: {
                   "aria-label":
                     appTimeFormat.timeFormat === "REL" ? t("elapsedTime") : t("playbackTime"),
+                  "aria-description": errorMessage,
                 },
                 input: {
                   startAdornment: hasError ? <WarningIcon color="error" /> : undefined,

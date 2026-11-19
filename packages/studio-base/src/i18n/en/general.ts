@@ -108,6 +108,12 @@ export const general = {
   timelineControls: "Timeline controls",
   timelineMoreTools: "More timeline tools",
   playbackTime: "Current playback time",
+  playbackTimeInvalidRelativeFormat:
+    "Invalid time format. Enter a duration like 00:01:23.500 or seconds like 83.5.",
+  playbackTimeInvalidAbsoluteFormat:
+    "Invalid time format. Enter a date and time like 2023-11-14 10:13:20.000 PM UTC or a Unix timestamp in seconds like 1700000000.123456789.",
+  playbackTimeOutOfRange:
+    "Outside the current file’s time range. Enter a value from {{start}} to {{end}} ({{format}}).",
   timeDisplayFormat: "Time display format",
   dataSourceInfo: "Data source info",
   totalDuration: "Total duration",

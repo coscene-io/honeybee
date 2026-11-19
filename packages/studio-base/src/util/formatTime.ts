@@ -87,7 +87,7 @@ export const getValidatedTimeAndMethodFromString = ({
   timezone?: string;
   timeFormat?: TimeDisplayMethod;
   playbackOrigin?: Time;
-}): { time?: Time; method: TimeDisplayMethod } | undefined => {
+}): { time?: Time | "unrepresentable"; method: TimeDisplayMethod } | undefined => {
   if (text == undefined || text === "") {
     return;
   }

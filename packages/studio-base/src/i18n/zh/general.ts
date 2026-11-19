@@ -110,6 +110,12 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   timelineControls: "时间轴控制",
   timelineMoreTools: "更多时间轴工具",
   playbackTime: "当前播放时间",
+  playbackTimeInvalidRelativeFormat:
+    "时间格式不合法。请输入时长（如 00:01:23.500）或秒数（如 83.5）。",
+  playbackTimeInvalidAbsoluteFormat:
+    "时间格式不合法。请输入完整的日期时间（如 2023-11-14 10:13:20.000 PM UTC）或以秒为单位的 Unix 时间戳（如 1700000000.123456789）。",
+  playbackTimeOutOfRange:
+    "超出当前文件的时间范围。请输入 {{start}} 至 {{end}} 之间的时间（{{format}}）。",
   timeDisplayFormat: "时间显示格式",
   dataSourceInfo: "数据源信息",
   totalDuration: "总时长",
