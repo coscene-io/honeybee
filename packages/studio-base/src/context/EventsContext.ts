@@ -25,6 +25,8 @@ export type MomentCreationScope = {
 
 export type MomentCreationDefaults = MomentCreationScope & { values: CustomFieldValue[] };
 
+export type MomentCustomFieldFilters = ReadonlyMap<string, CustomFieldValue["value"]>;
+
 export type ToModifyEvent = {
   name: string;
   /** Timeline projection that opened this editor; absent for list-based editing. */
@@ -123,6 +125,9 @@ export type EventsStore = {
 
   /** Resource name of the project that owns the current schema. */
   customFieldSchemaProjectName?: string;
+
+  customFieldFilters?: MomentCustomFieldFilters;
+  setCustomFieldFilters: (projectName: string, filters: MomentCustomFieldFilters) => void;
 
   lastCreatedMomentDefaults?: MomentCreationDefaults;
   setLastCreatedMomentDefaults: (defaults: MomentCreationDefaults) => void;

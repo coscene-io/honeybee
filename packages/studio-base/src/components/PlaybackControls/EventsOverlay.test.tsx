@@ -136,6 +136,7 @@ function makeEventsStore({
     eventMarks,
     toModifyEvent: undefined,
     customFieldSchema: undefined,
+    setCustomFieldFilters: jest.fn(),
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
