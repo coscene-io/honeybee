@@ -34,13 +34,15 @@ describe("playback-relative time", () => {
   it.each(["00:01:23.500", "83.5", "+00:01:23.500000000"])(
     "restores an absolute timestamp from %s",
     (text) => {
-      expect(toNanoSec(parseRelativeTime(text, origin)!)).toBe(toNanoSec(origin) + 83_500_000_000n);
+      expect(parseRelativeTime(text, origin)).toEqual(
+        fromNanoSec(toNanoSec(origin) + 83_500_000_000n),
+      );
     },
   );
 
   it("preserves nanoseconds at both sides of the origin", () => {
-    expect(toNanoSec(parseRelativeTime("0.000000001", origin)!)).toBe(toNanoSec(origin) + 1n);
-    expect(toNanoSec(parseRelativeTime("-0.000000001", origin)!)).toBe(toNanoSec(origin) - 1n);
+    expect(parseRelativeTime("0.000000001", origin)).toEqual(fromNanoSec(toNanoSec(origin) + 1n));
+    expect(parseRelativeTime("-0.000000001", origin)).toEqual(fromNanoSec(toNanoSec(origin) - 1n));
     expect(parseRelativeTime("00:00:00.000", { sec: 0, nsec: 0 })).toEqual({ sec: 0, nsec: 0 });
   });
 
@@ -54,12 +56,17 @@ describe("playback-relative time", () => {
     "00:00:60",
     "00:00:00.0000000001",
     "1:2:3",
-    "-1700000001",
-    "9999999999999999:00:00",
     "1".repeat(1000),
-  ])("rejects invalid/unsafe offset %s", (text) => {
+  ])("rejects malformed offsets such as %s", (text) => {
     expect(parseRelativeTime(text, origin)).toBeUndefined();
   });
+
+  it.each(["-1700000001", "9999999999999999:00:00"])(
+    "identifies offsets such as %s whose timestamps cannot be represented",
+    (text) => {
+      expect(parseRelativeTime(text, origin)).toBe("unrepresentable");
+    },
+  );
 
   it("requires a real origin and does not mutate source times", () => {
     expect(parseRelativeTime("0", undefined)).toBeUndefined();
