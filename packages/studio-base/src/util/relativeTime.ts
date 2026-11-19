@@ -25,8 +25,11 @@ export function formatRelativeTime(stamp: Time, origin: Time | undefined): strin
     : formatPlaybackDuration(fromNanoSec(toNanoSec(stamp) - toNanoSec(origin)));
 }
 
-/** Parse an offset and restore the original timestamp without epoch-sized float arithmetic. */
-export function parseRelativeTime(text: string, origin: Time | undefined): Time | undefined {
+/** Distinguish an unrepresentable timestamp from a malformed offset. */
+export function parseRelativeTime(
+  text: string,
+  origin: Time | undefined,
+): Time | "unrepresentable" | undefined {
   if (origin == undefined) {
     return undefined;
   }
@@ -44,7 +47,7 @@ export function parseRelativeTime(text: string, origin: Time | undefined): Time 
   const offset = sign * (seconds * 1_000_000_000n + BigInt((fraction ?? "").padEnd(9, "0")));
   const timestamp = toNanoSec(origin) + offset;
   if (timestamp < 0n || timestamp / 1_000_000_000n > BigInt(Number.MAX_SAFE_INTEGER)) {
-    return undefined;
+    return "unrepresentable";
   }
   return fromNanoSec(timestamp);
 }

@@ -35,6 +35,7 @@ const selectIsPlaying = (ctx: MessagePipelineContext) => ctx.playerState.activeD
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
 
 function PlaybackTimeDisplay(props: Props): React.JSX.Element {
   const [timezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
@@ -43,10 +44,12 @@ function PlaybackTimeDisplay(props: Props): React.JSX.Element {
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
+  const playerId = useMessagePipeline(selectPlayerId);
   const appTimeFormat = usePlaybackTimeFormat();
 
   return (
     <UnconnectedPlaybackTimeDisplay
+      key={playerId}
       compact={props.compact}
       appTimeFormat={appTimeFormat}
       currentTime={currentTime}

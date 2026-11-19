@@ -30,6 +30,12 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   timelineControls: "タイムライン操作",
   timelineMoreTools: "その他のタイムラインツール",
   playbackTime: "現在の再生時刻",
+  playbackTimeInvalidRelativeFormat:
+    "時刻の形式が無効です。00:01:23.500 のような経過時間か、83.5 のような秒数を入力してください。",
+  playbackTimeInvalidAbsoluteFormat:
+    "時刻の形式が無効です。2023-11-14 10:13:20.000 PM UTC のような日時か、1700000000.123456789 のような秒単位の Unix タイムスタンプを入力してください。",
+  playbackTimeOutOfRange:
+    "現在のファイルの時間範囲外です。{{start}} から {{end}} までの時刻（{{format}}）を入力してください。",
   timeDisplayFormat: "時刻表示形式",
   dataSourceInfo: "データソース情報",
   totalDuration: "合計時間",

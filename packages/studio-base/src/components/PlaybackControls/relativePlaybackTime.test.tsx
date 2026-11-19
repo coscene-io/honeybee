@@ -151,3 +151,36 @@ it("shows original simulation timestamps in relative-mode tooltips across playba
   expect(await screen.findByRole("tooltip")).toHaveProperty("textContent", "114.728456789");
   expect(screen.queryByText(/1970-/)).toBeNull();
 });
+
+it("clears the previous file's input error when opening a file with the same start time", async () => {
+  await i18n.changeLanguage("en");
+  const config = makeMockAppConfiguration([[AppSetting.TIME_FORMAT, "REL"]]);
+  function renderPlayer(playerId: string): React.JSX.Element {
+    return (
+      <ThemeProvider isDark>
+        <AppConfigurationContext.Provider value={config}>
+          <MockMessagePipelineProvider
+            playerId={playerId}
+            startTime={startTime}
+            currentTime={currentTime}
+            endTime={currentTime}
+          >
+            <PlaybackTimeDisplay onSeek={jest.fn()} onPause={jest.fn()} />
+          </MockMessagePipelineProvider>
+        </AppConfigurationContext.Provider>
+      </ThemeProvider>
+    );
+  }
+
+  const { rerender } = render(renderPlayer("first-file"));
+  const input = screen.getByRole("textbox", { name: "Elapsed time" });
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "100" } });
+  fireEvent.blur(input);
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+
+  rerender(renderPlayer("second-file"));
+  expect(screen.getByRole("textbox", { name: "Elapsed time" }).getAttribute("aria-invalid")).toBe(
+    "false",
+  );
+});

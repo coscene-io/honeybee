@@ -9,8 +9,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 
+import type { Time } from "@foxglove/rostime";
 import type { IAppTimeFormat } from "@foxglove/studio-base/hooks/useAppTimeFormat";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+import type { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatDate, formatTime } from "@foxglove/studio-base/util/formatTime";
 
 import { UnconnectedPlaybackTimeDisplay } from "./UnconnectedPlaybackTimeDisplay";
@@ -62,10 +64,17 @@ describe("UnconnectedPlaybackTimeDisplay", () => {
   });
 });
 
-function renderRelativeDisplay({
+function renderTimeDisplay({
   compact = false,
-  currentNanos = 123_456_789,
-}: { compact?: boolean; currentNanos?: number } = {}) {
+  timeFormat = "REL",
+  startTime = { sec: 1_700_000_000, nsec: 987_654_321 },
+  endTime = { sec: 1_700_000_314, nsec: 987_654_321 },
+}: {
+  compact?: boolean;
+  timeFormat?: TimeDisplayMethod;
+  startTime?: Time;
+  endTime?: Time;
+} = {}) {
   const onSeek = jest.fn();
   const onPause = jest.fn();
   const setTimeFormat = jest.fn().mockResolvedValue(undefined);
@@ -73,11 +82,11 @@ function renderRelativeDisplay({
     <ThemeProvider isDark>
       <UnconnectedPlaybackTimeDisplay
         compact={compact}
-        appTimeFormat={{ timeFormat: "REL", setTimeFormat } as unknown as IAppTimeFormat}
+        appTimeFormat={{ timeFormat, setTimeFormat } as unknown as IAppTimeFormat}
         timezone="UTC"
-        currentTime={{ sec: 1_700_000_005, nsec: currentNanos }}
-        startTime={{ sec: 1_700_000_000, nsec: 987_654_321 }}
-        endTime={{ sec: 1_700_000_314, nsec: 987_654_321 }}
+        currentTime={{ sec: startTime.sec + 5, nsec: 123_456_789 }}
+        startTime={startTime}
+        endTime={endTime}
         onPause={onPause}
         onSeek={onSeek}
         isPlaying={false}
@@ -88,20 +97,26 @@ function renderRelativeDisplay({
     onSeek,
     onPause,
     setTimeFormat,
-    input: screen.getByRole<HTMLInputElement>("textbox", { name: "Elapsed time" }),
+    input: screen.getByRole<HTMLInputElement>("textbox", {
+      name: timeFormat === "REL" ? "Elapsed time" : "Current playback time",
+    }),
   };
 }
 
 describe("relative playback editing", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it.each([false, true])("shows elapsed / total in compact=%s", (compact) => {
-    const { input } = renderRelativeDisplay({ compact });
+    const { input } = renderTimeDisplay({ compact });
     expect(input.value).toBe("00:00:04.135");
     expect(screen.getByTestId("playback-total-duration").textContent).toBe("/ 00:05:14.000");
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
   });
 
   it("seeks to the original absolute time on Enter, with the source's nanosecond origin", () => {
-    const { input, onSeek, setTimeFormat } = renderRelativeDisplay();
+    const { input, onSeek, setTimeFormat } = renderTimeDisplay();
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "00:01:23.500" } });
     fireEvent.submit(input.closest("form")!);
@@ -111,7 +126,7 @@ describe("relative playback editing", () => {
   });
 
   it("commits decimal relative seconds on blur", () => {
-    const { input, onSeek } = renderRelativeDisplay();
+    const { input, onSeek } = renderTimeDisplay();
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "1.000000001" } });
     fireEvent.blur(input);
@@ -119,14 +134,14 @@ describe("relative playback editing", () => {
   });
 
   it("does not seek when an unchanged, millisecond-only display loses focus", () => {
-    const { input, onSeek } = renderRelativeDisplay();
+    const { input, onSeek } = renderTimeDisplay();
     fireEvent.focus(input);
     fireEvent.blur(input);
     expect(onSeek).not.toHaveBeenCalled();
   });
 
   it("cancels edits on Escape", () => {
-    const { input, onSeek } = renderRelativeDisplay();
+    const { input, onSeek } = renderTimeDisplay();
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "20" } });
     fireEvent.keyDown(input, { key: "Escape" });
@@ -138,7 +153,7 @@ describe("relative playback editing", () => {
   it.each(["00:05:14.001", "-0.001", "00:60:00", "abc"])(
     "rejects invalid or outside-range input %s",
     (value) => {
-      const { input, onSeek } = renderRelativeDisplay();
+      const { input, onSeek } = renderTimeDisplay();
       fireEvent.focus(input);
       fireEvent.change(input, { target: { value } });
       fireEvent.submit(input.closest("form")!);
@@ -147,11 +162,60 @@ describe("relative playback editing", () => {
     },
   );
 
+  it("shows supported formats on hover and keeps the reason after an invalid edit blurs", async () => {
+    jest.useFakeTimers();
+    const { input, onSeek } = renderTimeDisplay();
+    const currentTime = input.value;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "00:60:00" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(input.value).toBe("00:60:00");
+    fireEvent.mouseOver(input);
+    expect((await screen.findByRole("tooltip")).textContent).toMatch(
+      /Invalid time format.*00:01:23\.500.*83\.5/,
+    );
+    fireEvent.mouseLeave(screen.getByTestId("PlaybackTime-text"));
+    fireEvent.blur(input);
+    expect(input.value).toBe(currentTime);
+    expect(onSeek).not.toHaveBeenCalled();
+
+    act(() => {
+      jest.advanceTimersByTime(1_000);
+    });
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    fireEvent.mouseOver(input);
+    expect((await screen.findByRole("tooltip")).textContent).toContain("Invalid time format");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "1" } });
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    fireEvent.submit(input.closest("form")!);
+    expect(onSeek).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["-0.000000001", "314.000000002"])(
+    "shows precise range bounds for an out-of-range offset %s submitted on blur",
+    async (value) => {
+      const { input, onSeek } = renderTimeDisplay({
+        startTime: { sec: 0, nsec: 0 },
+        endTime: { sec: 314, nsec: 1 },
+      });
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value } });
+      fireEvent.blur(input);
+      fireEvent.mouseOver(input);
+      const tooltip = await screen.findByRole("tooltip");
+      expect(tooltip.textContent).toContain("Outside the current file’s time range");
+      expect(tooltip.textContent).toContain("0 to 314.000000001");
+      expect(onSeek).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([
     ["0", 1_700_000_000],
     ["314", 1_700_000_314],
   ])("accepts the exact range boundary %s", (value, sec) => {
-    const { input, onSeek } = renderRelativeDisplay();
+    const { input, onSeek } = renderTimeDisplay();
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value } });
     fireEvent.submit(input.closest("form")!);
@@ -159,11 +223,45 @@ describe("relative playback editing", () => {
   });
 
   it("offers named global modes in the dropdown", async () => {
-    const { setTimeFormat } = renderRelativeDisplay();
+    const { setTimeFormat } = renderTimeDisplay();
     fireEvent.click(screen.getByRole("button", { name: "Time display format" }));
     await act(async () => {
       fireEvent.click(screen.getByRole("menuitem", { name: /Unix timestamp/ }));
     });
     expect(setTimeFormat).toHaveBeenCalledWith("SEC");
+  });
+});
+
+describe("absolute playback input tooltips", () => {
+  it("shows date and Unix examples for an unparseable absolute time", async () => {
+    const { input, onSeek } = renderTimeDisplay({ timeFormat: "SEC" });
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "abc" } });
+    fireEvent.blur(input);
+    fireEvent.mouseOver(input);
+    expect((await screen.findByRole("tooltip")).textContent).toMatch(
+      /Invalid time format.*2023-11-14 10:13:20\.000 PM UTC.*1700000000\.123456789/,
+    );
+    expect(onSeek).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [123_000_000, "2023-11-14 10:13:20.123 PM UTC to 2023-11-14 10:18:34.000 PM UTC"],
+    [123_456_789, "1700000000.123456789 to 1700000314.000000000"],
+  ])("shows exact absolute range bounds with a start fraction of %s ns", async (nsec, range) => {
+    const { input, onSeek, setTimeFormat } = renderTimeDisplay({
+      timeFormat: "TOD",
+      startTime: { sec: 1_700_000_000, nsec },
+      endTime: { sec: 1_700_000_314, nsec: 0 },
+    });
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "2023-11-14 10:13:20.000 PM UTC" } });
+    fireEvent.blur(input);
+    fireEvent.mouseOver(input);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip.textContent).toContain("Outside the current file’s time range");
+    expect(tooltip.textContent).toContain(range);
+    expect(onSeek).not.toHaveBeenCalled();
+    expect(setTimeFormat).not.toHaveBeenCalled();
   });
 });
