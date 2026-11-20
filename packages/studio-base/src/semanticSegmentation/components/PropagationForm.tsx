@@ -5,7 +5,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Divider,
+  MenuItem,
+  Select,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 import { useEffect, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
@@ -28,6 +40,50 @@ const DIRECTION_LABELS: Record<PropagationDirection, string> = {
   both: "双向",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  running: "传播中",
+  stopping: "正在停止",
+  completed: "已完成",
+  cancelled: "已停止",
+  failed: "失败",
+};
+
+const useStyles = makeStyles()((theme) => ({
+  root: { display: "flex", flexDirection: "column", gap: theme.spacing(1.5) },
+  alert: { paddingTop: 0, paddingBottom: 0 },
+  header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 },
+  fieldLabel: {
+    display: "block",
+    marginBottom: theme.spacing(0.5),
+    color: theme.palette.text.secondary,
+    fontWeight: 600,
+  },
+  instances: {
+    maxHeight: 176,
+    overflowY: "auto",
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: theme.shape.borderRadius,
+    padding: theme.spacing(0.25, 0),
+  },
+  instance: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(0.75),
+    minHeight: 30,
+    padding: theme.spacing(0, 1, 0, 0.25),
+    cursor: "pointer",
+    "&:hover": { backgroundColor: theme.palette.action.hover },
+  },
+  checkbox: { padding: theme.spacing(0.5) },
+  dot: { width: 10, height: 10, flexShrink: 0, borderRadius: 2 },
+  instanceName: { flex: 1, minWidth: 0 },
+  toggle: {
+    textTransform: "none",
+    padding: theme.spacing(0.25, 1),
+    fontSize: theme.typography.body2.fontSize,
+  },
+}));
+
 /**
  * One-click propagation for one canvas: the checked seeded instances on the canvas's current
  * frame go forward, backward (when the service supports it) or both from that frame for the
@@ -45,6 +101,7 @@ export function PropagationForm({
   /** Called once the run starts: progress and STOP then live in the global lock bar. */
   onStarted?: () => void;
 }): React.JSX.Element {
+  const { classes } = useStyles();
   const state = useStore(store);
   const [rangeSec, setRangeSec] = useState<number>(DEFAULT_RANGE_SEC);
   const [model, setModel] = useState("sam2.1-motion");
@@ -89,8 +146,30 @@ export function PropagationForm({
   const seeds = allSeeds.filter((seed) => chosen.has(seed.instanceId));
   const firstSeed = seeds[0];
   const hasSeed = seeds.length > 0;
-  const instanceName = (id: string) =>
-    document?.instances.find((instance) => instance.id === id)?.name ?? id;
+  /** Class color and name plus instance name, as the instance tree shows them. */
+  const instanceLabel = (id: string) => {
+    const instance = document?.instances.find((item) => item.id === id);
+    const category = document?.classes.find((item) => item.id === instance?.classId);
+    return {
+      color: category?.color ?? "transparent",
+      className: category?.name,
+      name: instance?.name ?? id,
+    };
+  };
+  const toggleInstance = (id: string, change: "check" | "uncheck") => {
+    const next = new Set(chosen);
+    if (change === "check") {
+      next.add(id);
+    } else {
+      next.delete(id);
+    }
+    setChecked(allSeeds.map((item) => item.instanceId).filter((item) => next.has(item)));
+  };
+  const polygonCount = seeds.reduce(
+    (count, seed) => count + (seed.kind === "polygons" ? seed.polygons.length : 0),
+    0,
+  );
+  const maskCount = seeds.filter((seed) => seed.kind === "mask").length;
   const running = ["running", "stopping"].includes(state.propagation.status);
 
   /** Frames of the seed's video within the range on one side of the seed, in time order. */
@@ -175,142 +254,199 @@ export function PropagationForm({
   };
 
   return (
-    <section className="seg-section" aria-label="传播参数">
-      <h2>⇢ 实例传播</h2>
+    <section className={classes.root} aria-label="传播参数">
+      <div className={classes.header}>
+        <Typography variant="subtitle2" component="h2">
+          实例传播
+        </Typography>
+        {frame && (
+          <Typography variant="caption" color="text.secondary" aria-label="有效传播范围">
+            源帧 {frame.index + 1} · {DIRECTION_LABELS[effectiveDirection]}
+          </Typography>
+        )}
+      </div>
       {localError && (
-        <div role="alert" className="seg-status seg-error">
+        <Alert severity="error" variant="outlined" className={classes.alert}>
           {localError}
-        </div>
+        </Alert>
       )}
-      <p className="seg-muted">
-        {hasSeed
-          ? `${seeds.length} 个实例 · ${seeds.reduce((count, seed) => count + (seed.kind === "polygons" ? seed.polygons.length : 0), 0)} 个多边形${seeds.some((seed) => seed.kind === "mask") ? ` · ${seeds.filter((seed) => seed.kind === "mask").length} 个 mask` : ""}`
-          : "当前帧没有可传播的实例"}
-      </p>
-      {state.propagationCapabilitiesLoading === true && <p role="status">正在读取模型传播能力…</p>}
+      {state.propagationCapabilitiesLoading === true && (
+        <Typography variant="caption" color="text.secondary" role="status">
+          正在读取模型传播能力…
+        </Typography>
+      )}
       {state.propagationCapabilitiesError && (
-        <>
-          <p role="alert">传播能力读取失败：{state.propagationCapabilitiesError}</p>
-          <button
-            type="button"
-            disabled={state.propagationCapabilitiesLoading}
-            onClick={() => {
-              void state.refreshPropagationCapabilities();
-            }}
-          >
-            重试模型能力
-          </button>
-        </>
-      )}
-      {allSeeds.length > 1 && (
-        <fieldset className="seg-section" aria-label="传播实例">
-          <legend>传播哪些实例</legend>
-          {allSeeds.map((seed) => (
-            <label key={seed.instanceId} className="seg-row">
-              <input
-                type="checkbox"
-                checked={chosen.has(seed.instanceId)}
-                onChange={(event) => {
-                  const next = new Set(chosen);
-                  if (event.target.checked) {
-                    next.add(seed.instanceId);
-                  } else {
-                    next.delete(seed.instanceId);
-                  }
-                  setChecked(allSeeds.map((item) => item.instanceId).filter((id) => next.has(id)));
-                }}
-              />
-              {instanceName(seed.instanceId)}
-              {seed.kind === "mask" ? " · mask" : ` · ${seed.polygons.length} 个多边形`}
-            </label>
-          ))}
-        </fieldset>
-      )}
-      {backwardSupported && (
-        <div className="seg-row" role="radiogroup" aria-label="传播方向">
-          {(Object.keys(DIRECTION_LABELS) as PropagationDirection[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={direction === value}
-              className={direction === value ? "seg-primary" : undefined}
+        <Alert
+          severity="warning"
+          variant="outlined"
+          className={classes.alert}
+          action={
+            <Button
+              size="small"
+              color="inherit"
+              disabled={state.propagationCapabilitiesLoading}
               onClick={() => {
-                setDirection(value);
+                void state.refreshPropagationCapabilities();
               }}
             >
-              {DIRECTION_LABELS[value]}
-            </button>
-          ))}
+              重试模型能力
+            </Button>
+          }
+        >
+          传播能力读取失败：{state.propagationCapabilitiesError}
+        </Alert>
+      )}
+
+      <div>
+        <div className={classes.header}>
+          <Typography variant="caption" className={classes.fieldLabel}>
+            实例
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {hasSeed
+              ? `${seeds.length} 个实例 · ${polygonCount} 个多边形${maskCount > 0 ? ` · ${maskCount} 个 mask` : ""}`
+              : "当前帧没有可传播的实例"}
+          </Typography>
         </div>
-      )}
-      {frame && (
-        <p aria-label="有效传播范围" className="seg-muted">
-          从源帧 {frame.index + 1} {DIRECTION_LABELS[effectiveDirection]}
-        </p>
-      )}
-      <div className="seg-row" role="radiogroup" aria-label="传播范围">
-        {PROPAGATION_RANGES_SEC.map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={rangeSec === value}
-            className={rangeSec === value ? "seg-primary" : undefined}
-            onClick={() => {
-              setRangeSec(value);
+        {allSeeds.length > 0 && (
+          <div className={classes.instances} role="group" aria-label="传播实例">
+            {allSeeds.map((seed) => {
+              const label = instanceLabel(seed.instanceId);
+              return (
+                <label key={seed.instanceId} className={classes.instance}>
+                  <Checkbox
+                    size="small"
+                    className={classes.checkbox}
+                    checked={chosen.has(seed.instanceId)}
+                    onChange={(event) => {
+                      toggleInstance(seed.instanceId, event.target.checked ? "check" : "uncheck");
+                    }}
+                  />
+                  <span className={classes.dot} style={{ backgroundColor: label.color }} />
+                  <Typography variant="body2" noWrap className={classes.instanceName}>
+                    {label.className != undefined && (
+                      <Typography component="span" variant="body2" color="text.secondary">
+                        {label.className}{" "}
+                      </Typography>
+                    )}
+                    {label.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {seed.kind === "mask" ? "mask" : `${seed.polygons.length} 个多边形`}
+                  </Typography>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {backwardSupported && (
+        <div>
+          <Typography variant="caption" className={classes.fieldLabel}>
+            方向
+          </Typography>
+          <ToggleButtonGroup
+            exclusive
+            fullWidth
+            size="small"
+            color="primary"
+            value={direction}
+            role="radiogroup"
+            aria-label="传播方向"
+            onChange={(_event, value: PropagationDirection | ReactNull) => {
+              if (value) {
+                setDirection(value);
+              }
             }}
           >
-            {value} 秒
-          </button>
-        ))}
+            {(Object.keys(DIRECTION_LABELS) as PropagationDirection[]).map((value) => (
+              <ToggleButton
+                key={value}
+                value={value}
+                role="radio"
+                aria-checked={direction === value}
+                className={classes.toggle}
+              >
+                {DIRECTION_LABELS[value]}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </div>
+      )}
+
+      <div>
+        <Typography variant="caption" className={classes.fieldLabel}>
+          范围
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          fullWidth
+          size="small"
+          color="primary"
+          value={rangeSec}
+          role="radiogroup"
+          aria-label="传播范围"
+          onChange={(_event, value: number | ReactNull) => {
+            if (value != undefined) {
+              setRangeSec(value);
+            }
+          }}
+        >
+          {PROPAGATION_RANGES_SEC.map((value) => (
+            <ToggleButton
+              key={value}
+              value={value}
+              role="radio"
+              aria-checked={rangeSec === value}
+              className={classes.toggle}
+            >
+              {value} 秒
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
       </div>
+
       {allowedModels.length > 1 && (
-        <label>
-          模型
-          <select
-            aria-label="传播模型"
+        <div>
+          <Typography variant="caption" className={classes.fieldLabel}>
+            模型
+          </Typography>
+          <Select
+            size="small"
+            fullWidth
             value={model}
+            inputProps={{ "aria-label": "传播模型" }}
             onChange={(event) => {
               setModel(event.target.value);
             }}
           >
             {allowedModels.map((value) => (
-              <option key={value} value={value}>
+              <MenuItem key={value} value={value}>
                 {value}
-              </option>
+              </MenuItem>
             ))}
-          </select>
-        </label>
+          </Select>
+        </div>
       )}
-      <div className="seg-row">
-        <button
-          type="button"
-          className="seg-primary"
-          disabled={!sourceReady || !hasSeed || !supportedParameters || busy !== "idle" || running}
-          onClick={start}
-        >
-          {busy === "preparing" ? "正在读取后续帧…" : "开始传播"}
-        </button>
-      </div>
-      <p className="seg-muted">
-        点击后立即开始，最多{DIRECTION_LABELS[effectiveDirection]}传播 {rangeSec}{" "}
-        秒。结果逐帧出现，画面跟着走；想提前结束就点顶部 STOP，已收到的帧保留为草稿，提交后才保存。
-      </p>
+
+      <Divider />
+      <Button
+        variant="contained"
+        fullWidth
+        disabled={!sourceReady || !hasSeed || !supportedParameters || busy !== "idle" || running}
+        onClick={start}
+      >
+        {busy === "preparing" ? "正在读取后续帧…" : "开始传播"}
+      </Button>
+      <Typography variant="caption" color="text.secondary">
+        最多{DIRECTION_LABELS[effectiveDirection]}传播 {rangeSec} 秒，结果逐帧出现。可随时点顶部
+        STOP 停止，已收到的帧保留为草稿，提交后才保存。
+      </Typography>
       {state.propagation.status !== "idle" && (
-        <p aria-live="polite">
-          {
-            {
-              running: "传播中",
-              stopping: "正在停止",
-              completed: "已完成",
-              cancelled: "已停止",
-              failed: "失败",
-              idle: "",
-            }[state.propagation.status]
-          }{" "}
-          · 已接收 {state.propagation.processedFrames} 帧
-        </p>
+        <Typography variant="caption" color="text.secondary" aria-live="polite">
+          {STATUS_LABELS[state.propagation.status]} · 已接收 {state.propagation.processedFrames} 帧
+        </Typography>
       )}
     </section>
   );

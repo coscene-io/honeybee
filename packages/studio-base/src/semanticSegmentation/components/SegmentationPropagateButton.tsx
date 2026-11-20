@@ -103,7 +103,7 @@ function CanvasPropagate({
         }}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { width: 300, maxWidth: "calc(100vw - 24px)", p: 1 } } }}
+        slotProps={{ paper: { sx: { width: 320, maxWidth: "calc(100vw - 24px)", p: 2 } } }}
       >
         <div role="dialog" aria-label="传播">
           <PropagationForm
