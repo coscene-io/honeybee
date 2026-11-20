@@ -56,7 +56,7 @@
     "@foxglove/wasm-bz2": "0.3.0",
     "@foxglove/wasm-lz4": "1.0.2",
     "@foxglove/ws-protocol": "workspace:*",
-    "@foxglove/xmlrpc": "1.3.0",
+    "@foxglove/xmlrpc": "1.4.0",
     "@growthbook/growthbook-react": "2.0.0",
     "@mcap/core": "2.4.0",
     "@monaco-editor/react": "4.7.0",
