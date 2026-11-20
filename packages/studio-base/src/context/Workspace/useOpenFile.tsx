@@ -12,6 +12,33 @@ import type { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSel
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import showOpenFilePicker from "@foxglove/studio-base/util/showOpenFilePicker";
 
+/** Read-only selection works even when File System Access is unavailable. */
+async function pickInputFile(extensions: readonly string[]): Promise<File | undefined> {
+  return await new Promise((resolve, reject) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = extensions.join(",");
+    input.style.display = "none";
+    const finish = (file: File | undefined) => {
+      input.remove();
+      resolve(file);
+    };
+    input.onchange = () => {
+      finish(input.files?.[0]);
+    };
+    input.oncancel = () => {
+      finish(undefined);
+    };
+    document.body.appendChild(input);
+    try {
+      input.click();
+    } catch (error) {
+      input.remove();
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
 export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promise<void> {
   const { selectSource } = usePlayerSelection();
 
@@ -28,19 +55,26 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
   }, [sources]);
 
   return useCallback(async () => {
-    const [fileHandle] = await showOpenFilePicker({
-      types: [
-        {
-          description: allExtensions.join(", "),
-          accept: { "application/octet-stream": allExtensions },
-        },
-      ],
-    });
-    if (!fileHandle) {
+    let fileHandle: FileSystemFileHandle | undefined;
+    let file: File | undefined;
+    if (typeof window.showOpenFilePicker === "function") {
+      [fileHandle] = await showOpenFilePicker({
+        types: [
+          {
+            description: allExtensions.join(", "),
+            accept: { "application/octet-stream": allExtensions },
+          },
+        ],
+      });
+      file = await fileHandle?.getFile();
+    } else {
+      file = await pickInputFile(allExtensions);
+    }
+    if (!file) {
       return;
     }
 
-    const file = await fileHandle.getFile();
+    const extension = path.extname(file.name);
     // Find the first _file_ source which can load our extension
     const matchingSources = sources.filter((source) => {
       // Only consider _file_ type sources that have a list of supported file types
@@ -48,7 +82,6 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
         return false;
       }
 
-      const extension = path.extname(file.name);
       return source.supportedFileTypes.includes(extension);
     });
 
@@ -61,6 +94,9 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
       throw new Error(`Cannot find source to handle ${file.name}`);
     }
 
-    selectSource(foundSource.id, { type: "file", handle: fileHandle });
+    selectSource(
+      foundSource.id,
+      fileHandle ? { type: "file", handle: fileHandle } : { type: "file", files: [file] },
+    );
   }, [allExtensions, selectSource, sources]);
 }
