@@ -149,11 +149,6 @@ function throwIfAborted(signal?: AbortSignal): void {
  */
 export function createLiveAnnotationService(options: {
   client: AnnotationClient;
-  /**
-   * PropagateAnnotation only, e.g. the local SAM2 sidecar (tools/seg-local-propagation); every
-   * other RPC keeps using `client`. Defaults to `client`.
-   */
-  propagationClient?: Pick<AnnotationClient, "propagateAnnotation">;
   /** `warehouses/{w}/projects/{p}/records/{r}` */
   recordName: string;
   /** Recording start; frame windows are offsets from it. */
@@ -722,7 +717,7 @@ export function createLiveAnnotationService(options: {
     getPropagationCapabilities: async () =>
       await Promise.resolve({
         models: [...models],
-        // The contract's `direction` (cosceneapis 66758a9) and the local sidecar both go backward.
+        // The contract's `direction` (cosceneapis 66758a9) also goes backward.
         backward: true,
       }),
     segmentFrame: async (request, signal) => {
@@ -956,7 +951,7 @@ export function createLiveAnnotationService(options: {
         wireObservation({ ...seed, frameId: source.id }, video.topic, size, frameTime),
       );
       const instanceIds = seeds.map((seed) => seed.instanceId);
-      const stream = (options.propagationClient ?? client).propagateAnnotation(
+      const stream = client.propagateAnnotation(
         {
           record: recordName,
           propagation: {
@@ -964,7 +959,6 @@ export function createLiveAnnotationService(options: {
             seeds: wireSeeds,
             endTime: microsToTimestamp(endMicros),
             model: request.model ?? models[0]!,
-            // The sidecar also infers it from end_time; the backend requires it explicitly.
             direction:
               endMicros < seedMicros ? PropagationDirection.BACKWARD : PropagationDirection.FORWARD,
           },

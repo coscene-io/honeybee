@@ -5,4 +5,4 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-window.cosConfig = {};
+window.cosConfig = { FEATURE_FLAG_GROWTHBOOK: { honeybee_recommended_layouts: true } };

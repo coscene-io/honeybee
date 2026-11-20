@@ -87,10 +87,7 @@ type Server = {
   timelineError?: ConnectError;
 };
 
-function setup(
-  document = sourceDocument(),
-  extra: Partial<Parameters<typeof createLiveAnnotationService>[0]> = {},
-) {
+function setup(document = sourceDocument()) {
   const server: Server = {
     classes: new Map(),
     instances: new Map(),
@@ -199,7 +196,6 @@ function setup(
     recordName: R,
     startNs: START_NS,
     document,
-    ...extra,
   });
   return { server, service, document };
 }
@@ -742,49 +738,6 @@ describe("live annotation service", () => {
     expect(results.map((item) => [item.frameId, item.kind])).toEqual([
       [document.frames[2]!.id, "polygons"],
       [document.frames[3]!.id, "empty"],
-    ]);
-  });
-
-  it("sends only PropagateAnnotation to a local propagation client, which also goes backward", async () => {
-    const requests: PropagateAnnotationRequest[] = [];
-    const propagationClient = {
-      async *propagateAnnotation(request: PropagateAnnotationRequest) {
-        requests.push(request);
-        yield { event: { case: "ready", value: { totalFrames: 1n } } };
-        yield {
-          event: {
-            case: "frame",
-            value: { frameTime: frameTimeOf(LOG_TIMES[0]!), annotations: [] },
-          },
-        };
-        yield { event: { case: "done", value: { processedFrames: 1n, totalFrames: 1n } } };
-      },
-    } as unknown as Parameters<typeof createLiveAnnotationService>[0]["propagationClient"];
-    const { server, service, document } = setup(undefined, { propagationClient });
-    seedServer(server);
-    await service.loadDocument();
-    await service.loadFrameWindow("video", 0, 5);
-    expect(await service.getPropagationCapabilities!()).toEqual(
-      expect.objectContaining({ backward: true }),
-    );
-    const results: PropagationResult[] = [];
-    for await (const result of service.propagate(
-      {
-        instanceId: OTHER_ID,
-        fromFrameId: document.frames[1]!.id,
-        endTimeNs: LOG_TIMES[0]!.toString(),
-      },
-      new AbortController().signal,
-    )) {
-      results.push(result);
-    }
-    expect(server.propagate).toBeUndefined();
-    expect(requests).toHaveLength(1);
-    expect(timestampToMicros(requests[0]!.propagation!.endTime!)).toBeLessThan(
-      timestampToMicros(requests[0]!.propagation!.seeds[0]!.frameTime!),
-    );
-    expect(results.map((item) => [item.frameId, item.kind])).toEqual([
-      [document.frames[0]!.id, "empty"],
     ]);
   });
 

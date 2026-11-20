@@ -179,7 +179,7 @@ export type PropagationRequest = {
   fromFrameId: string;
   /**
    * Inclusive end: the last frame's log_time (decimal ns). Later than the seed propagates forward;
-   * earlier propagates backward (the local sidecar only; the published contract is forward-only).
+   * earlier propagates backward (`direction: BACKWARD` on the wire).
    */
   endTimeNs: string;
   /** Without `seeds`: limit a polygon source observation to these polygons. */
