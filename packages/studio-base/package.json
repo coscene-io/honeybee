@@ -104,7 +104,6 @@
     "chart.js": "4.6.1",
     "chartjs-plugin-annotation": "3.1.0",
     "chartjs-plugin-datalabels": "2.2.0",
-    "crypto-browserify": "3.12.1",
     "css-loader": "7.1.5",
     "cytoscape": "3.35.0",
     "cytoscape-dagre": "4.1.0",

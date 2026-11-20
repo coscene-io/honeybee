@@ -19,6 +19,7 @@ import { useEffect, useCallback, useLayoutEffect, useMemo, useRef } from "react"
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
+import { useStore } from "zustand";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { AppBarProps, AppBar } from "@foxglove/studio-base/components/AppBar";
@@ -87,12 +88,16 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { annotationRecord } from "@foxglove/studio-base/semanticSegmentation/annotationRecord";
+import { GlobalPropagationLock } from "@foxglove/studio-base/semanticSegmentation/components/GlobalPropagationLock";
+import { SpatialSidebar } from "@foxglove/studio-base/semanticSegmentation/components/SpatialSidebar";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import {
   logPlaybackPerformanceMetric,
   playbackPerformanceMetrics,
 } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
+import { isAnnotationRecordName } from "@foxglove/studio-base/util/coscene/annotation";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
@@ -267,6 +272,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     }
   }, [filesToOpen, handleFilesRef]);
 
+  const annotationRecordName = useStore(annotationRecord, (state) => state.recordName);
   const leftSidebarItems = useMemo(() => {
     const items: [LeftSidebarItemKey, SidebarItem][] = [
       [
@@ -285,6 +291,15 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           title: t("moment", { ns: "workspace" }),
           component: EventsList,
           hidden: enableList.event === "DISABLE",
+        },
+      ],
+      [
+        "space",
+        {
+          title: t("space", { ns: "workspace" }),
+          component: SpatialSidebar,
+          // Only cloud records can be annotated (the app bar entry uses the same check).
+          hidden: !isAnnotationRecordName(annotationRecordName),
         },
       ],
       [
@@ -315,7 +330,15 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t, paid]);
+  }, [
+    enableList.event,
+    enableList.playlist,
+    enableList.task,
+    playerProblems,
+    t,
+    paid,
+    annotationRecordName,
+  ]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
@@ -448,6 +471,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
+      <GlobalPropagationLock />
       <DeepLinksSyncAdapter deepLinks={props.deepLinks} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
@@ -466,7 +490,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         >
           {/* To ensure no stale player state remains, we unmount all panels when players change */}
           <RemountOnValueChange value={playerId}>
-            <Stack>
+            <Stack style={{ position: "relative" }}>
               <PanelLayout />
             </Stack>
           </RemountOnValueChange>

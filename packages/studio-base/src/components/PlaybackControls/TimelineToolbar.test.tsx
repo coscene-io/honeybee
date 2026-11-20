@@ -14,9 +14,11 @@ import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurat
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
+import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import SeekStepControls from "./SeekStepControls";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { TimelineToolbar } from "./TimelineToolbar";
+import { closeKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
 
 let mockWidth = 1200;
 let mockHeight: number | undefined = 40;
@@ -39,6 +41,7 @@ function ToolbarFixture({
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
+      {realHelp === true && <KeyboardShortcutsDialog />}
       <TimelineToolbar
         onHeightChange={onHeightChange}
         playback={
@@ -70,6 +73,7 @@ describe("TimelineToolbar", () => {
   beforeEach(async () => {
     mockWidth = 1200;
     mockHeight = 40;
+    closeKeyboardShortcuts();
     await i18n.changeLanguage("en");
   });
 

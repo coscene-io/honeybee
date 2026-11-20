@@ -16,6 +16,11 @@
 
 import { ReactElement, useCallback, useEffect, useRef } from "react";
 
+import {
+  isAnnotationCanvasTarget,
+  isAnnotationViewportTarget,
+} from "@foxglove/studio-base/semanticSegmentation/annotationInput";
+
 // Invoke handler for matching key.
 // By default, preventDefault() is invoked on the event. Return false to allow the default.
 type KeyHandlers = Record<string, (event: KeyboardEvent) => void | boolean | undefined>;
@@ -26,6 +31,10 @@ type Props = {
   keyPressHandlers?: KeyHandlers;
   keyUpHandlers?: KeyHandlers;
 };
+
+// Several panel listeners intentionally share a shortcut. Their default prevention
+// must not hide it from peers; prevention by another control still owns the event.
+const preventedByKeyListener = new WeakSet<KeyboardEvent>();
 
 function callHandlers(handlers: KeyHandlers | undefined, event: KeyboardEvent): void {
   if (!handlers) {
@@ -40,6 +49,7 @@ function callHandlers(handlers: KeyHandlers | undefined, event: KeyboardEvent): 
       preventDefault = handler(event) ?? true;
     } finally {
       if (preventDefault) {
+        preventedByKeyListener.add(event);
         event.preventDefault();
       }
     }
@@ -51,10 +61,30 @@ export default function KeyListener(props: Props): ReactElement {
 
   const handleEvent = useCallback(
     (event: Event) => {
-      if (!(event instanceof KeyboardEvent)) {
+      if (
+        !(event instanceof KeyboardEvent) ||
+        (event.defaultPrevented && !preventedByKeyListener.has(event))
+      ) {
+        return;
+      }
+      // Another listener on the same native target may already have stopped propagation.
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- No other API exposes this state.
+      if (event.cancelBubble) {
         return;
       }
       const { target, type } = event;
+      if (
+        props.global === true &&
+        isAnnotationViewportTarget(target) &&
+        // ←/→ step the editing camera's frames unless the canvas used them (nudging selected
+        // points, or panning with Space), in which case it stopped propagation before this
+        // document listener ran.
+        !(isAnnotationCanvasTarget(target) && ["ArrowLeft", "ArrowRight"].includes(event.key))
+      ) {
+        // Native listeners can run before React's annotation handlers. Scope ownership
+        // must therefore be checked even when the event has not yet been consumed.
+        return;
+      }
       if (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
@@ -78,7 +108,7 @@ export default function KeyListener(props: Props): ReactElement {
           break;
       }
     },
-    [props.keyDownHandlers, props.keyPressHandlers, props.keyUpHandlers],
+    [props.global, props.keyDownHandlers, props.keyPressHandlers, props.keyUpHandlers],
   );
 
   useEffect(() => {
