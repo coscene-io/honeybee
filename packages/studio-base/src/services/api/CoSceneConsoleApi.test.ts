@@ -9,7 +9,10 @@ import { create } from "@bufbuild/protobuf";
 import { Policy_Effect } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
 
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
-import { EndpointDataplatformV1alph3 } from "@foxglove/studio-base/util/permission/endpoint";
+import {
+  Endpoint,
+  EndpointDataplatformV1alph3,
+} from "@foxglove/studio-base/util/permission/endpoint";
 
 import CoSceneConsoleApi, { type ApiBaseInfo } from "./CoSceneConsoleApi";
 import { CustomFieldSchemaSchema } from "./moment-custom-field/generated/common/custom_field_pb";
@@ -137,6 +140,86 @@ describe("CoSceneConsoleApi", () => {
       "Bearer test-token",
     );
     expect(api.canConfigureMomentCustomFieldRules()).toBe(false);
+  });
+
+  it.each([
+    { role: "ORGANIZATION_READER", denied: false, canListExcluded: true },
+    { role: "EXTERNAL_USER", denied: false, canListExcluded: false },
+    { role: "", denied: false, canListExcluded: false },
+    { role: "ORGANIZATION_READER", denied: true, canListExcluded: false },
+  ])(
+    "applies the organization role and project permissions to the user directory (%j)",
+    async ({ role, denied, canListExcluded }) => {
+      listUserRolesMock.mockImplementation(({ parent }: { parent: string }) => ({
+        userRoles: parent
+          ? [
+              {
+                code: "PROJECT_WRITER",
+                policy: {
+                  statements: [
+                    {
+                      effect: Policy_Effect.ALLOW,
+                      actions: [Endpoint.ListProjectUsers, Endpoint.ListProjectExcludedUsers],
+                    },
+                    {
+                      effect: Policy_Effect.DENY,
+                      actions: denied ? [Endpoint.ListProjectExcludedUsers] : [],
+                    },
+                  ],
+                },
+              },
+            ]
+          : [{ code: role }],
+      }));
+      const api = await createApi(completeBaseInfo);
+      const directory = api.getProjectUserDirectory("warehouses/warehouse-id/projects/project-id");
+      expect(directory?.listMembers).toEqual(expect.any(Function));
+      expect(Boolean(directory?.listExcluded)).toBe(canListExcluded);
+      expect(
+        api.getProjectUserDirectory("warehouses/warehouse-id/projects/another-project"),
+      ).toBeUndefined();
+    },
+  );
+
+  it("requests the same first page as record details, shares concurrent loads and retries after failure", async () => {
+    listUserRolesMock.mockResolvedValue({
+      userRoles: [
+        {
+          code: "ORGANIZATION_ADMIN",
+          policy: {
+            statements: [
+              {
+                effect: Policy_Effect.ALLOW,
+                actions: [Endpoint.ListProjectUsers, Endpoint.ListProjectExcludedUsers],
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const api = await createApi(completeBaseInfo);
+    const parent = "warehouses/warehouse-id/projects/project-id";
+    const listProjectUsers = jest.fn().mockResolvedValue({
+      projectUsers: [{ name: "member" }],
+      nextPageToken: "next-page",
+    });
+    const listProjectExcludedUsers = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValueOnce({ projectExcludedUsers: [{ name: "excluded" }] });
+    mockGetPromiseClient.mockReturnValue({ listProjectUsers, listProjectExcludedUsers } as never);
+    const directory = api.getProjectUserDirectory(parent)!;
+    const members = directory.listMembers!();
+    const concurrentMembers = directory.listMembers!();
+    await expect(directory.listExcluded!()).rejects.toThrow("unavailable");
+    await expect(members).resolves.toEqual([{ name: "member" }]);
+    await expect(concurrentMembers).resolves.toBe(await members);
+    await expect(directory.listExcluded!()).resolves.toEqual([{ name: "excluded" }]);
+    const firstPage = expect.objectContaining({ parent, pageToken: "", pageSize: 1000 });
+    expect(listProjectUsers).toHaveBeenCalledTimes(1);
+    expect(listProjectUsers).toHaveBeenCalledWith(firstPage);
+    expect(listProjectExcludedUsers).toHaveBeenCalledTimes(2);
+    expect(listProjectExcludedUsers).toHaveBeenCalledWith(firstPage);
   });
 
   it("adds Record-Name to request config when base info is complete", async () => {

@@ -17,10 +17,25 @@ import PersonIcon from "@mui/icons-material/Person";
 import { Autocomplete, Box, TextField, Chip, Avatar } from "@mui/material";
 import PinyinMatch from "pinyin-match";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+
+const NO_USERS: User[] = [];
+
+function useDirectoryUsers(load: (() => Promise<User[]>) | undefined): User[] {
+  const [result, fetchUsers] = useAsyncFn(async () => ({ load, users: await load?.() }), [load]);
+  useEffect(() => {
+    if (load) {
+      void fetchUsers();
+    }
+  }, [load, fetchUsers]);
+  // useAsyncFn retains its previous value while the new project is loading.
+  return result.value?.load === load ? (result.value?.users ?? NO_USERS) : NO_USERS;
+}
 
 const useStyles = makeStyles()(() => ({
   avatar: {
@@ -68,26 +83,39 @@ export function UserSelect({
   const consoleApi = useConsoleApi();
   const { classes } = useStyles();
 
-  const [users, getUsers] = useAsyncFn(async () => {
-    return await consoleApi.listOrganizationUsers();
-  }, [consoleApi]);
-
-  useEffect(() => {
-    getUsers().catch((err: unknown) => {
-      console.error(err);
-    });
-  }, [getUsers]);
-
-  const activatedUsers = users.value?.filter((user) => user.active) ?? [];
+  const { t } = useTranslation("general");
+  const config = useCoreData((state) => state.externalInitConfig);
+  const parent =
+    config?.warehouseId && config.projectId
+      ? `warehouses/${config.warehouseId}/projects/${config.projectId}`
+      : undefined;
+  const directory = consoleApi.getProjectUserDirectory(parent);
+  const members = useDirectoryUsers(directory?.listMembers);
+  const excluded = useDirectoryUsers(directory?.listExcluded);
+  const { usersByName, activatedUsers, memberNames } = useMemo(() => {
+    const byName = new Map<string, User>();
+    const projectMembers = new Set(members.map((user) => user.name));
+    for (const user of [...members, ...excluded]) {
+      if (!byName.has(user.name)) {
+        byName.set(user.name, user);
+      }
+    }
+    return {
+      usersByName: byName,
+      activatedUsers: Array.from(byName.values()).filter((user) => user.active),
+      memberNames: projectMembers,
+    };
+  }, [members, excluded]);
+  const groupBy = (user: User) =>
+    memberNames.has(user.name) ? t("projectInternalMembers") : t("projectExcludedMembers");
   const selectedUsers = useMemo(() => {
-    const usersByName = new Map(users.value?.map((user) => [user.name, user]));
     const values = Array.isArray(value) ? value : [value];
     const names = multiple === true ? values : values.slice(0, 1);
     // Keep unresolved and inactive selections visible without making them options.
     return names
       .filter((name) => name.split("/").pop())
       .map((name) => usersByName.get(name) ?? create(UserSchema, { name }));
-  }, [multiple, users.value, value]);
+  }, [multiple, usersByName, value]);
   const getUserLabel = (user: User) =>
     user.nickname != undefined && user.nickname !== "" ? user.nickname : user.name;
 
@@ -102,6 +130,7 @@ export function UserSelect({
         multiple
         disableCloseOnSelect={true}
         options={activatedUsers}
+        groupBy={groupBy}
         getOptionLabel={getUserLabel}
         renderInput={(params) => (
           <TextField
@@ -161,6 +190,7 @@ export function UserSelect({
         disabled={disabled}
         disableClearable={allowClear === false}
         options={activatedUsers}
+        groupBy={groupBy}
         getOptionLabel={getUserLabel}
         renderInput={(params) => (
           <TextField {...params} variant="filled" error={error} placeholder={placeholder} />
