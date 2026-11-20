@@ -7,6 +7,8 @@
 
 // Generic global translation
 export const general = {
+  projectInternalMembers: "Project members",
+  projectExcludedMembers: "People outside the project (may not be able to work in this project)",
   foxglove: "CoScene",
   learnMore: "Learn more",
   on: "On",

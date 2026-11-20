@@ -206,6 +206,7 @@ import {
   GetMomentCustomFieldSchemaRequestSchema,
 } from "./moment-custom-field/generated/services/custom_field_pb";
 import type { MomentCustomFieldSchema } from "./moment-custom-field/types";
+import { createProjectUserDirectory, type ProjectUserDirectory } from "./projectUserDirectory";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
@@ -407,6 +408,7 @@ export type ApiBaseInfo = {
 };
 
 type PermissionList = {
+  userDirectory?: ProjectUserDirectory;
   orgPermissionList: string[];
   projectPermissionList: string[];
   orgDenyList: string[];
@@ -1244,6 +1246,11 @@ class CoSceneConsoleApi {
     return result.organizationUsers;
   }
 
+  public getProjectUserDirectory(parent: string | undefined): ProjectUserDirectory | undefined {
+    const directory = this.#permissionList.userDirectory;
+    return directory?.parent === parent ? directory : undefined;
+  }
+
   public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
     const req = create(GetRecordRequestSchema, {
       name: recordName,
@@ -1502,12 +1509,25 @@ class CoSceneConsoleApi {
       projectDenyList = denyList;
     }
 
-    return {
+    const permissions: PermissionList = {
       orgPermissionList,
       orgDenyList,
       projectPermissionList,
       projectDenyList,
     };
+    if (baseInfo.warehouseId && baseInfo.projectId) {
+      const parent = `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`;
+      permissions.userDirectory = createProjectUserDirectory({
+        parent,
+        getClient: () => this.#getPromiseClient(UserService),
+        canListMembers: checkUserPermission(Endpoint.ListProjectUsers, permissions),
+        canListExcluded:
+          !!orgRole?.code &&
+          orgRole.code !== "EXTERNAL_USER" &&
+          checkUserPermission(Endpoint.ListProjectExcludedUsers, permissions),
+      });
+    }
+    return permissions;
   }
 
   public listProjectDevices = Object.assign(

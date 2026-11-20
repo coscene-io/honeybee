@@ -137,7 +137,8 @@ const apiMethods = {
   createEvent,
   createTask,
   updateEvent,
-  listOrganizationUsers: listUsers,
+  getProjectUserDirectory: (parent: string | undefined) =>
+    parent === projectName ? { parent, listMembers: listUsers } : undefined,
   getBaseUrl: () => apiBaseUrl,
 };
 const api = apiMethods as unknown as NonNullable<

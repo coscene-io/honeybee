@@ -16,6 +16,8 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   auto: "自动",
   from: "来自",
   project: "项目",
+  projectInternalMembers: "项目内成员",
+  projectExcludedMembers: "项目外的人（可能无法操作该项目）",
   viz: "可视化",
   shadowMode: "影子模式",
   realtimeViz: "实时可视化",
