@@ -14,12 +14,31 @@ import { createStore } from "zustand";
 import {
   EventsContext,
   EventsStore,
+  MomentCustomFieldFilters,
   TimelinePositionedEvent,
   TimelinePositionedEventMark,
   ToModifyEvent,
 } from "@foxglove/studio-base/context/EventsContext";
 
 const NO_EVENTS: TimelinePositionedEvent[] = [];
+
+function filtersForSchema(
+  filters: MomentCustomFieldFilters | undefined,
+  schema: CustomFieldSchema | undefined,
+): MomentCustomFieldFilters | undefined {
+  if (filters == undefined || schema == undefined) {
+    return undefined;
+  }
+  const active = new Map(
+    schema.properties.flatMap((property) => {
+      const value = filters.get(property.id);
+      return value?.case != undefined && value.case === property.type.case
+        ? [[property.id, value] as const]
+        : [];
+    }),
+  );
+  return active.size > 0 ? active : undefined;
+}
 
 function createEventsStore() {
   return createStore<EventsStore>((set) => ({
@@ -58,10 +77,21 @@ function createEventsStore() {
       set({ toModifyEvent });
     },
     setCustomFieldSchema: (customFieldSchema?: CustomFieldSchema, projectName?: string) => {
-      set({
+      set((old) => ({
         customFieldSchema,
         customFieldSchemaProjectName: customFieldSchema == undefined ? undefined : projectName,
-      });
+        customFieldFilters:
+          projectName === old.customFieldSchemaProjectName
+            ? filtersForSchema(old.customFieldFilters, customFieldSchema)
+            : undefined,
+      }));
+    },
+    setCustomFieldFilters: (projectName, filters) => {
+      set((old) =>
+        projectName === old.customFieldSchemaProjectName
+          ? { customFieldFilters: filtersForSchema(filters, old.customFieldSchema) }
+          : old,
+      );
     },
   }));
 }

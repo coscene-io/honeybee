@@ -12,6 +12,7 @@ import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
+  Badge,
   Checkbox,
   Menu,
   Button,
@@ -57,13 +58,14 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
-import { useVisibleEvents } from "../momentDoubtful";
 import { EventView } from "./EventView";
+import { MomentCustomFieldFilterDialog } from "./MomentCustomFieldFilterDialog";
 import { eventListDetails, groupEvents } from "./eventListModel";
 import { EMPTY_EVENTS } from "../../PlaybackControls/eventTimeIndex";
 import { WindowedList, type WindowedItem } from "../WindowedList";
 import { useMomentHover } from "../useMomentHover";
 import { useMomentScrollTarget } from "../useMomentScrollTarget";
+import { useVisibleEvents } from "../useVisibleEvents";
 
 const log = Logger.getLogger(__filename);
 
@@ -219,6 +221,13 @@ export function EventsList(): React.JSX.Element {
     playbackControlActions: { setMomentTimeline },
   } = useWorkspaceActions();
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | undefined>();
+  const [filterDialogProject, setFilterDialogProject] = useState<string>();
+  const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProject = useEvents((store) => store.customFieldSchemaProjectName);
+  const customFieldFilters = useEvents((store) => store.customFieldFilters);
+  const setCustomFieldFilters = useEvents((store) => store.setCustomFieldFilters);
+  const filterProperties = schema?.properties.filter((field) => field.type.case != undefined) ?? [];
+  const filterCount = customFieldFilters?.size ?? 0;
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -557,12 +566,14 @@ export function EventsList(): React.JSX.Element {
           aria-label={t("filterMoments")}
           aria-haspopup="menu"
           aria-expanded={filterAnchor != undefined}
-          color={doubtfulOnly ? "primary" : "default"}
+          color={doubtfulOnly || filterCount > 0 ? "primary" : "default"}
           onClick={(event) => {
             setFilterAnchor(event.currentTarget);
           }}
         >
-          <FilterAltOutlinedIcon />
+          <Badge badgeContent={filterCount} color="primary">
+            <FilterAltOutlinedIcon />
+          </Badge>
         </IconButton>
         <Menu
           open={filterAnchor != undefined}
@@ -586,6 +597,16 @@ export function EventsList(): React.JSX.Element {
             />
             {t("doubtful")}
           </MenuItem>
+          {schemaProject != undefined && filterProperties.length > 0 && (
+            <MenuItem
+              onClick={() => {
+                setFilterAnchor(undefined);
+                setFilterDialogProject(schemaProject);
+              }}
+            >
+              {t("filterCustomFields")}
+            </MenuItem>
+          )}
         </Menu>
         <Select
           variant="filled"
@@ -631,6 +652,22 @@ export function EventsList(): React.JSX.Element {
           </Button>
         )}
       </AppBar>
+      {schemaProject != undefined &&
+        filterDialogProject === schemaProject &&
+        filterProperties.length > 0 && (
+          <MomentCustomFieldFilterDialog
+            key={schemaProject}
+            properties={filterProperties}
+            filters={customFieldFilters}
+            onApply={(filters) => {
+              setCustomFieldFilters(schemaProject, filters);
+              setFilterDialogProject(undefined);
+            }}
+            onClose={() => {
+              setFilterDialogProject(undefined);
+            }}
+          />
+        )}
       {events.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <CircularProgress />
@@ -643,10 +680,10 @@ export function EventsList(): React.JSX.Element {
           </Typography>
         </Stack>
       )}
-      {events.value?.length === 0 && (
+      {!events.loading && !events.error && events.value && visibleEvents.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" className={classes.layout1}>
-            {t("noMoment")}
+            {t(events.value.length === 0 ? "noMoment" : "noMatchingMoments")}
           </Typography>
         </Stack>
       )}
