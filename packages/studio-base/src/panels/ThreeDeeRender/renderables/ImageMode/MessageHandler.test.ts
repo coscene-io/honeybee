@@ -327,11 +327,8 @@ describe("MessageHandler: synchronized = true", () => {
     });
 
     messageHandler.recordCompressedVideo(high);
-    expect(messageHandler.consumeTimestampRegression()).toBe(false);
     messageHandler.recordCompressedVideo(low);
 
-    expect(messageHandler.consumeTimestampRegression()).toBe(true);
-    expect(messageHandler.consumeTimestampRegression()).toBe(false);
     expect(messageHandler.getRenderStateAndUpdateHUD().image?.message).toMatchObject({
       timestamp: fromNanoSec(1n),
     });
@@ -378,7 +375,6 @@ describe("MessageHandler: synchronized = true", () => {
     messageHandler.recordCompressedVideoFrames([low1, low2]);
 
     const state = messageHandler.getRenderStateAndUpdateHUD();
-    expect(messageHandler.consumeTimestampRegression()).toBe(true);
     expect(state.image?.message).toMatchObject({ timestamp: fromNanoSec(2n) });
     expect(state.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp).toEqual(
       fromNanoSec(2n),
@@ -1141,7 +1137,6 @@ describe("MessageHandler: synchronized = true", () => {
     const state = messageHandler.getRenderStateAndUpdateHUD();
     expect(state.image?.message).toMatchObject({ timestamp: fromNanoSec(100n) });
     expect(state.annotationsByTopic?.has("annotations")).toBe(true);
-    expect(messageHandler.consumeTimestampRegression()).toBe(false);
   });
 
   it("bounds timestamp groups from one annotations message while it is inserted", () => {

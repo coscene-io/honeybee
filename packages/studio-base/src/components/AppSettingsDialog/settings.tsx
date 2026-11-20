@@ -161,6 +161,19 @@ export function ColorSchemeSettings(): React.JSX.Element {
   );
 }
 
+export function PlaybackAnalysisSetting(): React.ReactElement {
+  const { t } = useTranslation("workspace");
+  const [enabled = false, setEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.SHOW_PLAYBACK_DIAGNOSTICS,
+  );
+  return (
+    <FormControlLabel
+      control={<Checkbox checked={enabled} onChange={(_, checked) => void setEnabled(checked)} />}
+      label={t("diagnostics.showSidebar")}
+    />
+  );
+}
+
 export function TimezoneSettings(): React.ReactElement {
   type Option = { key: string; label: string; data?: string; divider?: boolean };
 

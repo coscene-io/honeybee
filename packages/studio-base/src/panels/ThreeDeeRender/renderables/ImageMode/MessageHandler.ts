@@ -164,7 +164,6 @@ export class MessageHandler implements IMessageHandler {
   #committedSynchronizedVideoState: CommittedSynchronizedVideoState | undefined;
   #lastCompleteSynchronizationTimestamp: Time | undefined;
   #lastRecordedImageTimestamp: Time | undefined;
-  #timestampRegressionPending = false;
   readonly #annotationTopicsSinceLastVideoBatch = new Map<bigint, Set<string>>();
 
   /** internal state of last received messages */
@@ -286,11 +285,6 @@ export class MessageHandler implements IMessageHandler {
       this.#annotationTopicsSinceLastVideoBatch.clear();
     }
   };
-  public consumeTimestampRegression = (): boolean => {
-    const pending = this.#timestampRegressionPending;
-    this.#timestampRegressionPending = false;
-    return pending;
-  };
   public handleRemoteVideoFrameReference = (
     messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
   ): void => {
@@ -394,7 +388,6 @@ export class MessageHandler implements IMessageHandler {
     this.#committedSynchronizedVideoState = undefined;
     this.#lastCompleteSynchronizationTimestamp = undefined;
     this.#oldRenderState = undefined;
-    this.#timestampRegressionPending = true;
   }
 
   #addImageToTree(normalizedImageMessage: MessageEvent<AnyImage>): void {
@@ -502,7 +495,6 @@ export class MessageHandler implements IMessageHandler {
       this.#committedSynchronizedVideoState = undefined;
       this.#lastCompleteSynchronizationTimestamp = undefined;
       this.#lastRecordedImageTimestamp = undefined;
-      this.#timestampRegressionPending = false;
       this.#annotationTopicsSinceLastVideoBatch.clear();
       this.#tree.clear();
       if (newConfig.synchronize && this.#lastReceivedMessages.image != undefined) {
@@ -521,7 +513,6 @@ export class MessageHandler implements IMessageHandler {
       this.#committedSynchronizedVideoState = undefined;
       this.#lastCompleteSynchronizationTimestamp = undefined;
       this.#lastRecordedImageTimestamp = undefined;
-      this.#timestampRegressionPending = false;
       this.#annotationTopicsSinceLastVideoBatch.clear();
       this.#tree.clear();
       this.#lastReceivedMessages.image = undefined;
@@ -578,7 +569,6 @@ export class MessageHandler implements IMessageHandler {
     this.#committedSynchronizedVideoState = undefined;
     this.#lastCompleteSynchronizationTimestamp = undefined;
     this.#lastRecordedImageTimestamp = undefined;
-    this.#timestampRegressionPending = false;
     this.#annotationTopicsSinceLastVideoBatch.clear();
     this.#emitState();
   }
@@ -758,7 +748,6 @@ export interface IMessageHandler {
     messageEvents: readonly PartialMessageEvent<CompressedVideo>[],
   ) => void;
   /** Consume a physical publish-timestamp rollback observed while recording image metadata. */
-  consumeTimestampRegression: () => boolean;
   handleRemoteVideoFrameReference: (
     messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
   ) => void;

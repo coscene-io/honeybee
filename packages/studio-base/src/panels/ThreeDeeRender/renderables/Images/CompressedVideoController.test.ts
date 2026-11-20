@@ -13,6 +13,10 @@ import { MessageEvent } from "@foxglove/studio";
 import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import { createPlaybackInteractionStateStore } from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import {
+  PlaybackDiagnostics,
+  type PanelDiagnostics,
+} from "@foxglove/studio-base/services/playbackDiagnostics";
+import {
   PlaybackPerformanceMetrics,
   playbackPerformanceMetrics,
 } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
@@ -39,8 +43,9 @@ function frame(time: number, kind: "key" | "delta" = "delta"): MessageEvent<Comp
     },
   };
 }
-function setup() {
+function setup(diagnostics?: PanelDiagnostics) {
   const renderer = {
+    diagnostics,
     currentTime: 1000n,
     startTime: 0n,
     stopped: false,
@@ -84,6 +89,27 @@ function mockMessageRange(frames: readonly MessageEvent<CompressedVideo>[]) {
     return jest.fn();
   });
 }
+
+it("inspects shared video once per delivery, retains replay history, and hands off when a panel closes", async () => {
+  const session = new PlaybackDiagnostics();
+  const inspect = jest.spyOn(session, "inspect");
+  const left = setup({ session, panelId: "left" });
+  const right = setup({ session, panelId: "right" });
+  const event = frame(18_000_000_000);
+  event.message.data = Uint8Array.of(0, 0, 1, 0x41, 0xa0);
+  for (const panel of [left, right]) {
+    await panel.controller.enqueueVideoFrames([event]);
+  }
+  expect(inspect).toHaveBeenCalledTimes(1);
+  left.controller.dispose();
+  await right.controller.enqueueVideoFrames([event]);
+  expect(inspect).toHaveBeenCalledTimes(2);
+  const history = session.topic("/camera").bFrames!;
+  expect(history.size).toBe(1);
+  expect([...history][0]?.[1].start).toBe(18_000_000_000n);
+  right.controller.dispose();
+  expect(session.topic("/camera").bFrames?.size).toBe(1);
+});
 
 describe("awaited video tick scheduling", () => {
   beforeEach(() => {

@@ -26,12 +26,11 @@ import CurrentLayoutContext from "@foxglove/studio-base/context/CurrentLayoutCon
 import { useS3FileService } from "@foxglove/studio-base/context/S3FileServiceContext";
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
 import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import type {
-  Player,
-  PlayerProblem,
-  PlayerState,
-  SubscribePayload,
-} from "@foxglove/studio-base/players/types";
+import type { Player, PlayerState, SubscribePayload } from "@foxglove/studio-base/players/types";
+import {
+  PlaybackDiagnostics,
+  PlaybackDiagnosticsContext,
+} from "@foxglove/studio-base/services/playbackDiagnostics";
 
 import MessageOrderTracker from "./MessageOrderTracker";
 import type { FramePromise } from "./pauseFrameForPromise";
@@ -111,13 +110,14 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   // Note: This throws away any publishers, subscribers, etc that panels may have registered. We
   // are ok with this behavior because the <Workspace> re-mounts all panels when a player changes.
   // The re-mounted panels will re-initialize and setup new publishers and subscribers.
-  const store = useMemo(() => {
-    return createMessagePipelineStore({
+  const { store, diagnostics } = useMemo(() => {
+    const pipelineStore = createMessagePipelineStore({
       promisesToWaitForRef,
       initialPlayer: player,
       urdfStorage,
       s3FileService,
     });
+    return { store: pipelineStore, diagnostics: new PlaybackDiagnostics() };
   }, [player, urdfStorage, s3FileService]);
 
   const subscriptions = useStore(store, selectSubscriptions);
@@ -197,6 +197,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     }
 
     const { listener, cleanupListener } = createPlayerListener({
+      diagnostics,
       msPerFrameRef,
       promisesToWaitForRef,
       store,
@@ -211,21 +212,13 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
         renderDone: undefined,
       });
     };
-  }, [player, store]);
+  }, [player, store, diagnostics]);
 
-  return <ContextInternal.Provider value={store}>{children}</ContextInternal.Provider>;
-}
-
-// Given a PlayerState and a PlayerProblem array, add the problems to any existing player problems
-function concatProblems(origState: PlayerState, problems: PlayerProblem[]): PlayerState {
-  if (problems.length === 0) {
-    return origState;
-  }
-
-  return {
-    ...origState,
-    problems: problems.concat(origState.problems ?? []),
-  };
+  return (
+    <PlaybackDiagnosticsContext.Provider value={diagnostics}>
+      <ContextInternal.Provider value={store}>{children}</ContextInternal.Provider>
+    </PlaybackDiagnosticsContext.Provider>
+  );
 }
 
 /**
@@ -252,6 +245,7 @@ function concatProblems(origState: PlayerState, problems: PlayerProblem[]): Play
  * - https://stackoverflow.com/questions/53985411/understanding-javascript-closure-variable-capture-in-v8
  */
 function createPlayerListener(args: {
+  diagnostics: PlaybackDiagnostics;
   msPerFrameRef: React.RefObject<number>;
   promisesToWaitForRef: React.RefObject<FramePromise[]>;
   store: StoreApi<MessagePipelineInternalState>;
@@ -262,7 +256,7 @@ function createPlayerListener(args: {
   // console.log("create player listener");
   const { msPerFrameRef, promisesToWaitForRef, store } = args;
   const updateState = store.getState().dispatch;
-  const messageOrderTracker = new MessageOrderTracker();
+  const messageOrderTracker = new MessageOrderTracker(args.diagnostics);
   let closed = false;
   let prevPlayerId: string | undefined;
   let resolveFn: undefined | (() => void);
@@ -276,8 +270,8 @@ function createPlayerListener(args: {
     }
 
     // check for any out-of-order or out-of-sync messages
-    const problems = messageOrderTracker.update(listenerPlayerState);
-    const newPlayerState = concatProblems(listenerPlayerState, problems);
+    args.diagnostics.update(listenerPlayerState);
+    messageOrderTracker.update(listenerPlayerState);
 
     const promise = new Promise<void>((resolve) => {
       resolveFn = () => {
@@ -329,7 +323,7 @@ function createPlayerListener(args: {
 
     updateState({
       type: "update-player-state",
-      playerState: newPlayerState,
+      playerState: listenerPlayerState,
       renderDone,
     });
 

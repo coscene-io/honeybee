@@ -45,6 +45,7 @@ import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls, {
   RealtimeVizPlaybackControls,
 } from "@foxglove/studio-base/components/PlaybackControls";
+import { PerformanceSidebar } from "@foxglove/studio-base/components/PlaybackDiagnostics/PerformanceSidebar";
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
 import RecordInfo from "@foxglove/studio-base/components/RecordInfo";
@@ -230,6 +231,9 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   useDefaultWebLaunchPreference();
 
+  const [showDiagnostics = false] = useAppConfigurationValue<boolean>(
+    AppSetting.SHOW_PLAYBACK_DIAGNOSTICS,
+  );
   const [enableDebugMode = false] = useAppConfigurationValue<boolean>(AppSetting.SHOW_DEBUG_PANELS);
 
   const { workspaceExtensions = [] } = useAppContext();
@@ -331,13 +335,12 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
 
+    if (showDiagnostics) {
+      items.set("performance", { title: t("diagnostics.title"), component: PerformanceSidebar });
+    } else if (enableDebugMode && PerformanceSidebarComponent) {
+      items.set("performance", { title: t("performance"), component: PerformanceSidebarComponent });
+    }
     if (enableDebugMode) {
-      if (PerformanceSidebarComponent) {
-        items.set("performance", {
-          title: t("performance"),
-          component: PerformanceSidebarComponent,
-        });
-      }
       items.set("studio-logs-settings", { title: t("studioLogs"), component: StudioLogsSettings });
     }
 
@@ -350,7 +353,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     }
 
     return filteredItems;
-  }, [t, dataSource, enableDebugMode, PerformanceSidebarComponent]);
+  }, [t, dataSource, enableDebugMode, showDiagnostics, PerformanceSidebarComponent]);
 
   const keyboardEventHasModifier = (event: KeyboardEvent) =>
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;

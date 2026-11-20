@@ -17,6 +17,7 @@ import {
 } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
+import { VideoRun } from "@foxglove/studio-base/services/videoDiagnostics";
 
 import type {
   CompressedVideoFrameEvent,
@@ -27,7 +28,6 @@ import { CompressedVideo } from "./ImageTypes";
 import { normalizeCompressedVideo } from "./imageNormalizers";
 import {
   VideoGopCache,
-  detectBFrames,
   parseVideoFrameInfo,
   sameVideoFrameMessage,
   type VideoFrameInfo,
@@ -52,6 +52,7 @@ export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
 type VideoInputEvent = MessageEvent<VideoFrameInfo["frame"]>;
 type ControllerRenderer = Pick<
   IRenderer,
+  | "diagnostics"
   | "currentTime"
   | "startTime"
   | "subscribeMessageRange"
@@ -67,7 +68,6 @@ export class CompressedVideoController {
   #resetDecoder?: () => void;
   #cancelLateTarget?: () => void;
   #onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
-  #onBFramesDetected?: () => void;
   #generation = 0;
   #work: Promise<void> = Promise.resolve();
   #disposed = false;
@@ -79,7 +79,7 @@ export class CompressedVideoController {
   #seekReplayFrames: MessageEvent[] | undefined;
   #cacheNeedsKeyframe = false;
   #lastInputPublishTimeNs: bigint | undefined;
-  #reportedBFrames = false;
+  #diagnosticRun = new VideoRun();
   readonly #state: { lookbackCancel?: () => void; lookbackGeneration?: number } = {};
 
   public constructor(args: {
@@ -89,7 +89,6 @@ export class CompressedVideoController {
     resetDecoder?: () => void;
     cancelLateTarget?: () => void;
     onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
-    onBFramesDetected?: () => void;
   }) {
     this.#topic = args.topic;
     this.#renderer = args.renderer;
@@ -97,21 +96,18 @@ export class CompressedVideoController {
     this.#resetDecoder = args.resetDecoder;
     this.#cancelLateTarget = args.cancelLateTarget;
     this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
-    this.#onBFramesDetected = args.onBFramesDetected;
   }
   public updateOptions(args: {
     displayFrames?: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     cancelLateTarget?: () => void;
     onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
-    onBFramesDetected?: () => void;
   }): void {
     this.#displayFrames = args.displayFrames ?? this.#displayFrames;
     this.#resetDecoder = args.resetDecoder ?? this.#resetDecoder;
     this.#cancelLateTarget = args.cancelLateTarget ?? this.#cancelLateTarget;
     this.#onSeekKeyframeSearchChange =
       args.onSeekKeyframeSearchChange ?? this.#onSeekKeyframeSearchChange;
-    this.#onBFramesDetected = args.onBFramesDetected ?? this.#onBFramesDetected;
   }
 
   /** Process one complete tick, serialized after the preceding decode. Playback never reads the cache. */
@@ -145,11 +141,22 @@ export class CompressedVideoController {
       await this.#work;
       return;
     }
+    const diagnostics = this.#renderer.diagnostics?.session;
+    if (diagnostics?.claim(this.#topic, this) === true) {
+      for (const event of input) {
+        if (event.topic === this.#topic) {
+          diagnostics.inspect(this.#topic, event, this.#diagnosticRun);
+        }
+      }
+    }
     let epochStart = 0;
     let regressed = false;
     for (let i = 0; i < frames.length; i++) {
       const timestamp = toNanoSec(frames[i]!.message.timestamp);
       if (this.#lastInputPublishTimeNs != undefined && timestamp < this.#lastInputPublishTimeNs) {
+        const start = toNanoSec(frames[i]!.receiveTime);
+        const previous = this.#lastInputPublishTimeNs;
+        diagnostics?.decoderReset(this.#topic, start, previous, timestamp);
         epochStart = i;
         regressed = true;
       }
@@ -157,7 +164,9 @@ export class CompressedVideoController {
     }
     if (regressed) {
       const timestamp = this.#lastInputPublishTimeNs;
+      const observedRun = this.#diagnosticRun;
       this.handleTimestampRegression();
+      this.#diagnosticRun = observedRun;
       this.#lastInputPublishTimeNs = timestamp;
       frames = frames.slice(epochStart);
     }
@@ -202,15 +211,6 @@ export class CompressedVideoController {
     } else {
       this.#cache.addFrames(frames);
     }
-    if (!this.#reportedBFrames) {
-      for (const frame of frames) {
-        if (parseVideoFrameInfo(frame)?.isKeyframe === true && detectBFrames(frame) === true) {
-          this.#reportedBFrames = true;
-          this.#onBFramesDetected?.();
-          break;
-        }
-      }
-    }
     this.#desiredTarget = target;
     if (this.#seekTargetNs != undefined) {
       await this.#work;
@@ -225,6 +225,10 @@ export class CompressedVideoController {
         return;
       }
       if (!keyframe && (!this.#continuous || this.#decoderFrontier == undefined)) {
+        const diag = this.#renderer.diagnostics;
+        if (diag) {
+          diag.session.panel(diag.panelId, this.#topic).status = "waiting";
+        }
         return;
       }
       this.#cancelLateTarget?.();
@@ -284,6 +288,7 @@ export class CompressedVideoController {
   }
 
   public resetPlaybackState(): void {
+    this.#diagnosticRun = new VideoRun();
     this.#generation++;
     this.#state.lookbackCancel?.();
     this.#state.lookbackCancel = undefined;
@@ -313,6 +318,7 @@ export class CompressedVideoController {
   }
 
   public dispose(): void {
+    this.#renderer.diagnostics?.session.release(this.#topic, this);
     this.clear();
     this.#disposed = true;
   }
@@ -394,6 +400,11 @@ export class CompressedVideoController {
 
   async #lookbackFrames(generation: number, targetTime: Time): Promise<MessageEvent[] | undefined> {
     this.#state.lookbackGeneration = generation;
+    const diag = this.#renderer.diagnostics;
+    const stats = diag?.session.panel(diag.panelId, this.#topic);
+    if (stats) {
+      stats.status = "lookback";
+    }
     const metricsSeekId = playbackPerformanceMetrics.captureActiveSeek();
     // Track the recovery that this panel tick is awaiting.
     const finishMetricsTask = playbackPerformanceMetrics.beginVisualTask();
@@ -449,6 +460,9 @@ export class CompressedVideoController {
       }
       return undefined;
     } finally {
+      if (stats?.status === "lookback" && this.#isCurrentLookback(generation)) {
+        stats.status = found ? "decoding" : "waiting";
+      }
       playbackPerformanceMetrics.recordVideoLookback(
         metricsSeekId,
         !this.#isCurrentLookback(generation) ? "cancelled" : found ? "success" : "failure",
@@ -559,7 +573,27 @@ export class CompressedVideoController {
         timeRange: { start: startTime, end: endTime },
         onNewRangeIterator: async (iterator) => {
           try {
-            const frames = await collectFramesInRange(iterator, this.#topic, startTime, endTime);
+            const session = this.#renderer.diagnostics?.session;
+            const run = new VideoRun();
+            const observe =
+              session?.claim(this.#topic, this) === true
+                ? (event: MessageEvent) => {
+                    if (
+                      this.#isCurrentLookback(generation) &&
+                      event.message != undefined &&
+                      typeof event.message === "object"
+                    ) {
+                      session.inspect(this.#topic, event as MessageEvent<CompressedVideo>, run);
+                    }
+                  }
+                : undefined;
+            const frames = await collectFramesInRange(
+              iterator,
+              this.#topic,
+              startTime,
+              endTime,
+              observe,
+            );
             if (this.#isCurrentLookback(generation)) {
               // A genuinely empty range is still a successful read.
               finish(frames, "success");
@@ -588,6 +622,7 @@ async function collectFramesInRange(
   topic: string,
   startTime: Time,
   endTime: Time,
+  observe?: (event: MessageEvent) => void,
 ): Promise<MessageEvent[]> {
   const frames: MessageEvent[] = [];
   for await (const batch of iterator) {
@@ -601,6 +636,7 @@ async function collectFramesInRange(
       ) {
         continue;
       }
+      observe?.(messageEvent);
       const frameInfo = parseVideoFrameInfo(messageEvent);
       if (frameInfo == undefined) {
         continue;
