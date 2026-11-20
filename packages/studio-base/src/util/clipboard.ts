@@ -14,36 +14,15 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActuallyBePartial";
-
-function fallbackCopy(text: string) {
-  const body = document.body;
-  const el = document.createElement("textarea");
-  body.appendChild(el);
-  el.value = text;
-  el.select();
-  try {
-    void navigator.clipboard.writeText(el.value);
-  } finally {
-    body.removeChild(el);
-  }
-  body.removeChild(el);
-}
+import copyToClipboard from "copy-to-clipboard";
 
 export default {
   // Copy a string to the clipboard
   async copy(text: string): Promise<void> {
-    // attempt to use the new async clipboard methods. If those are not available or fail, fallback to the old
-    // `execCommand` method.
-    if (mightActuallyBePartial(navigator.clipboard).writeText != undefined) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return;
-      } catch {
-        fallbackCopy(text);
-      }
-    } else {
-      fallbackCopy(text);
+    // The library handles native copying and HTTP fallback. Keep our reject-on-failure
+    // contract so callers only report success after text has actually been copied.
+    if (!(await copyToClipboard(text, { fallbackToPrompt: false }))) {
+      throw new Error("Could not copy to clipboard");
     }
   },
 };

@@ -46,7 +46,9 @@ import {
 } from "@foxglove/studio-base/context/EventsContext";
 import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
+import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import clipboard from "@foxglove/studio-base/util/clipboard";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 import { eventListDetails } from "./eventListModel";
@@ -334,7 +336,7 @@ function EventViewComponent(params: {
   );
   const imgUrl = event.imgUrl;
 
-  const handleShareEvent = async () => {
+  const handleShareEvent = useCallbackWithToast(async () => {
     const link = window.location.href;
     const copyLink = link.replace(
       /time=.+Z&|time=.+Z$/,
@@ -349,10 +351,10 @@ function EventViewComponent(params: {
       )}&`,
     );
 
-    await navigator.clipboard.writeText(copyLink);
+    await clipboard.copy(copyLink);
 
     toast.success(t("copiedMomentToClipboard"));
-  };
+  }, [event.event.triggerTime, t]);
 
   const handleEditEvent = () => {
     onEdit({
