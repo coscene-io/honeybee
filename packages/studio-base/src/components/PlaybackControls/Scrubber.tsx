@@ -242,6 +242,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
@@ -472,6 +473,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
     EventContextMenuRequest | undefined
   >(undefined);
 
+  const playerId = useMessagePipeline(selectPlayerId);
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
@@ -792,9 +794,16 @@ export default function Scrubber(props: Props): React.JSX.Element {
     const onWindowPointerUp = (event: PointerEvent): void => {
       finishTimelinePointerInteraction(event);
     };
+    const cancel = () => {
+      finishTimelinePointerInteraction();
+    };
     window.addEventListener("pointerup", onWindowPointerUp, { once: true });
+    window.addEventListener("pointercancel", cancel, { once: true });
+    window.addEventListener("blur", cancel, { once: true });
     cleanupTimelineDragPointerUpRef.current = () => {
       window.removeEventListener("pointerup", onWindowPointerUp);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("blur", cancel);
     };
 
     setIsDragging(true);
@@ -1404,7 +1413,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
             <Stack ref={sliderLayerRef} fullHeight fullWidth position="absolute" flex={1}>
               {resolvedViewport && (
                 <Slider
-                  disabled={disableControls || min == undefined || max == undefined}
+                  key={playerId}
+                  disabled={
+                    presence === PlayerPresence.ERROR || min == undefined || max == undefined
+                  }
+                  seekBlocked={isKeyframeSearchActive}
                   onContextMenu={onContextMenu}
                   onHoverOver={onHoverOver}
                   onHoverOut={onHoverOut}

@@ -19,7 +19,6 @@ import {
   TimelinePositionIndicator,
 } from "./TimelinePositionIndicator";
 import { timelineDurationSeconds } from "./eventTimeContainment";
-import { frameInput } from "./frameInput";
 import {
   clientXToFraction,
   fractionToTime,
@@ -45,6 +44,7 @@ type PendingHoverEvent = {
 
 type Props = {
   disabled?: boolean;
+  seekBlocked?: boolean;
   onChange: (playbackSeconds: number) => void;
   onContextMenu?: (event: ContextMenuEvent) => void;
   onHoverOver?: (event: HoverOverEvent) => void;
@@ -62,6 +62,7 @@ const useStyles = makeStyles<{ cursor: string }>()((theme, props) => ({
     position: "relative",
     alignItems: "center",
     cursor: props.cursor,
+    touchAction: "pan-y",
   },
   rootDisabled: {
     label: "Slider-rootDisabled",
@@ -73,19 +74,34 @@ const useStyles = makeStyles<{ cursor: string }>()((theme, props) => ({
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 
-function RenderSlider({ viewport }: { viewport: TimelineViewport }): React.JSX.Element | ReactNull {
+const DRAG_SEEK_INTERVAL_MS = 500;
+
+type Scrub = {
+  pointerId: number;
+  clientX: number;
+  finalSeconds?: number;
+  lastSentSeconds?: number;
+  nextSeekAt: number;
+};
+
+function RenderSlider({
+  viewport,
+  previewSeconds,
+}: {
+  viewport: TimelineViewport;
+  previewSeconds?: number;
+}): React.JSX.Element | ReactNull {
   const theme = useTheme();
 
   const startTime = useMessagePipeline(selectStartTime);
   const currentTime = useMessagePipeline(selectCurrentTime);
 
-  const fraction = useMemo(
-    () =>
-      currentTime && startTime
-        ? timeToFraction(timelineDurationSeconds(startTime, currentTime), viewport)
-        : undefined,
-    [currentTime, startTime, viewport],
-  );
+  const fraction = useMemo(() => {
+    const seconds =
+      previewSeconds ??
+      (currentTime && startTime ? timelineDurationSeconds(startTime, currentTime) : undefined);
+    return seconds == undefined ? undefined : timeToFraction(seconds, viewport);
+  }, [currentTime, startTime, viewport, previewSeconds]);
 
   if (fraction == undefined || fraction < 0 || fraction > 1) {
     return ReactNull;
@@ -104,6 +120,7 @@ function RenderSlider({ viewport }: { viewport: TimelineViewport }): React.JSX.E
 function Slider(props: Props): React.JSX.Element {
   const {
     disabled = false,
+    seekBlocked = false,
     onContextMenu,
     onHoverOver,
     onHoverOut,
@@ -135,25 +152,47 @@ function Slider(props: Props): React.JSX.Element {
     [getPlaybackSecondsAtClientX],
   );
 
-  const applySeek = useRef<(clientX: number) => void>(() => {});
-  const lastSeekSeconds = useRef<number | undefined>(undefined);
-  useLayoutEffect(() => {
-    applySeek.current = (clientX) => {
-      if (!disabled) {
-        const seconds = getPlaybackSecondsAtClientX(clientX);
-        if (seconds !== lastSeekSeconds.current) {
-          lastSeekSeconds.current = seconds;
-          onChange(seconds);
-        }
+  const scrubRef = useRef<Scrub | undefined>(undefined);
+  const seekTimer = useRef<number | undefined>(undefined);
+  const [previewSeconds, setPreviewSeconds] = useState<number>();
+  const [dragging, setDragging] = useState(false);
+
+  const clearSeekTimer = useCallback(() => {
+    window.clearTimeout(seekTimer.current);
+    seekTimer.current = undefined;
+  }, []);
+
+  // Only the latest pointer target survives a cooldown or a video recovery lock.
+  const submitSeek = useCallback(
+    function submitLatest() {
+      const scrub = scrubRef.current;
+      if (disabled || seekBlocked || scrub == undefined) {
+        return;
       }
-    };
-  }, [disabled, getPlaybackSecondsAtClientX, onChange]);
-  const seekInput = useMemo(
-    () =>
-      frameInput((clientX: number) => {
-        applySeek.current(clientX);
-      }),
-    [],
+
+      if (scrub.finalSeconds != undefined) {
+        clearSeekTimer();
+        scrubRef.current = undefined;
+        setPreviewSeconds(undefined);
+      }
+      const now = performance.now();
+      const delay = scrub.nextSeekAt - now;
+      if (scrub.finalSeconds == undefined && delay > 0) {
+        seekTimer.current ??= window.setTimeout(() => {
+          seekTimer.current = undefined;
+          submitLatest();
+        }, delay);
+        return;
+      }
+
+      const seconds = scrub.finalSeconds ?? getPlaybackSecondsAtClientX(scrub.clientX);
+      if (seconds !== scrub.lastSentSeconds) {
+        scrub.lastSentSeconds = seconds;
+        scrub.nextSeekAt = now + DRAG_SEEK_INTERVAL_MS;
+        onChange(seconds);
+      }
+    },
+    [clearSeekTimer, disabled, getPlaybackSecondsAtClientX, onChange, seekBlocked],
   );
 
   const cancelPendingHover = useCallback(() => {
@@ -182,16 +221,20 @@ function Slider(props: Props): React.JSX.Element {
     }
 
     const elRect = target.getBoundingClientRect();
+    const seconds = fractionToTime(clientXToFraction(pendingHover.clientX, elRect), viewport);
+    if (scrubRef.current != undefined && scrubRef.current.finalSeconds == undefined) {
+      setPreviewSeconds(seconds);
+    }
     onHoverOver?.({
-      playbackSeconds: getPlaybackSecondsAtClientX(pendingHover.clientX),
+      playbackSeconds: seconds,
       clientX: pendingHover.clientX,
       clientY: elRect.y + TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX / 2,
     });
-  }, [disabled, getPlaybackSecondsAtClientX, onHoverOver]);
+  }, [disabled, onHoverOver, viewport]);
 
   const scheduleHoverOver = useCallback(
     (clientX: number) => {
-      if (onHoverOver == undefined) {
+      if (onHoverOver == undefined && scrubRef.current == undefined) {
         cancelPendingHover();
         return;
       }
@@ -201,75 +244,71 @@ function Slider(props: Props): React.JSX.Element {
     [cancelPendingHover, flushPendingHover, onHoverOver],
   );
 
-  const [mouseDown, setMouseDown] = useState(false);
-  const mouseDownRef = useRef(mouseDown);
-  useLayoutEffect(() => {
-    mouseDownRef.current = mouseDown;
-  }, [mouseDown]);
-
-  const [mouseInside, setMouseInside] = useState(false);
-  const mouseInsideRef = useRef(mouseInside);
-  useLayoutEffect(() => {
-    mouseInsideRef.current = mouseInside;
-  }, [mouseInside]);
-
+  const mouseInside = useRef(false);
   const onMouseEnter = useCallback(() => {
-    setMouseInside(true);
+    mouseInside.current = true;
   }, []);
 
   const onMouseLeave = useCallback(() => {
-    setMouseInside(false);
-    if (!mouseDownRef.current) {
-      cancelPendingHover();
-      onHoverOut?.();
+    mouseInside.current = false;
+    if (!dragging) {
+      dismissHover();
     }
-  }, [cancelPendingHover, onHoverOut]);
+  }, [dismissHover, dragging]);
 
   const onPointerUp = useCallback(
     (event: PointerEvent): void => {
-      seekInput.flush(event.clientX);
-      mouseDownRef.current = false;
-      setMouseDown(false);
-      if (!mouseInsideRef.current) {
-        cancelPendingHover();
-        onHoverOut?.();
+      const scrub = scrubRef.current;
+      if (
+        scrub == undefined ||
+        scrub.finalSeconds != undefined ||
+        scrub.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+      scrub.finalSeconds = getPlaybackSecondsAtClientX(event.clientX);
+      setPreviewSeconds(scrub.finalSeconds);
+      setDragging(false);
+      submitSeek();
+      if (mouseInside.current) {
+        scheduleHoverOver(event.clientX);
+      } else {
+        dismissHover();
       }
     },
-    [cancelPendingHover, onHoverOut, seekInput],
+    [dismissHover, getPlaybackSecondsAtClientX, scheduleHoverOver, submitSeek],
   );
 
-  const onPointerCancel = useCallback(() => {
-    seekInput.cancel();
-    cancelPendingHover();
-    mouseDownRef.current = false;
-    setMouseDown(false);
-    onHoverOut?.();
-  }, [cancelPendingHover, onHoverOut, seekInput]);
+  const cancelScrub = useCallback(() => {
+    clearSeekTimer();
+    scrubRef.current = undefined;
+    setPreviewSeconds(undefined);
+    setDragging(false);
+    dismissHover();
+  }, [clearSeekTimer, dismissHover]);
 
   const onPointerMove = useCallback(
     (ev: React.PointerEvent | PointerEvent): void => {
-      if (mouseDownRef.current && ev.currentTarget !== window) {
-        // onPointerMove is used on the <div/> for hovering, and on the window for dragging. While
-        // dragging we only want to pay attention to the window events (otherwise we'd be handling
-        // each event twice).
-        return;
-      }
       if (disabled) {
         return;
       }
-
-      scheduleHoverOver(ev.clientX);
-      if (!mouseDownRef.current) {
-        return;
+      const scrub = scrubRef.current;
+      if (scrub != undefined && scrub.finalSeconds == undefined) {
+        // The window listener also receives moves outside the slider.
+        if (ev.currentTarget !== window || ev.pointerId !== scrub.pointerId) {
+          return;
+        }
+        scrub.clientX = ev.clientX;
+        submitSeek();
       }
-      seekInput.schedule(ev.clientX);
+      scheduleHoverOver(ev.clientX);
     },
-    [disabled, seekInput, scheduleHoverOver],
+    [disabled, scheduleHoverOver, submitSeek],
   );
 
   const onPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>): void => {
-      if (disabled || ev.button !== 0) {
+      if (disabled || ev.button !== 0 || dragging) {
         return;
       }
       if (document.activeElement instanceof HTMLElement) {
@@ -277,17 +316,19 @@ function Slider(props: Props): React.JSX.Element {
       }
       ev.preventDefault();
       const seconds = getPlaybackSecondsAtMouse(ev);
-      lastSeekSeconds.current = seconds;
-      onChange(seconds);
-      mouseDownRef.current = true;
-      setMouseDown(true);
+      clearSeekTimer();
+      scrubRef.current = { clientX: ev.clientX, pointerId: ev.pointerId, nextSeekAt: 0 };
+      setPreviewSeconds(seconds);
+      setDragging(true);
+      scheduleHoverOver(ev.clientX);
+      submitSeek();
     },
-    [disabled, getPlaybackSecondsAtMouse, onChange],
+    [clearSeekTimer, disabled, dragging, getPlaybackSecondsAtMouse, scheduleHoverOver, submitSeek],
   );
 
   const handleContextMenu = useCallback(
     (ev: React.MouseEvent<HTMLDivElement>): void => {
-      if (disabled) {
+      if (disabled || seekBlocked) {
         return;
       }
 
@@ -299,38 +340,40 @@ function Slider(props: Props): React.JSX.Element {
         clientY: ev.clientY,
       });
     },
-    [disabled, getPlaybackSecondsAtMouse, onContextMenu],
+    [disabled, getPlaybackSecondsAtMouse, onContextMenu, seekBlocked],
   );
 
-  useEffect(() => {
-    if (mouseDown) {
-      window.addEventListener("pointerup", onPointerUp);
-      window.addEventListener("pointermove", onPointerMove);
-      window.addEventListener("pointercancel", onPointerCancel);
-      return () => {
-        window.removeEventListener("pointerup", onPointerUp);
-        window.removeEventListener("pointermove", onPointerMove);
-        window.removeEventListener("pointercancel", onPointerCancel);
-      };
+  useLayoutEffect(() => {
+    if (!dragging) {
+      return;
     }
-    return undefined;
-  }, [mouseDown, onPointerMove, onPointerUp, onPointerCancel]);
+    const onPointerCancel = (ev: PointerEvent) => {
+      if (scrubRef.current?.pointerId === ev.pointerId) {
+        cancelScrub();
+      }
+    };
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointercancel", onPointerCancel);
+    window.addEventListener("blur", cancelScrub);
+    return () => {
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointercancel", onPointerCancel);
+      window.removeEventListener("blur", cancelScrub);
+    };
+  }, [cancelScrub, dragging, onPointerMove, onPointerUp]);
 
-  useEffect(
-    () => () => {
-      seekInput.cancel();
-    },
-    [seekInput],
-  );
-  useEffect(() => {
-    if (disabled && mouseDownRef.current) {
-      onPointerCancel();
+  useLayoutEffect(() => {
+    if (disabled && scrubRef.current != undefined) {
+      cancelScrub();
+    } else {
+      submitSeek();
     }
-  }, [disabled, onPointerCancel]);
+    return clearSeekTimer;
+  }, [cancelScrub, clearSeekTimer, disabled, submitSeek]);
 
-  useEffect(() => {
-    return cancelPendingHover;
-  }, [cancelPendingHover]);
+  useEffect(() => cancelPendingHover, [cancelPendingHover]);
 
   return (
     <div
@@ -345,7 +388,7 @@ function Slider(props: Props): React.JSX.Element {
         [classes.rootDisabled]: disabled,
       })}
     >
-      <RenderSlider viewport={viewport} />
+      <RenderSlider viewport={viewport} previewSeconds={previewSeconds} />
     </div>
   );
 }
