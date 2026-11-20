@@ -133,12 +133,47 @@ it("defaults to the instances selected in the tree", async () => {
   act(() => {
     runtime.store.getState().setSelection([{ type: "instance", id: "instance-2" }]);
   });
-  expect(screen.getAllByRole("checkbox").map((box) => (box as HTMLInputElement).checked)).toEqual([
-    false,
-    true,
+  const boxes = () =>
+    screen
+      .getAllByRole("checkbox")
+      .map((box) => [(box as HTMLInputElement).checked, box.getAttribute("data-indeterminate")]);
+  // The select-all row comes first and shows a partial choice as indeterminate.
+  expect(boxes()).toEqual([
+    [false, "true"],
+    [false, "false"],
+    [true, "false"],
   ]);
   await start(runtime);
   expect(propagate.mock.calls[0]![0].seeds?.map((item) => item.instanceId)).toEqual(["instance-2"]);
+});
+
+it("select all checks every instance, then clears them all", async () => {
+  const { runtime, propagate } = await setup();
+  const all = () => screen.getByRole<HTMLInputElement>("checkbox", { name: "全选实例" });
+  const start = screen.getByRole("button", { name: "开始传播" });
+  fireEvent.click(screen.getByRole("checkbox", { name: /Object 1/ }));
+  expect(screen.getByText("1 / 2")).toBeTruthy();
+  // Partial: one click checks all, keeping the user's picks.
+  fireEvent.click(all());
+  expect(all().checked).toBe(true);
+  expect(screen.getByText("2 / 2")).toBeTruthy();
+  // Everything checked: one click clears all and blocks starting.
+  fireEvent.click(all());
+  expect(screen.getByText("0 / 2")).toBeTruthy();
+  expect(screen.getByText("至少选择一个实例")).toBeTruthy();
+  expect(start).toHaveProperty("disabled", true);
+  fireEvent.click(all());
+  await waitFor(() => {
+    expect(start).toHaveProperty("disabled", false);
+  });
+  fireEvent.click(start);
+  await waitFor(() => {
+    expect(runtime.store.getState().propagation.status).toBe("completed");
+  });
+  expect(propagate.mock.calls[0]![0].seeds?.map((item) => item.instanceId)).toEqual([
+    "instance-1",
+    "instance-2",
+  ]);
 });
 
 it("propagates backward onto earlier frames", async () => {

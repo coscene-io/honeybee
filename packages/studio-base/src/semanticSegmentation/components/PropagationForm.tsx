@@ -63,8 +63,21 @@ const useStyles = makeStyles()((theme) => ({
     overflowY: "auto",
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: theme.shape.borderRadius,
-    padding: theme.spacing(0.25, 0),
+    paddingBottom: theme.spacing(0.25),
   },
+  /** Select-all row: stays at the top while the list scrolls. */
+  selectAll: {
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+    backgroundColor: theme.palette.background.paper,
+    backgroundImage: `linear-gradient(${theme.palette.action.hover}, ${theme.palette.action.hover})`,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    "&:hover": {
+      backgroundImage: `linear-gradient(${theme.palette.action.selected}, ${theme.palette.action.selected})`,
+    },
+  },
+  hint: { display: "block", marginTop: theme.spacing(0.5) },
   instance: {
     display: "flex",
     alignItems: "center",
@@ -170,6 +183,16 @@ export function PropagationForm({
     0,
   );
   const maskCount = seeds.filter((seed) => seed.kind === "mask").length;
+  const allChosen = allSeeds.length > 0 && seeds.length === allSeeds.length;
+  /** Everything checked clears all; none or some checks all, keeping what the user picked. */
+  const toggleAll = () => {
+    setChecked(allChosen ? [] : allSeeds.map((seed) => seed.instanceId));
+  };
+  const seedSummary = [
+    `${seeds.length} 个实例`,
+    ...(polygonCount > 0 ? [`${polygonCount} 个多边形`] : []),
+    ...(maskCount > 0 ? [`${maskCount} 个 mask`] : []),
+  ].join(" · ");
   const running = ["running", "stopping"].includes(state.propagation.status);
 
   /** Frames of the seed's video within the range on one side of the seed, in time order. */
@@ -303,13 +326,29 @@ export function PropagationForm({
             实例
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {hasSeed
-              ? `${seeds.length} 个实例 · ${polygonCount} 个多边形${maskCount > 0 ? ` · ${maskCount} 个 mask` : ""}`
-              : "当前帧没有可传播的实例"}
+            {allSeeds.length === 0 ? "当前帧没有可传播的实例" : hasSeed ? seedSummary : ""}
           </Typography>
         </div>
         {allSeeds.length > 0 && (
           <div className={classes.instances} role="group" aria-label="传播实例">
+            {allSeeds.length > 1 && (
+              <label className={`${classes.instance} ${classes.selectAll}`}>
+                <Checkbox
+                  size="small"
+                  className={classes.checkbox}
+                  checked={allChosen}
+                  indeterminate={hasSeed && !allChosen}
+                  slotProps={{ input: { "aria-label": "全选实例" } }}
+                  onChange={toggleAll}
+                />
+                <Typography variant="body2" className={classes.instanceName}>
+                  全选
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {seeds.length} / {allSeeds.length}
+                </Typography>
+              </label>
+            )}
             {allSeeds.map((seed) => {
               const label = instanceLabel(seed.instanceId);
               return (
@@ -338,6 +377,11 @@ export function PropagationForm({
               );
             })}
           </div>
+        )}
+        {allSeeds.length > 0 && !hasSeed && (
+          <Typography variant="caption" color="warning.main" className={classes.hint} role="status">
+            至少选择一个实例
+          </Typography>
         )}
       </div>
 
