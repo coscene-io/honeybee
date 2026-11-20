@@ -55,6 +55,7 @@ describe("Slider", () => {
   }
 
   beforeEach(() => {
+    jest.useFakeTimers();
     frameCallbacks = new Map();
     nextFrameId = 0;
 
@@ -71,6 +72,7 @@ describe("Slider", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   function mockSliderRect(slider: HTMLElement): void {
@@ -252,10 +254,19 @@ describe("Slider", () => {
     },
   );
 
-  it("coalesces drag seek changes and flushes the final pointer-up position", () => {
-    const onChange = jest.fn();
+  function advance(ms: number): void {
+    act(() => {
+      jest.advanceTimersByTime(ms);
+    });
+  }
+
+  type Availability = "ready" | "blocked" | "disabled";
+
+  function renderScrub(availability: Availability = "ready") {
+    const onChange = jest.fn<void, [number]>();
     const onHoverOver = jest.fn();
-    render(
+    const viewport = makeTimelineViewport(0, 10);
+    const element = (state: Availability) => (
       <ThemeProvider isDark>
         <MockMessagePipelineProvider
           startTime={{ sec: 100, nsec: 0 }}
@@ -264,118 +275,129 @@ describe("Slider", () => {
         >
           <Slider
             cursor="pointer"
+            disabled={state === "disabled"}
+            seekBlocked={state === "blocked"}
             onChange={onChange}
             onHoverOver={onHoverOver}
-            viewport={makeTimelineViewport(0, 10)}
+            viewport={viewport}
           />
         </MockMessagePipelineProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
     );
-
+    const { rerender, unmount } = render(element(availability));
     const slider = screen.getByTestId("scrubber-slider");
     mockSliderRect(slider);
+    return {
+      onChange,
+      onHoverOver,
+      down(x: number) {
+        firePointerEvent(slider, "pointerdown", x);
+      },
+      move(x: number) {
+        firePointerEvent(window, "pointermove", x);
+      },
+      up(x: number) {
+        firePointerEvent(window, "pointerup", x);
+      },
+      setAvailability(state: Availability) {
+        rerender(element(state));
+      },
+      unmount,
+    };
+  }
 
-    firePointerEvent(slider, "pointerdown", 100);
-    firePointerEvent(window, "pointermove", 300);
-    firePointerEvent(window, "pointermove", 600);
+  it("previews every frame, seeks to the latest target every 500 ms and flushes on release", () => {
+    const scrub = renderScrub();
+    const indicator = screen.getByTestId("playback-current-time-indicator");
+    scrub.down(100);
+    expect(scrub.onChange.mock.calls).toEqual([[1]]);
 
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenLastCalledWith(1);
-    expect(onHoverOver).not.toHaveBeenCalled();
-
+    scrub.move(300);
+    scrub.move(600);
     act(flushAnimationFrames);
-
-    expect(onChange).toHaveBeenCalledTimes(2);
-    expect(onChange).toHaveBeenLastCalledWith(6);
-    expect(onHoverOver).toHaveBeenCalledTimes(1);
-    expect(onHoverOver).toHaveBeenLastCalledWith({
+    expect(indicator.style.left).toBe("60%");
+    expect(scrub.onHoverOver).toHaveBeenLastCalledWith({
       playbackSeconds: 6,
       clientX: 600,
       clientY: 25,
     });
-    firePointerEvent(window, "pointermove", 700);
-    firePointerEvent(window, "pointerup", 900);
-    expect(onChange).toHaveBeenCalledTimes(3);
-    expect(onChange).toHaveBeenLastCalledWith(9);
-    act(flushAnimationFrames);
-    expect(onChange).toHaveBeenCalledTimes(3);
+
+    advance(499);
+    expect(scrub.onChange.mock.calls).toEqual([[1]]);
+    scrub.move(700);
+    advance(1);
+    expect(scrub.onChange.mock.calls).toEqual([[1], [7]]);
+
+    scrub.move(800);
+    advance(500);
+    scrub.move(400);
+    scrub.up(900);
+    advance(1000);
+    expect(scrub.onChange.mock.calls).toEqual([[1], [7], [8], [9]]);
   });
 
-  it("cancels pending seeks on pointer cancellation", () => {
-    const onChange = jest.fn();
-    render(
-      <ThemeProvider isDark>
-        <MockMessagePipelineProvider
-          startTime={{ sec: 100, nsec: 0 }}
-          currentTime={{ sec: 105, nsec: 0 }}
-          endTime={{ sec: 110, nsec: 0 }}
-        >
-          <Slider cursor="pointer" onChange={onChange} viewport={makeTimelineViewport(0, 10)} />
-        </MockMessagePipelineProvider>
-      </ThemeProvider>,
-    );
-
-    const slider = screen.getByTestId("scrubber-slider");
-    mockSliderRect(slider);
-    firePointerEvent(slider, "pointerdown", 100);
-    firePointerEvent(window, "pointermove", 600);
-    firePointerEvent(window, "pointercancel", 700);
+  it("keeps tracking while recovery starts and respects the remaining cooldown on unlock", () => {
+    const scrub = renderScrub();
+    scrub.down(100);
+    scrub.setAvailability("blocked");
+    scrub.move(400);
     act(flushAnimationFrames);
-    firePointerEvent(window, "pointerup", 900);
-    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("playback-current-time-indicator").style.left).toBe("40%");
+    advance(300);
+    scrub.setAvailability("ready");
+    scrub.move(800);
+    advance(199);
+    expect(scrub.onChange.mock.calls).toEqual([[1]]);
+    advance(1);
+    scrub.up(800);
+    expect(scrub.onChange.mock.calls).toEqual([[1], [8]]);
   });
 
-  it("seeks once per click and does not repeat an already applied drag position on release", () => {
-    const onChange = jest.fn();
-    render(
-      <ThemeProvider isDark>
-        <MockMessagePipelineProvider
-          startTime={{ sec: 100, nsec: 0 }}
-          currentTime={{ sec: 105, nsec: 0 }}
-          endTime={{ sec: 110, nsec: 0 }}
-        >
-          <Slider cursor="pointer" onChange={onChange} viewport={makeTimelineViewport(0, 10)} />
-        </MockMessagePipelineProvider>
-      </ThemeProvider>,
-    );
-
-    const slider = screen.getByTestId("scrubber-slider");
-    mockSliderRect(slider);
-    firePointerEvent(slider, "pointerdown", 100);
-    firePointerEvent(window, "pointerup", 100);
-    expect(onChange).toHaveBeenCalledTimes(1);
-
-    firePointerEvent(slider, "pointerdown", 100);
-    expect(onChange).toHaveBeenCalledTimes(2);
-    firePointerEvent(window, "pointermove", 500);
-    act(flushAnimationFrames);
-    expect(onChange).toHaveBeenCalledTimes(3);
-    firePointerEvent(window, "pointerup", 500);
-    expect(onChange).toHaveBeenCalledTimes(3);
+  it("replaces a locked release with the newest gesture and clamps release outside the slider", () => {
+    const scrub = renderScrub("blocked");
+    scrub.down(100);
+    scrub.up(900);
+    scrub.down(600);
+    scrub.move(800);
+    advance(750);
+    scrub.up(-100);
+    expect(screen.getByTestId("playback-current-time-indicator").style.left).toBe("0%");
+    expect(scrub.onChange).not.toHaveBeenCalled();
+    scrub.setAvailability("ready");
+    expect(scrub.onChange.mock.calls).toEqual([[0]]);
   });
 
-  it("discards a pending move when release returns to the last applied position", () => {
-    const onChange = jest.fn();
-    render(
-      <ThemeProvider isDark>
-        <MockMessagePipelineProvider
-          startTime={{ sec: 100, nsec: 0 }}
-          currentTime={{ sec: 105, nsec: 0 }}
-          endTime={{ sec: 110, nsec: 0 }}
-        >
-          <Slider cursor="pointer" onChange={onChange} viewport={makeTimelineViewport(0, 10)} />
-        </MockMessagePipelineProvider>
-      </ThemeProvider>,
-    );
+  it.each(["pointercancel", "blur", "disabled", "unmount"])(
+    "discards a pending target on %s",
+    (reason) => {
+      const scrub = renderScrub();
+      scrub.down(100);
+      scrub.move(600);
+      if (reason === "disabled") {
+        scrub.setAvailability("blocked");
+        scrub.up(900);
+        scrub.setAvailability("disabled");
+        scrub.setAvailability("ready");
+      } else if (reason === "unmount") {
+        scrub.unmount();
+      } else {
+        firePointerEvent(window, reason, 700);
+        scrub.up(900);
+      }
+      advance(1000);
+      expect(scrub.onChange.mock.calls).toEqual([[1]]);
+    },
+  );
 
-    const slider = screen.getByTestId("scrubber-slider");
-    mockSliderRect(slider);
-    firePointerEvent(slider, "pointerdown", 100);
-    firePointerEvent(window, "pointermove", 500);
-    firePointerEvent(window, "pointerup", 100);
-    act(flushAnimationFrames);
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenLastCalledWith(1);
+  it("seeks once per click and discards a move when released back at the last sent position", () => {
+    const scrub = renderScrub();
+    scrub.down(100);
+    scrub.up(100);
+    scrub.down(100);
+    scrub.move(500);
+    scrub.up(100);
+    advance(500);
+    expect(scrub.onChange.mock.calls).toEqual([[1], [1]]);
   });
 
   it("does not render the current time indicator outside the visible viewport", () => {

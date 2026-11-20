@@ -33,8 +33,7 @@ import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import Scrubber from "./Scrubber";
-import type { HoverOverEvent } from "./Slider";
-import { zoomViewportAtTime, type TimelineViewport } from "./timelineViewport";
+import { zoomViewportAtTime } from "./timelineViewport";
 
 type MockPipelineStore = NonNullable<React.ContextType<typeof ContextInternal>>;
 type MockPipelineProps = {
@@ -54,16 +53,8 @@ function dispatchMockPipelineProps(store: MockPipelineStore, mockProps: MockPipe
   });
 }
 
-let mockSliderProps:
-  | {
-      disabled?: boolean;
-      cursor?: string;
-      viewport?: TimelineViewport;
-      onChange?: (playbackSeconds: number) => void;
-      onHoverOver?: (event: HoverOverEvent) => void;
-      onHoverOut?: () => void;
-    }
-  | undefined;
+type SliderProps = React.ComponentProps<typeof import("./Slider").default>;
+let mockSliderProps: SliderProps | undefined;
 let mockEventsOverlayProps:
   React.ComponentProps<typeof import("./EventsOverlay").EventsOverlay> | undefined;
 let mockRenderPortalledEventsOverlay = false;
@@ -108,21 +99,16 @@ jest.mock("./ProgressPlot", () => ({
   },
 }));
 
-jest.mock("./Slider", () => ({
-  __esModule: true,
-  default: function MockSlider(props: {
-    disabled?: boolean;
-    cursor?: string;
-    viewport?: TimelineViewport;
-    onChange?: (playbackSeconds: number) => void;
-    onHoverOver?: (event: HoverOverEvent) => void;
-    onHoverOut?: () => void;
-  }): React.JSX.Element {
-    mockSliderProps = props;
-    const { disabled } = props;
-    return <div data-testid="scrubber-slider" data-disabled={String(disabled)} />;
-  },
-}));
+jest.mock("./Slider", () => {
+  const { default: Slider } = jest.requireActual<typeof import("./Slider")>("./Slider");
+  return {
+    __esModule: true,
+    default: function ObservedSlider(props: SliderProps): React.JSX.Element {
+      mockSliderProps = props;
+      return <Slider {...props} />;
+    },
+  };
+});
 
 jest.mock("./ShortcutsHelpButton", () => ({
   ShortcutsHelpButton: function MockShortcutsHelpButton(): React.JSX.Element {
@@ -225,11 +211,13 @@ function Wrapper({
   consoleApi,
   eventEnabled = false,
   updateEventAllowed = false,
+  playerId,
 }: React.PropsWithChildren<{
   createEventAllowed?: boolean;
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   eventEnabled?: boolean;
   updateEventAllowed?: boolean;
+  playerId?: string;
 }>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -247,6 +235,7 @@ function Wrapper({
           <CoreDataProvider>
             <WorkspaceContextProvider disablePersistence>
               <MockMessagePipelineProvider
+                playerId={playerId}
                 startTime={{ sec: 0, nsec: 0 }}
                 endTime={{ sec: 10, nsec: 0 }}
                 currentTime={{ sec: 1, nsec: 0 }}
@@ -516,15 +505,15 @@ describe("<Scrubber />", () => {
         </Wrapper>,
       );
       const scrubber = getScrubber();
-      const before = mockSliderProps!.viewport!;
+      const before = mockSliderProps!.viewport;
       fireEvent.wheel(scrubber, { ctrlKey: true, deltaY: -100, clientX: 500 });
       fireEvent.wheel(scrubber, { ctrlKey: true, deltaY: -200, clientX: 500 });
       expect(mockSliderProps!.viewport).toBe(before);
       expect(frames.size).toBe(1);
       flushFrames();
       const expected = zoomViewportAtTime(before, 5, -300);
-      expect(mockSliderProps!.viewport!.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
-      expect(mockSliderProps!.viewport!.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
+      expect(mockSliderProps!.viewport.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
+      expect(mockSliderProps!.viewport.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
     });
 
     it("cancels pending wheel input on unmount", () => {
@@ -564,7 +553,7 @@ describe("<Scrubber />", () => {
           currentTime: { sec: 9, nsec: 0 },
         });
       });
-      const followed = mockSliderProps!.viewport!;
+      const followed = mockSliderProps!.viewport;
       expect(followed.visibleStartSec).toBeGreaterThan(1);
       flushFrames();
       expect(mockSliderProps!.viewport).toEqual(followed);
@@ -617,16 +606,38 @@ describe("<Scrubber />", () => {
     expect(screen.getByTestId("timeline-progress-loading")).toBeTruthy();
   });
 
-  it("disables the timeline slider while keyframe search is active", () => {
-    render(
-      <Wrapper>
-        <KeyframeSearchLock />
-        <Scrubber onSeek={jest.fn()} />
-      </Wrapper>,
-    );
+  it.each(["unlock", "change player"])(
+    "handles a released scrub across overlapping keyframe locks and %s",
+    (action) => {
+      const onSeek = jest.fn();
+      const element = (locks: number, playerId: string) => (
+        <Wrapper playerId={playerId}>
+          {locks >= 1 && <KeyframeSearchLock />}
+          {locks >= 2 && <KeyframeSearchLock />}
+          <Scrubber onSeek={onSeek} />
+        </Wrapper>
+      );
+      const { rerender } = render(element(0, "first"));
+      const slider = screen.getByTestId("scrubber-slider");
+      jest.spyOn(slider, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 100, 20));
+      fireEvent(slider, new MouseEvent("pointerdown", { bubbles: true, clientX: 10 }));
+      expect(onSeek.mock.calls).toEqual([[{ sec: 1, nsec: 0 }]]);
 
-    expect(screen.getByTestId("scrubber-slider").dataset.disabled).toBe("true");
-  });
+      rerender(element(2, "first"));
+      fireEvent(window, new MouseEvent("pointermove", { clientX: 60 }));
+      fireEvent(window, new MouseEvent("pointerup", { clientX: 90 }));
+      expect(screen.getByTestId("playback-current-time-indicator").style.left).toBe("90%");
+      const nextPlayer = action === "unlock" ? "first" : "second";
+      rerender(element(1, nextPlayer));
+      expect(onSeek).toHaveBeenCalledTimes(1);
+      rerender(element(0, nextPlayer));
+      expect(onSeek.mock.calls).toEqual(
+        action === "unlock"
+          ? [[{ sec: 1, nsec: 0 }], [{ sec: 9, nsec: 0 }]]
+          : [[{ sec: 1, nsec: 0 }]],
+      );
+    },
+  );
 
   it("uses the default cursor for the timeline slider", () => {
     render(
@@ -648,7 +659,7 @@ describe("<Scrubber />", () => {
     );
 
     act(() => {
-      mockSliderProps?.onChange?.(5);
+      mockSliderProps?.onChange(5);
     });
 
     expect(onSeek).not.toHaveBeenCalled();
@@ -1077,12 +1088,12 @@ it("focuses the Moment viewport without moving playback and fit restores the ful
       endTime: { sec: 6, nsec: 0 },
     } as never);
   });
-  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(3.5);
-  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
+  expect(mockSliderProps?.viewport.visibleStartSec).toBe(3.5);
+  expect(mockSliderProps?.viewport.visibleEndSec).toBe(6.5);
   expect(seek).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Zoom to fit" }));
-  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(0);
-  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(10);
+  expect(mockSliderProps?.viewport.visibleStartSec).toBe(0);
+  expect(mockSliderProps?.viewport.visibleEndSec).toBe(10);
 });
 
 function SidebarFocusFixture(): React.JSX.Element {
@@ -1119,8 +1130,8 @@ it("consumes a sidebar focus request through the shared store without seeking", 
     </Wrapper>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Focus sidebar fixture" }));
-  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(3.5);
-  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
+  expect(mockSliderProps?.viewport.visibleStartSec).toBe(3.5);
+  expect(mockSliderProps?.viewport.visibleEndSec).toBe(6.5);
   expect(screen.getByTestId("pending-sidebar-focus").textContent).toBe("none");
   expect(seek).not.toHaveBeenCalled();
 });
