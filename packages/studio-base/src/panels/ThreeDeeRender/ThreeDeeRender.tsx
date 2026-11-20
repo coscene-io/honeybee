@@ -31,6 +31,7 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
+import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import type {
@@ -143,6 +144,7 @@ async function processRenderState(
  * A panel that renders a 3D scene. This is a thin wrapper around a `Renderer` instance.
  */
 export function ThreeDeeRender(props: {
+  diagnostics?: PanelDiagnostics;
   context: BuiltinPanelExtensionContext;
   interfaceMode: InterfaceMode;
   testOptions: TestOptions;
@@ -242,6 +244,7 @@ export function ThreeDeeRender(props: {
     };
     newRenderer?.on("configChange", propagateConfig);
     if (newRenderer != undefined) {
+      newRenderer.diagnostics = props.diagnostics;
       newRenderer.subscribeMessageRange = subscribeMessageRangeRef.current;
       newRenderer.getPlaybackIsPlaying = () =>
         playbackContextRef.current.unstable_getPlaybackIsPlaying?.() ?? false;
@@ -283,6 +286,7 @@ export function ThreeDeeRender(props: {
     };
   }, [
     canvas,
+    props.diagnostics,
     configRef,
     config.scene.transforms?.enablePreloading,
     customSceneExtensions,

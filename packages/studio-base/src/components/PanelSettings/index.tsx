@@ -15,6 +15,7 @@ import { SettingsTree } from "@foxglove/studio";
 import { useConfigById } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import { ActionMenu } from "@foxglove/studio-base/components/PanelSettings/ActionMenu";
+import { ImageDiagnostics } from "@foxglove/studio-base/components/PlaybackDiagnostics/PerformanceSidebar";
 import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
 import { ShareJsonModal } from "@foxglove/studio-base/components/ShareJsonModal";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -185,6 +186,12 @@ export default function PanelSettings({
               </Stack>
               <Divider />
             </>
+          )}
+          {panelType === "Image" && (
+            <ImageDiagnostics
+              panelId={selectedPanelId}
+              topic={(config as { imageMode?: { imageTopic?: string } }).imageMode?.imageTopic}
+            />
           )}
           {settingsTree != undefined || showTitleField ? (
             <SettingsTreeEditor

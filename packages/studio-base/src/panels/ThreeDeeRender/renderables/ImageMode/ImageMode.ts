@@ -48,7 +48,6 @@ import {
   MISSING_CAMERA_INFO,
   NO_IMAGE_TOPICS_HUD_ITEM,
   REMOVE_IMAGE_TIMEOUT_MS,
-  SEEK_KEYFRAME_SEARCH_HUD_ITEM,
   SUPPORTED_RAW_IMAGE_SCHEMAS,
   WAITING_FOR_IMAGES_EMPTY_HUD_ID,
   WAITING_FOR_IMAGES_NOTICE_ID,
@@ -115,11 +114,9 @@ import {
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
-import { videoDelayBucket } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
-const VIDEO_B_FRAMES_HUD_GROUP = "VIDEO_B_FRAMES_GROUP";
 
 export class ImageMode
   extends SceneExtension<ImageRenderable, ImageModeEventMap>
@@ -143,7 +140,6 @@ export class ImageMode
   protected readonly messageHandler: IMessageHandler;
   #compressedVideoTopic: string | undefined;
   #compressedVideoController: CompressedVideoController | undefined;
-  #videoDelayBucket: string | undefined;
   #synchronize: boolean;
   #directlyDisplayedSeekImages = new WeakSet<AnyImage>();
 
@@ -337,9 +333,6 @@ export class ImageMode
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
     this.renderer.off("configApplied", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
-    this.hud.removeHUDItem(this.#videoDelayHUDId());
-    this.hud.removeHUDItem(this.#bFramesHUDId());
-    this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
     this.#annotations.dispose();
     this.imageRenderable?.dispose();
     super.dispose();
@@ -347,7 +340,6 @@ export class ImageMode
 
   public override handleSeek(): void {
     this.imageRenderable?.invalidateImage();
-    this.#clearVideoDelayHUD();
     const topic = this.#compressedVideoTopic;
     if (topic == undefined) {
       return;
@@ -438,7 +430,6 @@ export class ImageMode
     }
     this.#synchronize = synchronize;
     this.#compressedVideoController?.resetPlaybackState();
-    this.#clearVideoDelayHUD();
     this.hud.removeGroup(IMAGE_MODE_HUD_GROUP_ID);
     if (synchronize) {
       this.#annotations.removeAllRenderables();
@@ -452,12 +443,9 @@ export class ImageMode
       return;
     }
 
-    this.hud.removeHUDItem(this.#videoDelayHUDId());
-    this.hud.removeHUDItem(this.#bFramesHUDId());
     this.#compressedVideoController?.dispose();
     this.#compressedVideoController = undefined;
     this.#compressedVideoTopic = compressedVideoTopic;
-    this.#videoDelayBucket = undefined;
   }
 
   #compressedVideoTopicFor(topicName: string | undefined): string | undefined {
@@ -818,9 +806,6 @@ export class ImageMode
     const frames = queue.filter((event) => event.topic === topic);
     if (frames.length > 0) {
       this.messageHandler.recordCompressedVideoFrames(frames);
-      if (this.messageHandler.consumeTimestampRegression()) {
-        this.#clearVideoDelayHUD();
-      }
     }
     const atEnd =
       this.renderer.endTime != undefined && this.renderer.currentTime >= this.renderer.endTime;
@@ -877,7 +862,6 @@ export class ImageMode
           this.imageRenderable?.resetForSeek();
         },
         onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
-        onBFramesDetected: this.#showBFramesWarning,
       });
       if (this.renderer.getPlaybackIsPlaying?.() === false) {
         this.#compressedVideoController.handleSeek();
@@ -890,14 +874,12 @@ export class ImageMode
           this.imageRenderable?.resetForSeek();
         },
         onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
-        onBFramesDetected: this.#showBFramesWarning,
       });
     }
     return this.#compressedVideoController;
   }
 
   #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
-    this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
     if (!active) {
       return;
     }
@@ -909,72 +891,6 @@ export class ImageMode
     this.hud.removeHUDItem(WAITING_FOR_IMAGES_EMPTY_HUD_ID);
     this.hud.removeHUDItem(WAITING_FOR_IMAGES_NOTICE_ID);
   };
-
-  #videoDelayHUDId(): string {
-    return `VIDEO_DELAY:${this.#compressedVideoTopic ?? "image-mode"}`;
-  }
-
-  #bFramesHUDId(): string {
-    return `VIDEO_B_FRAMES:${this.#compressedVideoTopic ?? "image-mode"}`;
-  }
-
-  #showBFramesWarning = (): void => {
-    const topic = this.#compressedVideoTopic;
-    if (topic == undefined) {
-      return;
-    }
-    this.hud.addHUDItem({
-      id: this.#bFramesHUDId(),
-      group: VIDEO_B_FRAMES_HUD_GROUP,
-      displayType: "notice",
-      getMessage: () => t("threeDee:videoContainsBFrames", { topic }),
-    });
-  };
-
-  #clearVideoDelayHUD(): void {
-    this.#videoDelayBucket = undefined;
-    this.hud.removeHUDItem(this.#videoDelayHUDId());
-  }
-
-  #updateVideoDelayHUD(
-    targetFrame: CompressedVideoFrameEvent,
-    displayedFrame: CompressedVideoFrameEvent,
-  ): void {
-    this.#setVideoDelayBucket(
-      toNanoSec(targetFrame.receiveTime) - toNanoSec(displayedFrame.receiveTime),
-    );
-  }
-
-  #updateVideoDelayHUDFromLastDisplay(
-    targetFrame: CompressedVideoFrameEvent,
-    renderable: ImageRenderable,
-  ): void {
-    const displayedReceiveTime = renderable.userData.displayedFrameState?.receiveTime;
-    if (displayedReceiveTime != undefined) {
-      this.#setVideoDelayBucket(toNanoSec(targetFrame.receiveTime) - displayedReceiveTime);
-    }
-  }
-
-  #setVideoDelayBucket(delayNs: bigint): void {
-    const bucket = videoDelayBucket(delayNs);
-    const id = this.#videoDelayHUDId();
-    if (bucket == undefined) {
-      this.#clearVideoDelayHUD();
-      return;
-    }
-    if (bucket === this.#videoDelayBucket) {
-      return;
-    }
-    this.#videoDelayBucket = bucket;
-    this.hud.removeHUDItem(id);
-    const topic = this.#compressedVideoTopic ?? "";
-    this.hud.addHUDItem({
-      id,
-      group: "VIDEO_DELAY_GROUP",
-      displayType: "notice",
-      getMessage: () => t("threeDee:videoFrameDelay", { topic, delay: bucket }),
-    });
-  }
 
   async #setCompressedVideoFramesOnRenderable(
     frames: readonly CompressedVideoFrameEvent[],
@@ -1023,16 +939,10 @@ export class ImageMode
               } finally {
                 this.#directlyDisplayedSeekImages.delete(event.message);
               }
-              this.#updateVideoDelayHUD(targetFrame, event);
             }
-          : (event) => {
-              options?.updateImageState?.(event);
-              this.#updateVideoDelayHUD(targetFrame, event);
-            },
+          : options?.updateImageState,
     });
-    if (!result.ok && result.reason === "timeout") {
-      this.#updateVideoDelayHUDFromLastDisplay(targetFrame, renderable);
-    }
+
     return result;
   }
 

@@ -11,7 +11,7 @@ import { assert } from "ts-essentials";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
-import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
+import { type Time, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import type { MessageEvent } from "@foxglove/studio";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
@@ -29,7 +29,7 @@ import {
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import { RosValue } from "@foxglove/studio-base/players/types";
 
-import { AnyImage, CompressedVideo } from "./ImageTypes";
+import { AnyImage, CompressedVideo, getTimestampFromImage } from "./ImageTypes";
 import { decodeCompressedImageToBitmap, isVideoKeyframe } from "./decodeImage";
 import { CameraInfo } from "../../ros";
 import {
@@ -209,6 +209,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   #pendingImage: PendingImage | undefined;
   #imageMicrotask = false;
   #allowStoppedImage = true;
+  #lastStillTime?: bigint;
   #latestImageTarget: PendingImage["event"] | undefined;
   #pendingDecodedImage: PendingDecodedImage | undefined;
   #videoDecodeRequestId = 0;
@@ -263,6 +264,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   }
 
   public resetForSeek(): void {
+    this.#lastStillTime = undefined;
     this.invalidateImage();
     this.#lateTargetRequestId = undefined;
     this.#videoDecodeRequestId++;
@@ -373,6 +375,24 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       message: image,
       receiveTime: messageEvent?.receiveTime ?? fromNanoSec(this.userData.receiveTime),
     };
+    const diag = this.renderer.diagnostics;
+    if (diag) {
+      const stats = diag.session.panel(diag.panelId, this.userData.topic);
+      stats.status = "decoding";
+      const observed = toNanoSec(event.receiveTime);
+      diag.session.cover(this.userData.topic, this.#lastStillTime ?? observed, observed);
+      this.#lastStillTime = observed;
+      const topic = diag.session.topic(this.userData.topic);
+      topic.format =
+        "format" in image ? image.format : "encoding" in image ? image.encoding : "raw";
+      diag.session.expectFrame(
+        diag.panelId,
+        this.userData.topic,
+        this.renderer.currentTime,
+        toNanoSec(event.receiveTime),
+        toNanoSec(getTimestampFromImage(image)),
+      );
+    }
     this.#latestImageTarget = event;
     this.#pendingImage?.resolve({ ok: false, reason: "stale" });
     const result = new Promise<ImageSetImageResult>((resolve) => {
@@ -398,8 +418,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       this.#activeImage = true;
       const generation = this.#imageGeneration;
       const seq = ++this.#receivedImageSequenceNumber;
+      const started = performance.now();
       void this.decodeImageWithResult(pending.image, pending.resizeWidth)
         .then((decoded) => {
+          this.#recordDecodeDuration(started, decoded);
           this.#handleDecodedImage(
             seq,
             decoded,
@@ -436,6 +458,17 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return { ok: false, reason: "failed" };
     }
 
+    const diag = this.renderer.diagnostics;
+    if (diag) {
+      diag.session.panel(diag.panelId, this.userData.topic).status = "decoding";
+      diag.session.expectFrame(
+        diag.panelId,
+        this.userData.topic,
+        this.renderer.currentTime,
+        toNanoSec(targetFrame.receiveTime),
+        toNanoSec(targetFrame.message.timestamp),
+      );
+    }
     for (const frame of frames) {
       this.#recordCompressedVideoFrameEvent(frame);
     }
@@ -456,6 +489,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     const seq = ++this.#receivedImageSequenceNumber;
     const decoder = (this.decoder ??= new WorkerImageDecoder());
+    const started = performance.now();
     const decodePromise = this.#decodeCompressedVideoFrames(
       decoder,
       frames,
@@ -467,6 +501,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return await new Promise<ImageSetImageResult>((resolve) => {
       decodePromise
         .then((result) => {
+          this.#recordDecodeDuration(started, result);
           this.#handleDecodedImage(
             seq,
             result,
@@ -482,6 +517,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
             result.decodedFrame != undefined
               ? () => options.canDisplayFrame?.(result.decodedFrame!) !== false
               : undefined,
+            targetFrame.receiveTime,
           );
         })
         .catch((err: unknown) => {
@@ -504,8 +540,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     isRequestCurrent?: () => boolean,
     event?: PendingDecodedImage["event"],
     canDisplay?: () => boolean,
+    targetTime?: Time,
   ): void {
     if (!decoded.ok || decoded.image == undefined) {
+      if (!decoded.ok && isRequestCurrent?.() !== false && decoded.reason !== "stale") {
+        this.#recordDecodeResult(decoded.reason, targetTime ?? event?.receiveTime);
+      }
       if (decoded.image != undefined) {
         this.#closeDecodedImageIfUnused(decoded.image);
       }
@@ -574,6 +614,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       this.userData.image = candidate.event.message;
       this.userData.receiveTime = receiveTime;
       this.userData.displayedFrameState = { image: candidate.event.message, receiveTime };
+      const diag = this.renderer.diagnostics;
+      diag?.session.displayed(
+        diag.panelId,
+        this.userData.topic,
+        this.renderer.currentTime,
+        receiveTime,
+        toNanoSec(getTimestampFromImage(candidate.event.message)),
+      );
     }
     this.update();
     candidate.onDecoded?.();
@@ -1200,7 +1248,36 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.mesh.renderOrder = -1 * Number.MAX_SAFE_INTEGER;
   }
 
+  #recordDecodeDuration(started: number, result: DecodedImageResult): void {
+    const diag = this.renderer.diagnostics;
+    if (diag && result.ok) {
+      diag.session.panel(diag.panelId, this.userData.topic).decodeMs = performance.now() - started;
+    }
+  }
+
+  #recordDecodeResult(reason: string, time?: Time): void {
+    const diag = this.renderer.diagnostics;
+    if (!diag) {
+      return;
+    }
+    const stats = diag.session.panel(diag.panelId, this.userData.topic);
+    stats.status = reason === "timeout" ? "waiting" : "failed";
+    if (stats.status === "failed") {
+      const start = time ? toNanoSec(time) : this.renderer.currentTime;
+      diag.session.record({
+        kind: "decodeError",
+        topic: this.userData.topic,
+        start,
+        end: start,
+        detail: reason,
+      });
+    }
+  }
+
   protected addError(key: string, message: string): void {
+    if (key === DECODE_IMAGE_ERR_KEY) {
+      this.#recordDecodeResult(message);
+    }
     if (this.isDisposed()) {
       return;
     }

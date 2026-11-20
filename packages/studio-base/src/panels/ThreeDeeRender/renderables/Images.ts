@@ -13,10 +13,7 @@ import { PinholeCameraModel } from "@foxglove/den/image";
 import { toNanoSec } from "@foxglove/rostime";
 import { CameraCalibration, CompressedImage, RawImage } from "@foxglove/schemas";
 import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
-import {
-  ALL_SUPPORTED_IMAGE_SCHEMAS,
-  SEEK_KEYFRAME_SEARCH_HUD_ITEM,
-} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
+import { ALL_SUPPORTED_IMAGE_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 import {
   REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
   type RemoteVideoFrameReference,
@@ -25,7 +22,6 @@ import {
 import {
   CompressedVideoController,
   type CompressedVideoDisplayFrames,
-  type SeekKeyframeSearchState,
 } from "./Images/CompressedVideoController";
 import { ALL_CAMERA_INFO_SCHEMAS, AnyImage, CompressedVideo } from "./Images/ImageTypes";
 import {
@@ -35,7 +31,6 @@ import {
   normalizeRosImage,
 } from "./Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPrefixMatching";
-import { videoDelayBucket } from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import {
@@ -63,7 +58,6 @@ import { BaseSettings, PRECISION_DISTANCE } from "../settings";
 import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose } from "../transforms";
 import {
-  type CompressedVideoFrameEvent,
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageRenderable,
   ImageSetImageResult,
@@ -80,8 +74,6 @@ export type LayerSettingsImage = BaseSettings & {
 const DEFAULT_BITMAP_WIDTH = 512;
 const NO_CAMERA_INFO_ERR = "NoCameraInfo";
 const CAMERA_MODEL = "CameraModel";
-const VIDEO_DELAY_HUD_GROUP = "VIDEO_DELAY_GROUP";
-const VIDEO_B_FRAMES_HUD_GROUP = "VIDEO_B_FRAMES_GROUP";
 
 export class Images extends SceneExtension<ImageRenderable> {
   public static extensionId = "foxglove.Images";
@@ -102,8 +94,6 @@ export class Images extends SceneExtension<ImageRenderable> {
    */
   #cameraInfoByTopic = new Map<string, CameraInfo>();
   #compressedVideoControllers = new Map<string, CompressedVideoController>();
-  #bFrameTopics = new Set<string>();
-  #videoDelayBuckets = new Map<string, string>();
 
   protected supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
@@ -121,10 +111,6 @@ export class Images extends SceneExtension<ImageRenderable> {
       controller.dispose();
     }
     this.#compressedVideoControllers.clear();
-    this.#bFrameTopics.clear();
-    this.hud.removeGroup(VIDEO_DELAY_HUD_GROUP);
-    this.hud.removeGroup(VIDEO_B_FRAMES_HUD_GROUP);
-    this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
     super.dispose();
   }
 
@@ -147,8 +133,6 @@ export class Images extends SceneExtension<ImageRenderable> {
   }
 
   public override handleSeek(): void {
-    this.#videoDelayBuckets.clear();
-    this.hud.removeGroup(VIDEO_DELAY_HUD_GROUP);
     for (const topic of this.#visibleCompressedVideoTopics()) {
       this.#compressedVideoControllerForTopic(topic).handleSeek();
     }
@@ -233,17 +217,13 @@ export class Images extends SceneExtension<ImageRenderable> {
       if (!compressedVideoTopics.has(topic)) {
         controller.dispose();
         this.#compressedVideoControllers.delete(topic);
-        this.#bFrameTopics.delete(topic);
-        this.#videoDelayBuckets.delete(topic);
-        this.hud.removeHUDItem(`VIDEO_DELAY:${topic}`);
-        this.hud.removeHUDItem(`VIDEO_B_FRAMES:${topic}`);
       }
     }
-    this.#updateVisibleVideoHUD();
+    this.#disposeHiddenVideoControllers();
   };
 
   #handleConfigChange = (): void => {
-    this.#updateVisibleVideoHUD();
+    this.#disposeHiddenVideoControllers();
   };
 
   #visibleCompressedVideoTopics(): Set<string> {
@@ -442,17 +422,8 @@ export class Images extends SceneExtension<ImageRenderable> {
     );
   };
 
-  #updateVisibleVideoHUD(): void {
+  #disposeHiddenVideoControllers(): void {
     const visibleTopics = this.#visibleCompressedVideoTopics();
-    for (const topic of this.#bFrameTopics) {
-      this.#setBFramesWarningVisible(topic, { visible: visibleTopics.has(topic) });
-    }
-    for (const topic of this.#videoDelayBuckets.keys()) {
-      if (!visibleTopics.has(topic)) {
-        this.#videoDelayBuckets.delete(topic);
-        this.hud.removeHUDItem(`VIDEO_DELAY:${topic}`);
-      }
-    }
     for (const [topic, controller] of this.#compressedVideoControllers) {
       if (!visibleTopics.has(topic)) {
         controller.dispose();
@@ -484,64 +455,11 @@ export class Images extends SceneExtension<ImageRenderable> {
     const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message, {
       deferImageState: true,
     });
-    const result = await renderable.setCompressedVideoFrames(frames, {
+    return await renderable.setCompressedVideoFrames(frames, {
       ...options,
       resizeWidth: options?.resizeWidth ?? DEFAULT_BITMAP_WIDTH,
-      updateImageState: (event) => {
-        options?.updateImageState?.(event);
-        this.#updateVideoDelayHUD(targetFrame, event);
-      },
     });
-    if (!result.ok && result.reason === "timeout") {
-      this.#updateVideoDelayHUDFromLastDisplay(targetFrame, renderable);
-    }
-    return result;
   };
-
-  #updateVideoDelayHUD(
-    targetFrame: CompressedVideoFrameEvent,
-    displayedFrame: CompressedVideoFrameEvent,
-  ): void {
-    this.#setVideoDelayBucket(
-      targetFrame.topic,
-      toNanoSec(targetFrame.receiveTime) - toNanoSec(displayedFrame.receiveTime),
-    );
-  }
-
-  #updateVideoDelayHUDFromLastDisplay(
-    targetFrame: CompressedVideoFrameEvent,
-    renderable: ImageRenderable,
-  ): void {
-    const displayedReceiveTime = renderable.userData.displayedFrameState?.receiveTime;
-    if (displayedReceiveTime == undefined) {
-      return;
-    }
-    this.#setVideoDelayBucket(
-      targetFrame.topic,
-      toNanoSec(targetFrame.receiveTime) - displayedReceiveTime,
-    );
-  }
-
-  #setVideoDelayBucket(topic: string, delayNs: bigint): void {
-    const id = `VIDEO_DELAY:${topic}`;
-    const bucket = videoDelayBucket(delayNs);
-    if (bucket == undefined) {
-      this.#videoDelayBuckets.delete(topic);
-      this.hud.removeHUDItem(id);
-      return;
-    }
-    if (this.#videoDelayBuckets.get(topic) === bucket) {
-      return;
-    }
-    this.#videoDelayBuckets.set(topic, bucket);
-    this.hud.removeHUDItem(id);
-    this.hud.addHUDItem({
-      id,
-      group: VIDEO_DELAY_HUD_GROUP,
-      displayType: "notice",
-      getMessage: () => t("threeDee:videoFrameDelay", { topic, delay: bucket }),
-    });
-  }
 
   #compressedVideoControllerForTopic(topic: string): CompressedVideoController {
     let controller = this.#compressedVideoControllers.get(topic);
@@ -553,10 +471,6 @@ export class Images extends SceneExtension<ImageRenderable> {
         cancelLateTarget: () => this.renderables.get(topic)?.cancelLateTargetFrame(),
         resetDecoder: () => {
           this.renderables.get(topic)?.resetForSeek();
-        },
-        onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
-        onBFramesDetected: () => {
-          this.#showBFramesWarning(topic);
         },
       });
       this.#compressedVideoControllers.set(topic, controller);
@@ -570,38 +484,9 @@ export class Images extends SceneExtension<ImageRenderable> {
         resetDecoder: () => {
           this.renderables.get(topic)?.resetForSeek();
         },
-        onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
-        onBFramesDetected: () => {
-          this.#showBFramesWarning(topic);
-        },
       });
     }
     return controller;
-  }
-
-  #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
-    this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
-  };
-
-  #showBFramesWarning(topic: string): void {
-    this.#bFrameTopics.add(topic);
-    this.#setBFramesWarningVisible(topic, {
-      visible: this.#visibleCompressedVideoTopics().has(topic),
-    });
-  }
-
-  #setBFramesWarningVisible(topic: string, { visible }: { visible: boolean }): void {
-    const id = `VIDEO_B_FRAMES:${topic}`;
-    if (!visible) {
-      this.hud.removeHUDItem(id);
-      return;
-    }
-    this.hud.addHUDItem({
-      id,
-      group: VIDEO_B_FRAMES_HUD_GROUP,
-      displayType: "notice",
-      getMessage: () => t("threeDee:videoContainsBFrames", { topic }),
-    });
   }
 
   #prepareImageRenderable(

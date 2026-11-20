@@ -15,6 +15,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { MessageEvent, PlayerPresence, PlayerState } from "@foxglove/studio-base/players/types";
+import { VideoDiagnostics } from "@foxglove/studio-base/services/videoDiagnostics";
 
 import MessageOrderTracker from "./MessageOrderTracker";
 
@@ -45,7 +46,7 @@ const playerStateWithMessages = (messages: any): PlayerState => ({
     lastSeekTime: lastSeekTime(),
     startTime: { sec: 0, nsec: 0 },
     endTime: { sec: 2, nsec: 0 },
-    isPlaying: false,
+    isPlaying: true,
     repeatEnabled: false,
     messages,
     totalBytesReceived: 1234,
@@ -69,29 +70,33 @@ const message = (
 });
 
 describe("MessagePipeline/MessageOrderTracker", () => {
-  describe("when expecting messages ordered by receive time", () => {
-    it("report error when messages are out of order", () => {
-      const orderTracker = new MessageOrderTracker();
-      const problems = orderTracker.update(
-        playerStateWithMessages([message(7, 10), message(8, 9)]),
-      );
+  it("retains cross-topic order evidence and ignores a seek backfill or a repeated batch", () => {
+    const session = new VideoDiagnostics();
+    const tracker = new MessageOrderTracker(session);
+    const previous = { ...message(7, 10), topic: "/bar" };
+    const state = playerStateWithMessages([previous, message(8, 9)]);
+    tracker.update(state);
+    tracker.update(state);
+    const group = session.topics.get("/foo")?.findings.get("order");
+    expect(Array.from(group!.values())).toEqual([
+      {
+        kind: "order",
+        topic: "/foo",
+        otherTopic: "/bar",
+        start: 9000000001n,
+        end: 10000000001n,
+        duration: 1,
+      },
+    ]);
+    tracker.update(playerStateWithMessages([message(1, 2), message(1, 1)]));
+    expect(group?.size).toBe(1);
+  });
 
-      expect(problems).toEqual([
-        {
-          error: new Error(
-            "Processed a message on /foo at 9.000000001 which is earlier than last processed message on /foo at 10.000000001.",
-          ),
-          message: "Data went back in time",
-          severity: "warn",
-        },
-      ]);
-    });
-
-    it("does not report an error when messages are in order", () => {
-      const orderTracker = new MessageOrderTracker();
-      const playerState = playerStateWithMessages([message(8, 9), message(7, 10)]);
-      const problems = orderTracker.update(playerState);
-      expect(problems).toEqual([]);
-    });
+  it("accepts monotonic delivery and equal record times", () => {
+    const session = new VideoDiagnostics();
+    new MessageOrderTracker(session).update(
+      playerStateWithMessages([message(8, 9), message(7, 9), message(6, 10)]),
+    );
+    expect(session.topics.size).toBe(0);
   });
 });

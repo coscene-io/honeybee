@@ -43,6 +43,7 @@ import { LayerErrors } from "@foxglove/studio-base/panels/ThreeDeeRender/LayerEr
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { palette, fontMonospace } from "@foxglove/theme";
 import { LabelMaterial, LabelPool } from "@foxglove/three-text";
 
@@ -246,6 +247,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public startTime: bigint | undefined;
   public subscribeMessageRange: SubscribeMessageRange | undefined;
   public getPlaybackIsPlaying?: () => boolean;
+  public diagnostics?: PanelDiagnostics;
   public acquireKeyframeSearchLock?: () => () => void;
   public endTime?: bigint;
 

@@ -16,9 +16,9 @@
 
 import Logger from "@foxglove/log";
 import type { Time } from "@foxglove/rostime";
-import { isLessThan, subtract as subtractTimes, toSec } from "@foxglove/rostime";
-import type { PlayerState, MessageEvent, PlayerProblem } from "@foxglove/studio-base/players/types";
-import { formatFrame } from "@foxglove/studio-base/util/time";
+import { isLessThan, subtract as subtractTimes, toSec, toNanoSec } from "@foxglove/rostime";
+import type { PlayerState, MessageEvent } from "@foxglove/studio-base/players/types";
+import type { VideoDiagnostics } from "@foxglove/studio-base/services/videoDiagnostics";
 
 const DRIFT_THRESHOLD_SEC = 1; // Maximum amount of drift allowed.
 const WAIT_FOR_SEEK_SEC = 1; // How long we wait for a change in `lastSeekTime` before warning.
@@ -33,7 +33,6 @@ const log = Logger.getLogger(__filename);
 // or forcing an update of `player.lastSeekTime` are working properly.
 class MessageOrderTracker {
   #lastMessages: readonly MessageEvent[] = [];
-  #lastCurrentTime?: Time;
   #lastMessageTime?: Time;
   #lastMessageTopic?: string;
   #lastLastSeekTime?: number;
@@ -48,30 +47,29 @@ class MessageOrderTracker {
 
   #incorrectMessages: MessageEvent[] = [];
 
-  public update(playerState: PlayerState): PlayerProblem[] {
-    if (!playerState.activeData) {
-      return [];
-    }
+  public constructor(private readonly diagnostics: VideoDiagnostics) {}
 
-    const problems: PlayerProblem[] = [];
+  public update(playerState: PlayerState): void {
+    if (!playerState.activeData) {
+      return;
+    }
 
     const { messages, currentTime, lastSeekTime } = playerState.activeData;
     let didSeek = false;
 
     if (this.#lastLastSeekTime !== lastSeekTime) {
+      didSeek = this.#lastLastSeekTime != undefined || !playerState.activeData.isPlaying;
       this.#lastLastSeekTime = lastSeekTime;
       if (this.#warningTimeout) {
         clearTimeout(this.#warningTimeout);
         this.#warningTimeout = undefined;
         this.#incorrectMessages = [];
       }
-      this.#warningTimeout = this.#lastMessageTime = this.#lastCurrentTime = undefined;
+      this.#warningTimeout = this.#lastMessageTime = undefined;
       this.#lastMessages = [];
-      didSeek = true;
     }
-    if (this.#lastMessages !== messages || this.#lastCurrentTime !== currentTime) {
+    if (this.#lastMessages !== messages) {
       this.#lastMessages = messages;
-      this.#lastCurrentTime = currentTime;
       for (const message of messages) {
         const messageTime = message.receiveTime;
 
@@ -109,28 +107,29 @@ class MessageOrderTracker {
         }
 
         if (
+          !didSeek &&
           this.#lastMessageTime &&
           this.#lastMessageTopic != undefined &&
           isLessThan(messageTime, this.#lastMessageTime)
         ) {
-          const formattedTime = formatFrame(messageTime);
-          const lastMessageTime = formatFrame(this.#lastMessageTime);
-          const errorMessage =
-            `Processed a message on ${message.topic} at ${formattedTime} which is earlier than ` +
-            `last processed message on ${this.#lastMessageTopic} at ${lastMessageTime}.`;
-
-          problems.push({
-            severity: "warn",
-            message: "Data went back in time",
-            error: new Error(errorMessage),
-          });
+          const start = toNanoSec(messageTime);
+          const previous = toNanoSec(this.#lastMessageTime);
+          this.diagnostics.record(
+            {
+              kind: "order",
+              topic: message.topic,
+              otherTopic: this.#lastMessageTopic,
+              start,
+              end: previous,
+              duration: Number(previous - start) / 1e9,
+            },
+            JSON.stringify([this.#lastMessageTopic, String(previous), String(start)]),
+          );
         }
         this.#lastMessageTopic = message.topic;
-        this.#lastMessageTime = messageTime;
+        this.#lastMessageTime = didSeek ? undefined : messageTime;
       }
     }
-
-    return problems;
   }
 }
 

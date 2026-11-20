@@ -30,6 +30,7 @@ import {
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { LabelPool } from "@foxglove/three-text";
 
 import { Input } from "./Input";
@@ -296,6 +297,7 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   /** Live playback state; EOF is checked against endTime separately. */
   getPlaybackIsPlaying?: () => boolean;
   /** Hold global playback controls while a video seek is being recovered. */
+  diagnostics?: PanelDiagnostics;
   acquireKeyframeSearchLock?: () => () => void;
   endTime?: bigint;
   isPlaybackStopped(): boolean;

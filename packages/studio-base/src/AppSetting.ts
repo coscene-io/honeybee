@@ -12,6 +12,8 @@ export enum AppSetting {
   TIME_FORMAT = "time.format",
   UPDATES_ENABLED = "updates.enabled",
   LANGUAGE = "language",
+  SHOW_PLAYBACK_DIAGNOSTICS = "playback.showDiagnostics",
+  KEYFRAME_WARNING_SECONDS = "playback.keyframeWarningSeconds",
 
   // ROS
   ROS_PACKAGE_PATH = "ros.ros_package_path",

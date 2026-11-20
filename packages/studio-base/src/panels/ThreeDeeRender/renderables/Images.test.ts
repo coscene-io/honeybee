@@ -353,7 +353,7 @@ describe("Images compressed video seek lookback", () => {
     ]);
   });
 
-  it("keeps visible compressed video renderables and shows keyframe search notice during seek lookback", async () => {
+  it("keeps visible compressed video renderables and keeps the image free of notices during seek lookback", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const targetDelta = makeVideoMessage(20_000_000n, "delta");
@@ -388,7 +388,7 @@ describe("Images compressed video seek lookback", () => {
 
     expect(images.renderables.get("/video")).toBe(previousRenderable);
     expect(previousRenderable?.disposed).toBe(false);
-    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("SEEK_KEYFRAME_SEARCH");
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
 
     await onNewRangeIterator?.(
       (async function* () {
@@ -439,7 +439,7 @@ describe("Images compressed video seek lookback", () => {
     ]);
   });
 
-  it("shows a warning when a compressed video stream declares B-frames", async () => {
+  it("keeps the image free of warnings when a compressed video stream declares B-frames", async () => {
     jest.spyOn(H264, "HasBFrames").mockReturnValue(true);
     const renderer = makeRenderer();
     const images = new TestImages(renderer);
@@ -448,9 +448,9 @@ describe("Images compressed video seek lookback", () => {
     void subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
-    expect(renderer.hud.getHUDItems()).toEqual([
-      expect.objectContaining({ id: "VIDEO_B_FRAMES:/video", displayType: "notice" }),
-    ]);
+    expect(renderer.hud.getHUDItems()).not.toContainEqual(
+      expect.objectContaining({ id: "VIDEO_B_FRAMES:/video" }),
+    );
   });
 
   it("uses show-latest playback when fewer than two synchronization topics are eligible", async () => {
@@ -517,7 +517,7 @@ describe("Images compressed video seek lookback", () => {
     }
   });
 
-  it("clears a video delay notice when its topic is hidden", async () => {
+  it("keeps timeout diagnostics off the image", async () => {
     const renderer = makeRenderer();
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
@@ -534,7 +534,7 @@ describe("Images compressed video seek lookback", () => {
     images.displayResults.push({ ok: false, reason: "timeout" });
     void subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
     await flushAsyncWork();
-    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("VIDEO_DELAY:/video");
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("VIDEO_DELAY:/video");
 
     renderer.updateConfig((draft) => {
       draft.topics["/video"] = { visible: false };
