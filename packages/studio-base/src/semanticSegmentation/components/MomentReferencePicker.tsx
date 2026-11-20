@@ -5,13 +5,23 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import LinkIcon from "@mui/icons-material/Link";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
 import type { SegmentationDocument, SemanticSegmentationStore } from "../types";
-
-import "./workbench.css";
 
 export type SpatialReference = {
   recordId: string;
@@ -72,6 +82,10 @@ export function resolveSpatialReference(
     : `空间引用 · ${targetId}（已删除）`;
 }
 
+/**
+ * A small link icon meant to sit inside the attribute value field (end adornment). It opens a
+ * dialog that inserts a stable reference to a class or instance of the open record.
+ */
 export function MomentReferencePicker({
   store,
   value,
@@ -99,122 +113,147 @@ export function MomentReferencePicker({
   useEffect(() => {
     setOpen(false);
   }, [store, recordId, currentVideoId, disabled, unavailable]);
-  const options = [
-    ...(document?.classes.map((item) => ({ type: "class" as const, ...item })) ?? []),
-    ...(document?.instances.map((item) => ({ type: "instance" as const, ...item })) ?? []),
-  ];
+  const classOf = (classId: string) => document?.classes.find((item) => item.id === classId);
+  const classOptions = (document?.classes ?? []).map((item) => ({
+    key: `class/${item.id}`,
+    type: "class" as const,
+    id: item.id,
+    label: item.name || "未命名",
+  }));
+  const instanceOptions = (document?.instances ?? []).map((item) => ({
+    key: `instance/${item.id}`,
+    type: "instance" as const,
+    id: item.id,
+    label: `${classOf(item.classId)?.name ?? "未分类"} ${item.name || "未命名"}`,
+  }));
+  const options = [...classOptions, ...instanceOptions];
   const display = resolveSpatialReference(value, document);
+  const blocked = disabled || unavailable || !document || !currentVideoId;
+  const close = () => {
+    setOpen(false);
+  };
   return (
-    <div className="seg-reference">
-      <button
-        type="button"
-        title="引用已标注类别或实例"
-        aria-label="引用空间类别或实例"
-        disabled={disabled || unavailable || !document || !currentVideoId}
-        onClick={() => {
-          if (!recordId || !currentVideoId) {
-            return;
-          }
-          setTarget("");
-          setOpenedScope({ recordId, videoId: currentVideoId });
-          setOpen(true);
-        }}
-      >
-        ↗ 引用
-      </button>
-      {display && <small title={value}>{display}</small>}
-      {open && (
-        <div className="seg-modal-backdrop seg-reference-picker">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="引用已标注类别或实例"
-            className="seg-modal"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
-                setOpen(false);
+    <>
+      <Tooltip title={display ?? "引用已标注类别或实例"}>
+        <span>
+          <IconButton
+            size="small"
+            edge="end"
+            aria-label="引用空间类别或实例"
+            color={display ? "primary" : "default"}
+            disabled={blocked}
+            onClick={() => {
+              if (!recordId || !currentVideoId) {
+                return;
               }
-              if (event.key === "Tab") {
-                const controls = [
-                  ...event.currentTarget.querySelectorAll<HTMLElement>(
-                    "button:not(:disabled), select:not(:disabled)",
-                  ),
-                ];
-                const first = controls[0];
-                const last = controls[controls.length - 1];
-                if (event.shiftKey && event.target === first) {
-                  event.preventDefault();
-                  last?.focus();
-                } else if (!event.shiftKey && event.target === last) {
-                  event.preventDefault();
-                  first?.focus();
-                }
-              }
+              setTarget("");
+              setOpenedScope({ recordId, videoId: currentVideoId });
+              setOpen(true);
             }}
           >
-            <h2>引用已标注类别或实例</h2>
-            <p>记录：{document?.record.name} · 引用保存稳定 ID</p>
-            <select
-              autoFocus
-              aria-label="选择类别或实例"
-              value={target}
-              onChange={(event) => {
-                setTarget(event.target.value);
+            <LinkIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      {/* Unmounted at once on close: a context change must leave no stale picker behind. */}
+      {open && (
+        <Dialog
+          open
+          onClose={close}
+          fullWidth
+          maxWidth="xs"
+          aria-label="引用已标注类别或实例"
+          onKeyDown={(event) => {
+            // Keep Escape inside the dialog: the surrounding Moment form must stay open.
+            if (event.key === "Escape") {
+              event.stopPropagation();
+            }
+          }}
+        >
+          <DialogTitle>引用已标注类别或实例</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              {document?.record.name} · 引用保存稳定 ID，改名后仍指向同一目标
+            </Typography>
+            {options.length === 0 ? (
+              <Typography variant="body2" role="status">
+                暂无可引用目标，请先在空间侧栏创建类别或实例。
+              </Typography>
+            ) : (
+              <TextField
+                select
+                autoFocus
+                fullWidth
+                size="small"
+                variant="filled"
+                label="类别或实例"
+                value={target}
+                slotProps={{
+                  select: { native: true },
+                  htmlInput: { "aria-label": "选择类别或实例" },
+                }}
+                onChange={(event) => {
+                  setTarget(event.target.value);
+                }}
+              >
+                <option value="" disabled>
+                  请选择…
+                </option>
+                {classOptions.length > 0 && (
+                  <optgroup label="类别">
+                    {classOptions.map((item) => (
+                      <option key={item.key} value={item.key}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {instanceOptions.length > 0 && (
+                  <optgroup label="实例">
+                    {instanceOptions.map((item) => (
+                      <option key={item.key} value={item.key}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </TextField>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={close}>取消</Button>
+            <Button
+              variant="contained"
+              disabled={!target || unavailable || disabled}
+              onClick={() => {
+                const selected = options.find((item) => item.key === target);
+                if (
+                  openedScope?.recordId !== recordId ||
+                  openedScope?.videoId !== currentVideoId ||
+                  unavailable ||
+                  disabled
+                ) {
+                  close();
+                  return;
+                }
+                if (selected && document && openedScope) {
+                  onChange(
+                    encodeSpatialReference(
+                      openedScope.recordId,
+                      selected.type,
+                      selected.id,
+                      openedScope.videoId,
+                    ),
+                  );
+                  close();
+                }
               }}
             >
-              <option value="">请选择…</option>
-              {options.map((item) => (
-                <option key={`${item.type}/${item.id}`} value={`${item.type}/${item.id}`}>
-                  {item.type === "class" ? "类别" : "实例"} · {item.name || "未命名"} · {item.id}
-                </option>
-              ))}
-            </select>
-            {options.length === 0 && (
-              <p role="status">暂无可引用目标，请先在空间侧栏创建类别或实例。</p>
-            )}
-            <span className="seg-row">
-              <button
-                type="button"
-                disabled={!target || unavailable || disabled}
-                onClick={() => {
-                  const selected = options.find((item) => `${item.type}/${item.id}` === target);
-                  if (
-                    openedScope?.recordId !== recordId ||
-                    openedScope?.videoId !== currentVideoId ||
-                    unavailable ||
-                    disabled
-                  ) {
-                    setOpen(false);
-                    return;
-                  }
-                  if (selected && document && openedScope) {
-                    onChange(
-                      encodeSpatialReference(
-                        openedScope.recordId,
-                        selected.type,
-                        selected.id,
-                        openedScope.videoId,
-                      ),
-                    );
-                    setOpen(false);
-                  }
-                }}
-              >
-                插入引用
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                }}
-              >
-                取消
-              </button>
-            </span>
-          </div>
-        </div>
+              插入引用
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }

@@ -417,43 +417,48 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
                   name={`metadataEntries.${index}.value`}
                   control={control}
                   render={({ field: valueField }) => (
-                    <div>
-                      <TextField
-                        {...valueField}
-                        fullWidth
-                        size="small"
-                        variant="filled"
-                        placeholder={t("attributeValue")}
-                        error={hasDuplicate}
-                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                          if (
-                            (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                            keyboardEvent.key === "Enter" &&
-                            !isComposition &&
-                            onMetaDataKeyDown
-                          ) {
-                            onMetaDataKeyDown(keyboardEvent);
-                          }
-                        }}
-                        onChange={(evt) => {
-                          valueField.onChange(evt);
-                          // 延迟检查是否需要自动添加新行
-                          setTimeout(() => {
-                            handleAutoAppendRow(index);
-                          }, 0);
-                        }}
-                      />
-                      <ActiveMomentReference
-                        recordId={recordId}
-                        value={valueField.value}
-                        onChange={(value) => {
-                          valueField.onChange(value);
-                          setTimeout(() => {
-                            handleAutoAppendRow(index);
-                          }, 0);
-                        }}
-                      />
-                    </div>
+                    <TextField
+                      {...valueField}
+                      fullWidth
+                      size="small"
+                      variant="filled"
+                      placeholder={t("attributeValue")}
+                      error={hasDuplicate}
+                      slotProps={{
+                        input: {
+                          // Only shown while an annotation session is open for this record.
+                          endAdornment: (
+                            <ActiveMomentReference
+                              recordId={recordId}
+                              value={valueField.value}
+                              onChange={(value) => {
+                                valueField.onChange(value);
+                                setTimeout(() => {
+                                  handleAutoAppendRow(index);
+                                }, 0);
+                              }}
+                            />
+                          ),
+                        },
+                      }}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (
+                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                          keyboardEvent.key === "Enter" &&
+                          !isComposition &&
+                          onMetaDataKeyDown
+                        ) {
+                          onMetaDataKeyDown(keyboardEvent);
+                        }
+                      }}
+                      onChange={(evt) => {
+                        valueField.onChange(evt);
+                        // 延迟检查是否需要自动添加新行
+                        setTimeout(() => {
+                          handleAutoAppendRow(index);
+                        }, 0);
+                      }}
+                    />
                   )}
                 />
                 <ButtonGroup>

@@ -265,31 +265,6 @@
   margin: 0 0 16px;
   font-size: 17px;
 }
-.seg-reference {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-}
-.seg-reference small {
-  color: #6096e9;
-}
-.seg-reference-picker {
-  font: 13px/1.5 sans-serif;
-  color: #e5edf9;
-}
-.seg-reference-picker button,
-.seg-reference-picker select {
-  font: inherit;
-  padding: 8px;
-  border: 1px solid #4b607e;
-  border-radius: 4px;
-  background: #263750;
-  color: inherit;
-}
-.seg-reference-picker select {
-  width: 100%;
-  margin-bottom: 16px;
-}
 .seg-entry {
   position: absolute;
   top: 38px;
@@ -349,9 +324,6 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-}
-.seg-reference input {
-  min-width: 0;
 }
 .seg-section > label input[type="text"],
 .seg-section > label input:not([type]) {
@@ -422,13 +394,6 @@
 .seg-workbench a {
   color: #9bc4ff;
   text-underline-offset: 2px;
-}
-.seg-reference {
-  flex-wrap: wrap;
-  max-width: 100%;
-}
-.seg-reference small {
-  overflow-wrap: anywhere;
 }
 .seg-workbench .seg-modal select {
   width: 100%;
