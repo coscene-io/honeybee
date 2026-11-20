@@ -36,6 +36,8 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
     passed: "検査済みパケットは適合",
     notObserved: "解析済みフレームには未検出",
     unknown: "判定材料不足",
+    imageClock: "画像時刻",
+    recordClock: "記録時刻",
     firstLast: "最初 / 最後の B フレーム",
     reorder: "SPS の並べ替え許可",
     gopSummary: "キーフレーム間隔 · 直近 / 最長",

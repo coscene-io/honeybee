@@ -32,7 +32,7 @@ it("retains findings across seek, deduplicates replays and never bridges unloade
       expect([...gap.values()][0]).toMatchObject({ duration: 2, open: true });
     }
     observe(run, 19, 4, 0x65, 0xb0);
-    expect([...gap.values()]).toHaveLength(1);
+    expect([...gap.values()].filter((item) => item.open === false)).toHaveLength(1);
     expect([...gap.values()][0]).toMatchObject({ duration: 3, open: false });
     observe(run, 20, 2, 0x41, 0xc0);
     observe(new VideoRun(), 60, 60, 0x65, 0xb0);
@@ -44,8 +44,32 @@ it("retains findings across seek, deduplicates replays and never bridges unloade
   ]);
   expect(topic.bFrames?.size).toBe(1);
   expect(topic.findings.get("regression")?.size).toBe(1);
-  expect(topic.longestGap).toBe(3);
+  expect(topic.longestGap).toEqual({ duration: 3, clock: "imageClock" });
   expect(new PlaybackDiagnostics().topics.size).toBe(0);
+});
+
+it("measures continuous keyframe intervals in recording time across reordered presentation timestamps", () => {
+  const session = new PlaybackDiagnostics();
+  const run = new VideoRun();
+  for (const [log, media, byte] of [
+    [1, 1, 0x65],
+    [2, 3, 0x41],
+    [3, 2, 0x41],
+    [4, 4, 0x65],
+    [4, 4, 0x65], // Redelivering the last keyframe must preserve the measured interval.
+  ] as const) {
+    session.inspect(
+      "/camera",
+      {
+        receiveTime: fromSec(log),
+        message: { timestamp: fromSec(media), format: "h264", data: [0, 0, 1, byte, 0xb0] },
+      },
+      run,
+    );
+  }
+  const topic = session.topic("/camera");
+  expect(topic.recentGap).toEqual({ duration: 3, clock: "recordClock" });
+  expect(topic.findings.get("regression")?.size).toBe(1);
 });
 
 it("times two panels independently from acceptance and excludes intermediate, cancelled and timed-out frames", () => {

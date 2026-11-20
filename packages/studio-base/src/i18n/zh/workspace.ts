@@ -36,6 +36,8 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
     passed: "已检查的数据包符合要求",
     notObserved: "已分析帧中未发现",
     unknown: "证据不足",
+    imageClock: "图像时间",
+    recordClock: "录像时间",
     firstLast: "首次 / 末次 B 帧",
     reorder: "SPS 声明允许重排",
     gopSummary: "关键帧间隔 · 最近 / 最长",

@@ -96,7 +96,7 @@ function FindingRow({
       {finding.duration != undefined && (
         <div>
           {finding.open === true && "≥ "}
-          {number(finding.duration, 3)} s
+          {number(finding.duration, 3)} s {finding.clock && t(`diagnostics.${finding.clock}`)}
         </div>
       )}
       {finding.detail && <div>{finding.detail}</div>}
@@ -250,8 +250,14 @@ function TopicSummary({
             )}
           </div>
           <div>
-            {t("diagnostics.gopSummary")} · {number(data.recentGap, 3)} /{" "}
-            {number(data.longestGap, 3)} s
+            {t("diagnostics.gopSummary")} ·{" "}
+            {data.recentGap
+              ? `${number(data.recentGap.duration, 3)} s (${t(`diagnostics.${data.recentGap.clock}`)})`
+              : "—"}{" "}
+            /{" "}
+            {data.longestGap
+              ? `${number(data.longestGap.duration, 3)} s (${t(`diagnostics.${data.longestGap.clock}`)})`
+              : "—"}
           </div>
           <div>
             {t("diagnostics.packetCheck")} ·{" "}

@@ -19,6 +19,8 @@ export type FindingKind =
   | "parameters"
   | "decodeError";
 export type Interval = { start: bigint; end: bigint };
+type GapClock = "imageClock" | "recordClock";
+type GapMeasurement = { duration: number; clock: GapClock };
 export type Finding = Interval & {
   kind: FindingKind;
   topic: string;
@@ -26,6 +28,7 @@ export type Finding = Interval & {
   detail?: string;
   duration?: number;
   open?: boolean;
+  clock?: GapClock;
   resetDecoder?: boolean;
 };
 
@@ -80,11 +83,12 @@ export class BFrameHistory {
   }
 }
 
-type FrameStamp = { log: bigint; media: bigint };
+type FrameStamp = { log: bigint; media?: bigint };
 export class VideoRun {
   public pps = new Map<number, number>();
   public previous?: FrameStamp;
   public key?: FrameStamp;
+  public useRecordClock = false;
   public format?: string;
 }
 
@@ -105,8 +109,8 @@ export type TopicDiagnostics = {
   sawKey: boolean;
   unknown: boolean;
   reorder?: boolean;
-  recentGap?: number;
-  longestGap?: number;
+  recentGap?: GapMeasurement;
+  longestGap?: GapMeasurement;
   findings: Map<FindingKind, Map<string, Finding>>;
 };
 
@@ -216,18 +220,19 @@ export class VideoDiagnostics {
         ? toNanoSec({ sec: timestamp.sec, nsec: timestamp.nsec })
         : undefined;
     const previous = run.previous;
-    if (
-      format !== run.format ||
-      (previous && (previous.log > log || media == undefined || previous.media > media))
-    ) {
-      if (run.format !== format) {
-        run.pps.clear();
-      }
+    if (format !== run.format || (previous && previous.log > log)) {
+      run.pps.clear();
       run.key = undefined;
     }
     run.format = format;
     addCoverage(topic.coverage, previous && previous.log < log ? previous.log : log, log);
-    if (previous && media != undefined && previous.media > media) {
+    if (media == undefined) {
+      run.useRecordClock = true;
+    }
+    if (previous?.media != undefined && media != undefined && previous.media > media) {
+      // A B-picture presentation timestamp may move backwards in decode order. Recording
+      // time still measures the distance between random-access points in continuous input.
+      run.useRecordClock = true;
       this.record(
         {
           kind: "regression",
@@ -260,29 +265,47 @@ export class VideoDiagnostics {
     topic.sawKey ||= info.key && !info.problem;
     topic.classified ||= info.bFrame != undefined;
     topic.unknown ||= info.bFrame == undefined;
-    if (media == undefined) {
-      run.key = run.previous = undefined;
-      return;
-    }
     const stamp = { media, log };
     const key = run.key;
-    if (key && media > key.media) {
-      const duration = Number(media - key.media) / 1e9;
-      const id = `${key.log}/${key.media}`;
+    if (
+      key &&
+      (log > key.log || (media != undefined && key.media != undefined && media > key.media))
+    ) {
+      const useMedia =
+        !run.useRecordClock && key.media != undefined && media != undefined && media > key.media;
+      const clock: GapClock = useMedia ? "imageClock" : "recordClock";
+      const duration = Number(useMedia ? media - key.media! : log - key.log) / 1e9;
+      const id = `${key.log}/${key.media ?? "?"}`;
       const old = topic.findings.get("gap")?.get(id);
-      if (info.key || !old || (old.open === true && duration > (old.duration ?? 0))) {
+      if (
+        info.key ||
+        !old ||
+        (old.open === true && (duration > (old.duration ?? 0) || old.clock !== clock))
+      ) {
         this.record(
-          { topic: topicName, kind: "gap", start: key.log, end: log, duration, open: !info.key },
+          {
+            topic: topicName,
+            kind: "gap",
+            start: key.log,
+            end: log,
+            duration,
+            clock,
+            open: !info.key,
+          },
           id,
         );
       }
       if (info.key) {
-        topic.recentGap = duration;
-        topic.longestGap = Math.max(topic.longestGap ?? 0, duration);
+        const measured = { duration, clock };
+        topic.recentGap = measured;
+        if (!topic.longestGap || duration > topic.longestGap.duration) {
+          topic.longestGap = measured;
+        }
       }
     }
     if (info.key && !info.problem) {
       run.key = stamp;
+      run.useRecordClock = media == undefined;
     }
     run.previous = stamp;
   }

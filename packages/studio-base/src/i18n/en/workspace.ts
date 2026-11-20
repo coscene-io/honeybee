@@ -34,6 +34,8 @@ export const workspace = {
     passed: "Checked packets passed",
     notObserved: "None in analyzed frames",
     unknown: "Insufficient evidence",
+    imageClock: "image time",
+    recordClock: "recording time",
     firstLast: "First / last B frame",
     reorder: "SPS permits reordering",
     gopSummary: "Keyframe interval · latest / longest",
