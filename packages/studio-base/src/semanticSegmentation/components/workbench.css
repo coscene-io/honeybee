@@ -12,7 +12,7 @@
   color: #e5edf9;
   background: #0e1420;
   height: 100%;
-  min-height: 540px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   font:
@@ -26,7 +26,6 @@
   box-sizing: border-box;
 }
 .seg-workbench button:not(.MuiButtonBase-root),
-.seg-workbench select,
 .seg-workbench input {
   font: inherit;
   color: inherit;
@@ -47,8 +46,7 @@
   outline-offset: 2px;
 }
 .seg-workbench button:not(.MuiButtonBase-root):disabled,
-.seg-workbench input:disabled,
-.seg-workbench select:disabled {
+.seg-workbench input:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -170,25 +168,6 @@
 .seg-controls-close {
   margin-left: auto;
 }
-.seg-section label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin: 7px 0;
-  color: #bdc9db;
-}
-.seg-section input[type="number"] {
-  width: 82px;
-}
-.seg-section select {
-  max-width: 160px;
-}
-.seg-section progress {
-  width: 100%;
-  height: 8px;
-  accent-color: #5d9af5;
-}
 .seg-list {
   display: grid;
   gap: 8px;
@@ -299,23 +278,6 @@
   padding: 6px 9px;
 }
 
-@media (max-width: 1150px) {
-  .seg-body {
-    grid-template-columns: 240px minmax(280px, 1fr) 280px;
-  }
-}
-@media (max-width: 850px) {
-  .seg-body {
-    grid-template-columns: 220px minmax(280px, 1fr);
-    overflow: auto;
-  }
-  .seg-controls {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .seg-workbench .MuiTypography-root,
 .seg-workbench .MuiButtonBase-root {
   font-family:
@@ -324,11 +286,6 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-}
-.seg-section > label input[type="text"],
-.seg-section > label input:not([type]) {
-  min-width: 0;
-  width: 180px;
 }
 
 .seg-global-lock {
@@ -366,9 +323,6 @@
   cursor: pointer;
 }
 
-.seg-embedded {
-  min-height: 0;
-}
 .seg-embedded .seg-body {
   position: relative;
   grid-template-columns: minmax(0, 1fr) !important;
@@ -391,14 +345,6 @@
   box-shadow: inset 0 0 0 2px #55b8de;
 }
 
-.seg-workbench a {
-  color: #9bc4ff;
-  text-underline-offset: 2px;
-}
-.seg-workbench .seg-modal select {
-  width: 100%;
-  max-width: none;
-}
 .seg-card {
   overflow-wrap: anywhere;
 }
@@ -406,13 +352,6 @@
 .seg-section p {
   overflow-wrap: anywhere;
 }
-.seg-workbench input[aria-invalid="true"] {
-  border-color: #ed8e8e;
-}
-.seg-controls small[role="alert"] {
-  color: #ffb3b3;
-}
-
 
 .seg-preview {
   position: absolute;
@@ -468,7 +407,11 @@
 }
 
 /* The native Image panel owns the pixels; embedded annotation is only an overlay. */
-.seg-embedded, .seg-embedded .seg-body, .seg-embedded .seg-canvas { background: transparent; }
+.seg-embedded,
+.seg-embedded .seg-body,
+.seg-embedded .seg-canvas {
+  background: transparent;
+}
 
 /* A quiet marker instead of a banner: the frame or its annotations are still loading. */
 .seg-notifications > .seg-loading {
