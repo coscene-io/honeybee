@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { maskContains, maskRunsFromCounts } from "../maskCodec";
-import {segmentationSession} from "../runtime";
+import { segmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { MaskPlaneCache } from "./maskPlaneCache";
 import { buildMaskPlanes, planeBytes, planeFormat } from "./maskPlanes";

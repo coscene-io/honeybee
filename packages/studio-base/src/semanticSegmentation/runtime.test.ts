@@ -8,7 +8,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { polygonsOf } from "./maskGeometry";
-import {segmentationSession} from "./runtime";
+import { segmentationSession } from "./runtime";
 import { frameInstanceKey } from "./service";
 import { createMockSegmentationRuntime } from "./testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "./testing/mockService";

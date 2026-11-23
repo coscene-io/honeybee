@@ -13,7 +13,10 @@ import { SpatialTree } from "../../components/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
-import { createMockSemanticSegmentationService, createSeedDocument } from "../../testing/mockService";
+import {
+  createMockSemanticSegmentationService,
+  createSeedDocument,
+} from "../../testing/mockService";
 import type { SegmentationDocument, SegmentationPolygon } from "../../types";
 
 type StructureSetup = RenderResult & {

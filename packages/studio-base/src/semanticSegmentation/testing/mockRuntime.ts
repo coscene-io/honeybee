@@ -10,7 +10,9 @@ import type { SegmentationDocument } from "../types";
 import { createMockSemanticSegmentationService } from "./mockService";
 
 /** A runtime over the in-memory mock service, with the mock's default latency. Tests only. */
-export function createMockSegmentationRuntime(document?: SegmentationDocument): SegmentationRuntime {
+export function createMockSegmentationRuntime(
+  document?: SegmentationDocument,
+): SegmentationRuntime {
   return createSegmentationRuntime(
     createMockSemanticSegmentationService({
       document,
