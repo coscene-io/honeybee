@@ -495,6 +495,14 @@ class CoSceneConsoleApi {
     return getPromiseClient(service, this.#desktopSession);
   }
 
+  /**
+   * A client for a service this class has no wrapper for (the spatial-annotation editor's
+   * AnnotationService), bound to this API's desktop session like every other call here.
+   */
+  public rpcClient<T extends DescService>(service: T): ReturnType<typeof getPromiseClient<T>> {
+    return this.#getPromiseClient(service);
+  }
+
   public async setApiBaseInfo(
     baseInfo: ApiBaseInfo,
     options?: {
