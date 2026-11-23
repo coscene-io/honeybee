@@ -57,6 +57,9 @@ export function makeConfig(
         zlib: require.resolve("browserify-zlib"),
         crypto: require.resolve("crypto-browserify"),
 
+        // asn1.js falls back to an anonymous constructor when Node's vm is unavailable.
+        vm: false,
+
         // TypeScript tries to use this when running in node
         perf_hooks: false,
         // Yarn patches these imports into TypeScript for PnP support
