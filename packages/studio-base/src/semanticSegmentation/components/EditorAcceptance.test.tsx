@@ -87,8 +87,8 @@ function pointer(target: Element, x: number, y: number) {
   );
 }
 
-describe("editor original GWT acceptance", () => {
-  it("SEG-DRAW-004 dismissing help preserves two draft vertices and drawing can continue", async () => {
+describe("editor acceptance", () => {
+  it("dismissing help preserves two draft vertices and drawing can continue", async () => {
     const { store } = await setup(fixture(2, (_frame, instance) => instance < 2));
     fireEvent.click(screen.getByRole("button", { name: "Annotate ○ I2" }));
     const drawing = store.getState().drawing;
@@ -125,7 +125,7 @@ describe("editor original GWT acceptance", () => {
     });
   });
 
-  it("SEG-AUX-001 shows lifetime appearance-frame fraction 597/600 rather than loaded-window counts", async () => {
+  it("shows lifetime appearance-frame fraction 597/600 rather than loaded-window counts", async () => {
     const { store } = await setup(fixture(600, (frame, instance) => instance === 0 && frame > 2));
     const row = screen.getByRole("button", { name: "○ I0" });
     expect(within(row).getByText("597/600 frames · 0 polygons")).toBeDefined();
@@ -138,7 +138,7 @@ describe("editor original GWT acceptance", () => {
     );
   });
 
-  it("SEG-AUX-005 shows 69 stored vertices then exact add/remove counts without a duplicate closure", async () => {
+  it("shows 69 stored vertices then exact add/remove counts without a duplicate closure", async () => {
     const document = fixture(2, (_frame, instance) => instance === 0);
     const points: NormalizedPoint[] = Array.from({ length: 69 }, (_, index) => ({
       x: 0.5 + 0.3 * Math.cos((2 * Math.PI * index) / 69),

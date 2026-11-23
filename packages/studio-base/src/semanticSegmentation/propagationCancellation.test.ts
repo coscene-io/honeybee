@@ -62,7 +62,7 @@ async function fixture() {
   return { service, store, gate, running };
 }
 
-it("SEG-ONLINE-011 sends one cancel, rejects late output immediately, and waits for the matching acknowledgement before unlocking", async () => {
+it("sends one cancel, rejects late output immediately, and waits for the matching acknowledgement before unlocking", async () => {
   const { service, store, gate, running } = await fixture();
   const acknowledgement = deferred<PropagationCancellation>();
   let context: PropagationContext | undefined;

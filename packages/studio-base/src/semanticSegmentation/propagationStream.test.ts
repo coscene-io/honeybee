@@ -78,7 +78,7 @@ async function acknowledgedStop(
 }
 
 it.each([["frame-7", "frame-6", ["frame-6", "frame-7"]]] as const)(
-  "SEG-ONLINE-010 stages out-of-order frames once and plays in timeline direction",
+  "stages out-of-order frames once and plays in timeline direction",
   async (late, early, expected) => {
     const { service, store } = await fixture();
     const playback: string[] = [];
@@ -111,7 +111,7 @@ it.each([["frame-7", "frame-6", ["frame-6", "frame-7"]]] as const)(
   },
 );
 
-it("SEG-ONLINE-016 rejects foreign frame, instance, record, video, job and generation tags without staging", async () => {
+it("rejects foreign frame, instance, record, video, job and generation tags without staging", async () => {
   const { service, store } = await fixture();
   let submittedContext: PropagationContext | undefined;
   service.propagate = async function* (submitted) {
@@ -151,7 +151,7 @@ it("SEG-ONLINE-016 rejects foreign frame, instance, record, video, job and gener
   store.getState().dispose();
 });
 
-it("SEG-ONLINE-002 freezes I.P and J.R only and fans them out without Q", async () => {
+it("freezes I.P and J.R only and fans them out without Q", async () => {
   const { service, store } = await fixture();
   const document = store.getState().document!;
   const p = polygonsOf(document.annotations[frameInstanceKey("frame-5", "instance-1")])[0]!;

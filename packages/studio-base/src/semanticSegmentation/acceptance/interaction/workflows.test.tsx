@@ -12,7 +12,7 @@ import { deferred, polygon, setup, triangle } from "./fixtures";
 import { polygonsOf } from "../../maskGeometry";
 import { cloneSegmentation } from "../../service";
 
-it("SEG-ONLINE-009/013/SEG-SAVE-002 restart uses corrected stopped-frame seed and fresh job without durable writes", async () => {
+it("restart uses corrected stopped-frame seed and fresh job without durable writes", async () => {
   const { store, service } = await setup();
   const entered = deferred();
   const release = deferred();

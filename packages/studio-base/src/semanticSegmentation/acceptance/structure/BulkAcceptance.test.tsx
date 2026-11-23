@@ -22,8 +22,8 @@ function checked(id: string) {
   return checkbox(id).checked;
 }
 
-describe("structure bulk original GWT acceptance", () => {
-  it("SEG-BULK-001/002/003/007/010 shows every checkbox, rejects empty actions, propagates partial checks and clears transient checks", async () => {
+describe("structure bulk acceptance", () => {
+  it("shows every checkbox, rejects empty actions, propagates partial checks and clears transient checks", async () => {
     const { store, submit } = await setup();
     const before = store.getState().document;
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
@@ -57,7 +57,7 @@ describe("structure bulk original GWT acceptance", () => {
     );
   });
 
-  it("SEG-BULK-004 deduplicates selected class, instance and polygon into one retirement per instance", async () => {
+  it("deduplicates selected class, instance and polygon into one retirement per instance", async () => {
     const { store } = await setup();
     const before = store.getState().document!;
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
@@ -86,7 +86,7 @@ describe("structure bulk original GWT acceptance", () => {
     expect(store.getState().document).toEqual(before);
   });
 
-  it("SEG-BULK-005 deletes P in the current frame and all J only in the displayed all-frame scope", async () => {
+  it("deletes P in the current frame and all J only in the displayed all-frame scope", async () => {
     const { store } = await setup();
     const before = store.getState().document!;
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
@@ -111,7 +111,7 @@ describe("structure bulk original GWT acceptance", () => {
     }
   });
 
-  it("SEG-BULK-006 describes two instance sources and one polygon without editing before confirmation", async () => {
+  it("describes two instance sources and one polygon without editing before confirmation", async () => {
     const { store } = await setup();
     const before = store.getState().document;
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
@@ -130,7 +130,7 @@ describe("structure bulk original GWT acceptance", () => {
     expect(store.getState().stagedOperations).toEqual([]);
   });
 
-  it("SEG-BULK-007 excludes a selected instance as its own destination and requires a distinct target", async () => {
+  it("excludes a selected instance as its own destination and requires a distinct target", async () => {
     const { store } = await setup();
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
     check("I");
@@ -145,7 +145,7 @@ describe("structure bulk original GWT acceptance", () => {
     expect(store.getState().stagedOperations).toEqual([]);
   });
 
-  it("SEG-BULK-008 unions a class, checked descendant and external polygon exactly once into K", async () => {
+  it("unions a class, checked descendant and external polygon exactly once into K", async () => {
     const { store, submit } = await setup();
     const before = store.getState().document!;
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
@@ -178,7 +178,7 @@ describe("structure bulk original GWT acceptance", () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
-  it("SEG-BULK-009 removes an acknowledged selected polygon and disables actions with no stale checkbox", async () => {
+  it("removes an acknowledged selected polygon and disables actions with no stale checkbox", async () => {
     const { store, container } = await setup();
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
     check("I-P-0");

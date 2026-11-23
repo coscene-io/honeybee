@@ -30,7 +30,7 @@ function loadSize(container: HTMLElement, width: number, height: number) {
   fireEvent.load(image);
 }
 
-it("SEG-DRAW-001/002/003/005 draws at missing I from a document-free draft, and Escape adds nothing beside saved P", async () => {
+it("draws at missing I from a document-free draft, and Escape adds nothing beside saved P", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   delete document.annotations[frameInstanceKey("frame-0", "instance-1")];
@@ -95,7 +95,7 @@ it.each(
       [30, 30],
     ],
   ].map((points) => ({ points })),
-)("SEG-DRAW-006/009 invalid draft $points remains open without staged area", async ({ points }) => {
+)("invalid draft $points remains open without staged area", async ({ points }) => {
   const { store } = await editor();
   fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
   const drawing = store.getState().drawing;
@@ -123,7 +123,7 @@ it.each(
   store.getState().dispose();
 });
 
-it("SEG-DRAW-010 text-field Enter does not finish a simultaneous valid polygon draft", async () => {
+it("text-field Enter does not finish a simultaneous valid polygon draft", async () => {
   const { store } = await editor();
   fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
   const drawing = store.getState().drawing;
@@ -147,7 +147,7 @@ it("SEG-DRAW-010 text-field Enter does not finish a simultaneous valid polygon d
   store.getState().dispose();
 });
 
-it("SEG-DRAW-011/019 fractional image vertex drag survives durable mock submit and reload within 0.01 pixel", async () => {
+it("fractional image vertex drag survives durable mock submit and reload within 0.01 pixel", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   polygonsOf(document.annotations[frameInstanceKey("frame-0", "instance-1")])[0]!.points = triangle;
@@ -183,7 +183,7 @@ it("SEG-DRAW-011/019 fractional image vertex drag survives durable mock submit a
   store.getState().dispose();
 });
 
-it("SEG-DRAW-013 retains two disjoint selectable components in one instance across reload", async () => {
+it("retains two disjoint selectable components in one instance across reload", async () => {
   const document = fixture(2);
   const p = polygonsOf(document.annotations[frameInstanceKey("frame-0", "instance-1")])[0]!;
   p.points = triangle;
@@ -238,35 +238,32 @@ it("SEG-DRAW-013 retains two disjoint selectable components in one instance acro
 it.each([
   [640, 480],
   [1920, 1080],
-])(
-  "SEG-DRAW-018 uses decoded %ix%i frame dimensions for pointer coordinates",
-  async (width, height) => {
-    const document = fixture(2);
-    document.frames[0]!.imageUrl = frameImage(100, 100);
-    document.frames[1]!.imageUrl = frameImage(width, height);
-    const { store, container } = await editor(document);
-    // First decode a different size to expose stale-size reuse at the browser event boundary.
-    loadSize(container, 100, 100);
-    act(() => {
-      store.getState().setCurrentFrame("frame-1");
-    });
-    loadSize(container, width, height);
-    fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
-    pointer(canvas(), "pointerdown", width / 2, height / 2);
-    pointer(canvas(), "pointerdown", width * 0.75, height / 2);
-    pointer(canvas(), "pointerdown", width / 2, height * 0.75);
-    key("Enter");
-    expect(polygon(store, "instance-empty", "frame-1").points).toEqual([
-      { x: 0.5, y: 0.5 },
-      { x: 0.75, y: 0.5 },
-      { x: 0.5, y: 0.75 },
-    ]);
-    expect(canvas().getAttribute("viewBox")).toBe(`0 0 ${width} ${height}`);
-    store.getState().dispose();
-  },
-);
+])("uses decoded %ix%i frame dimensions for pointer coordinates", async (width, height) => {
+  const document = fixture(2);
+  document.frames[0]!.imageUrl = frameImage(100, 100);
+  document.frames[1]!.imageUrl = frameImage(width, height);
+  const { store, container } = await editor(document);
+  // First decode a different size to expose stale-size reuse at the browser event boundary.
+  loadSize(container, 100, 100);
+  act(() => {
+    store.getState().setCurrentFrame("frame-1");
+  });
+  loadSize(container, width, height);
+  fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
+  pointer(canvas(), "pointerdown", width / 2, height / 2);
+  pointer(canvas(), "pointerdown", width * 0.75, height / 2);
+  pointer(canvas(), "pointerdown", width / 2, height * 0.75);
+  key("Enter");
+  expect(polygon(store, "instance-empty", "frame-1").points).toEqual([
+    { x: 0.5, y: 0.5 },
+    { x: 0.75, y: 0.5 },
+    { x: 0.5, y: 0.75 },
+  ]);
+  expect(canvas().getAttribute("viewBox")).toBe(`0 0 ${width} ${height}`);
+  store.getState().dispose();
+});
 
-it("SEG-DRAW-017 exact2x SVG layout maps an actual drawing pointer to fractional original-image coordinates", async () => {
+it("exact2x SVG layout maps an actual drawing pointer to fractional original-image coordinates", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   const { store, container } = await editor(document);

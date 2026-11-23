@@ -19,7 +19,7 @@ import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
 import type { FrameInstance } from "../../types";
 
-it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
+it("bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
   const document = fixture();
   const template = document.frames[0]!;
   document.frames = Array.from({ length: 300 }, (_, index) => ({
@@ -83,7 +83,7 @@ it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame 
   runtime.dispose();
 });
 
-it("SEG-ENT-007 a normalized two-page complete-window response renders each stable identity and every frame polygon once", async () => {
+it("a normalized two-page complete-window response renders each stable identity and every frame polygon once", async () => {
   const document = fixture(2);
   document.instances = document.instances.filter((instance) => instance.id !== "instance-empty");
   document.classes = document.classes.filter((category) => category.id !== "class-empty");

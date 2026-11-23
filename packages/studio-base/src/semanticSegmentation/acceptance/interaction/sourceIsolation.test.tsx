@@ -158,7 +158,7 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it("SEG-ENT-016/SEG-CACHE-008 isolates real source B after late annotation and upload completions from A", async () => {
+it("isolates real source B after late annotation and upload completions from A", async () => {
   const f = fixture();
   const a = await open();
   setMockControls(a.service, { delayMs: 0 });

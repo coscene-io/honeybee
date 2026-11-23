@@ -199,7 +199,7 @@ describe("segmentation editor", () => {
     ).toBe("0.5");
   });
 
-  it("SEG-RFX-024 inserts on an edge, Alt-deletes a vertex, undoes each gesture and persists submission", async () => {
+  it("inserts on an edge, Alt-deletes a vertex, undoes each gesture and persists submission", async () => {
     const { store } = await setup();
     fireEvent.click(screen.getByRole("button", { name: /^● Person 1/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));

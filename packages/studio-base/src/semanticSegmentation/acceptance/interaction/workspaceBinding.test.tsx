@@ -215,7 +215,7 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it("SEG-ENT-002 actual Workspace sidebar actions select adjacent Space from Moment and bind sidebar edits to decoded video/frame", async () => {
+it("actual Workspace sidebar actions select adjacent Space from Moment and bind sidebar edits to decoded video/frame", async () => {
   mockFile = {
     dataAssetName: "workspace-binding-record",
     name: "workspace-binding-record/files/camera",

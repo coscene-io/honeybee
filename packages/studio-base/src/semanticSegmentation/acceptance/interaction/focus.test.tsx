@@ -27,7 +27,7 @@ function selected(mode: string) {
   }
 }
 
-it("SEG-FOC-001/002/003/004/007/008/015/016 switches rendered focus across frames without changing hidden geometry", async () => {
+it("switches rendered focus across frames without changing hidden geometry", async () => {
   const document = fixture(3);
   delete document.annotations[frameInstanceKey("frame-1", "instance-1")];
   delete document.annotationSummaries[frameInstanceKey("frame-1", "instance-1")];
@@ -82,7 +82,7 @@ it("SEG-FOC-001/002/003/004/007/008/015/016 switches rendered focus across frame
   store.getState().dispose();
 });
 
-it("SEG-FOC-006/018 isolates P from sibling Q for visibility and pointer editing", async () => {
+it("isolates P from sibling Q for visibility and pointer editing", async () => {
   const document = fixture(2);
   const owner = document.annotations[frameInstanceKey("frame-0", "instance-1")]!;
   if (owner.kind !== "polygons") {
@@ -133,7 +133,7 @@ it("SEG-FOC-006/018 isolates P from sibling Q for visibility and pointer editing
   store.getState().dispose();
 });
 
-it("SEG-FOC-010/011 edits I without J and toggles handles off while retaining staged geometry", async () => {
+it("edits I without J and toggles handles off while retaining staged geometry", async () => {
   const { store } = await editor();
   fireEvent.click(screen.getByRole("button", { name: "● Person 1" }));
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
@@ -164,7 +164,7 @@ it("SEG-FOC-010/011 edits I without J and toggles handles off while retaining st
   store.getState().dispose();
 });
 
-it("SEG-FOC-017 class focus edits I/J but not K", async () => {
+it("class focus edits I/J but not K", async () => {
   const { store } = await editor();
   act(() => {
     store.getState().moveInstance("instance-2", "class-1");

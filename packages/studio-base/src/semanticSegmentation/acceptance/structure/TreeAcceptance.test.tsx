@@ -57,8 +57,8 @@ function ownedRows(id: string): string[] {
   return owned;
 }
 
-describe("structure tree original GWT acceptance", () => {
-  it("SEG-ID-003 retains polygon IDs through backend row reordering and deletes only the selected ID", async () => {
+describe("structure tree acceptance", () => {
+  it("retains polygon IDs through backend row reordering and deletes only the selected ID", async () => {
     const document = structureDocument();
     const { store, service } = await setup(document);
     fireEvent.click(within(row("I-P-0")).getByRole("button", { name: /^Polygon 1 / }));
@@ -86,7 +86,7 @@ describe("structure tree original GWT acceptance", () => {
     expect(polygons(store.getState().document!, 1, "I")).toEqual(polygons(before, 1, "I"));
   });
 
-  it("SEG-AUX-006 renders unloaded presence from the backend summary rather than the partial geometry window", async () => {
+  it("renders unloaded presence from the backend summary rather than the partial geometry window", async () => {
     const { store } = await setup(createSeedDocument());
     act(() => {
       store.getState().setCurrentFrame("frame-49");
@@ -104,7 +104,7 @@ describe("structure tree original GWT acceptance", () => {
     expect(strip.children).toHaveLength(41);
     expect(strip.children[40]!.getAttribute("title")).toBe("Frame +20: present");
   });
-  it("SEG-ID-002/009 TREE-012 preserves references and every polygon across rename and backend display refresh", async () => {
+  it("preserves references and every polygon across rename and backend display refresh", async () => {
     const document = structureDocument();
     document.momentReferences = [
       {
@@ -172,7 +172,7 @@ describe("structure tree original GWT acceptance", () => {
     refreshedStore.getState().dispose();
   });
 
-  it("SEG-ID-006/007/008 persists empty objects, and an unfinished drawing persists nothing", async () => {
+  it("persists empty objects, and an unfinished drawing persists nothing", async () => {
     const storageKey = "structure-empty-persistence";
     window.localStorage.removeItem(storageKey);
     const { store, unmount } = await setup(structureDocument(), window.localStorage, storageKey);
@@ -233,7 +233,7 @@ describe("structure tree original GWT acceptance", () => {
     reloaded.getState().dispose();
   });
 
-  it("SEG-TREE-001/002/003 nests pieces under their owner and reuses visible class colors across frames", async () => {
+  it("nests pieces under their owner and reuses visible class colors across frames", async () => {
     const { store, container } = await setup();
     for (const frame of [0, 2]) {
       act(() => {
@@ -285,7 +285,7 @@ describe("structure tree original GWT acceptance", () => {
     ).toBe(color);
   });
 
-  it("SEG-TREE-005 starts drawing without a placeholder, and finishing keeps both existing pieces", async () => {
+  it("starts drawing without a placeholder, and finishing keeps both existing pieces", async () => {
     const { store } = await setup();
     const before = polygons(store.getState().document!, 0, "I");
     fireEvent.click(within(row("I")).getByRole("button", { name: /^Annotate / }));
@@ -309,31 +309,28 @@ describe("structure tree original GWT acceptance", () => {
     expect(row(id)).toBeDefined();
   });
 
-  it.each(["cross", "menu"])(
-    "SEG-TREE-006/023/024 deletes only P through %s and retains empty I",
-    async (method) => {
-      const { store } = await setup();
-      const before = store.getState().document!;
-      if (method === "cross") {
-        // The × deletes one polygon at once; it is undoable, so there is no dialog.
-        fireEvent.click(within(row("I-P-0")).getByRole("button", { name: "Delete Polygon 1" }));
-      } else {
-        fireEvent.contextMenu(row("I-P-0"));
-        expect(screen.getByRole("menuitem", { name: "Merge into instance…" })).toBeDefined();
-        fireEvent.click(screen.getByRole("menuitem", { name: "Delete polygon…" }));
-        await confirm("Delete");
-      }
-      expect(polygons(store.getState().document!, 0, "I")).toEqual(
-        polygons(before, 0, "I").filter((item) => item.id === "I-Q-0"),
-      );
-      expect(polygons(store.getState().document!, 1, "I")).toEqual(polygons(before, 1, "I"));
-      fireEvent.click(within(row("I-Q-0")).getByRole("button", { name: "Delete Polygon 1" }));
-      expect(polygons(store.getState().document!, 0, "I")).toEqual([]);
-      expect(store.getState().document!.instances.find((item) => item.id === "I")).toEqual(
-        before.instances.find((item) => item.id === "I"),
-      );
-    },
-  );
+  it.each(["cross", "menu"])("deletes only P through %s and retains empty I", async (method) => {
+    const { store } = await setup();
+    const before = store.getState().document!;
+    if (method === "cross") {
+      // The × deletes one polygon at once; it is undoable, so there is no dialog.
+      fireEvent.click(within(row("I-P-0")).getByRole("button", { name: "Delete Polygon 1" }));
+    } else {
+      fireEvent.contextMenu(row("I-P-0"));
+      expect(screen.getByRole("menuitem", { name: "Merge into instance…" })).toBeDefined();
+      fireEvent.click(screen.getByRole("menuitem", { name: "Delete polygon…" }));
+      await confirm("Delete");
+    }
+    expect(polygons(store.getState().document!, 0, "I")).toEqual(
+      polygons(before, 0, "I").filter((item) => item.id === "I-Q-0"),
+    );
+    expect(polygons(store.getState().document!, 1, "I")).toEqual(polygons(before, 1, "I"));
+    fireEvent.click(within(row("I-Q-0")).getByRole("button", { name: "Delete Polygon 1" }));
+    expect(polygons(store.getState().document!, 0, "I")).toEqual([]);
+    expect(store.getState().document!.instances.find((item) => item.id === "I")).toEqual(
+      before.instances.find((item) => item.id === "I"),
+    );
+  });
 
   it.each([
     ["C", ["Rename class", "Delete all instances…", "Focus this class", "Merge into instance…"]],
@@ -347,7 +344,7 @@ describe("structure tree original GWT acceptance", () => {
         "Move to class…",
       ],
     ],
-  ] as const)("SEG-TREE-011/016 exposes explicit %s menu actions", async (id, labels) => {
+  ] as const)("exposes explicit %s menu actions", async (id, labels) => {
     const { store } = await setup();
     const before = invariant(store);
     fireEvent.contextMenu(row(id));
@@ -358,7 +355,7 @@ describe("structure tree original GWT acceptance", () => {
   });
 
   it.each(["C", "I"])(
-    "SEG-TREE-013/018 confirms all-frame deletion of %s and preserves unrelated IDs and geometry",
+    "confirms all-frame deletion of %s and preserves unrelated IDs and geometry",
     async (id) => {
       const { store } = await setup();
       const before = store.getState().document!;
@@ -391,43 +388,38 @@ describe("structure tree original GWT acceptance", () => {
     },
   );
 
-  it.each(["C", "I"])(
-    "SEG-TREE-014/019 focuses %s and excludes other instances from editing",
-    async (id) => {
-      const { store } = await setup();
-      menu(id, `Focus this ${id === "C" ? "class" : "instance"}`);
-      expect(store.getState().focus).toEqual({ type: id === "C" ? "class" : "instance", id });
-      fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-      // Several polygons are in scope: they are highlighted, and none shows vertices until one
-      // is chosen.
-      expect(screen.queryAllByRole("button", { name: /^Vertex / })).toHaveLength(0);
-      const inScope = [...document.querySelectorAll("[data-polygon-emphasis='scope']")].map(
-        (el) => el.getAttribute("data-polygon-id") ?? "",
+  it.each(["C", "I"])("focuses %s and excludes other instances from editing", async (id) => {
+    const { store } = await setup();
+    menu(id, `Focus this ${id === "C" ? "class" : "instance"}`);
+    expect(store.getState().focus).toEqual({ type: id === "C" ? "class" : "instance", id });
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    // Several polygons are in scope: they are highlighted, and none shows vertices until one
+    // is chosen.
+    expect(screen.queryAllByRole("button", { name: /^Vertex / })).toHaveLength(0);
+    const inScope = [...document.querySelectorAll("[data-polygon-emphasis='scope']")].map(
+      (el) => el.getAttribute("data-polygon-id") ?? "",
+    );
+    expect(inScope.length).toBe(id === "C" ? 3 : 2);
+    expect(inScope.every((key) => /^(I|J)-/.test(key))).toBe(true);
+    expect(inScope.some((key) => key.startsWith("J-"))).toBe(id === "C");
+    // Choosing one in scope shows exactly its vertices.
+    const chosen = inScope[0]!;
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    for (const type of ["pointerdown", "pointerup"]) {
+      fireEvent(
+        type === "pointerdown" ? document.querySelector(`[data-polygon-id="${chosen}"]`)! : canvas,
+        new MouseEvent(type, { clientX: 10, clientY: 10, button: 0, bubbles: true }),
       );
-      expect(inScope.length).toBe(id === "C" ? 3 : 2);
-      expect(inScope.every((key) => /^(I|J)-/.test(key))).toBe(true);
-      expect(inScope.some((key) => key.startsWith("J-"))).toBe(id === "C");
-      // Choosing one in scope shows exactly its vertices.
-      const chosen = inScope[0]!;
-      const canvas = screen.getByRole("img", { name: "Frame polygons" });
-      for (const type of ["pointerdown", "pointerup"]) {
-        fireEvent(
-          type === "pointerdown"
-            ? document.querySelector(`[data-polygon-id="${chosen}"]`)!
-            : canvas,
-          new MouseEvent(type, { clientX: 10, clientY: 10, button: 0, bubbles: true }),
-        );
-      }
-      const handles = screen.getAllByRole("button", { name: /^Vertex / });
-      expect(handles).toHaveLength(3);
-      expect(handles.every((handle) => handle.getAttribute("aria-label")!.endsWith(chosen))).toBe(
-        true,
-      );
-    },
-  );
+    }
+    const handles = screen.getAllByRole("button", { name: /^Vertex / });
+    expect(handles).toHaveLength(3);
+    expect(handles.every((handle) => handle.getAttribute("aria-label")!.endsWith(chosen))).toBe(
+      true,
+    );
+  });
 
   it.each(["C", "I", "I-P-0"])(
-    "SEG-TREE-015/020/021/025 merges %s via chooser with exact frame and owner scope",
+    "merges %s via chooser with exact frame and owner scope",
     async (id) => {
       const { store } = await setup();
       const before = store.getState().document!;
@@ -479,7 +471,7 @@ describe("structure tree original GWT acceptance", () => {
     },
   );
 
-  it("SEG-TREE-022 moves I to D across three frames without merging or changing any geometry", async () => {
+  it("moves I to D across three frames without merging or changing any geometry", async () => {
     const { store } = await setup();
     const before = store.getState().document!;
     menu("I", "Move to class…");
@@ -493,7 +485,7 @@ describe("structure tree original GWT acceptance", () => {
   });
 
   it.each(["Cancel", "Escape"])(
-    "SEG-TREE-026/030 cancels all-frame merge with %s and preserves all local state",
+    "cancels all-frame merge with %s and preserves all local state",
     async (cancel) => {
       const { store, submit } = await setup();
       act(() => {
@@ -514,7 +506,7 @@ describe("structure tree original GWT acceptance", () => {
     },
   );
 
-  it("SEG-TREE-027 excludes self and deleted destinations with an explicit empty explanation", async () => {
+  it("excludes self and deleted destinations with an explicit empty explanation", async () => {
     const document = structureDocument();
     document.instances = document.instances.filter((item) => item.id === "I");
     document.annotations = Object.fromEntries(
@@ -530,7 +522,7 @@ describe("structure tree original GWT acceptance", () => {
     expect(store.getState().stagedOperations).toEqual([]);
   });
 
-  it("SEG-TREE-028 rejects a destination deleted after opening the chooser without partial merge", async () => {
+  it("rejects a destination deleted after opening the chooser without partial merge", async () => {
     const { store, service, submit } = await setup();
     menu("I", "Merge into instance…");
     await destination();
@@ -560,8 +552,7 @@ describe("structure tree original GWT acceptance", () => {
     external.getState().dispose();
   });
 
-  // DEC006 policy evidence supplements TREE029; it does not rewrite the original adapter-error GWT.
-  it("DEC006 rolls a failed real domain transaction back to prior local geometry and staging", async () => {
+  it("rolls a failed real domain transaction back to prior local geometry and staging", async () => {
     const { store, submit } = await setup();
     act(() => {
       store.getState().setPolygonPoints("I-P-0", [
@@ -584,7 +575,7 @@ describe("structure tree original GWT acceptance", () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
-  it("DEC006 reports actual adapter failure only after submit and retains retryable local geometry", async () => {
+  it("reports actual adapter failure only after submit and retains retryable local geometry", async () => {
     const { store, service, submit } = await setup();
     const backendBefore = await service.loadFrameWindow("video-1", 0, 0.6);
     menu("I", "Delete instance in current frame…");
@@ -614,7 +605,7 @@ describe("structure tree original GWT acceptance", () => {
     expect(await service.loadFrameWindow("video-1", 0, 0.6)).toEqual(backendBefore);
   });
 
-  it("SEG-ID-005 fences duplicate instance 7 references and selection when switching real stores", async () => {
+  it("fences duplicate instance 7 references and selection when switching real stores", async () => {
     const first = structureDocument();
     first.instances.push({ id: "7", name: "First seven", classId: "C" });
     const second = structureDocument();

@@ -26,7 +26,7 @@ function visibleRow(id: string): HTMLElement {
 describe("structure drag acceptance", () => {
   // These are DOM/theme state transitions, not trusted native drag or compositor pixels.
   it.each(["leave", "cancel", "finish"] as const)(
-    "SEG-DRAG-002/003 themed eligible emphasis and cleanup after %s",
+    "themed eligible emphasis and cleanup after %s",
     async (ending) => {
       const { store, rerender, submit } = await setup();
       const theme = createMuiTheme("dark", "en");
@@ -269,7 +269,7 @@ describe("structure drag acceptance", () => {
     },
   );
 
-  it("SEG-DRAG-015 blocks drag writes during propagation", async () => {
+  it("blocks drag writes during propagation", async () => {
     const runtime = createMockSegmentationRuntime(structureDocument());
     const { store, service } = runtime;
     setMockControls(service, { delayMs: 0 });

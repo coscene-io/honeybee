@@ -13,7 +13,7 @@ import { SubmissionControls, WorkflowControls } from "../../components/WorkflowC
 import { polygonsOf } from "../../maskGeometry";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
 
-it("SEG-SAVE-001/014 stages edits without writes and keeps newer B dirty when A is acknowledged", async () => {
+it("stages edits without writes and keeps newer B dirty when A is acknowledged", async () => {
   const { service, store } = await setup();
   const gate = deferred();
   const original = service.submit.bind(service);
@@ -64,7 +64,7 @@ it("SEG-SAVE-001/014 stages edits without writes and keeps newer B dirty when A 
   store.getState().dispose();
 });
 
-it("SEG-SAVE-015 retains failed snapshot A and excludes later B from its explicit retry payload", async () => {
+it("retains failed snapshot A and excludes later B from its explicit retry payload", async () => {
   const { store, service } = await setup();
   const submit = jest.spyOn(service, "submit");
   store.getState().setPolygonPoints(polygon(store).id, triangle);
