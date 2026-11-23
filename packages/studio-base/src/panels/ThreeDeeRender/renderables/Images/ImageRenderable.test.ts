@@ -11,6 +11,7 @@ import * as THREE from "three";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import { PlaybackDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 
 import {
   type CompressedVideoFrameEvent,
@@ -218,6 +219,7 @@ describe("ImageRenderable candidate scheduling", () => {
     (globalThis as unknown as { VideoFrame: unknown }).VideoFrame = originalVideoFrame;
   });
   beforeEach(() => {
+    mockRenderer.diagnostics = undefined;
     jest.clearAllMocks();
     emitter.removeAllListeners();
     mockRenderer.currentTime = 1_000_000_000_000n;
@@ -345,6 +347,65 @@ describe("ImageRenderable candidate scheduling", () => {
     });
     commit();
     expect(renderable.userData.receiveTime).toBe(1n);
+    renderable.dispose();
+  });
+
+  it("keeps separate still-image coverage ranges across seek invalidation", async () => {
+    const session = new PlaybackDiagnostics();
+    mockRenderer.diagnostics = { session, panelId: "image" };
+    const renderable = new TestImageRenderable(
+      Array.from({ length: 3 }, () => new MockVideoFrame() as unknown as VideoFrame),
+    );
+    for (const sec of [10, 11, 60]) {
+      if (sec === 60) {
+        renderable.invalidateImage();
+      }
+      await renderable.setImage(sampleImage, undefined, undefined, {
+        receiveTime: { sec, nsec: 0 },
+      });
+      commit();
+    }
+    expect(session.topic(mockUserData.topic).coverage).toEqual([
+      { start: 10000000000n, end: 11000000000n },
+      { start: 60000000000n, end: 60000000000n },
+    ]);
+    renderable.dispose();
+  });
+
+  it("clears the displayed frame only when its owning renderable is removed", async () => {
+    const session = new PlaybackDiagnostics();
+    mockRenderer.diagnostics = { session, panelId: "image" };
+    const make = () => new TestImageRenderable([new MockVideoFrame() as unknown as VideoFrame]);
+    const old = make();
+    const current = make();
+    await old.setImage(sampleImage);
+    commit();
+    await current.setImage(sampleImage);
+    commit();
+    const panel = session.panel("image", mockUserData.topic);
+    old.dispose();
+    expect(panel.displayedFrame).toBeDefined();
+    current.dispose();
+    expect(panel.displayedFrame).toBeUndefined();
+  });
+
+  it("deduplicates failed JPEG backfills by their original receive time", async () => {
+    const session = new PlaybackDiagnostics();
+    mockRenderer.diagnostics = { session, panelId: "image" };
+    const renderable = new TestImageRenderable([]);
+    for (const sec of [20n, 60n]) {
+      mockRenderer.currentTime = sec * 1000000000n;
+      renderable.invalidateImage();
+      await renderable.setImage(sampleImage, undefined, undefined, {
+        receiveTime: { sec: 10, nsec: 0 },
+      });
+    }
+    expect(console.error).toHaveBeenCalledTimes(2);
+    jest.mocked(console.error).mockClear();
+    const failures = session.topic(mockUserData.topic).findings.get("decodeError");
+    expect(Array.from(failures!.values())).toEqual([
+      expect.objectContaining({ start: 10000000000n, end: 10000000000n }),
+    ]);
     renderable.dispose();
   });
 

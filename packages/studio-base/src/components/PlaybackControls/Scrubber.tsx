@@ -35,6 +35,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { DiagnosticPreview } from "@foxglove/studio-base/components/PlaybackDiagnostics/DiagnosticPreview";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
@@ -1400,6 +1401,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
             onPointerLeave={onTimelineContentPointerLeave}
             onPointerUp={finishTimelinePointerInteraction}
           >
+            {resolvedViewport && startTime && (
+              <DiagnosticPreview startTime={startTime} viewport={resolvedViewport} />
+            )}
             {resolvedViewport && (
               <Stack
                 position="absolute"

@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo } from "react";
+import { StrictMode, useMemo, useEffect, useContext } from "react";
 import { DeepPartial } from "ts-essentials";
 
 import { useCrash } from "@foxglove/hooks";
@@ -16,6 +16,7 @@ import {
   useForwardAnalytics,
 } from "@foxglove/studio-base/components/ForwardAnalyticsContextProvider";
 import Panel from "@foxglove/studio-base/components/Panel";
+import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import {
   BuiltinPanelExtensionContext,
   PanelExtensionAdapter,
@@ -24,6 +25,10 @@ import { mountPanel } from "@foxglove/studio-base/components/PanelExtensionAdapt
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import {
+  PlaybackDiagnosticsContext,
+  type PanelDiagnostics,
+} from "@foxglove/studio-base/services/playbackDiagnostics";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
@@ -32,6 +37,7 @@ import { TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY } from "./topicMessageFreq
 import { InterfaceMode } from "./types";
 
 type InitPanelArgs = {
+  diagnostics?: PanelDiagnostics;
   crash: ReturnType<typeof useCrash>;
   forwardedAnalytics: ForwardedAnalytics;
   interfaceMode: InterfaceMode;
@@ -47,6 +53,7 @@ function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
       <CaptureErrorBoundary onError={crash}>
         <ForwardAnalyticsContextProvider forwardedAnalytics={forwardedAnalytics}>
           <ThreeDeeRender
+            diagnostics={args.diagnostics}
             context={context}
             interfaceMode={interfaceMode}
             testOptions={testOptions}
@@ -73,6 +80,19 @@ type AdapterContentProps = Props & {
 function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
   const { interfaceMode } = props;
   const crash = useCrash();
+  const session = useContext(PlaybackDiagnosticsContext);
+  const { id: panelId } = usePanelContext();
+  const diagnostics = useMemo(
+    () => (session ? { session, panelId } : undefined),
+    [session, panelId],
+  );
+  const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
+  useEffect(() => {
+    if (interfaceMode === "image" && imageTopic) {
+      return session?.bind(panelId, imageTopic);
+    }
+    return undefined;
+  }, [session, panelId, interfaceMode, imageTopic]);
 
   const forwardedAnalytics = useForwardAnalytics();
   const { injectedFeatures } = useAppContext();
@@ -89,6 +109,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
   const boundInitPanel = useMemo(
     () =>
       initPanel.bind(undefined, {
+        diagnostics,
         crash,
         forwardedAnalytics,
         interfaceMode,
@@ -96,6 +117,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
         customSceneExtensions,
       }),
     [
+      diagnostics,
       crash,
       forwardedAnalytics,
       interfaceMode,

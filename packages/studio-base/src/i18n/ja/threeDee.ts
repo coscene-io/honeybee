@@ -37,9 +37,6 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   synchronizeHelp: "選択したビデオトピックを一致するメッセージ時刻で表示します。",
   synchronizeWarning: "同期する表示中のビデオトピックを2つ以上選択してください。",
   syncByTimestamp: "タイムスタンプで同期",
-  videoFrameDelay: "{{topic}} の動画遅延: {{delay}}",
-  videoContainsBFrames:
-    "{{topic}} の動画データには B フレームが含まれており、再生が途切れる可能性があります。",
   waitingForSynchronizedVideo: "{{topic}} の同期ビデオフレームを待機中…",
   frameNotFound: "フレーム {{frameId}} が見つかりません",
   hideAll: "すべて非表示",
@@ -163,7 +160,6 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   xDeviationHelp: "ポーズ推定で公開するXの標準偏差",
   yDeviation: "Y偏差",
   yDeviationHelp: "ポーズ推定で公開するYの標準偏差",
-  searchingForKeyframe: "キーフレームを検索中......",
 
   // URDF
   displayMode: "表示モード",

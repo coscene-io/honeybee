@@ -423,6 +423,7 @@ describe("IterablePlayer", () => {
 
     const baseState: PlayerStateWithoutPlayerId = {
       activeData: {
+        acceptedSeek: { sequence: 2, started: expect.any(Number), target: { sec: 0, nsec: 1 } },
         currentTime: { sec: 0, nsec: 1 },
         startTime: { sec: 0, nsec: 0 },
         endTime: { sec: 1, nsec: 0 },
@@ -523,6 +524,7 @@ describe("IterablePlayer", () => {
     // previous idle state (after initialization).
     const seekCompleteState: PlayerStateWithoutPlayerId = {
       activeData: {
+        acceptedSeek: { sequence: 1, started: expect.any(Number), target: { sec: 0, nsec: 0 } },
         currentTime: { sec: 0, nsec: 0 },
         startTime: { sec: 0, nsec: 0 },
         endTime: { sec: 1, nsec: 0 },

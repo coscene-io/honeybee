@@ -570,6 +570,9 @@ function byteToHex(val: number): string {
 
 function parseHrdParameters(bitstream: Bitstream): HrdParameters {
   const cpb_cnt_minus1 = bitstream.ue_v();
+  if (cpb_cnt_minus1 < 0 || cpb_cnt_minus1 > 31) {
+    throw new Error("SPS error: cpb_cnt_minus1 must be between 0 and 31");
+  }
   const bit_rate_scale = bitstream.u(4);
   const cpb_size_scale = bitstream.u(4);
   const bit_rate_value_minus1 = new Array<number>(cpb_cnt_minus1 + 1);

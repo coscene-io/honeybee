@@ -176,6 +176,7 @@ export class IterablePlayer implements Player {
   #seekTarget?: Time;
   #presence = PlayerPresence.INITIALIZING;
   #seekStartTime?: number;
+  #acceptedSeek?: PlayerStateActiveData["acceptedSeek"];
 
   // To keep reference equality for downstream user memoization cache the currentTime provided in the last activeData update
   // See additional comments below where _currentTime is set
@@ -394,6 +395,11 @@ export class IterablePlayer implements Player {
       return;
     }
 
+    this.#acceptedSeek = {
+      sequence: (this.#acceptedSeek?.sequence ?? 0) + 1,
+      started: performance.now(),
+      target: targetTime,
+    };
     this.#metricsCollector.seek(targetTime);
     this.#seekTarget = targetTime;
     this.#seekStartTime = Date.now();
@@ -1046,6 +1052,7 @@ export class IterablePlayer implements Player {
         repeatEnabled: this.#repeatEnabled,
         speed: this.#speed,
         lastSeekTime: this.#lastSeekEmitTime,
+        acceptedSeek: this.#acceptedSeek,
         topics: this.#providerTopics,
         topicStats: this.#providerTopicStats,
         datatypes: this.#providerDatatypes,

@@ -40,8 +40,6 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   synchronizeHelp: "按匹配的消息时间戳显示已选择的视频话题。",
   synchronizeWarning: "请至少选择两个可见的视频话题进行同步。",
   syncByTimestamp: "按时间戳同步",
-  videoFrameDelay: "{{topic}} 视频延迟：{{delay}}",
-  videoContainsBFrames: "{{topic}} 的视频数据包含 B 帧，可能导致画面卡顿。",
   waitingForSynchronizedVideo: "正在等待 {{topic}} 的同步视频帧…",
   frameNotFound: "未找到参考系 {{frameId}}",
   hideAll: "隐藏全部",
@@ -180,7 +178,6 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   downloadImage: "下载图像",
   topicNotAvailable: "{{topic}} 不可用",
   waitingForImages: "等待图片信息中...",
-  searchingForKeyframe: "正在查找关键帧......",
 
   // URDF
   displayMode: "显示模式",

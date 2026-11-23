@@ -19,6 +19,7 @@ import {
   type RendererSubscriptionContext,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { PlaybackDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 
 import { Images, LayerSettingsImage } from "./Images";
 import {
@@ -29,6 +30,9 @@ import {
   type SetCompressedVideoFramesOptions,
 } from "./Images/ImageRenderable";
 import { AnyImage, CompressedVideo } from "./Images/ImageTypes";
+import { WorkerImageDecoder } from "./Images/WorkerImageDecoder";
+
+jest.mock("./Images/WorkerImageDecoder");
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -230,6 +234,57 @@ describe("Images compressed video seek lookback", () => {
     jest.restoreAllMocks();
   });
 
+  it("binds visible image layers and preserves pending seeks on unrelated config changes", async () => {
+    const renderer = makeRenderer();
+    const session = new PlaybackDiagnostics();
+    renderer.diagnostics = { session, panelId: "3d" };
+    jest.spyOn(WorkerImageDecoder.prototype, "decode").mockResolvedValue(new ImageData(1, 1));
+    const images = new Images(renderer);
+    const imageSubscription = images
+      .getSubscriptions()
+      .find(
+        (entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.RawImage"),
+      )!.subscription;
+    const publish = async (sec: number) => {
+      await imageSubscription.handler?.({
+        ...makeVideoMessage(0n, "key", "/raw"),
+        receiveTime: { sec, nsec: 0 },
+        message: {
+          timestamp: { sec, nsec: 0 },
+          width: 1,
+          height: 1,
+          encoding: "rgba8",
+          data: new Uint8Array(4),
+        },
+      });
+    };
+    await publish(1);
+    const video = session.panel("3d", "/video");
+    const raw = session.panel("3d", "/raw");
+    expect(video.active && raw.active).toBe(true);
+    video.pending = {
+      seek: { sequence: 1, target: { sec: 1, nsec: 0 }, started: performance.now() },
+    };
+    renderer.updateConfig((draft) => {
+      draft.topics["/raw"] = { visible: false };
+    });
+    renderer.emit("configApplied", renderer);
+    expect(raw.active).toBe(false);
+    expect(video.pending).toBeDefined();
+    renderer.updateConfig((draft) => {
+      draft.topics["/raw"] = { visible: true };
+    });
+    renderer.emit("configApplied", renderer);
+    await publish(30);
+    expect(session.topic("/raw").coverage).toEqual([
+      { start: 1000000000n, end: 1000000000n },
+      { start: 30000000000n, end: 30000000000n },
+    ]);
+    images.dispose();
+    expect(video.active).toBe(false);
+    expect(video.cancelled).toBe(1);
+  });
+
   function compressedVideoSubscription(images: Images) {
     const subscription = images
       .getSubscriptions()
@@ -353,7 +408,7 @@ describe("Images compressed video seek lookback", () => {
     ]);
   });
 
-  it("keeps visible compressed video renderables and shows keyframe search notice during seek lookback", async () => {
+  it("keeps visible compressed video renderables and keeps the image free of notices during seek lookback", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const targetDelta = makeVideoMessage(20_000_000n, "delta");
@@ -388,7 +443,7 @@ describe("Images compressed video seek lookback", () => {
 
     expect(images.renderables.get("/video")).toBe(previousRenderable);
     expect(previousRenderable?.disposed).toBe(false);
-    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("SEEK_KEYFRAME_SEARCH");
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
 
     await onNewRangeIterator?.(
       (async function* () {
@@ -439,7 +494,7 @@ describe("Images compressed video seek lookback", () => {
     ]);
   });
 
-  it("shows a warning when a compressed video stream declares B-frames", async () => {
+  it("keeps the image free of warnings when a compressed video stream declares B-frames", async () => {
     jest.spyOn(H264, "HasBFrames").mockReturnValue(true);
     const renderer = makeRenderer();
     const images = new TestImages(renderer);
@@ -448,9 +503,9 @@ describe("Images compressed video seek lookback", () => {
     void subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
-    expect(renderer.hud.getHUDItems()).toEqual([
-      expect.objectContaining({ id: "VIDEO_B_FRAMES:/video", displayType: "notice" }),
-    ]);
+    expect(renderer.hud.getHUDItems()).not.toContainEqual(
+      expect.objectContaining({ id: "VIDEO_B_FRAMES:/video" }),
+    );
   });
 
   it("uses show-latest playback when fewer than two synchronization topics are eligible", async () => {
@@ -517,7 +572,7 @@ describe("Images compressed video seek lookback", () => {
     }
   });
 
-  it("clears a video delay notice when its topic is hidden", async () => {
+  it("keeps timeout diagnostics off the image", async () => {
     const renderer = makeRenderer();
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
@@ -534,7 +589,7 @@ describe("Images compressed video seek lookback", () => {
     images.displayResults.push({ ok: false, reason: "timeout" });
     void subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
     await flushAsyncWork();
-    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("VIDEO_DELAY:/video");
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("VIDEO_DELAY:/video");
 
     renderer.updateConfig((draft) => {
       draft.topics["/video"] = { visible: false };

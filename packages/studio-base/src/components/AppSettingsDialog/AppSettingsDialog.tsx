@@ -43,6 +43,7 @@ import {
   LanguageSettings,
   TimeFormat,
   TimezoneSettings,
+  PlaybackAnalysisSetting,
   CompatibilityMode,
   RosPackagePath,
   InactivityTimeout,
@@ -250,6 +251,7 @@ export function AppSettingsDialog(
             <Stack gap={2} paddingBottom={2}>
               <ColorSchemeSettings />
               <TimezoneSettings />
+              <PlaybackAnalysisSetting />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
               <CompatibilityMode />
               <RetentionWindowMs />

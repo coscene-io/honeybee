@@ -112,8 +112,6 @@ class FakeMessageHandler implements IMessageHandler {
         this.recordCompressedVideo(messageEvent);
       }
     });
-  public readonly consumeTimestampRegression: IMessageHandler["consumeTimestampRegression"] =
-    jest.fn(() => false);
   public readonly handleRemoteVideoFrameReference: IMessageHandler["handleRemoteVideoFrameReference"] =
     jest.fn();
   public readonly updateImageState: IMessageHandler["updateImageState"] = jest.fn();
@@ -465,7 +463,7 @@ describe("ImageMode compressed video seek replay", () => {
     expect(displayedRenderable?.disposed).toBe(false);
   });
 
-  it("shows a warning when the selected video stream declares B-frames", async () => {
+  it("keeps the image free of warnings when the selected video stream declares B-frames", async () => {
     jest.spyOn(H264, "HasBFrames").mockReturnValue(true);
     const renderer = makeRenderer();
     const imageMode = new TestImageMode(renderer);
@@ -475,7 +473,7 @@ describe("ImageMode compressed video seek replay", () => {
       PLAYBACK_CONTEXT,
     );
 
-    expect(renderer.hud.getHUDItems()).toContainEqual(
+    expect(renderer.hud.getHUDItems()).not.toContainEqual(
       expect.objectContaining({ id: "VIDEO_B_FRAMES:/camera", displayType: "notice" }),
     );
   });
@@ -806,7 +804,6 @@ describe("ImageMode compressed video seek replay", () => {
     void subscription.processQueue?.([first], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
-    jest.mocked(messageHandler.consumeTimestampRegression).mockReturnValueOnce(true);
     messageHandler.target = next;
     void subscription.processQueue?.([next], PLAYBACK_CONTEXT);
     await flushAsyncWork();
@@ -992,7 +989,7 @@ describe("ImageMode compressed video seek replay", () => {
     }
   });
 
-  it("keeps the previous image and shows a keyframe search notice during delayed seek lookback", async () => {
+  it("keeps the previous image and keeps the image free of notices during delayed seek lookback", async () => {
     const messageHandler = new PlaybackCompressedVideoMessageHandler();
     nextMessageHandler = messageHandler;
     const renderer = makeRenderer();
@@ -1028,7 +1025,9 @@ describe("ImageMode compressed video seek replay", () => {
       jest.advanceTimersByTime(51);
       expect(imageMode.currentImageRenderable()).toBe(previousRenderable);
       expect(previousRenderable?.disposed).toBe(false);
-      expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("SEEK_KEYFRAME_SEARCH");
+      expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain(
+        "SEEK_KEYFRAME_SEARCH",
+      );
       expect(renderer.hud.getHUDItems()).not.toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
     } finally {
       jest.useRealTimers();
