@@ -15,6 +15,7 @@ import { createMockSemanticSegmentationService, createSeedDocument } from "../te
 import type { NormalizedPoint, SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
 // Contract: the original Given/When/Then in requirements.csv, not the preaudit wording.
 function fixture(frameCount: number, present: (frame: number, instance: number) => boolean) {
@@ -74,7 +75,7 @@ async function setup(document: SegmentationDocument) {
   const result = render(
     <>
       <SpatialTree store={store} />
-      <SegmentationCanvas store={store} />
+      <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />
     </>,
   );
   return { store, ...result };
@@ -96,18 +97,16 @@ describe("editor acceptance", () => {
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     pointer(canvas, 96, 54);
     pointer(canvas, 384, 54);
-    expect(screen.getByText(/^Drawing a polygon: 2 vertices · /)).toBeDefined();
     const draftPoints = canvas.querySelector("polyline")!.getAttribute("points");
     const operations = store.getState().stagedOperations;
     fireEvent.click(within(screen.getByRole("alert")).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("button", { name: "Drawing help" })).toBeDefined();
-    expect(screen.getByText(/^Drawing a polygon: 2 vertices · /)).toBeDefined();
     expect(canvas.querySelector("polyline")!.getAttribute("points")).toBe(draftPoints);
     expect(store.getState().drawing).toEqual(drawing);
     expect(store.getState().stagedOperations).toEqual(operations);
     pointer(canvas, 240, 270);
-    expect(screen.getByText(/^Drawing a polygon: 3 vertices · /)).toBeDefined();
+    expect(canvas.querySelector("polyline")!.getAttribute("points")!.split(" ")).toHaveLength(3);
     fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
     expect(store.getState().drawing).toBeUndefined();
     expect(

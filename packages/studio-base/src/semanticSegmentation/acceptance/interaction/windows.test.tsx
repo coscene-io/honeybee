@@ -17,6 +17,7 @@ import { openWorkflowPanel } from "../../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
+import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type { FrameInstance } from "../../types";
 
 it("bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
@@ -132,7 +133,7 @@ it("a normalized two-page complete-window response renders each stable identity 
   const { container } = render(
     <>
       <SpatialTree store={runtime.store} />
-      <SegmentationCanvas store={runtime.store} />
+      <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={runtime.store} />
     </>,
   );
   const instanceRow = container.querySelector('[data-node-id="instance-1"]');

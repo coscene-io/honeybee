@@ -11,6 +11,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
+import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
 /** jsdom has no PointerEvent: dispatch a MouseEvent of the pointer type, as the other canvas tests do. */
 function pointer(target: Element, type: string, x: number, y: number): void {
@@ -55,7 +56,7 @@ async function setup() {
     store.getState().setSelection([{ type: "instance", id: "instance-1" }]);
     store.getState().setEditing(true);
   });
-  render(<SegmentationCanvas store={store} />);
+  render(<SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />);
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   const outline = (id: string) => canvas.querySelector(`[data-polygon-id="${id}"]`)!;
   const handlesOf = (id: string) =>

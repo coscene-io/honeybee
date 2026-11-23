@@ -40,7 +40,6 @@ import { useStore } from "zustand";
 
 import {
   SEGMENTATION_SHORTCUTS,
-  ShortcutHint,
   ShortcutKeys,
 } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcuts";
 import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
@@ -88,8 +87,6 @@ const useStyles = makeStyles()((theme) => ({
     position: "relative",
     "& circle:focus": { outline: "none" },
   },
-  toolbar: { padding: theme.spacing(1), flexWrap: "wrap", alignItems: "center" },
-  // Mirrors the timeline ••• menu (TimelineToolbar): 240 px paper, 6 px padding, 32 px rows.
   toolsPanel: {
     position: "absolute",
     right: theme.spacing(1.5),
@@ -168,7 +165,6 @@ const useStyles = makeStyles()((theme) => ({
     boxShadow: theme.shadows[4],
     "&:hover": { backgroundColor: theme.palette.action.hover },
   },
-  hiddenImage: { display: "none" },
   viewport: {
     position: "relative",
     flex: 1,
@@ -227,14 +223,6 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: theme.typography.caption.fontSize,
     "& input": { width: 80, accentColor: theme.palette.primary.main },
   },
-  footer: {
-    paddingInline: theme.spacing(1),
-    flexShrink: 0,
-    height: 20,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
 }));
 
 export type SegmentationCanvasProps = {
@@ -245,10 +233,6 @@ export type SegmentationCanvasProps = {
   imageUrl?: string;
   disabled?: boolean;
   decodedFrame?: DecodedSegmentationFrame;
-  onFrameRendered?: (frame: DecodedSegmentationFrame) => void;
-  onFrameRenderError?: (frame: DecodedSegmentationFrame) => void;
-  /** Hides the toolbar and hint footer; view tools open from one floating button instead. */
-  compact?: boolean;
   /** Frame this canvas draws. Omitted canvases follow the store's current frame. */
   frameId?: string;
   /** Called when a pointer claims this canvas as the one that receives new edits. */
@@ -357,9 +341,6 @@ export function SegmentationCanvas({
   imageUrl,
   disabled = false,
   decodedFrame,
-  onFrameRendered,
-  onFrameRenderError,
-  compact = false,
   frameId: shownFrameId,
   onClaimFocus,
   active = true,
@@ -433,7 +414,6 @@ export function SegmentationCanvas({
       // Storage may be disabled; the choice still applies to this canvas.
     }
   };
-  const [imageError, setImageError] = useState(false);
   const [error, setError] = useState<string>();
   /** A representation change the last command made (e.g. polygons rasterized into a mask). */
   const [notice, setNotice] = useState<string>();
@@ -447,11 +427,6 @@ export function SegmentationCanvas({
   const [conversion, setConversion] = useState<
     { instanceId: string; loss: MaskConversionLoss } | undefined
   >();
-  const [loadedFrame, setLoadedFrame] = useState<DecodedSegmentationFrame>();
-  const imageKey = useRef({ frame: decodedFrame, value: 0 });
-  if (imageKey.current.frame !== decodedFrame) {
-    imageKey.current = { frame: decodedFrame, value: imageKey.current.value + 1 };
-  }
   const activeFrameId = state.currentFrameId;
   const frameId = shownFrameId ?? activeFrameId;
   const frame = state.document?.frames.find((item) => item.id === frameId);
@@ -475,8 +450,7 @@ export function SegmentationCanvas({
     draftElsewhere ||
     ["running", "stopping"].includes(state.propagation.status) ||
     !source ||
-    imageError ||
-    (compact && !nativeView);
+    !nativeView;
   const drawing = state.drawing;
   const tool = state.creationTool;
   // Quick annotation (SAM2 clicks) and vertex drawing are the two ways to create geometry.
@@ -781,53 +755,6 @@ export function SegmentationCanvas({
     panTool,
   ]);
 
-  const presentationReady = decodedFrame != undefined && state.isFrameReady(decodedFrame.frameId);
-  useLayoutEffect(() => {
-    if (
-      !decodedFrame ||
-      loadedFrame !== decodedFrame ||
-      decodedFrame.frameId !== frame?.id ||
-      decodedFrame.imageUrl !== source ||
-      !presentationReady ||
-      decodedFrame.presentation?.signal.aborted === true
-    ) {
-      return;
-    }
-    // The image load and this layout effect establish matched pixels + committed overlay.
-    // Two RAFs give that commit a rendering opportunity; this is not compositor acknowledgement.
-    let second: number | undefined;
-    const first = requestAnimationFrame(() => {
-      second = requestAnimationFrame(() => {
-        if (decodedFrame.presentation?.signal.aborted !== true) {
-          onFrameRendered?.(decodedFrame);
-        }
-      });
-    });
-    const cancel = () => {
-      cancelAnimationFrame(first);
-      if (second != undefined) {
-        cancelAnimationFrame(second);
-      }
-    };
-    decodedFrame.presentation?.signal.addEventListener("abort", cancel, { once: true });
-    return () => {
-      cancel();
-      decodedFrame.presentation?.signal.removeEventListener("abort", cancel);
-    };
-  }, [
-    decodedFrame,
-    loadedFrame,
-    frame?.id,
-    source,
-    document?.annotations,
-    document?.instances,
-    document?.classes,
-    state.viewMode,
-    state.focus,
-    presentationReady,
-    onFrameRendered,
-  ]);
-
   useEffect(() => {
     setDraft([]);
     resetTemporaryInput();
@@ -844,9 +771,6 @@ export function SegmentationCanvas({
       segmentationSession.setState({ strokeFrameId: undefined });
     }
   }, [drawing, store]);
-  useEffect(() => {
-    setImageError(false);
-  }, [source]);
   useEffect(() => {
     view.current = { zoom: 1, pan: { x: 0, y: 0 } };
     setZoom(1);
@@ -895,7 +819,7 @@ export function SegmentationCanvas({
   }, [cancelGesture, resetTemporaryInput]);
   /** Over the Image panel the view is the panel's camera; drive it instead of our own zoom. */
   function panelView(): ReturnType<typeof segmentationViewControls.get> {
-    const canvas = compact ? decodedFrame?.nativeCanvas : undefined;
+    const canvas = decodedFrame?.nativeCanvas;
     return canvas ? segmentationViewControls.get(canvas) : undefined;
   }
   /**
@@ -916,59 +840,17 @@ export function SegmentationCanvas({
     return bounds ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 } : undefined;
   }
   function zoomAt(next: number, client?: EditorPoint): void {
-    if (compact) {
-      const native = panelView();
-      const at = client ?? viewportCenter();
-      if (!navigationLocked && native && at && zoom > 0) {
-        native.zoom(next / zoom, at.x, at.y);
-      }
-      return;
+    const native = panelView();
+    const at = client ?? viewportCenter();
+    if (!navigationLocked && native && at && zoom > 0) {
+      native.zoom(next / zoom, at.x, at.y);
     }
-    if (navigationLocked) {
-      return;
-    }
-    const bounds = viewport.current?.getBoundingClientRect();
-    if (!bounds) {
-      return;
-    }
-    cancelGesture();
-    const current = view.current;
-    const anchor = point(
-      client
-        ? { clientX: client.x, clientY: client.y }
-        : { clientX: bounds.x + bounds.width / 2, clientY: bounds.y + bounds.height / 2 },
-    );
-    // Always allow actual pixel size for both large and tiny source images.
-    const actualSizeZoom = current.zoom / screenScale;
-    const nextZoom = Math.max(
-      Math.min(0.1, actualSizeZoom),
-      Math.min(Math.max(32, actualSizeZoom), next),
-    );
-    if (!anchor) {
-      return;
-    }
-    const nextPan = {
-      x: current.pan.x + anchor.x * size.width * (current.zoom - nextZoom),
-      y: current.pan.y + anchor.y * size.height * (current.zoom - nextZoom),
-    };
-    view.current = { zoom: nextZoom, pan: nextPan };
-    setZoom(nextZoom);
-    setPan(nextPan);
-    setHover(undefined);
   }
   function fit(): void {
     if (navigationLocked) {
       return;
     }
-    if (compact) {
-      panelView()?.reset();
-      return;
-    }
-    cancelGesture();
-    view.current = { zoom: 1, pan: { x: 0, y: 0 } };
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-    setHover(undefined);
+    panelView()?.reset();
   }
   function fitSelection(): void {
     if (navigationLocked) {
@@ -996,8 +878,8 @@ export function SegmentationCanvas({
     if (!bounds || points.length === 0) {
       return;
     }
-    if (compact) {
-      // Selection bounds on screen through the native transform, then zoom and center them.
+    // Selection bounds on screen through the native transform, then zoom and center them.
+    {
       const native = panelView();
       const matrix = content.current?.getScreenCTM();
       if (!native || !matrix) {
@@ -1020,33 +902,7 @@ export function SegmentationCanvas({
         );
       native.zoom(ratio, center.x, center.y);
       native.panBy(bounds.x + bounds.width / 2 - center.x, bounds.y + bounds.height / 2 - center.y);
-      return;
     }
-    const xs = points.map((p) => p.x),
-      ys = points.map((p) => p.y);
-    const left = Math.min(...xs),
-      right = Math.max(...xs),
-      top = Math.min(...ys),
-      bottom = Math.max(...ys);
-    const baseScale = screenScale / zoom;
-    const nextZoom = Math.max(
-      0.1,
-      Math.min(
-        32,
-        0.85 *
-          Math.min(
-            bounds.width / (Math.max(0.001, right - left) * size.width * baseScale),
-            bounds.height / (Math.max(0.001, bottom - top) * size.height * baseScale),
-          ),
-      ),
-    );
-    const nextPan = {
-      x: size.width / 2 - ((left + right) / 2) * size.width * nextZoom,
-      y: size.height / 2 - ((top + bottom) / 2) * size.height * nextZoom,
-    };
-    view.current = { zoom: nextZoom, pan: nextPan };
-    setZoom(nextZoom);
-    setPan(nextPan);
   }
   useEffect(() => {
     const element = viewport.current;
@@ -1059,19 +915,7 @@ export function SegmentationCanvas({
       }
       event.preventDefault();
       event.stopPropagation();
-      if (compact) {
-        decodedFrame?.nativeCanvas?.dispatchEvent(new WheelEvent("wheel", event));
-        return;
-      }
-      if (navigationLocked) {
-        return;
-      }
-      const unit =
-        event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (element?.clientHeight ?? 400) : 1;
-      zoomAt(
-        view.current.zoom * Math.exp(-Math.max(-240, Math.min(240, event.deltaY * unit)) * 0.003),
-        { x: event.clientX, y: event.clientY },
-      );
+      decodedFrame?.nativeCanvas?.dispatchEvent(new WheelEvent("wheel", event));
     };
     element?.addEventListener("wheel", wheel, { passive: false });
     return () => {
@@ -1906,198 +1750,7 @@ export function SegmentationCanvas({
         }
       }}
     >
-      {!compact && (
-        <Stack
-          direction="row"
-          spacing={0.5}
-          className={classes.toolbar}
-          onClick={(event) => {
-            if (
-              event.detail > 0 &&
-              event.target instanceof Element &&
-              event.target.closest("button") != undefined &&
-              event.target.closest("[data-keep-control-focus]") == undefined
-            ) {
-              viewport.current?.focus({ preventScroll: true });
-            }
-          }}
-        >
-          <Tooltip
-            title={
-              navigationLocked ? (
-                ""
-              ) : (
-                <ShortcutHint
-                  label={text("Zoom out", "缩小")}
-                  keys={SEGMENTATION_SHORTCUTS.zoomOut}
-                />
-              )
-            }
-            disableInteractive
-          >
-            <Button
-              size="small"
-              disabled={navigationLocked}
-              aria-label="Zoom out"
-              data-tool="zoom-out"
-              onClick={() => {
-                zoomAt(zoom / 1.25);
-              }}
-            >
-              −
-            </Button>
-          </Tooltip>
-          <Typography variant="caption" aria-live="polite" data-tool="zoom-label">
-            {zoom === 1 && pan.x === 0 && pan.y === 0 ? text("Fit · ", "适应 · ") : ""}
-            {Math.round(screenScale * 100)}%
-          </Typography>
-          <Tooltip
-            title={
-              navigationLocked ? (
-                ""
-              ) : (
-                <ShortcutHint
-                  label={text("Zoom in", "放大")}
-                  keys={SEGMENTATION_SHORTCUTS.zoomIn}
-                />
-              )
-            }
-            disableInteractive
-          >
-            <Button
-              size="small"
-              disabled={navigationLocked}
-              aria-label="Zoom in"
-              data-tool="zoom-in"
-              onClick={() => {
-                zoomAt(zoom * 1.25);
-              }}
-            >
-              +
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title={
-              navigationLocked ? (
-                ""
-              ) : (
-                <ShortcutHint label={text("Fit", "适应画布")} keys={SEGMENTATION_SHORTCUTS.fit} />
-              )
-            }
-            disableInteractive
-          >
-            <Button
-              size="small"
-              data-tool="fit"
-              disabled={navigationLocked}
-              onClick={() => {
-                fit();
-              }}
-            >
-              {text("Fit", "适应画布")}
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title={
-              navigationLocked ? (
-                ""
-              ) : (
-                <ShortcutHint
-                  label={text("Actual size", "实际大小")}
-                  keys={SEGMENTATION_SHORTCUTS.actualSize}
-                />
-              )
-            }
-            disableInteractive
-          >
-            <Button
-              size="small"
-              data-tool="actual"
-              disabled={navigationLocked}
-              onClick={() => {
-                zoomAt(zoom / screenScale);
-              }}
-            >
-              100%
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title={
-              navigationLocked || !state.focus ? (
-                ""
-              ) : (
-                <ShortcutHint
-                  label={text("Fit selection", "适应选区")}
-                  keys={SEGMENTATION_SHORTCUTS.fitSelection}
-                />
-              )
-            }
-            disableInteractive
-          >
-            <Button
-              size="small"
-              data-tool="fit-selection"
-              disabled={navigationLocked || !state.focus}
-              onClick={fitSelection}
-            >
-              {text("Fit selection", "适应选区")}
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title={
-              navigationLocked ? (
-                ""
-              ) : (
-                <ShortcutHint label={text("Pan", "平移")} keys={SEGMENTATION_SHORTCUTS.panTool} />
-              )
-            }
-            disableInteractive
-          >
-            <Button
-              size="small"
-              disabled={navigationLocked}
-              aria-pressed={panTool}
-              data-tool="pan"
-              onClick={() => {
-                setPanTool((value) => !value);
-              }}
-            >
-              {text("Pan", "平移")}
-            </Button>
-          </Tooltip>
-          <Typography variant="caption" data-tool="size">
-            {size.width} × {size.height}
-          </Typography>
-          <label data-tool="opacity">
-            {text("Opacity", "透明度")}{" "}
-            <input
-              aria-label="Overlay opacity"
-              disabled={navigationLocked}
-              type="range"
-              min={0}
-              max={0.7}
-              step={0.05}
-              value={opacity}
-              style={{ width: 70 }}
-              onChange={(event) => {
-                setOpacity(Number(event.target.value));
-              }}
-            />
-          </label>
-          <Button
-            size="small"
-            data-keep-control-focus
-            data-tool="shortcuts"
-            disabled={navigationLocked}
-            onClick={() => {
-              openKeyboardShortcuts();
-            }}
-          >
-            {text("Shortcuts", "快捷键")}
-          </Button>
-        </Stack>
-      )}
-      {compact && toolsOpen && (
+      {toolsOpen && (
         <div
           className={classes.toolsPanel}
           role="group"
@@ -2243,47 +1896,45 @@ export function SegmentationCanvas({
           </Typography>
         </div>
       )}
-      {compact && (
-        <IconButton
-          className={classes.toolsFab}
-          size="small"
-          aria-label={text("View tools", "视图工具")}
-          aria-expanded={toolsOpen}
-          onClick={() => {
-            setToolsOpen((open) => !open);
-          }}
+      <IconButton
+        className={classes.toolsFab}
+        size="small"
+        aria-label={text("View tools", "视图工具")}
+        aria-expanded={toolsOpen}
+        onClick={() => {
+          setToolsOpen((open) => !open);
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          aria-hidden="true"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
-            <circle cx="16" cy="7" r="2" />
-            <circle cx="8" cy="17" r="2" />
-          </svg>
-        </IconButton>
-      )}
+          <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+          <circle cx="16" cy="7" r="2" />
+          <circle cx="8" cy="17" r="2" />
+        </svg>
+      </IconButton>
       <Box
         ref={viewport}
         className={classes.viewport}
-        style={compact ? { background: "transparent" } : undefined}
+        style={{ background: "transparent" }}
         data-testid="segmentation-viewport"
         tabIndex={0}
         role="group"
         aria-label="Annotation viewport"
         onPointerDownCapture={(event) => {
-          if (compact && nativePanOnly(event)) {
+          if (nativePanOnly(event)) {
             event.stopPropagation();
           }
         }}
         onMouseDownCapture={(event) => {
-          if (compact && nativePanOnly(event)) {
+          if (nativePanOnly(event)) {
             decodedFrame?.nativeCanvas?.dispatchEvent(
               new MouseEvent("mousedown", event.nativeEvent),
             );
@@ -2297,7 +1948,7 @@ export function SegmentationCanvas({
         }}
       >
         <Stack className={classes.notices} spacing={1} data-testid="canvas-notices">
-          {compact && !nativeView && (
+          {!nativeView && (
             <Alert severity="info">
               {text(
                 "The view transform is not ready or includes a non-linear correction, so precise annotation is not available yet.",
@@ -2514,35 +2165,6 @@ export function SegmentationCanvas({
             >
               {text("Drawing help", "绘制帮助")}
             </Button>
-          )}
-          {/* Embedded over the Image panel the native view supplies pixels and size; no probe image. */}
-          {compact ? undefined : imageError || !source ? (
-            <Alert severity={imageError ? "error" : "info"}>
-              {imageError
-                ? text(
-                    "The frame image could not be loaded. Choose another frame or retry.",
-                    "当前帧图片加载失败，请切换帧或重试。",
-                  )
-                : text("Select a frame to start annotating.", "请选择帧以开始标注。")}
-            </Alert>
-          ) : (
-            <Box
-              component="img"
-              src={source}
-              alt=""
-              className={classes.hiddenImage}
-              onLoad={(event) => {
-                setSize({
-                  width:
-                    event.currentTarget.naturalWidth > 0 ? event.currentTarget.naturalWidth : 960,
-                  height:
-                    event.currentTarget.naturalHeight > 0 ? event.currentTarget.naturalHeight : 540,
-                });
-              }}
-              onError={() => {
-                setImageError(true);
-              }}
-            />
           )}
         </Stack>
         <svg
@@ -2883,26 +2505,8 @@ export function SegmentationCanvas({
                 : `translate(${pan.x} ${pan.y}) scale(${zoom})`
             }
           >
-            {!compact && source && !imageError && (
-              /* eslint-disable @coscene-io/link-target, react/no-unknown-property -- SVG image embeds pixels and supports its own load/error events. */
-              <image
-                key={decodedFrame ? imageKey.current.value : source}
-                href={source}
-                width={size.width}
-                height={size.height}
-                onLoad={() => {
-                  setLoadedFrame(decodedFrame);
-                }}
-                onError={() => {
-                  setImageError(true);
-                  if (decodedFrame) {
-                    onFrameRenderError?.(decodedFrame);
-                  }
-                }}
-              />
-              /* eslint-enable @coscene-io/link-target, react/no-unknown-property */
-            )}
-            {(!compact || (nativeView != undefined && !disabled)) &&
+            {nativeView != undefined &&
+              !disabled &&
               state.viewMode !== "original" &&
               !peekOriginal &&
               document?.instances.map((instance) => {
@@ -3339,49 +2943,6 @@ export function SegmentationCanvas({
           {text("Keyboard shortcuts", "键盘快捷键")}
         </MenuItem>
       </Menu>
-      {!compact && (
-        <Typography variant="caption" className={classes.footer} aria-live="polite">
-          {selectedEditable.length > 1
-            ? text(
-                `${selectedEditable.length} points selected: arrows move them 1 image pixel (Shift = 10); drag one to move all; Delete removes them; Esc clears.`,
-                `已选 ${selectedEditable.length} 个顶点：方向键移动 1 图像像素（Shift 为 10）；拖动其中一个整体移动；Delete 删除；Esc 取消选择。`,
-              )
-            : activePoint
-              ? text(
-                  `Point ${activePoint.vertex + 1} (${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}): arrows move 1 image pixel; Shift = 10; Shift+click adds points.`,
-                  `顶点 ${activePoint.vertex + 1}（${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}）：方向键移动 1 图像像素；Shift 为 10；Shift+点击可多选。`,
-                )
-              : drawing && quickMode
-                ? text(
-                    `Quick annotation: left click adds a positive point, right click or Shift+left click a negative one; Backspace undoes the last point, Enter finishes, Esc cancels · ${quickPoints.filter((p) => p.positive).length} positive / ${quickPoints.filter((p) => !p.positive).length} negative${quickBusy ? " · computing…" : quickResult ? ` · score ${quickResult.score.toFixed(2)}` : ""}`,
-                    `快速标注：左键加正点，右键或 Shift+左键加负点；Backspace 撤销上一个点，Enter 完成，Esc 取消 · ${quickPoints.filter((p) => p.positive).length} 正 / ${quickPoints.filter((p) => !p.positive).length} 负${quickBusy ? " · 计算中…" : quickResult ? ` · 置信度 ${quickResult.score.toFixed(2)}` : ""}`,
-                  )
-                : drawing
-                  ? text(
-                      `Drawing a polygon: ${draft.length} vertices · Enter finishes, Esc cancels · Q quick annotation · Space/middle/right drag to pan`,
-                      `绘制多边形：${draft.length} 个顶点 · Enter 完成，Esc 取消 · Q 改为快速标注 · 空格/中键/右键拖动平移`,
-                    )
-                  : brushActive
-                    ? text(
-                        `${brush.mode === "paint" ? "Brush" : "Eraser"} ${brush.radius}px: drag to ${brush.mode === "paint" ? "paint" : "erase"} the mask · B brush, E eraser, [ ] size · each stroke is one undo step · Enter finishes editing.`,
-                        `${brush.mode === "paint" ? "画笔" : "橡皮"} ${brush.radius}px：拖动以${brush.mode === "paint" ? "涂抹" : "擦除"} mask · B 画笔，E 橡皮，[ ] 调整大小 · 每一笔可单独撤销 · Enter 完成编辑。`,
-                      )
-                    : state.editing && activePolygonId == undefined && scopePolygons.length > 1
-                      ? text(
-                          `${scopePolygons.length} polygons in scope: click one to edit its vertices.`,
-                          `范围内有 ${scopePolygons.length} 个多边形：点击其中一个以编辑它的顶点。`,
-                        )
-                      : state.editing
-                        ? text(
-                            "Drag points/fill; drag empty canvas to box-select points; Shift+click multi-selects; click edge to add; Delete removes selected points. Arrows move selected points; Enter finishes editing. Space/right drag pans; wheel zooms; ? help.",
-                            "拖动顶点/填充；拖动空白处框选顶点；Shift+点击多选；单击边加点；Delete 删除选中顶点。方向键移动选中顶点，Enter 完成编辑。空格/右键拖动平移；滚轮缩放；? 查看帮助。",
-                          )
-                        : text(
-                            "Select an instance, then enable Edit to adjust polygons.",
-                            "先选择实例，再点击“编辑”调整多边形。",
-                          )}
-        </Typography>
-      )}
     </Stack>
   );
 }

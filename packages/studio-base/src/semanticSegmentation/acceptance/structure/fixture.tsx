@@ -17,6 +17,7 @@ import {
   createMockSemanticSegmentationService,
   createSeedDocument,
 } from "../../testing/mockService";
+import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type { SegmentationDocument, SegmentationPolygon } from "../../types";
 
 type StructureSetup = RenderResult & {
@@ -104,7 +105,7 @@ export async function setup(
   const view = render(
     <>
       <SpatialTree store={store} />
-      <SegmentationCanvas store={store} />
+      <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />
     </>,
   );
   return { store, service, submit, ...view };

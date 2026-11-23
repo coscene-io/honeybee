@@ -52,7 +52,6 @@ function ActiveWorkbench({
         runtime={runtime}
         imageUrl={sourceReady ? imageUrl : undefined}
         sourceReady={sourceReady && !loading}
-        showTree={false}
         decodedFrame={decodedFrame}
         frameId={frameId}
         focused={focused}

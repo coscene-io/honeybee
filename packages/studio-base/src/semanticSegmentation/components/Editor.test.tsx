@@ -10,12 +10,15 @@ import { act, fireEvent, render, screen, within, waitFor } from "@testing-librar
 import { createRef } from "react";
 
 import { polygonsOf } from "../maskGeometry";
+import type { DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
+import { openViewTools } from "../testing/viewTools";
 
 async function setup(configure?: (document: SegmentationDocument) => void) {
   const document = createSeedDocument();
@@ -39,16 +42,21 @@ async function setup(configure?: (document: SegmentationDocument) => void) {
     value: jest.fn(),
   });
   const viewportRef = createRef<HTMLDivElement>();
-  const result = render(
+  const view = (frame: DecodedSegmentationFrame) => (
     <>
       <SpatialTree
         store={store}
         onPointerActivate={() => viewportRef.current?.focus({ preventScroll: true })}
       />
-      <SegmentationCanvas store={store} viewportRef={viewportRef} />
-    </>,
+      <SegmentationCanvas decodedFrame={frame} store={store} viewportRef={viewportRef} />
+    </>
   );
-  return { store, ...result };
+  const result = render(view(TEST_DECODED_FRAME));
+  /** The Image panel zoomed: a new native view under the canvas. */
+  const zoomNative = (scale: number) => {
+    result.rerender(view(scaledFrame(scale)));
+  };
+  return { store, zoomNative, ...result };
 }
 function pointer(target: Element, type: string, x: number, y: number): void {
   fireEvent(target, new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true }));
@@ -324,10 +332,10 @@ describe("segmentation editor", () => {
         }
       });
       if (mode === "pan") {
-        fireEvent.click(screen.getByRole("button", { name: "Pan" }));
+        fireEvent.click(within(openViewTools()).getByRole("button", { name: "Pan" }));
       }
       if (mode === "disabled") {
-        rerender(<SegmentationCanvas store={store} disabled />);
+        rerender(<SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} disabled />);
       }
       const canvas = screen.getByRole("img", { name: "Frame polygons" });
       const path = canvas.querySelector('[data-instance-id="instance-1"] path[stroke]');
@@ -372,13 +380,13 @@ describe("segmentation editor", () => {
         .every((handle) => handle.getAttribute("data-highlighted") === "false"),
     ).toBe(true);
     pointer(canvas, "pointermove", x, y);
-    fireEvent.click(screen.getByRole("button", { name: "Pan" }));
+    fireEvent.click(within(openViewTools()).getByRole("button", { name: "Pan" }));
     expect(screen.queryByTestId("edge-insert-indicator")).toBeNull();
     expect(store.getState().stagedOperations).toHaveLength(0);
   });
 
   it("uses screen-sized visible handles and forgiving hit areas after fitted scaling and zoom", async () => {
-    await setup();
+    const { zoomNative } = await setup();
     fireEvent.click(screen.getByRole("button", { name: /^● Person 1/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
@@ -403,7 +411,7 @@ describe("segmentation editor", () => {
       configurable: true,
       value: () => ({ a: 3, b: 0, c: 0, d: 3, e: 100, f: 60 }),
     });
-    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    zoomNative(3);
     const visible = screen.getAllByTestId("vertex-handle-visible")[0]!;
     expect(Number(visible.getAttribute("r")) * 3).toBeCloseTo(4.5);
     expect(Number(visible.getAttribute("stroke-width")) * 3).toBeCloseTo(1.5);
@@ -713,7 +721,7 @@ describe("segmentation editor", () => {
     rerender(
       <>
         <SpatialTree store={otherStore} />
-        <SegmentationCanvas store={otherStore} />
+        <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={otherStore} />
       </>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
@@ -767,7 +775,7 @@ it("returns pointer-selected objects and Edit to the viewport while keeping keyb
   });
   fireEvent.click(edit, { detail: 0 });
   expect(document.activeElement).toBe(edit);
-  const pan = screen.getByRole("button", { name: "Pan" });
+  const pan = within(openViewTools()).getByRole("button", { name: "Pan" });
   await act(async () => {
     pan.focus();
     await Promise.resolve();

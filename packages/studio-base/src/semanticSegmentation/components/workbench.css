@@ -113,17 +113,6 @@
   grid-template-columns: 290px minmax(320px, 1fr) 320px;
   min-height: 0;
 }
-.seg-tree {
-  min-width: 0;
-  overflow: auto;
-  background: #151e2c;
-  border-right: 1px solid var(--seg-line);
-}
-.seg-tree-header {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--seg-line);
-  font-weight: 700;
-}
 .seg-editor {
   display: flex;
   flex-direction: column;
@@ -243,26 +232,6 @@
 .seg-modal h2 {
   margin: 0 0 16px;
   font-size: 17px;
-}
-.seg-entry {
-  position: absolute;
-  top: 38px;
-  right: 10px;
-  z-index: 6;
-  display: flex;
-  gap: 4px;
-}
-.seg-entry button {
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-.seg-entry button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .seg-entry-error {

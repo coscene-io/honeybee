@@ -29,6 +29,8 @@ import { SpatialSidebar } from "../../components/SpatialSidebar";
 import { segmentationImageSources, type SegmentationImage } from "../../imageSource";
 import { polygonsOf } from "../../maskGeometry";
 import { segmentationSession } from "../../runtime";
+import { enterAnnotation, recordEntryActions } from "../../testing/entryActions";
+import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import { focusedImageUrl } from "../../testing/session";
 
 const maximize = jest.fn();
@@ -116,6 +118,7 @@ function BoundCanvas(): React.JSX.Element | ReactNull {
   const session = useStore(segmentationSession);
   return session.open && session.runtime ? (
     <SegmentationCanvas
+      decodedFrame={TEST_DECODED_FRAME}
       store={session.runtime.store}
       imageUrl={focusedImageUrl()}
       disabled={!session.sourceReady}
@@ -153,6 +156,7 @@ function fixture() {
         <div ref={containerRef}>
           <canvas width={8} height={4} />
           <SegmentationImageEntry
+            onActionsChange={recordEntryActions}
             containerRef={containerRef}
             topic={topic}
             panelId="panel-1"
@@ -190,7 +194,9 @@ function fixture() {
   };
 }
 async function open(mode: "inline" | "maximize" = "inline") {
-  fireEvent.click(screen.getByTitle(mode === "maximize" ? "放大并编辑空间标注" : "编辑空间标注"));
+  act(() => {
+    enterAnnotation(mode);
+  });
   await waitFor(
     () => {
       expect(segmentationSession.getState().open).toBe(true);
@@ -243,8 +249,8 @@ it("actual Workspace sidebar actions select adjacent Space from Moment and bind 
   expect(frame.timestampSec).toBe(0.3);
   expect(frame.videoId).toBe(runtime.store.getState().document!.videos[0]!.id);
   expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(focusedImageUrl()).toBeDefined();
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  expect(canvas.querySelector("image")!.getAttribute("href")).toBe(focusedImageUrl());
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
     configurable: true,
     value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),

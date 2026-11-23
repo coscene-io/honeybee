@@ -14,6 +14,7 @@ import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
+import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
 async function storeWithSeed() {
   const document = createSeedDocument();
@@ -86,7 +87,14 @@ it("lets the first vertex choose either canvas, then keeps the stroke there", as
     value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
   });
   const imageUrl = store.getState().document!.frames.find((item) => item.id === "side-0")?.imageUrl;
-  render(<SegmentationCanvas store={store} frameId="side-0" imageUrl={imageUrl} />);
+  render(
+    <SegmentationCanvas
+      decodedFrame={TEST_DECODED_FRAME}
+      store={store}
+      frameId="side-0"
+      imageUrl={imageUrl}
+    />,
+  );
   expect(screen.queryByText(/other canvas/)).toBeNull();
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   fireEvent(
@@ -117,6 +125,7 @@ it("does not leave the canvas after the first vertex is placed", async () => {
     <>
       <SpatialTree store={store} />
       <SegmentationCanvas
+        decodedFrame={TEST_DECODED_FRAME}
         store={store}
         frameId="side-0"
         imageUrl="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"

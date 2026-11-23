@@ -8,7 +8,7 @@
 
 import { act, fireEvent, screen } from "@testing-library/react";
 
-import { editor, fixture, pointer, polygon, triangle } from "./fixtures";
+import { editor, fixture, pointer, polygon, triangle, draftVertexCount } from "./fixtures";
 import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 
@@ -21,21 +21,12 @@ function canvas() {
 function key(value: string) {
   fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: value });
 }
-function loadSize(container: HTMLElement, width: number, height: number) {
-  const image = container.querySelector("img")!;
-  Object.defineProperties(image, {
-    naturalWidth: { configurable: true, value: width },
-    naturalHeight: { configurable: true, value: height },
-  });
-  fireEvent.load(image);
-}
-
 it("draws at missing I from a document-free draft, and Escape adds nothing beside saved P", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   delete document.annotations[frameInstanceKey("frame-0", "instance-1")];
   delete document.annotationSummaries[frameInstanceKey("frame-0", "instance-1")];
-  const { store, container } = await editor(document);
+  const { store, resize } = await editor(document);
   const otherFrame = polygon(store, "instance-1", "frame-1");
   fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Person 1" }));
   expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
@@ -50,7 +41,7 @@ it("draws at missing I from a document-free draft, and Escape adds nothing besid
     "Click to add vertices. Enter finishes with at least 3 points; Esc cancels",
   );
   expect(screen.getByRole("button", { name: "Close" })).toBeDefined();
-  loadSize(container, 100, 100);
+  resize(100, 100);
   for (const [x, y] of [
     [10, 10],
     [30, 10],
@@ -117,9 +108,7 @@ it.each(
     store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-empty")],
   ).toBeUndefined();
   expect(store.getState().stagedOperations).toEqual(staged);
-  expect(
-    screen.getByText(new RegExp(`^Drawing a polygon: ${points.length} vertices · `)),
-  ).toBeDefined();
+  expect(draftVertexCount()).toBe(points.length);
   store.getState().dispose();
 });
 
@@ -140,7 +129,7 @@ it("text-field Enter does not finish a simultaneous valid polygon draft", async 
   fireEvent.keyDown(input, { key: "Enter" });
   expect(screen.getByText("Enter a class name of 1–100 characters.")).toBeDefined();
   expect(store.getState().drawing).toEqual(drawing);
-  expect(screen.getByText(/^Drawing a polygon: 3 vertices · /)).toBeDefined();
+  expect(draftVertexCount()).toBe(3);
   expect(
     store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-empty")],
   ).toBeUndefined();
@@ -151,8 +140,8 @@ it("fractional image vertex drag survives durable mock submit and reload within 
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   polygonsOf(document.annotations[frameInstanceKey("frame-0", "instance-1")])[0]!.points = triangle;
-  const { store, service, container } = await editor(document);
-  loadSize(container, 100, 100);
+  const { store, service, resize } = await editor(document);
+  resize(100, 100);
   fireEvent.click(screen.getByRole("button", { name: "● Person 1" }));
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   const before = polygon(store).points;
@@ -197,6 +186,12 @@ it("retains two disjoint selectable components in one instance across reload", a
   }
   owner.polygons.push(q);
   const { store, service } = await editor(document);
+  // Outside edit mode a press on the canvas pans the Image panel: focus the instance and edit it,
+  // then a press on either component makes it the active polygon.
+  act(() => {
+    store.getState().setFocus({ type: "instance", id: "instance-1" });
+    store.getState().setEditing(true);
+  });
   const union = canvas().querySelector(
     '[data-instance-id="instance-1"] [data-testid="instance-union-fill"]',
   )!;
@@ -204,8 +199,16 @@ it("retains two disjoint selectable components in one instance across reload", a
   expect(
     [...union.querySelectorAll("path")].every((path) => path.getAttribute("d")!.length > 0),
   ).toBe(true);
-  for (const [index, id] of [p.id, q.id].entries()) {
-    pointer(union.querySelectorAll("path")[index]!, "pointerdown", 100, 100);
+  for (const [index, polygon] of [p, q].entries()) {
+    const id = polygon.id;
+    // Inside each component, in the fixture's 960×540 image pixels.
+    const x = (polygon.points.reduce((sum, point) => sum + point.x, 0) / 3) * 960;
+    const y = (polygon.points.reduce((sum, point) => sum + point.y, 0) / 3) * 540;
+    const fill = canvas().querySelectorAll(
+      '[data-instance-id="instance-1"] [data-testid="instance-union-fill"] path',
+    )[index]!;
+    pointer(fill, "pointerdown", x, y);
+    pointer(canvas(), "pointerup", x, y);
     expect(store.getState().selection).toEqual([{ type: "polygon", id }]);
   }
   expect(
@@ -242,13 +245,13 @@ it.each([
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
   document.frames[1]!.imageUrl = frameImage(width, height);
-  const { store, container } = await editor(document);
+  const { store, resize } = await editor(document);
   // First decode a different size to expose stale-size reuse at the browser event boundary.
-  loadSize(container, 100, 100);
+  resize(100, 100);
   act(() => {
     store.getState().setCurrentFrame("frame-1");
   });
-  loadSize(container, width, height);
+  resize(width, height);
   fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
   pointer(canvas(), "pointerdown", width / 2, height / 2);
   pointer(canvas(), "pointerdown", width * 0.75, height / 2);
@@ -266,8 +269,8 @@ it.each([
 it("exact2x SVG layout maps an actual drawing pointer to fractional original-image coordinates", async () => {
   const document = fixture(2);
   document.frames[0]!.imageUrl = frameImage(100, 100);
-  const { store, container } = await editor(document);
-  loadSize(container, 100, 100);
+  const { store, resize } = await editor(document);
+  resize(100, 100);
   // Browser layout boundary: exact 2x image magnification and translated viewport.
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
     configurable: true,

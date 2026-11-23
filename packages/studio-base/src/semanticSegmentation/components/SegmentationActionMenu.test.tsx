@@ -42,16 +42,14 @@ afterEach(() => {
   });
 });
 
-it("renders nothing unless a session is open for this panel", async () => {
-  const runtime = await open("panel-1");
-  const { container } = render(<SegmentationActionMenu panelId="other-panel" />);
+it("renders nothing while no session is open", () => {
+  const { container } = render(<SegmentationActionMenu />);
   expect(container.textContent).toBe("");
-  runtime.dispose();
 });
 
 it("shows undo, redo and submit as three header buttons", async () => {
   const runtime = await open();
-  render(<SegmentationActionMenu panelId="panel-1" />);
+  render(<SegmentationActionMenu />);
   const names = screen
     .getAllByRole("button")
     .map((button) => button.getAttribute("aria-label") ?? button.textContent);
@@ -63,7 +61,7 @@ it("shows undo, redo and submit as three header buttons", async () => {
 
 it("undoes and redoes staged edits from the header icons", async () => {
   const runtime = await open();
-  render(<SegmentationActionMenu panelId="panel-1" />);
+  render(<SegmentationActionMenu />);
   act(() => {
     runtime.store.getState().addClass("Fresh class");
   });
@@ -78,7 +76,7 @@ it("undoes and redoes staged edits from the header icons", async () => {
 
 it("holds submission, version history and ending the session behind 提交", async () => {
   const runtime = await open();
-  render(<SegmentationActionMenu panelId="panel-1" />);
+  render(<SegmentationActionMenu />);
   act(() => {
     runtime.store.getState().addClass("Fresh class");
   });

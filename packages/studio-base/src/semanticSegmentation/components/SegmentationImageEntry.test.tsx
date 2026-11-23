@@ -7,7 +7,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
@@ -16,6 +16,7 @@ import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/play
 import { segmentationImageSources, type SegmentationImage } from "../imageSource";
 import { segmentationSession } from "../runtime";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
+import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
 
@@ -100,6 +101,7 @@ function fixture(frames: "recorded" | "none" = "recorded") {
     <div ref={containerRef}>
       <canvas width={8} height={4} />
       <SegmentationImageEntry
+        onActionsChange={recordEntryActions}
         containerRef={containerRef}
         topic={topic}
         panelId="panel-1"
@@ -134,7 +136,9 @@ function fixture(frames: "recorded" | "none" = "recorded") {
   };
 }
 async function open(mode: "inline" | "maximize" = "inline") {
-  fireEvent.click(screen.getByTitle(mode === "maximize" ? "放大并编辑空间标注" : "编辑空间标注"));
+  act(() => {
+    enterAnnotation(mode);
+  });
   await waitFor(
     () => {
       expect(segmentationSession.getState().open).toBe(true);
@@ -227,7 +231,9 @@ it.each(["topic", "player"])(
 
 it("ignores initialization completing after a source switch", async () => {
   const f = fixture();
-  fireEvent.click(screen.getByTitle("编辑空间标注"));
+  act(() => {
+    enterAnnotation();
+  });
   f.rerender(f.view("/rear"));
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 1100));
@@ -461,7 +467,9 @@ it("withholds decoded-frame navigation and cached reentry until terminal stop ac
   f.rerender(f.view());
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
   f.setImage(0n);
-  fireEvent.click(screen.getByTitle("编辑空间标注"));
+  act(() => {
+    enterAnnotation();
+  });
   await screen.findByText("请等待传播停止确认后再进入标注。");
   expect(segmentationSession.getState().open).toBe(false);
   act(() => {

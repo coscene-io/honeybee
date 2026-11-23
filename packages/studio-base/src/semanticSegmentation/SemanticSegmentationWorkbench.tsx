@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 
 import { SegmentationCanvas } from "./components/SegmentationCanvas";
-import { SpatialTree } from "./components/SpatialTree";
 import { WorkflowControls } from "./components/WorkflowControls";
 import {
   segmentationSession,
@@ -23,12 +22,8 @@ import "./components/workbench.css";
 export type SemanticSegmentationWorkbenchProps = {
   runtime: SegmentationRuntime;
   imageUrl?: string;
-  /** Tree inside the canvas. The app shows it in the Space sidebar instead. */
-  showTree?: boolean;
   sourceReady?: boolean;
   decodedFrame?: DecodedSegmentationFrame;
-  onFrameRendered?: (frame: DecodedSegmentationFrame) => void;
-  onFrameRenderError?: (frame: DecodedSegmentationFrame) => void;
   /** Frame drawn by this canvas. Other open canvases keep their own frames. */
   frameId?: string;
   /** False when another canvas holds the edit. Omitted means this is the only canvas. */
@@ -39,11 +34,8 @@ export type SemanticSegmentationWorkbenchProps = {
 export function SemanticSegmentationWorkbench({
   runtime,
   imageUrl,
-  showTree = true,
   sourceReady = true,
   decodedFrame,
-  onFrameRendered,
-  onFrameRenderError,
   frameId,
   focused,
   onClaimFocus,
@@ -52,7 +44,7 @@ export function SemanticSegmentationWorkbench({
   const viewportRef = useRef<HTMLDivElement>(ReactNull);
   const rootRef = useRef<HTMLDivElement>(ReactNull);
   const state = useStore(store);
-  // The workbench has no bars of its own; its panel header menu drives the side panel.
+  // The submit menu in the app bar opens the queue side panel.
   const workflow = useStore(segmentationSession, (session) => session.workflow);
   const [initializationError, setInitializationError] = useState<string>();
   const locked = ["running", "stopping"].includes(state.propagation.status);
@@ -153,20 +145,6 @@ export function SemanticSegmentationWorkbench({
       </div>
       <fieldset className="seg-disabled" disabled={locked} {...(locked ? { inert: true } : {})}>
         <div className="seg-body">
-          {showTree && (
-            <aside className="seg-tree">
-              <div className="seg-tree-header">
-                实例 <span className="seg-muted">CLASS / INSTANCE / POLYGON</span>
-              </div>
-              <SpatialTree
-                store={store}
-                onPointerActivate={() => {
-                  viewportRef.current?.focus({ preventScroll: true });
-                }}
-                disabled={locked || !frameReady || state.loading}
-              />
-            </aside>
-          )}
           <main className="seg-editor">
             <div className="seg-canvas">
               <SegmentationCanvas
@@ -174,10 +152,7 @@ export function SemanticSegmentationWorkbench({
                 viewportRef={viewportRef}
                 imageUrl={imageUrl}
                 decodedFrame={decodedFrame}
-                onFrameRendered={onFrameRendered}
-                onFrameRenderError={onFrameRenderError}
                 disabled={locked || !frameReady || state.loading}
-                compact
                 frameId={frameId}
                 onClaimFocus={onClaimFocus}
                 active={active}

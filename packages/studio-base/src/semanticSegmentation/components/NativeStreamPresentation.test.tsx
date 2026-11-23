@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
@@ -16,6 +16,7 @@ import { segmentationSession, type SegmentationRuntime } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
+import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
 import { setMockControls } from "../testing/mockService";
 import { focusedSurface } from "../testing/session";
 
@@ -113,6 +114,7 @@ async function fixture() {
     <div ref={containerRef}>
       <canvas width={8} height={4} />
       <SegmentationImageEntry
+        onActionsChange={recordEntryActions}
         containerRef={containerRef}
         topic="/camera"
         panelId="native-panel"
@@ -124,7 +126,9 @@ async function fixture() {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   segmentationImageSources.set(canvas, () => image);
-  fireEvent.click(screen.getByTitle("编辑空间标注"));
+  act(() => {
+    enterAnnotation();
+  });
   await waitFor(
     () => {
       expect(segmentationSession.getState().open).toBe(true);

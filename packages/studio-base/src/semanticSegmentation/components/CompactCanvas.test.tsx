@@ -11,8 +11,9 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
+import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
-async function setup(layout: "standalone" | "compact") {
+async function setup() {
   const store = createSemanticSegmentationStore(
     createMockSemanticSegmentationService({
       document: createSeedDocument(),
@@ -20,20 +21,12 @@ async function setup(layout: "standalone" | "compact") {
     }),
   );
   await store.getState().initialize();
-  render(<SegmentationCanvas store={store} compact={layout === "compact"} />);
+  render(<SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />);
   return store;
 }
 
-it("keeps the toolbar and hint footer in the standalone canvas", async () => {
-  const store = await setup("standalone");
-  expect(screen.getByRole("button", { name: "Zoom out" })).toBeTruthy();
-  expect(screen.getByText(/Select an instance/)).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "View tools" })).toBeNull();
-  store.getState().dispose();
-});
-
-it("compact canvas shows only the view tools button until it is opened", async () => {
-  const store = await setup("compact");
+it("shows only the view tools button until it is opened", async () => {
+  const store = await setup();
   expect(screen.queryByRole("button", { name: "Zoom out" })).toBeNull();
   expect(screen.queryByText(/Select an instance/)).toBeNull();
   const fab = screen.getByRole("button", { name: "View tools" });

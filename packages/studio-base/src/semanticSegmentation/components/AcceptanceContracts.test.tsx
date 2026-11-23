@@ -19,6 +19,7 @@ import { SpatialTree } from "./SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
 const pipeline = {
   playerState: { activeData: { startTime: { sec: 100, nsec: 0 } } },
@@ -125,7 +126,7 @@ it("keeps the exact editing/document/staging state when structural validation fa
   runtime.dispose();
 });
 
-it("resets tree creation/dialog and canvas drawing/handles while preserving source, viewport and immutable queue", async () => {
+it("resets tree creation/dialog and canvas drawing/handles while preserving source and immutable queue", async () => {
   const runtime = await fixture();
   const { store } = runtime;
   const queuedClass = store.getState().addClass("Queued immutable work");
@@ -141,40 +142,10 @@ it("resets tree creation/dialog and canvas drawing/handles while preserving sour
   const { container } = render(
     <>
       <SpatialTree store={store} />
-      <SegmentationCanvas store={store} />
+      <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />
       <SubmissionControls store={store} />
     </>,
   );
-  const viewport = screen.getByRole("group", { name: "Annotation viewport" });
-  const content = container.querySelector<SVGGElement>("svg g[transform]")!;
-  // JSDOM has no SVG layout: model a 960x540 viewBox fitted at half scale,
-  // including its screen offset and the live content pan/zoom transform.
-  Object.defineProperty(viewport, "getBoundingClientRect", {
-    value: () => ({ x: 100, y: 50, width: 480, height: 270 }),
-  });
-  Object.defineProperty(content, "getScreenCTM", {
-    value() {
-      const transform = content
-        .getAttribute("transform")!
-        .match(/translate\(([-\d.e]+) ([-\d.e]+)\) scale\(([-\d.e]+)\)/)!;
-      return {
-        a: 0.5 * Number(transform[3]),
-        b: 0,
-        c: 0,
-        d: 0.5 * Number(transform[3]),
-        e: 100 + 0.5 * Number(transform[1]),
-        f: 50 + 0.5 * Number(transform[2]),
-      };
-    },
-  });
-  expect(content.getAttribute("transform")).toBe("translate(0 0) scale(1)");
-  fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-  const transform = content.getAttribute("transform");
-  expect(transform).toBe("translate(-120 -67.5) scale(1.25)");
-  const matrix = content.getScreenCTM()!;
-  expect(matrix.a).toBe(0.625);
-  expect(matrix.a * 480 + matrix.e).toBe(340);
-  expect(matrix.d * 270 + matrix.f).toBe(185);
   act(() => {
     store.getState().setSelection([{ type: "instance", id: "instance-1" }]);
     store.getState().startDrawing("instance-1");
@@ -198,7 +169,6 @@ it("resets tree creation/dialog and canvas drawing/handles while preserving sour
   });
   expect(container.querySelector("polyline")).toBeNull();
   expect(screen.queryAllByRole("button", { name: /^Vertex/ })).toHaveLength(0);
-  expect(content.getAttribute("transform")).toBe(transform);
   expect(store.getState().document!.frames).toEqual(source);
   expect(store.getState().document!.classes.some((item) => item.id === queuedClass)).toBe(true);
   expect(store.getState().submissionQueue).toBe(queue);

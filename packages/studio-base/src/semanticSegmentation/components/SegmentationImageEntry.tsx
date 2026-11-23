@@ -173,7 +173,7 @@ export function SegmentationImageEntry({
   panelId: string;
   onMaximize: () => void;
   /** When set, entry actions are hosted by the panel toolbar instead of a floating overlay. */
-  onActionsChange?: (actions: SegmentationImageEntryActions | undefined) => void;
+  onActionsChange: (actions: SegmentationImageEntryActions | undefined) => void;
   onAvailabilityChange?: (state: "available" | "hidden") => void;
   /**
    * Annotation client override, for tests and fixtures. Omitted, the panel creates the live
@@ -253,7 +253,6 @@ export function SegmentationImageEntry({
   }, [sessionRuntime]);
   // Bumped when the first decoded frame arrives after the preview effect found none.
   const [previewRetry, setPreviewRetry] = useState(0);
-  const toolbarHosted = onActionsChange != undefined;
   const recordId = segmentationSourceKey({
     dataAssetName,
     filename: player.name,
@@ -1014,9 +1013,6 @@ export function SegmentationImageEntry({
   );
 
   useLayoutEffect(() => {
-    if (!onActionsChange) {
-      return;
-    }
     onActionsChange({
       enterInline: () => {
         void enter("inline").catch((cause: unknown) => {
@@ -1042,46 +1038,13 @@ export function SegmentationImageEntry({
     return undefined;
   }
   const preview = <AnnotationPreview containerRef={containerRef} topic={topic} />;
-  if (toolbarHosted) {
-    return (
-      <>
-        {error ? (
-          <div className="seg-entry-error" role="alert">
-            {error}
-          </div>
-        ) : undefined}
-        {preview}
-      </>
-    );
-  }
   return (
     <>
-      <div className="seg-entry">
-        <button
-          type="button"
-          title="编辑空间标注"
-          onClick={() => {
-            void enter("inline").catch((cause: unknown) => {
-              setError(String(cause));
-            });
-          }}
-        >
-          ✎ 编辑空间标注
-        </button>
-        <button
-          type="button"
-          title="放大并编辑空间标注"
-          aria-label="放大并编辑空间标注"
-          onClick={() => {
-            void enter("maximize").catch((cause: unknown) => {
-              setError(String(cause));
-            });
-          }}
-        >
-          ⛶
-        </button>
-        {error && <span role="alert">{error}</span>}
-      </div>
+      {error ? (
+        <div className="seg-entry-error" role="alert">
+          {error}
+        </div>
+      ) : undefined}
       {preview}
     </>
   );

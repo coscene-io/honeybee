@@ -65,9 +65,9 @@ describe("workbench workflow integration", () => {
       runtime.store.getState().setCurrentFrame("frame-80");
     });
     await screen.findByText(/当前标注窗口读取失败/);
-    // Submit lives in the panel header menu; it stays disabled while the window is unavailable.
+    // Submit lives in the app-bar menu; it stays disabled while the window is unavailable.
     segmentationSession.setState({ runtime, open: true, panelId: "menu-panel", sourceReady: true });
-    render(<SegmentationActionMenu panelId="menu-panel" />);
+    render(<SegmentationActionMenu />);
     fireEvent.click(screen.getByRole("button", { name: /^提交/ }));
     expect(screen.getByRole("button", { name: /提交 1/ })).toHaveProperty("disabled", true);
     fireEvent.keyDown(screen.getByRole("dialog", { name: "提交" }), { key: "Escape" });

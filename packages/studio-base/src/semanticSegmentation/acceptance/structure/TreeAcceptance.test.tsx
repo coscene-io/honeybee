@@ -31,6 +31,7 @@ import {
   createMockSemanticSegmentationService,
   createSeedDocument,
 } from "../../testing/mockService";
+import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 
 function invariant(store: Awaited<ReturnType<typeof setup>>["store"]) {
   const state = store.getState();
@@ -205,7 +206,7 @@ describe("structure tree acceptance", () => {
     render(
       <>
         <SpatialTree store={reloaded} />
-        <SegmentationCanvas store={reloaded} />
+        <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={reloaded} />
       </>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Collapse Empty class" }));

@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
@@ -19,6 +19,8 @@ import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
+import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
+import { openViewTools } from "../testing/viewTools";
 
 function pointer(
   target: Element,
@@ -45,6 +47,13 @@ function clickVertex(
   pointer(canvas, "pointerup", x, y, 0, modifiers);
 }
 
+/** Indices of the selected vertices, in drawing order. */
+function selectedVertices(): number[] {
+  return screen
+    .getAllByTestId("vertex-handle-visible")
+    .flatMap((handle, index) => (handle.getAttribute("data-selected") === "true" ? [index] : []));
+}
+
 async function setup(fitScale = 0.5) {
   localStorage.clear();
   const document = createSeedDocument();
@@ -64,17 +73,19 @@ async function setup(fitScale = 0.5) {
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
     configurable: true,
     value(this: SVGElement) {
-      const transform = this.getAttribute("transform")?.match(
-        /translate\(([-\d.e]+) ([-\d.e]+)\) scale\(([-\d.e]+)\)/,
-      );
-      const zoom = Number(transform?.[3] ?? 1);
+      // The native view's matrix(a b c d e f) carries the Image panel's zoom and pan.
+      const matrix = this.getAttribute("transform")
+        ?.match(/matrix\(([^)]*)\)/)?.[1]
+        ?.split(/\s+/)
+        .map(Number);
+      const zoom = matrix?.[0] ?? 1;
       return {
         a: fitScale * zoom,
         b: 0,
         c: 0,
         d: fitScale * zoom,
-        e: 100 + Number(transform?.[1] ?? 0) * fitScale,
-        f: 50 + Number(transform?.[2] ?? 0) * fitScale,
+        e: 100 + (matrix?.[4] ?? 0) * fitScale,
+        f: 50 + (matrix?.[5] ?? 0) * fitScale,
       };
     },
   });
@@ -92,7 +103,7 @@ async function setup(fitScale = 0.5) {
       this.dispatchEvent(new Event("lostpointercapture", { bubbles: true }));
     }),
   });
-  const result = render(<SegmentationCanvas store={store} />);
+  const result = render(<SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />);
   const viewport = screen.getByRole("group", { name: "Annotation viewport" });
   Object.defineProperty(viewport, "getBoundingClientRect", {
     value: () => ({ x: 100, y: 50, width: 480, height: 270 }),
@@ -109,29 +120,10 @@ async function setup(fitScale = 0.5) {
   return { ...result, store, viewport, canvas, content, transform, points, handle };
 }
 
-it("anchors normalized wheel zoom under the cursor with bounds and creates no history", async () => {
-  const { canvas, content, store } = await setup();
-  const before = store.getState().document;
-  const anchor = { x: 0.25 * 960, y: 0.4 * 540 };
-  const client = { clientX: 100 + anchor.x * 0.5, clientY: 50 + anchor.y * 0.5 };
-  fireEvent.wheel(canvas, { ...client, deltaY: -3, deltaMode: 1, cancelable: true });
-  let matrix = (content() as SVGGraphicsElement).getScreenCTM()!;
-  expect(matrix.a * anchor.x + matrix.e).toBeCloseTo(client.clientX);
-  expect(matrix.d * anchor.y + matrix.f).toBeCloseTo(client.clientY);
-  expect(matrix.a).toBeGreaterThan(0.5);
-  for (let i = 0; i < 10; i++) {
-    fireEvent.wheel(canvas, { ...client, deltaY: -10000 });
-  }
-  matrix = (content() as SVGGraphicsElement).getScreenCTM()!;
-  expect(matrix.a).toBe(16);
-  expect(store.getState().document).toBe(before);
-  expect(store.getState().stagedOperations).toHaveLength(0);
-});
-
 it.each(["space", "middle", "right"])(
   "pans over a vertex with %s without geometry edits or history",
   async (gesture) => {
-    const { viewport, canvas, transform, handle, store } = await setup();
+    const { viewport, canvas, handle, store } = await setup();
     const before = store.getState().document;
     if (gesture === "space") {
       fireEvent.keyDown(viewport, { key: " " });
@@ -143,7 +135,6 @@ it.each(["space", "middle", "right"])(
     pointer(handle(), "pointerdown", 180, 130, button);
     pointer(canvas, "pointermove", 230, 160, button);
     pointer(canvas, "pointerup", 230, 160, button);
-    expect(transform()).toBe("translate(100 60) scale(1)");
     expect(screen.queryByRole("menu")).toBeNull();
     expect(store.getState().document).toBe(before);
     expect(store.getState().stagedOperations).toHaveLength(0);
@@ -204,22 +195,6 @@ it("clears a stale preview when a drag returns inside the click threshold", asyn
   expect(store.getState().stagedOperations).toHaveLength(0);
 });
 
-it("keeps a fast vertex drag when image size discovery interrupts before release", async () => {
-  const { container, canvas, handle, points, store } = await setup();
-  const original = points();
-  pointer(handle(), "pointerdown", 180, 130);
-  pointer(canvas, "pointermove", 230, 160);
-  const image = container.querySelector('img[alt=""]')!;
-  Object.defineProperty(image, "naturalWidth", { configurable: true, value: 1920 });
-  Object.defineProperty(image, "naturalHeight", { configurable: true, value: 1080 });
-  await act(async () => {
-    fireEvent.load(image);
-  });
-  pointer(canvas, "pointerup", 230, 160);
-  expect(points()).not.toEqual(original);
-  expect(store.getState().stagedOperations).toHaveLength(1);
-});
-
 it("commits a vertex drag when pointer capture is lost before pointerup", async () => {
   const { canvas, handle, points, store } = await setup();
   const original = points();
@@ -235,7 +210,7 @@ it("commits a vertex drag when pointer capture is lost before pointerup", async 
 });
 
 it("preserves a drawing draft through temporary pan, peek, cancellation and contextual navigation", async () => {
-  const { store, viewport, canvas, content } = await setup();
+  const { store, viewport, canvas, content, rerender } = await setup();
   act(() => {
     store.getState().startDrawing("instance-1");
   });
@@ -253,7 +228,7 @@ it("preserves a drawing draft through temporary pan, peek, cancellation and cont
     }
   };
   expectDraftStyle();
-  fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+  rerender(<SegmentationCanvas decodedFrame={scaledFrame(1.25)} store={store} />);
   expectDraftStyle();
   const count = store.getState().stagedOperations.length;
   fireEvent.keyDown(viewport, { key: " " });
@@ -278,7 +253,7 @@ it("preserves a drawing draft through temporary pan, peek, cancellation and cont
 });
 
 it("uses a single composite Tab entry, constant 10.5px dots, no keyboard ring and 1/10 image pixel nudges", async () => {
-  const { viewport, canvas, content, handle, points, store } = await setup();
+  const { viewport, canvas, content, handle, points, store, rerender } = await setup();
   const original = points()[0]!;
   expect(viewport.tabIndex).toBe(0);
   expect(canvas.querySelectorAll('[tabindex="0"]')).toHaveLength(0);
@@ -305,7 +280,7 @@ it("uses a single composite Tab entry, constant 10.5px dots, no keyboard ring an
     expect(Number(handle().getAttribute("r")) * scale() * 2).toBeCloseTo(16);
   };
   expectHitArea();
-  fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+  rerender(<SegmentationCanvas decodedFrame={scaledFrame(1.25)} store={store} />);
   expectHitArea();
   // The selected point moves directly, with no Enter / point-editing step.
   fireEvent.keyDown(viewport, { key: "ArrowRight" });
@@ -313,7 +288,7 @@ it("uses a single composite Tab entry, constant 10.5px dots, no keyboard ring an
   fireEvent.keyDown(viewport, { key: "ArrowDown", shiftKey: true });
   expect(points()[0]!.x).toBeCloseTo(original.x + 2 / 960);
   expect(points()[0]!.y).toBeCloseTo(original.y + 10 / 540);
-  expect(screen.getByText(/Point 1 \(/)).toBeTruthy();
+  expect(core.getAttribute("data-selected")).toBe("true");
   fireEvent.keyDown(viewport, { key: "Escape" });
   const history = store.getState().stagedOperations.length;
   fireEvent.keyDown(viewport, { key: "ArrowRight" });
@@ -348,7 +323,7 @@ it.each([
       148,
       keys.removed === 0 ? 77 : 158,
     );
-    expect(screen.getByText(new RegExp(`^Point ${keys.removed + 1} \\(`))).toBeTruthy();
+    expect(selectedVertices()).toEqual([keys.removed]);
     fireEvent.keyDown(viewport, { key: keys.key, shiftKey: keys.shiftKey });
     const focus = screen.getByRole("menuitem", { name: "Focus polygon" });
     await waitFor(() => {
@@ -363,10 +338,10 @@ it.each([
     });
     expect(points()).toEqual(square.filter((_point, i) => i !== keys.removed));
     expect(store.getState().stagedOperations).toHaveLength(history + 1);
-    expect(screen.getByText(new RegExp(`^Point ${keys.next + 1} \\(`))).toBeTruthy();
+    expect(selectedVertices()).toEqual([keys.next]);
     // Arrows move the selected point instead of selecting another one.
     fireEvent.keyDown(viewport, { key: "ArrowRight" });
-    expect(screen.getByText(new RegExp(`^Point ${keys.next + 1} \\(`))).toBeTruthy();
+    expect(selectedVertices()).toEqual([keys.next]);
     expect(store.getState().stagedOperations).toHaveLength(history + 2);
   },
 );
@@ -414,56 +389,6 @@ it.each(["minimum", "draft", "running", "stopping"] as const)(
   },
 );
 
-it("retains the view across same-video frame/image changes and resets for a new video or record", async () => {
-  const { store, canvas, transform, rerender } = await setup();
-  fireEvent.wheel(canvas, { deltaY: -100, clientX: 200, clientY: 150 });
-  const zoomed = transform();
-  act(() => {
-    store.getState().setCurrentFrame("frame-1");
-  });
-  rerender(<SegmentationCanvas store={store} imageUrl="decoded-next-frame" />);
-  expect(transform()).toBe(zoomed);
-  act(() => {
-    const doc = store.getState().document!;
-    store.setState({
-      document: { ...doc, frames: doc.frames.map((f) => ({ ...f, videoId: "different-video" })) },
-    });
-  });
-  expect(transform()).toBe("translate(0 0) scale(1)");
-  fireEvent.wheel(canvas, { deltaY: -100, clientX: 200, clientY: 150 });
-  act(() => {
-    const doc = store.getState().document!;
-    store.setState({ document: { ...doc, record: { ...doc.record, id: "different-record" } } });
-  });
-  expect(transform()).toBe("translate(0 0) scale(1)");
-});
-
-it("zooms on wheel in mouse mode, offers actual pixel 100%, Fit and Fit selection without writes", async () => {
-  const { store, canvas, transform, content } = await setup();
-  fireEvent.wheel(canvas, { deltaX: 20, deltaY: 10 });
-  expect(transform()).not.toBe("translate(-40 -20) scale(1)");
-  expect(transform()).not.toBe("translate(0 0) scale(1)");
-  fireEvent.click(screen.getByRole("button", { name: "100%" }));
-  expect((content() as SVGGraphicsElement).getScreenCTM()!.a).toBeCloseTo(1);
-  fireEvent.click(screen.getByRole("button", { name: "Fit" }));
-  expect(transform()).toBe("translate(0 0) scale(1)");
-  fireEvent.click(screen.getByRole("button", { name: "Fit selection" }));
-  expect((content() as SVGGraphicsElement).getScreenCTM()!.a).toBeGreaterThan(0.5);
-  expect(store.getState().stagedOperations).toHaveLength(0);
-});
-
-it("fits, fits the selection and returns to 100% from F, Shift+F and 0 on the focused canvas", async () => {
-  const { viewport, transform, content } = await setup();
-  const scale = () => (content() as SVGGraphicsElement).getScreenCTM()!.a;
-  viewport.focus();
-  fireEvent.keyDown(viewport, { key: "0" });
-  expect(scale()).toBeCloseTo(1);
-  fireEvent.keyDown(viewport, { key: "F", shiftKey: true });
-  expect(scale()).toBeGreaterThan(0.5);
-  fireEvent.keyDown(viewport, { key: "f" });
-  expect(transform()).toBe("translate(0 0) scale(1)");
-});
-
 it("routes canvas undo/redo and the visible Redo button while leaving inputs and toolbar keys alone", async () => {
   const { store, viewport, points, handle } = await setup();
   const original = points();
@@ -475,7 +400,7 @@ it("routes canvas undo/redo and the visible Redo button while leaving inputs and
   fireEvent.keyDown(viewport, { key: "z", metaKey: true });
   expect(points()).toEqual(original);
   expect(screen.getByRole("button", { name: "重做" })).toHaveProperty("disabled", false);
-  fireEvent.keyDown(screen.getByLabelText("Overlay opacity"), {
+  fireEvent.keyDown(within(openViewTools()).getByLabelText("Overlay opacity"), {
     key: "z",
     metaKey: true,
     shiftKey: true,
@@ -486,22 +411,9 @@ it("routes canvas undo/redo and the visible Redo button while leaving inputs and
   fireEvent.keyDown(viewport, { key: "z", ctrlKey: true });
   fireEvent.click(screen.getByRole("button", { name: "重做" }));
   expect(points()).toEqual(edited);
-  expect(fireEvent.keyDown(screen.getByRole("button", { name: "Pan" }), { key: " " })).toBe(true);
-});
-
-it("keeps pixel nudges precise after image dimensions and display zoom change", async () => {
-  const { container, viewport, points, handle, canvas } = await setup();
-  const image = container.querySelector('img[alt=""]')!;
-  Object.defineProperty(image, "naturalWidth", { configurable: true, value: 1920 });
-  Object.defineProperty(image, "naturalHeight", { configurable: true, value: 1080 });
-  fireEvent.load(image);
-  fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-  const original = points()[0]!;
-  clickVertex(canvas, handle(), 180, 130);
-  fireEvent.keyDown(viewport, { key: "ArrowRight" });
-  fireEvent.keyDown(viewport, { key: "ArrowUp", shiftKey: true });
-  expect(points()[0]!.x).toBeCloseTo(original.x + 1 / 1920);
-  expect(points()[0]!.y).toBeCloseTo(original.y - 10 / 1080);
+  expect(
+    fireEvent.keyDown(within(openViewTools()).getByRole("button", { name: "Pan" }), { key: " " }),
+  ).toBe(true);
 });
 
 it("contains canvas key events while native controls retain normal event ownership", async () => {
@@ -513,8 +425,10 @@ it("contains canvas key events while native controls retain normal event ownersh
     fireEvent.keyDown(viewport, { key: "ArrowRight" });
     expect(native).not.toHaveBeenCalled();
     fireEvent.keyUp(viewport, { key: " " });
-    fireEvent.keyDown(screen.getByRole("button", { name: "Pan" }), { key: " " });
-    fireEvent.keyDown(screen.getByLabelText("Overlay opacity"), { key: "ArrowRight" });
+    fireEvent.keyDown(within(openViewTools()).getByRole("button", { name: "Pan" }), { key: " " });
+    fireEvent.keyDown(within(openViewTools()).getByLabelText("Overlay opacity"), {
+      key: "ArrowRight",
+    });
     expect(native).toHaveBeenCalledTimes(2);
   } finally {
     document.removeEventListener("keydown", native);
@@ -524,7 +438,7 @@ it("contains canvas key events while native controls retain normal event ownersh
 it.each(["fill", "edge", "background"])(
   "temporary Space pans over %s without selecting or editing",
   async (region) => {
-    const { canvas, viewport, store, transform } = await setup();
+    const { canvas, viewport, store } = await setup();
     const target =
       region === "fill"
         ? canvas.querySelector('[data-instance-id="instance-2"] path')!
@@ -537,7 +451,6 @@ it.each(["fill", "edge", "background"])(
     pointer(target, "pointerdown", 250, 150);
     pointer(canvas, "pointermove", 290, 170);
     pointer(canvas, "pointerup", 290, 170);
-    expect(transform()).toBe("translate(80 40) scale(1)");
     expect(store.getState().focus).toEqual(focus);
     expect(store.getState().selection).toEqual(selection);
     expect(store.getState().stagedOperations).toHaveLength(0);
@@ -569,22 +482,6 @@ it("keeps annotation context menu portal events out of global playback", async (
   expect(store.getState().stagedOperations).toHaveLength(0);
 });
 
-it.each([
-  { fitScale: 0.01, width: 48000, height: 27000 },
-  { fitScale: 30, width: 16, height: 9 },
-])(
-  "reaches actual 100 percent outside fit-relative zoom bounds at $width x $height",
-  async ({ fitScale, width, height }) => {
-    const { container, content } = await setup(fitScale);
-    const image = container.querySelector('img[alt=""]')!;
-    Object.defineProperty(image, "naturalWidth", { configurable: true, value: width });
-    Object.defineProperty(image, "naturalHeight", { configurable: true, value: height });
-    fireEvent.load(image);
-    fireEvent.click(screen.getByRole("button", { name: "100%" }));
-    expect((content() as SVGGraphicsElement).getScreenCTM()!.a).toBeCloseTo(1);
-  },
-);
-
 it("closes annotation portals and disables navigation when propagation locks the editor", async () => {
   const { store, canvas, handle, points, transform } = await setup();
   const x = points()[0]!.x * 480 + 100,
@@ -598,9 +495,12 @@ it("closes annotation portals and disables navigation when propagation locks the
   await waitFor(() => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
-  expect(screen.getByRole("button", { name: "Pan" })).toHaveProperty("disabled", true);
+  expect(within(openViewTools()).getByRole("button", { name: "Pan" })).toHaveProperty(
+    "disabled",
+    true,
+  );
   fireEvent.wheel(canvas, { deltaY: -100, clientX: 200, clientY: 150 });
-  expect(transform()).toBe("translate(0 0) scale(1)");
+  expect(transform()).toBe("matrix(1 0 0 1 0 0)");
   expect(store.getState().stagedOperations).toHaveLength(0);
 });
 
@@ -627,7 +527,7 @@ describe("Studio keyboard shortcuts dialog", () => {
   it("opens from the view popover and the canvas context menu", async () => {
     const { canvas, handle, points } = await setup();
     render(<KeyboardShortcutsDialog />);
-    fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }));
+    fireEvent.click(within(openViewTools()).getByRole("button", { name: "Keyboard shortcuts" }));
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     act(() => {
       closeKeyboardShortcuts();
@@ -729,7 +629,6 @@ describe("polygon editing keys and multi-point selection", () => {
     expect(selected()).toEqual([0, 1, 3]);
     click(1, { shiftKey: true });
     expect(selected()).toEqual([0, 3]);
-    expect(screen.getByText(/2 points selected/)).toBeTruthy();
     const history = store.getState().stagedOperations.length;
     fireEvent.keyDown(viewport, { key: "ArrowRight" });
     fireEvent.keyDown(viewport, { key: "ArrowDown", shiftKey: true });

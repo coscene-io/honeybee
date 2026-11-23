@@ -44,9 +44,6 @@ it("switches rendered focus across frames without changing hidden geometry", asy
       store.getState().setCurrentFrame(frame);
     });
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
-    expect(canvas.querySelector("image")?.getAttribute("href")).toBe(
-      document.frames.find((item) => item.id === frame)!.imageUrl,
-    );
     expect(canvas.querySelectorAll("path, circle[aria-label]")).toHaveLength(0);
     pointer(canvas, "pointerdown", 163.2, 162);
     pointer(canvas, "pointermove", 180, 180);
@@ -64,9 +61,6 @@ it("switches rendered focus across frames without changing hidden geometry", asy
     expect(paths("instance-1")).toHaveLength(frame === "frame-1" ? 0 : 1);
     expect(paths("instance-2")).toHaveLength(0);
     expect(store.getState().focus).toEqual({ type: "instance", id: "instance-1" });
-    expect(
-      screen.getByRole("img", { name: "Frame polygons" }).querySelector("image"),
-    ).not.toBeNull();
     expect(store.getState().editing).toBe(true);
   }
   fireEvent.click(screen.getByRole("button", { name: "All" }));

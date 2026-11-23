@@ -9,6 +9,7 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
+import { SpatialSidebar } from "./SpatialSidebar";
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { segmentationSession } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
@@ -46,6 +47,7 @@ it("keeps actual editor/picker/native surfaces locked until delayed cancel ack a
   const { container } = render(
     <>
       <button type="button">Native timeline seek</button>
+      <SpatialSidebar />
       <SemanticSegmentationWorkbench runtime={runtime} />
       <CurrentFramePropagationForm store={runtime.store} />
       <MomentReferencePicker store={runtime.store} value="" onChange={() => {}} />

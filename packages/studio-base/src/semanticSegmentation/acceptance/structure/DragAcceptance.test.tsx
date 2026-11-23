@@ -14,9 +14,12 @@ import { createMuiTheme } from "@foxglove/theme";
 import { confirm, geometry, polygons, row, setup, structureDocument } from "./fixture";
 import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkbench";
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
+import { SpatialSidebar } from "../../components/SpatialSidebar";
 import { SpatialTree } from "../../components/SpatialTree";
+import { segmentationSession } from "../../runtime";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
+import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 
 function visibleRow(id: string): HTMLElement {
   return row(id).querySelector<HTMLElement>(":scope > * > [data-tree-row]")!;
@@ -33,7 +36,7 @@ describe("structure drag acceptance", () => {
       rerender(
         <ThemeProvider theme={theme}>
           <SpatialTree store={store} />
-          <SegmentationCanvas store={store} />
+          <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />
         </ThemeProvider>,
       );
       const before = store.getState().document!;
@@ -275,7 +278,13 @@ describe("structure drag acceptance", () => {
     setMockControls(service, { delayMs: 0 });
     await runtime.initialize();
     const submit = jest.spyOn(service, "submit");
-    render(<SemanticSegmentationWorkbench runtime={runtime} />);
+    segmentationSession.setState({ runtime, open: true, sourceReady: true });
+    render(
+      <>
+        <SpatialSidebar />
+        <SemanticSegmentationWorkbench runtime={runtime} />
+      </>,
+    );
     let running: Promise<void> | undefined;
     await act(async () => {
       store.getState().setFocus({ type: "instance", id: "I" });
@@ -308,7 +317,10 @@ describe("structure drag acceptance", () => {
         await running;
       });
     }
-    runtime.dispose();
+    act(() => {
+      runtime.dispose();
+      segmentationSession.setState({ runtime: undefined, open: false });
+    });
   });
 
   it.each([false, true])(

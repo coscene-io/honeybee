@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, type RenderResult } from "@testing-library/react";
+import { act, fireEvent, render, screen, type RenderResult } from "@testing-library/react";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand/vanilla";
 
@@ -14,12 +14,14 @@ import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
 import { buildCanvasPropagationScope } from "../../components/propagationSeeds";
 import { polygonsOf, summarizeObservation } from "../../maskGeometry";
+import type { DecodedSegmentationFrame } from "../../runtime";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
 import {
   createMockSemanticSegmentationService,
   createSeedDocument,
 } from "../../testing/mockService";
+import { nativeFrame, TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type {
   NormalizedPoint,
   SegmentationDocument,
@@ -61,9 +63,13 @@ export async function setup(document = fixture()): Promise<{
   return { service, store };
 }
 
-export async function editor(
-  document = fixture(),
-): Promise<Awaited<ReturnType<typeof setup>> & RenderResult> {
+export async function editor(document = fixture()): Promise<
+  Awaited<ReturnType<typeof setup>> &
+    RenderResult & {
+      /** Decodes the shown frame at another size, as the Image panel would. */
+      resize: (width: number, height: number) => void;
+    }
+> {
   const result = await setup(document);
   // jsdom has no SVG layout or pointer capture. Only these browser boundaries are supplied.
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
@@ -74,15 +80,32 @@ export async function editor(
     configurable: true,
     value: () => {},
   });
+  const view = (frame: DecodedSegmentationFrame) => (
+    <>
+      <SpatialTree store={result.store} />
+      <SegmentationCanvas decodedFrame={frame} store={result.store} />
+    </>
+  );
+  const rendered = render(view(TEST_DECODED_FRAME));
   return {
     ...result,
-    ...render(
-      <>
-        <SpatialTree store={result.store} />
-        <SegmentationCanvas store={result.store} />
-      </>,
-    ),
+    ...rendered,
+    resize: (width, height) => {
+      act(() => {
+        rendered.rerender(view(nativeFrame(width, height)));
+      });
+    },
   };
+}
+
+/** Vertices of the polygon being drawn, read from the canvas. */
+export function draftVertexCount(): number {
+  const points = screen
+    .getByRole("img", { name: "Frame polygons" })
+    .querySelector("polyline")
+    ?.getAttribute("points")
+    ?.trim();
+  return points ? points.split(/\s+/).length : 0;
 }
 
 export function polygon(

@@ -271,18 +271,10 @@ function ActionButtons({
   );
 }
 
-/**
- * Undo, redo and submit for the open record session.
- * A panel id limits the menu to that canvas. The app bar omits it and shows the one record session.
- */
-export function SegmentationActionMenu({
-  panelId,
-}: {
-  panelId?: string;
-}): React.JSX.Element | undefined {
+/** Undo, redo and submit for the open record session, shown once in the app bar. */
+export function SegmentationActionMenu(): React.JSX.Element | undefined {
   const session = useStore(segmentationSession);
-  const forThisCanvas = panelId == undefined || session.panelId === panelId;
-  return session.open && session.runtime && forThisCanvas ? (
+  return session.open && session.runtime ? (
     <ActionButtons runtime={session.runtime} sourceReady={session.sourceReady} />
   ) : undefined;
 }
