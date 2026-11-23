@@ -22,9 +22,11 @@ import {
   treeFrameIdsOf,
 } from "./treeLogic";
 import type { TreeDialog } from "./treeTypes";
+import { createSeedDocument } from "../../testing/mockService";
 import type { SegmentationDocument, SegmentationFrame } from "../../types";
 
 const document: SegmentationDocument = {
+  ...createSeedDocument(),
   annotationSummaries: {},
   record: { id: "r", name: "record" },
   videos: [],
