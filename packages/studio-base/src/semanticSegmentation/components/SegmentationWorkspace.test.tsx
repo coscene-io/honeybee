@@ -34,8 +34,7 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
     runtime,
     panelId: "image-panel",
     open: true,
-    imageUrl: "data:image/png;base64,decoded",
-    sourceReady: true,
+    surfaces: { "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: true } },
   });
   const { container, unmount } = render(<SegmentationWorkspace panelId="image-panel" />);
   expect(container.querySelector("div")!.style.inset).toMatch(/^30px\s/);
@@ -43,7 +42,11 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
     "decoded",
   );
   act(() => {
-    segmentationSession.setState({ sourceReady: false });
+    segmentationSession.setState({
+      surfaces: {
+        "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: false },
+      },
+    });
   });
   expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toBe("pending");
   unmount();
@@ -52,7 +55,6 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
     runtime: undefined,
     panelId: undefined,
     open: false,
-    imageUrl: undefined,
     surfaces: {},
   });
 });

@@ -581,22 +581,13 @@ export function SegmentationImageEntry({
           next.imageUrl === previous.imageUrl &&
           next.decodedFrame === previous.decodedFrame &&
           next.sourceReady === previous.sourceReady &&
-          (!focused ||
-            (current.imageUrl === next.imageUrl &&
-              current.decodedFrame === next.decodedFrame &&
-              current.sourceReady === next.sourceReady))
+          (!focused || current.sourceReady === next.sourceReady)
         ) {
           return current;
         }
         return {
           surfaces: { ...current.surfaces, [panelId]: next },
-          ...(focused
-            ? {
-                imageUrl: next.imageUrl,
-                decodedFrame: next.decodedFrame,
-                sourceReady: next.sourceReady,
-              }
-            : {}),
+          ...(focused ? { sourceReady: next.sourceReady } : {}),
         };
       });
     };
@@ -738,7 +729,7 @@ export function SegmentationImageEntry({
     }
     const currentMatches = binding.runtime.store.getState().currentFrameId === frame.id;
     lastSyncedImage.current = image.decodedIdentity;
-    const previous = session.surfaces[panelId]?.decodedFrame ?? session.decodedFrame;
+    const previous = session.surfaces[panelId]?.decodedFrame;
     const decodedFrame =
       previous?.decodedIdentity === image.decodedIdentity &&
       previous.nativeView === image.nativeView &&
@@ -959,9 +950,8 @@ export function SegmentationImageEntry({
         segmentationSession.getState().open && segmentationSession.getState().runtime === runtime;
       segmentationSession.setState({
         open: true,
-        maximized: false,
         panelId: joining ? (segmentationSession.getState().panelId ?? panelId) : panelId,
-        ...(joining ? {} : { imageUrl: undefined, decodedFrame: undefined, sourceReady: false }),
+        ...(joining ? {} : { sourceReady: false }),
       });
       sync();
       if (!joining) {

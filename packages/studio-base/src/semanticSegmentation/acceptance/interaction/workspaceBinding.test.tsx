@@ -29,6 +29,7 @@ import { SpatialSidebar } from "../../components/SpatialSidebar";
 import { segmentationImageSources, type SegmentationImage } from "../../imageSource";
 import { polygonsOf } from "../../maskGeometry";
 import { segmentationSession } from "../../runtime";
+import { focusedImageUrl } from "../../testing/session";
 
 const maximize = jest.fn();
 let mockUserId = "fixture-user";
@@ -116,7 +117,7 @@ function BoundCanvas(): React.JSX.Element | ReactNull {
   return session.open && session.runtime ? (
     <SegmentationCanvas
       store={session.runtime.store}
-      imageUrl={session.imageUrl}
+      imageUrl={focusedImageUrl()}
       disabled={!session.sourceReady}
     />
   ) : (
@@ -209,7 +210,6 @@ beforeEach(() => {
     runtime: undefined,
     open: false,
     panelId: undefined,
-    imageUrl: undefined,
     sourceReady: true,
   });
   jest.clearAllMocks();
@@ -244,9 +244,7 @@ it("SEG-ENT-002 actual Workspace sidebar actions select adjacent Space from Mome
   expect(frame.videoId).toBe(runtime.store.getState().document!.videos[0]!.id);
   expect(segmentationSession.getState().sourceReady).toBe(true);
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  expect(canvas.querySelector("image")!.getAttribute("href")).toBe(
-    segmentationSession.getState().imageUrl,
-  );
+  expect(canvas.querySelector("image")!.getAttribute("href")).toBe(focusedImageUrl());
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
     configurable: true,
     value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),

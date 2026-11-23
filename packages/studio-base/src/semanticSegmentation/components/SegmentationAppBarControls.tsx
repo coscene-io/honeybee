@@ -11,7 +11,7 @@ import { useStore } from "zustand";
 import { isAnnotationRecordName } from "@foxglove/studio-base/util/coscene/annotation";
 
 import { annotationRecord } from "../annotationRecord";
-import { segmentationSession } from "../runtime";
+import { endSegmentationSession, segmentationSession } from "../runtime";
 import { mainSegmentationCanvas, segmentationChrome } from "../segmentationChrome";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 
@@ -26,14 +26,6 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
 }));
-
-function endAnnotation(): void {
-  segmentationSession.setState({
-    open: false,
-    imageUrl: undefined,
-    sourceReady: false,
-  });
-}
 
 /** Record-level annotation controls. They sit in the app bar, once, beside layout save and revert. */
 export function SegmentationAppBarControls(): React.JSX.Element | undefined {
@@ -54,7 +46,7 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
       {open ? (
         <>
           <SegmentationActionMenu />
-          <button type="button" onClick={endAnnotation}>
+          <button type="button" onClick={endSegmentationSession}>
             结束标注
           </button>
         </>

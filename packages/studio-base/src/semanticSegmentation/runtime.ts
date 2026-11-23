@@ -214,12 +214,10 @@ export const segmentationSession = createStore<{
   /** Exact displayed frame per topic for the read-only overview. */
   previewFrames: Record<string, string | undefined>;
   open: boolean;
-  maximized: boolean;
-  imageUrl: string | undefined;
   /** Canvas that receives new edits. Other open canvases stay visible. */
   panelId: string | undefined;
+  /** The panel holding the edit: its frame is ready to edit. Mirrors its surface. */
   sourceReady: boolean;
-  decodedFrame?: DecodedSegmentationFrame;
   /** Live image panels, keyed by panel id. The instance tree reads every frame listed here. */
   surfaces: Record<string, SegmentationSurface>;
   /** Frame that received the first vertex. Unset while the stroke can still start on any canvas. */
@@ -235,8 +233,6 @@ export const segmentationSession = createStore<{
   previewLoading: false,
   previewFrames: {},
   open: false,
-  maximized: false,
-  imageUrl: undefined,
   panelId: undefined,
   sourceReady: true,
   surfaces: {},
@@ -248,6 +244,11 @@ export function openWorkflowPanel(target?: string): void {
   segmentationSession.setState((session) => ({
     workflow: { open: true, target, nonce: session.workflow.nonce + 1 },
   }));
+}
+
+/** Leaves spatial annotation: every canvas closes; staged edits stay in the runtime. */
+export function endSegmentationSession(): void {
+  segmentationSession.setState({ open: false, sourceReady: false });
 }
 
 export function activateSegmentationRuntime(runtime: SegmentationRuntime): void {

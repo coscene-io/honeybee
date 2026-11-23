@@ -39,8 +39,6 @@ afterEach(() => {
   segmentationSession.setState({
     runtime: undefined,
     open: false,
-    maximized: false,
-    imageUrl: undefined,
   });
 });
 

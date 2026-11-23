@@ -17,6 +17,7 @@ import { frameInstanceKey } from "../service";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
 import { setMockControls } from "../testing/mockService";
+import { focusedSurface } from "../testing/session";
 
 const pipeline = {
   playerState: {
@@ -191,8 +192,6 @@ beforeEach(() => {
     runtime: undefined,
     open: false,
     panelId: undefined,
-    imageUrl: undefined,
-    decodedFrame: undefined,
     presentation: undefined,
     sourceReady: false,
   });
@@ -240,7 +239,7 @@ function seekedLogTimes(): string[] {
 
 it("streams propagation results, lets the player follow them and never replaces native pixels", async () => {
   const f = await fixture();
-  const shown = segmentationSession.getState().decodedFrame?.frameId;
+  const shown = focusedSurface()?.decodedFrame?.frameId;
   await act(async () => {
     await f.start();
   });
@@ -250,7 +249,7 @@ it("streams propagation results, lets the player follow them and never replaces 
   expect(seekedLogTimes().length).toBeGreaterThan(0);
   expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
   expect(pipeline.pausePlayback).not.toHaveBeenCalled();
-  expect(segmentationSession.getState().decodedFrame?.frameId).toBe(shown);
+  expect(focusedSurface()?.decodedFrame?.frameId).toBe(shown);
   expect(f.container.querySelector("svg image")).toBeNull();
   expect(
     f.container
@@ -281,7 +280,7 @@ it("keeps the seed immutable while native playback advances during propagation",
   pipeline.playerState.activeData.currentTime = fromNanoSec(650_000_000n);
   f.decode(6);
   expect(capturedSeed).toBe(f.frames[4]!.id);
-  expect(segmentationSession.getState().decodedFrame?.frameId).toBe(f.frames[6]!.id);
+  expect(focusedSurface()?.decodedFrame?.frameId).toBe(f.frames[6]!.id);
   await act(async () => {
     release();
     await running;
@@ -342,7 +341,7 @@ it("accepts a fresh decode before React observes the native seek and hides stale
   f.decode(5);
   f.rerender(f.view());
   expect(segmentationSession.getState().sourceReady).toBe(true);
-  expect(segmentationSession.getState().decodedFrame?.frameId).toBe(f.frames[5]!.id);
+  expect(focusedSurface()?.decodedFrame?.frameId).toBe(f.frames[5]!.id);
   f.decode(4);
   expect(segmentationSession.getState().sourceReady).toBe(false);
   expect(f.container.querySelector('[data-testid="instance-union-fill"]')).toBeNull();

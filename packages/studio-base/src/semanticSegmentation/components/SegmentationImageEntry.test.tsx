@@ -17,6 +17,7 @@ import { segmentationImageSources, type SegmentationImage } from "../imageSource
 import { segmentationSession } from "../runtime";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { setMockControls } from "../testing/mockService";
+import { focusedImageUrl, focusedSurface } from "../testing/session";
 
 const selectItem = jest.fn();
 const maximize = jest.fn();
@@ -156,7 +157,6 @@ beforeEach(() => {
     runtime: undefined,
     open: false,
     panelId: undefined,
-    imageUrl: undefined,
     sourceReady: true,
   });
   jest.clearAllMocks();
@@ -173,7 +173,7 @@ it("uses the sparse presentation index and actual decoded first/last frame, with
   expect(runtime.store.getState().currentFrameId).toBe(
     runtime.store.getState().document?.frames[0]?.id,
   );
-  expect(segmentationSession.getState().imageUrl).toContain("first");
+  expect(focusedImageUrl()).toContain("first");
   pipeline.playerState.activeData.currentTime = fromNanoSec(1_000_000_000n);
   f.setImage(900_000_000n);
   f.event();
@@ -198,7 +198,7 @@ it("gates delayed decoding and never relabels old pixels as the requested frame"
   f.setImage(300_000_000n); // A late decode from the previous seek must not overwrite the newer target.
   f.event();
   expect(segmentationSession.getState().sourceReady).toBe(false);
-  expect(segmentationSession.getState().imageUrl).toContain("900000000");
+  expect(focusedImageUrl()).toContain("900000000");
 });
 
 it.each(["topic", "player"])(
@@ -214,7 +214,7 @@ it.each(["topic", "player"])(
     expect(segmentationSession.getState().open).toBe(false);
     f.setImage(900_000_000n, { topic: "/rear" });
     f.event();
-    expect(segmentationSession.getState().imageUrl).toBeUndefined();
+    expect(focusedImageUrl()).toBeUndefined();
     expect(runtime.store.getState().document?.classes).toEqual([
       { id, name: "retained draft", color: expect.any(String) },
     ]);
@@ -244,7 +244,6 @@ it("detaches the frame listener and clears captured image resources on panel rem
   expect(f.capture).toHaveBeenCalledTimes(calls);
   expect(segmentationSession.getState()).toMatchObject({
     open: false,
-    imageUrl: undefined,
     panelId: undefined,
     sourceReady: false,
   });
@@ -496,7 +495,7 @@ it("does not annotate a future native image before its timestamp or seek to make
   pipeline.playerState.activeData.currentTime = fromNanoSec(300_000_000n);
   f.event();
   expect(segmentationSession.getState().sourceReady).toBe(true);
-  expect(segmentationSession.getState().decodedFrame?.frameId).toContain("300000000");
+  expect(focusedSurface()?.decodedFrame?.frameId).toContain("300000000");
 });
 
 it("keeps native playback running while editing is gated", async () => {

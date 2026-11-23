@@ -17,6 +17,7 @@ import { SegmentationImageEntry } from "../../components/SegmentationImageEntry"
 import { segmentationImageSources, type SegmentationImage } from "../../imageSource";
 import { segmentationSession } from "../../runtime";
 import { setMockControls } from "../../testing/mockService";
+import { focusedImageUrl } from "../../testing/session";
 
 const selectItem = jest.fn();
 const maximize = jest.fn();
@@ -152,7 +153,6 @@ beforeEach(() => {
     runtime: undefined,
     open: false,
     panelId: undefined,
-    imageUrl: undefined,
     sourceReady: true,
   });
   jest.clearAllMocks();
@@ -186,13 +186,13 @@ it("SEG-ENT-016/SEG-CACHE-008 isolates real source B after late annotation and u
   expect(bVideo).not.toBe(oldWindow.videoId);
   const bDocument = b.store.getState().document;
   const bFrame = b.store.getState().currentFrameId;
-  const bImage = segmentationSession.getState().imageUrl;
+  const bImage = focusedImageUrl();
   await act(async () => {
     readGate.resolve(oldWindow);
     await oldRead;
   });
   expect(segmentationSession.getState().runtime).toBe(b);
-  expect(segmentationSession.getState().imageUrl).toBe(bImage);
+  expect(focusedImageUrl()).toBe(bImage);
   expect(b.store.getState().document).toEqual(bDocument);
   expect(b.store.getState().currentFrameId).toBe(bFrame);
   expect(a.store.getState().document!.classes.some((item) => item.id === draft)).toBe(true);

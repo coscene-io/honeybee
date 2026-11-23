@@ -71,24 +71,17 @@ export function SegmentationWorkspace({
   const session = useStore(segmentationSession);
   const surface = session.surfaces[panelId];
   const focused = session.panelId === panelId;
-  const legacy = surface == undefined && focused;
-  const shownUrl = surface ? surface.imageUrl : legacy ? session.imageUrl : undefined;
-  if (
-    !session.open ||
-    !session.runtime ||
-    shownUrl == undefined ||
-    (surface == undefined && !legacy)
-  ) {
+  if (!session.open || !session.runtime || surface?.imageUrl == undefined) {
     return undefined;
   }
   return (
     <ActiveWorkbench
       runtime={session.runtime}
-      imageUrl={surface ? surface.imageUrl : session.imageUrl}
-      sourceReady={surface ? surface.sourceReady : session.sourceReady}
+      imageUrl={surface.imageUrl}
+      sourceReady={surface.sourceReady}
       panelId={panelId}
-      decodedFrame={surface ? surface.decodedFrame : session.decodedFrame}
-      frameId={surface?.frameId}
+      decodedFrame={surface.decodedFrame}
+      frameId={surface.frameId}
       focused={focused}
       onClaimFocus={() => {
         const live = segmentationSession.getState();

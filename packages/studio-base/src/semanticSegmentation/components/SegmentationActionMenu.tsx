@@ -11,7 +11,12 @@ import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 
-import { openWorkflowPanel, segmentationSession, type SegmentationRuntime } from "../runtime";
+import {
+  endSegmentationSession,
+  openWorkflowPanel,
+  segmentationSession,
+  type SegmentationRuntime,
+} from "../runtime";
 import { SubmissionControls } from "./WorkflowControls";
 
 import "./workbench.css";
@@ -255,11 +260,7 @@ function ActionButtons({
             disabled={locked}
             onClick={() => {
               closeSubmit();
-              segmentationSession.setState({
-                open: false,
-                imageUrl: undefined,
-                sourceReady: false,
-              });
+              endSegmentationSession();
             }}
           >
             结束标注
