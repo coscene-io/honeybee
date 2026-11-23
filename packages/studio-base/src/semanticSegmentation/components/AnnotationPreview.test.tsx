@@ -15,9 +15,10 @@ import {
   segmentationImageSources,
   type SegmentationImage,
 } from "../imageSource";
-import { createSeedDocument, setMockControls } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { AnnotationPreview } from "./AnnotationPreview";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 
 const pipeline = {
   playerState: { activeData: { currentTime: fromNanoSec(1700000000150000000n) } },
@@ -30,7 +31,7 @@ jest.mock("@foxglove/studio-base/components/MessagePipeline", () => ({
 
 it("uses exact displayed log time and native transform for preview and read-only tree", async () => {
   const document = createSeedDocument();
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   await runtime.store.getState().loadFrameWindow("video-1", 0, 1);

@@ -6,12 +6,9 @@
 and both branch builds (`0.0.488-branch.g26ae20a.772.1`, `0.0.488-branch.g944503d.770.1`)
 were checked and none has `coscene/dataplatform/v1alpha3/services/annotation_pb`.
 
-Source: cosceneapis PR #866, branch `feat/spatial-annotation-api`, commit
-`96015385a12de1d75421d5dca08476a31fe94ffb` (2026-11-13), files
-`coscene/dataplatform/v1alpha3/{resources,services}/annotation.proto`, plus `SegmentFrame`
-from PR #870, branch `feat/spatial-annotation-segment`, commit `e6a5ba0`
-(2026-11-18). Regenerate from the merged
-contract once #870 lands; only `services/annotation_pb.ts` changed.
+Source: cosceneapis PR #866, branch `feat/spatial-annotation-api`, commit `66758a9`
+(2026-11-18), files `coscene/dataplatform/v1alpha3/{resources,services}/annotation.proto`.
+That commit includes `SegmentFrame` (PR #870) and the propagation `direction`.
 
 Generator: `@bufbuild/protoc-gen-es@2.10.1` (the same version as Honeybee's
 `@bufbuild/protobuf` runtime), TypeScript target, googleapis imports rewritten to the

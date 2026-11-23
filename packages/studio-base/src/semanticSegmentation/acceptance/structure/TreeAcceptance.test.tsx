@@ -25,9 +25,12 @@ import {
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
-import { createMockSemanticSegmentationService, createSeedDocument } from "../../mockService";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import {
+  createMockSemanticSegmentationService,
+  createSeedDocument,
+} from "../../testing/mockService";
 
 function invariant(store: Awaited<ReturnType<typeof setup>>["store"]) {
   const state = store.getState();

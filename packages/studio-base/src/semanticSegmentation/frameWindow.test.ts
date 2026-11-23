@@ -5,9 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createMockSemanticSegmentationService, setMockControls } from "./mockService";
-import { createSegmentationRuntime } from "./runtime";
 import { createSemanticSegmentationStore } from "./store";
+import { createMockSegmentationRuntime } from "./testing/mockRuntime";
+import { createMockSemanticSegmentationService, setMockControls } from "./testing/mockService";
 import type { FrameWindow } from "./types";
 
 async function settleRead(store: ReturnType<typeof createSemanticSegmentationStore>) {
@@ -86,7 +86,7 @@ it("ignores a retry response after a newer frame-window generation has won", asy
 });
 
 it("recovers a failed first geometry read in a runtime without reinitializing its document", async () => {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   const originalRead = runtime.service.loadFrameWindow.bind(runtime.service);
   runtime.service.loadFrameWindow = jest

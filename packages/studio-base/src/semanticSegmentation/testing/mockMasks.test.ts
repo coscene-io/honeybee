@@ -5,8 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { maskIou } from "./maskCodec";
-import { maskOf, polygonsOf, runsOfMask } from "./maskGeometry";
+import { maskIou } from "../maskCodec";
+import { maskOf, polygonsOf, runsOfMask } from "../maskGeometry";
 import {
   DEFAULT_MOCK_MASK_PROFILE,
   propagateMockMask,
@@ -14,7 +14,7 @@ import {
   validateMockMaskProfile,
 } from "./mockMasks";
 import { createMockSemanticSegmentationService, createSeedDocument } from "./mockService";
-import { frameInstanceKey } from "./service";
+import { frameInstanceKey } from "../service";
 
 const profile = { ...DEFAULT_MOCK_MASK_PROFILE, instances: 2 };
 

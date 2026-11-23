@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { maskOf, summarizeObservation } from "./maskGeometry";
+import { maskOf, summarizeObservation } from "../maskGeometry";
 import {
   mockMaskCatalog,
   propagateMockMask,
@@ -23,7 +23,7 @@ import {
   SemanticSegmentationService,
   validateFrameWindow,
   validatePropagationCapabilities,
-} from "./service";
+} from "../service";
 import {
   FrameInstance,
   MockControls,
@@ -31,7 +31,7 @@ import {
   PropagationCapabilities,
   SegmentationDocument,
   SubmitResult,
-} from "./types";
+} from "../types";
 
 const MOCK_FRAME_WIDTH_PX = 960;
 const MOCK_FRAME_HEIGHT_PX = 540;
@@ -372,7 +372,6 @@ export function createMockSemanticSegmentationService(
           "Local storage could not be cleared; enable storage before resetting the saved demo.";
       }
     },
-    getPersistenceError: () => persistenceError,
     supportsPropagationContext: true,
     supportsMultiInstanceSeeds: true,
     getPropagationCapabilities: async () => await Promise.resolve(cloneSegmentation(capabilities)),

@@ -8,7 +8,6 @@
 import { createStore } from "zustand/vanilla";
 
 import type { LiveSemanticSegmentationService } from "./liveService";
-import { createMockSemanticSegmentationService } from "./mockService";
 import type { NativeImageView } from "./nativeImageTransform";
 import {
   mergeSourceMetadata,
@@ -28,38 +27,11 @@ export type SegmentationRuntime = {
 
 /** One runtime is shared by the canvas, Space sidebar, workflows and Moment references. */
 export function createSegmentationRuntime(
+  /** The live AnnotationService adapter; tests pass the in-memory mock. */
+  service: SemanticSegmentationService,
+  /** Source metadata (record, videos, frames) known when the session opens. */
   document?: SegmentationDocument,
-  persistence?: { storageKey: string },
-  options: {
-    identity?: { userId: string; sessionId?: string };
-    /**
-     * The live AnnotationService client. Omitting it uses the in-memory mock service, which only
-     * unit tests and fixtures rely on; the app never opens a session without a cloud record.
-     */
-    service?: SemanticSegmentationService;
-  } = {},
 ): SegmentationRuntime {
-  const service: SemanticSegmentationService =
-    options.service ??
-    createMockSemanticSegmentationService({
-      document,
-      ...(options.identity ? { identity: options.identity } : {}),
-      ...(persistence
-        ? {
-            storage: {
-              getItem: (key: string) => window.localStorage.getItem(key),
-              setItem: (key: string, value: string) => {
-                window.localStorage.setItem(key, value);
-              },
-              removeItem: (key: string) => {
-                window.localStorage.removeItem(key);
-              },
-            },
-            storageKey: persistence.storageKey,
-          }
-        : {}),
-      controls: { delayMs: 500, streamDelayMs: 350 },
-    });
   const store = createSemanticSegmentationStore(service);
   let metadata = document ? { videos: document.videos, frames: document.frames } : undefined;
   const originalLoad = service.loadDocument.bind(service);

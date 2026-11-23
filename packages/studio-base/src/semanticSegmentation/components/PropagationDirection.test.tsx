@@ -11,11 +11,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 
 import { createMuiTheme } from "@foxglove/theme";
 
-import { createSeedDocument, setMockControls } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { frameInstanceKey, propagationTargets } from "../service";
 import type { SegmentationDocument } from "../types";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 
 const theme = createMuiTheme("light", "en");
 /** Five frames per second in the mock recording: frame-20 has frames on both sides. */
@@ -52,7 +53,7 @@ function seed(document: SegmentationDocument): void {
 async function setup(options: { backward?: boolean } = {}) {
   const document = createSeedDocument();
   seed(document);
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
   if (options.backward === false) {
     const original = runtime.service.getPropagationCapabilities!.bind(runtime.service);

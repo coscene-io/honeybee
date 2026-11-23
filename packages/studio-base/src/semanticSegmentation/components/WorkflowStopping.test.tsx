@@ -10,11 +10,12 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { MomentReferencePicker } from "./MomentReferencePicker";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
-import { setMockControls } from "../mockService";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { setMockControls } from "../testing/mockService";
 
 afterEach(() => {
   cleanup();
@@ -23,7 +24,7 @@ afterEach(() => {
 });
 
 it("keeps actual editor/picker/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, {
     delayMs: 0,
     streamDelayMs: 1000,

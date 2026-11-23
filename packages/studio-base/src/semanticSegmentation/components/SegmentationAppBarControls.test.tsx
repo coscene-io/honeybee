@@ -13,14 +13,15 @@ import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLa
 import { createMuiTheme } from "@foxglove/theme";
 
 import { annotationRecord } from "../annotationRecord";
-import { createSeedDocument, setMockControls } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import {
   registerSegmentationCanvas,
   segmentationChrome,
   type SegmentationCanvasEntry,
 } from "../segmentationChrome";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 
 const theme = createMuiTheme("light", "en");
 
@@ -108,7 +109,7 @@ it("enters annotation on one click when several image panels are open", () => {
 
 it("shows the record actions and closes the space from the app bar", async () => {
   const document = createSeedDocument();
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   const other = canvas("torso", "/camera/torso");

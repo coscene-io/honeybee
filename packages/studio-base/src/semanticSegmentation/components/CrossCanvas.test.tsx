@@ -9,11 +9,11 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
 import { segmentationSession } from "../runtime";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 
 async function storeWithSeed() {
   const document = createSeedDocument();

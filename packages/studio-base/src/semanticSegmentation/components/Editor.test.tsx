@@ -9,13 +9,13 @@
 import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
-import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
+import { polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
-import { polygonsOf } from "../maskGeometry";
 
 async function setup(configure?: (document: SegmentationDocument) => void) {
   const document = createSeedDocument();

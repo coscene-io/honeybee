@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import codecFixture from "./fixtures/detSegCodec.json";
-import maskFixture from "./fixtures/detSegMasks.json";
 import {
   countsFromRuns,
   decodeCounts,
@@ -17,6 +15,8 @@ import {
   unionRuns,
 } from "./maskCodec";
 import { maskToPolygons, polygonsToRuns, type PixelPolygon } from "./maskPolygon";
+import codecFixture from "./testing/fixtures/detSegCodec.json";
+import maskFixture from "./testing/fixtures/detSegMasks.json";
 
 describe("COCO RLE counts", () => {
   it.each(codecFixture.cases.map((item, index) => [index, item] as const))(

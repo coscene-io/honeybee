@@ -8,13 +8,13 @@
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
-import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
+import { polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { NormalizedPoint, SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
-import { polygonsOf } from "../maskGeometry";
 
 // Contract: the original Given/When/Then in requirements.csv, not the preaudit wording.
 function fixture(frameCount: number, present: (frame: number, instance: number) => boolean) {

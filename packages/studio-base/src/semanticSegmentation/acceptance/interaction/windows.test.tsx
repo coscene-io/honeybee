@@ -13,9 +13,10 @@ import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkben
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
-import { setMockControls } from "../../mockService";
-import { createSegmentationRuntime, openWorkflowPanel } from "../../runtime";
+import { openWorkflowPanel } from "../../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
+import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
+import { setMockControls } from "../../testing/mockService";
 import type { FrameInstance } from "../../types";
 
 it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
@@ -28,7 +29,7 @@ it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame 
     timestampSec: index / 5,
   }));
   document.videos[0]!.durationSec = 60;
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0 });
   const reads = jest.spyOn(runtime.service, "loadFrameWindow");
   await runtime.initialize();
@@ -113,7 +114,7 @@ it("SEG-ENT-007 a normalized two-page complete-window response renders each stab
     [first, second],
     [{ ...first, polygons: [first.polygons[0]!, q] }, later],
   ];
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0 });
   const original = runtime.service.loadFrameWindow.bind(runtime.service);
   jest.spyOn(runtime.service, "loadFrameWindow").mockImplementation(async (...args) => {

@@ -8,14 +8,15 @@
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
-import { createSeedDocument, setMockControls } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 
 async function open(panelId = "panel-1") {
   const document = createSeedDocument();
   document.frames = document.frames.slice(0, 3);
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   Object.defineProperty(Element.prototype, "scrollIntoView", {

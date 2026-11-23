@@ -155,12 +155,6 @@ function sourceDocument(source: {
 
 export const NOT_ANNOTATABLE = "只有云端记录支持空间标注。";
 
-function serviceOption(service: SemanticSegmentationService | undefined): {
-  service?: SemanticSegmentationService;
-} {
-  return service ? { service } : {};
-}
-
 function propagationLocksContext(status: string): boolean {
   return status === "running" || status === "stopping";
 }
@@ -207,28 +201,18 @@ export function SegmentationImageEntry({
       injectedService ?? createLiveSemanticSegmentationService({ recordName, startNs, document }),
     [injectedService, recordName],
   );
-  const userKey = userId ?? "demo";
+  const userKey = userId ?? "anonymous";
   /** One runtime per user, recording and backend, shared by every camera panel. */
   const createSourceRuntime = useCallback(
-    (document: SegmentationDocument, stableRecordId: string, startNs: bigint) =>
-      createSegmentationRuntime(
-        document,
-        {
-          storageKey: `coStudio.semanticSegmentation.source.v3:${JSON.stringify([userKey, stableRecordId])!}`,
-        },
-        {
-          ...(userId
-            ? {
-                identity: {
-                  userId,
-                  sessionId: JSON.stringify([userKey, stableRecordId, panelId])!,
-                },
-              }
-            : {}),
-          ...serviceOption(createService(startNs, document)),
-        },
-      ),
-    [createService, panelId, userId, userKey],
+    (document: SegmentationDocument, startNs: bigint) => {
+      const service = createService(startNs, document);
+      if (!service) {
+        // Callers check `annotatable` first, which holds exactly when a service exists.
+        throw new Error("Spatial annotation needs a cloud record");
+      }
+      return createSegmentationRuntime(service, document);
+    },
+    [createService],
   );
   // The open record is Core Data. A second file in that record is a different playback URL,
   // not a second name on the record, so the title must not hide the URL.
@@ -430,7 +414,7 @@ export function SegmentationImageEntry({
         });
         let runtime = sessions.get(sessionKey);
         if (!runtime) {
-          runtime = createSourceRuntime(document, stableRecordId, startNs);
+          runtime = createSourceRuntime(document, startNs);
           sessions.set(sessionKey, runtime);
         } else {
           runtime.registerSource(document);
@@ -921,7 +905,7 @@ export function SegmentationImageEntry({
           frames: framesFromStamps(videoId, startNs, stamps.values()),
         });
         if (!runtime) {
-          runtime = createSourceRuntime(document, stableRecordId, startNs);
+          runtime = createSourceRuntime(document, startNs);
           sessions.set(sessionKey, runtime);
         } else {
           await runtime.initialize();

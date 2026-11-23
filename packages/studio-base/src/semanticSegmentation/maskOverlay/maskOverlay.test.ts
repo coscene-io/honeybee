@@ -5,15 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import maskFixture from "../fixtures/detSegMasks.json";
 import { maskContains, maskRunsFromCounts } from "../maskCodec";
-import { DEFAULT_MOCK_MASK_PROFILE, synthesizeMockMask } from "../mockMasks";
-import { createSeedDocument } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import {segmentationSession} from "../runtime";
 import { frameInstanceKey } from "../service";
 import { MaskPlaneCache } from "./maskPlaneCache";
 import { buildMaskPlanes, planeBytes, planeFormat } from "./maskPlanes";
 import { createMaskOverlaySource, maskOverlayControls } from "./overlaySource";
+import maskFixture from "../testing/fixtures/detSegMasks.json";
+import { DEFAULT_MOCK_MASK_PROFILE, synthesizeMockMask } from "../testing/mockMasks";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { createSeedDocument } from "../testing/mockService";
 
 describe("mask bit planes", () => {
   it("stores every slot as one bit of a transposed texel, overlaps included", () => {
@@ -167,7 +168,7 @@ describe("mask overlay source", () => {
       kind: "mask",
       mask,
     };
-    const runtime = createSegmentationRuntime(document);
+    const runtime = createMockSegmentationRuntime(document);
     runtime.store.setState({ document });
     segmentationSession.setState({ previewRuntime: runtime, open: false });
     const source = createMaskOverlaySource();
@@ -221,7 +222,7 @@ describe("mask overlay source", () => {
     const document = createSeedDocument();
     const template = document.frames.find((item) => item.videoId === "video-side")!;
     const topic = document.videos.find((item) => item.id === "video-side")!.topic!;
-    const runtime = createSegmentationRuntime(document);
+    const runtime = createMockSegmentationRuntime(document);
     runtime.store.setState({ document });
     segmentationSession.setState({ previewRuntime: runtime, open: false });
     const source = createMaskOverlaySource();
@@ -283,7 +284,7 @@ describe("mask overlay source", () => {
       frames: [...seed.frames.filter((item) => item.videoId !== "video-side"), ...frames],
       annotations,
     };
-    const runtime = createSegmentationRuntime(document);
+    const runtime = createMockSegmentationRuntime(document);
     runtime.store.setState({ document });
     segmentationSession.setState({ previewRuntime: runtime, open: false });
     const source = createMaskOverlaySource();

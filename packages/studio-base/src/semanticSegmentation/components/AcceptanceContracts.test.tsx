@@ -9,15 +9,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { createSeedDocument, setMockControls } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../service";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { ActiveMomentReference } from "./ActiveMomentReference";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 
 const pipeline = {
   playerState: { activeData: { startTime: { sec: 100, nsec: 0 } } },
@@ -33,7 +34,7 @@ jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
 }));
 
 async function fixture(document?: SegmentationDocument) {
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
   await runtime.initialize();
   return runtime;

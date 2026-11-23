@@ -15,8 +15,9 @@ import {
   SpatialReferenceValue,
 } from "../../components/ActiveMomentReference";
 import { parseSpatialReference } from "../../components/MomentReferencePicker";
-import { setMockControls } from "../../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../../runtime";
+import { segmentationSession } from "../../runtime";
+import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
+import { setMockControls } from "../../testing/mockService";
 
 afterEach(() => {
   cleanup();
@@ -50,7 +51,7 @@ it.each(["class", "instance"] as const)(
     } else {
       document.instances.find((item) => item.id === "instance-empty")!.id = targetId;
     }
-    const runtime = createSegmentationRuntime(document);
+    const runtime = createMockSegmentationRuntime(document);
     setMockControls(runtime.service, { delayMs: 0 });
     await runtime.initialize();
     segmentationSession.setState({ runtime, sourceReady: true });
@@ -116,7 +117,7 @@ it.each(["class", "instance"] as const)(
 );
 
 it("cancelling the reference picker leaves a scalar attribute value editable", async () => {
-  const runtime = createSegmentationRuntime(fixture());
+  const runtime = createMockSegmentationRuntime(fixture());
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   segmentationSession.setState({ runtime, sourceReady: true });
@@ -132,12 +133,12 @@ it("cancelling the reference picker leaves a scalar attribute value editable", a
 });
 
 it("does not replace record A's reference with a target from record B", async () => {
-  const a = createSegmentationRuntime(fixture());
+  const a = createMockSegmentationRuntime(fixture());
   const documentB = fixture();
   documentB.record.id = "record-B";
   documentB.videos = documentB.videos.map((video) => ({ ...video, recordId: "record-B" }));
   documentB.instances.find((item) => item.id === "instance-empty")!.id = "foreign-I";
-  const b = createSegmentationRuntime(documentB);
+  const b = createMockSegmentationRuntime(documentB);
   for (const runtime of [a, b]) {
     setMockControls(runtime.service, { delayMs: 0 });
     await runtime.initialize();

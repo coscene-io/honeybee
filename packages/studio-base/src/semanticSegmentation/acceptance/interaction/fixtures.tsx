@@ -14,9 +14,9 @@ import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
 import { buildCanvasPropagationScope } from "../../components/propagationSeeds";
 import { polygonsOf, summarizeObservation } from "../../maskGeometry";
-import { createMockSemanticSegmentationService, createSeedDocument } from "../../mockService";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../../testing/mockService";
 import type {
   NormalizedPoint,
   SegmentationDocument,

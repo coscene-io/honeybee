@@ -8,9 +8,9 @@
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
-import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 
 async function setup(layout: "standalone" | "compact") {
   const store = createSemanticSegmentationStore(

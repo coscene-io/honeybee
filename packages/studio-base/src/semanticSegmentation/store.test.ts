@@ -7,9 +7,9 @@
 
 import { countsFromRuns, runsFromIntervals } from "./maskCodec";
 import { maskArea, maskOf, polygonsOf, runsOfPolygons } from "./maskGeometry";
-import { createMockSemanticSegmentationService } from "./mockService";
 import { frameInstanceKey } from "./service";
 import { createSemanticSegmentationStore } from "./store";
+import { createMockSemanticSegmentationService } from "./testing/mockService";
 import { NormalizedPoint } from "./types";
 
 /** Mock propagation moves points right/down by 10px per frame on a 960x540 frame. */
@@ -492,53 +492,6 @@ describe("compound editor commands", () => {
     expect(polygonsOf(frameWindow.annotations[frameInstanceKey("frame-0", moved.id)])[0]?.id).toBe(
       "instance-1-polygon-0",
     );
-  });
-});
-
-describe("local segmentation service", () => {
-  it("persists committed snapshots across adapter recreation and resets deterministically", async () => {
-    const values = new Map<string, string>();
-    const storage = {
-      getItem: (id: string) => values.get(id) ?? "",
-      setItem: (id: string, value: string) => {
-        values.set(id, value);
-      },
-      removeItem: (id: string) => {
-        values.delete(id);
-      },
-    };
-    const first = createMockSemanticSegmentationService({ storage, controls: { delayMs: 0 } });
-    const store = createSemanticSegmentationStore(first);
-    await store.getState().initialize();
-    store.getState().renameClass("class-1", "Saved name");
-    store.getState().submit();
-    await store.getState().waitForSubmissions();
-    const second = createMockSemanticSegmentationService({ storage, controls: { delayMs: 0 } });
-    expect((await second.loadDocument()).classes[0]!.name).toBe("Saved name");
-    const third = createMockSemanticSegmentationService({ storage, controls: { delayMs: 0 } });
-    expect((await third.loadDocument()).classes[0]!.name).toBe("Saved name");
-    second.reset();
-    expect((await second.loadDocument()).classes[0]!.name).toBe("Person");
-    expect(values.size).toBe(0);
-  });
-
-  it("keeps an in-memory commit successful and reports actionable storage exhaustion", async () => {
-    const storage = {
-      getItem: () => "",
-      setItem: () => {
-        throw new Error("QuotaExceededError");
-      },
-      removeItem: () => {},
-    };
-    const service = createMockSemanticSegmentationService({ storage, controls: { delayMs: 0 } });
-    const store = createSemanticSegmentationStore(service);
-    await store.getState().initialize();
-    store.getState().renameClass("class-1", "In-memory name");
-    store.getState().submit();
-    await store.getState().waitForSubmissions();
-    expect(store.getState().submissionQueue[0]!.status).toBe("succeeded");
-    expect(store.getState().error).toMatch(/saved in memory only/);
-    expect((await service.loadDocument()).classes[0]!.name).toBe("In-memory name");
   });
 });
 

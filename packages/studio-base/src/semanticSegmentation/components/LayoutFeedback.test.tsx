@@ -9,11 +9,11 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { setMockControls } from "../mockService";
-import { createSegmentationRuntime } from "../runtime";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { setMockControls } from "../testing/mockService";
 
 it("keeps workbench notices outside the layout and editing lock while leaving STOP to the global lock and keeping retry guards", async () => {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   const retry = jest.fn<Promise<void>, []>().mockResolvedValue(undefined);

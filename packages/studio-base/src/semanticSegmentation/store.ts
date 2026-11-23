@@ -21,7 +21,6 @@ import {
   runsOfPolygons,
   summarizeObservation,
 } from "./maskGeometry";
-import { createMockSemanticSegmentationService } from "./mockService";
 import {
   applySegmentationPatch,
   applySegmentationPatches,
@@ -123,9 +122,9 @@ export function filterSegmentationSelection(
   );
 }
 
-/** One independent vanilla Zustand store per record/workbench. React consumers use useStore(store, selector). */
+/** One independent vanilla Zustand store per record. React consumers use useStore(store, selector). */
 export function createSemanticSegmentationStore(
-  service: SemanticSegmentationService = createMockSemanticSegmentationService(),
+  service: SemanticSegmentationService,
 ): StoreApi<SemanticSegmentationStore> {
   let base: SegmentationDocument | undefined;
   let windowController: AbortController | undefined;
@@ -615,10 +614,6 @@ export function createSemanticSegmentationStore(
                 ANNOTATION_WINDOW_SEC,
             );
             await get().loadFrameWindow(first.videoId, startSec, endSec);
-          }
-          const persistenceError = service.getPersistenceError?.();
-          if (persistenceError) {
-            set({ error: persistenceError });
           }
         } catch (error) {
           if (!isDisposed() && epoch === loadEpoch) {

@@ -9,17 +9,17 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { createSegmentationRuntime } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { MomentReferencePicker } from "./MomentReferencePicker";
 import { SubmissionControls, WorkflowControls } from "./WorkflowControls";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
 import { polygonsOf } from "../maskGeometry";
-import { setMockControls } from "../mockService";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { setMockControls } from "../testing/mockService";
 
 afterEach(cleanup);
 async function setup() {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   runtime.store.getState().setFocus({ type: "instance", id: "instance-1" });

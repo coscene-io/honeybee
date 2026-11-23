@@ -9,10 +9,10 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { createMockSemanticSegmentationService } from "../mockService";
 import { createSemanticSegmentationStore } from "../store";
 import { SpatialTree } from "./SpatialTree";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
+import { createMockSemanticSegmentationService } from "../testing/mockService";
 
 afterEach(cleanup);
 

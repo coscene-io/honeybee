@@ -80,7 +80,6 @@ export interface SemanticSegmentationService {
   propagate(request: PropagationRequest, signal: AbortSignal): AsyncIterable<PropagationResult>;
   /** Quick annotation: one object's mask from clicks on the displayed frame. Unsaved draft. */
   segmentFrame?(request: QuickSegmentRequest, signal?: AbortSignal): Promise<QuickSegmentResult>;
-  getPersistenceError?(): string | undefined;
 }
 
 /** Encode both IDs to avoid collisions even when an ID contains a separator. */

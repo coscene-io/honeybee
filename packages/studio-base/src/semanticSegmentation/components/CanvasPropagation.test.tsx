@@ -12,13 +12,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { createMuiTheme } from "@foxglove/theme";
 
 import { polygonsOf } from "../maskGeometry";
-import { createSeedDocument, setMockControls } from "../mockService";
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
 import { buildCanvasPropagationScope } from "./propagationSeeds";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 
 const theme = createMuiTheme("light", "en");
 const polygon = (id: string, x: number) => ({
@@ -54,7 +55,7 @@ async function setup(options: { open?: boolean; seeded?: boolean } = {}) {
     document.annotations = {};
     document.annotationSummaries = {};
   }
-  const runtime = createSegmentationRuntime(document);
+  const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
   await runtime.initialize();
   segmentationSession.setState({

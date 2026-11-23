@@ -10,7 +10,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { createSegmentationRuntime, openWorkflowPanel, segmentationSession } from "../runtime";
+import { openWorkflowPanel, segmentationSession } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import {
   MomentReferencePicker,
@@ -19,7 +19,8 @@ import {
   resolveSpatialReference,
 } from "./MomentReferencePicker";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
-import { setMockControls } from "../mockService";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { setMockControls } from "../testing/mockService";
 
 jest.mock("./SegmentationCanvas", () => ({
   SegmentationCanvas: () => <div>Canvas</div>,
@@ -27,7 +28,7 @@ jest.mock("./SegmentationCanvas", () => ({
 jest.mock("./SpatialTree", () => ({ SpatialTree: () => <div>Space tree</div> }));
 
 async function initializedRuntime() {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 50 });
   await runtime.initialize();
   return runtime;

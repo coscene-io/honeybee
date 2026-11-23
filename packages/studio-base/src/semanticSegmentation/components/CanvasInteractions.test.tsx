@@ -13,12 +13,12 @@ import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
 import { closeKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
-import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 
 function pointer(
   target: Element,

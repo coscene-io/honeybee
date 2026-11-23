@@ -12,10 +12,9 @@
  * Everything produced here is labelled mock; it is never inference output.
  */
 
-import shapeFixture from "./fixtures/detSegMasks.json";
-import { countsFromRuns, maskRunsFromCounts, runsFromIntervals, type MaskRuns } from "./maskCodec";
-import { runsOfMask, runsOfPolygons } from "./maskGeometry";
-import { frameInstanceKey } from "./service";
+import { countsFromRuns, maskRunsFromCounts, runsFromIntervals, type MaskRuns } from "../maskCodec";
+import { runsOfMask, runsOfPolygons } from "../maskGeometry";
+import { frameInstanceKey } from "../service";
 import type {
   FrameInstance,
   ObservationGeometry,
@@ -24,7 +23,8 @@ import type {
   SegmentationInstance,
   SegmentationMask,
   SegmentationVideo,
-} from "./types";
+} from "../types";
+import shapeFixture from "./fixtures/detSegMasks.json";
 
 export const MOCK_MASK_CLASS_ID = "mock-mask-class";
 const MOCK_MASK_CLASS_NAME = "MOCK · 合成 mask（非推理结果）";

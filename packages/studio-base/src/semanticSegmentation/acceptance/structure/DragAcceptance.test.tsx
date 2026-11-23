@@ -15,8 +15,8 @@ import { confirm, geometry, polygons, row, setup, structureDocument } from "./fi
 import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkbench";
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialTree } from "../../components/SpatialTree";
-import { setMockControls } from "../../mockService";
-import { createSegmentationRuntime } from "../../runtime";
+import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
+import { setMockControls } from "../../testing/mockService";
 
 function visibleRow(id: string): HTMLElement {
   return row(id).querySelector<HTMLElement>(":scope > * > [data-tree-row]")!;
@@ -270,7 +270,7 @@ describe("structure drag acceptance", () => {
   );
 
   it("SEG-DRAG-015 blocks drag writes during propagation", async () => {
-    const runtime = createSegmentationRuntime(structureDocument());
+    const runtime = createMockSegmentationRuntime(structureDocument());
     const { store, service } = runtime;
     setMockControls(service, { delayMs: 0 });
     await runtime.initialize();

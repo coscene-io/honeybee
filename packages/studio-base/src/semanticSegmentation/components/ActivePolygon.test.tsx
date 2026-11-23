@@ -8,9 +8,9 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
+import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 
 /** jsdom has no PointerEvent: dispatch a MouseEvent of the pointer type, as the other canvas tests do. */
 function pointer(target: Element, type: string, x: number, y: number): void {

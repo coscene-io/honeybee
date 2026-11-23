@@ -6,9 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { polygonsOf } from "./maskGeometry";
-import { createMockSemanticSegmentationService, createSeedDocument } from "./mockService";
 import { applySegmentationPatches, cloneSegmentation, frameInstanceKey } from "./service";
 import { createSemanticSegmentationStore } from "./store";
+import { createMockSemanticSegmentationService, createSeedDocument } from "./testing/mockService";
 import type {
   PropagationCancellation,
   PropagationResult,

@@ -9,9 +9,10 @@
 
 import { act, render, screen } from "@testing-library/react";
 
-import { createSegmentationRuntime, segmentationSession } from "../runtime";
+import { segmentationSession } from "../runtime";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
-import { setMockControls } from "../mockService";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { setMockControls } from "../testing/mockService";
 
 jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
   PANEL_TOOLBAR_MIN_HEIGHT: 30,
@@ -26,7 +27,7 @@ jest.mock("../SemanticSegmentationWorkbench", () => ({
 }));
 
 it("sits below the panel header and withholds mismatched pixels", async () => {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   segmentationSession.setState({
@@ -57,7 +58,7 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
 });
 
 it("mounts a workbench on every open camera, not only the focused one", async () => {
-  const runtime = createSegmentationRuntime();
+  const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   segmentationSession.setState({

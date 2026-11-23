@@ -5,9 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createMockSemanticSegmentationService } from "./mockService";
 import { cloneSegmentation } from "./service";
 import { createSemanticSegmentationStore } from "./store";
+import { createMockSemanticSegmentationService } from "./testing/mockService";
 import { NormalizedPoint, SegmentationDocument } from "./types";
 
 const triangle: NormalizedPoint[] = [
