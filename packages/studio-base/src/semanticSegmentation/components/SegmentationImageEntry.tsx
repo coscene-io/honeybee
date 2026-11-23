@@ -157,6 +157,7 @@ function sourceDocument(source: {
     instances: [],
     annotations: {},
     annotationSummaries: {},
+    momentReferences: [],
   };
 }
 

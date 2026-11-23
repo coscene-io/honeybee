@@ -72,6 +72,7 @@ function sourceDocument(logTimes = LOG_TIMES): SegmentationDocument {
     instances: [],
     annotations: {},
     annotationSummaries: {},
+    momentReferences: [],
   };
 }
 

@@ -13,7 +13,7 @@ import type { LeftSidebarItemKey } from "@foxglove/studio-base/context/Workspace
 
 /**
  * Extension points that let a feature add to shared workspace chrome (app bar, playback bar,
- * keyboard shortcuts dialog) without the shared code importing the feature.
+ * keyboard shortcuts dialog, moment fields) without the shared code importing the feature.
  *
  * A feature registers while it is mounted (`useWorkspaceSlot`); shared code reads the slot and
  * falls back to its own behavior when nothing is registered.
@@ -43,6 +43,20 @@ export type ShortcutSection = { title: string; rows: readonly ShortcutRow[] };
 /** An extra column in the keyboard shortcuts dialog. */
 export type ShortcutColumn = { title: string; sections: readonly ShortcutSection[] };
 
+/** Renders a moment metadata value, or returns undefined to keep the default rendering. */
+export type MomentValueRenderer = (props: {
+  value: string;
+  highlight?: string;
+}) => React.ReactNode | undefined;
+
+/** An end adornment for a moment metadata value field. */
+export type MomentValueAdornment = React.ComponentType<{
+  /** The record that is actually open; undefined when none is. */
+  recordId?: string;
+  value: string;
+  onChange: (value: string) => void;
+}>;
+
 /** A left sidebar tab, shown after the built-in Moment tab. */
 export type LeftSidebarSlotItem = { key: LeftSidebarItemKey; item: SidebarItem };
 
@@ -51,6 +65,8 @@ type Slots = {
   leftSidebarItems: Readonly<Record<string, LeftSidebarSlotItem>>;
   playbackStep: Readonly<Record<string, PlaybackStepOverride>>;
   shortcutColumns: Readonly<Record<string, ShortcutColumn>>;
+  momentValueRenderers: Readonly<Record<string, MomentValueRenderer>>;
+  momentValueAdornments: Readonly<Record<string, MomentValueAdornment>>;
 };
 
 export type WorkspaceSlotName = keyof Slots;
@@ -60,6 +76,8 @@ export const useWorkspaceSlots = create<Slots>(() => ({
   leftSidebarItems: {},
   playbackStep: {},
   shortcutColumns: {},
+  momentValueRenderers: {},
+  momentValueAdornments: {},
 }));
 
 /** Registers `value` under `id` in `slot`; an undefined value registers nothing. */

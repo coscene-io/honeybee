@@ -38,6 +38,7 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
+import { useWorkspaceSlotValues } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 
 import { CreateEventForm } from "../types";
@@ -75,16 +76,19 @@ const useStyles = makeStyles()((theme, _params) => ({
 
 interface EventFormProps {
   form: UseFormReturn<CreateEventForm>;
+  /** Record that is actually open. A reference is not written for any other record. */
+  recordId?: string;
   onMetaDataKeyDown?: (keyboardEvent: React.KeyboardEvent) => void;
 }
 
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
-export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.ReactNode {
+export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps): React.ReactNode {
   const { classes } = useStyles();
   const { t } = useTranslation("event");
   const { formatTime } = usePlaybackTimeFormat();
+  const valueAdornments = useWorkspaceSlotValues("momentValueAdornments");
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const [isComposition, setIsComposition] = useState(false);
 
@@ -416,10 +420,35 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
                   render={({ field: valueField }) => (
                     <TextField
                       {...valueField}
+                      fullWidth
                       size="small"
                       variant="filled"
                       placeholder={t("attributeValue")}
                       error={hasDuplicate}
+                      slotProps={{
+                        input: {
+                          // Features may offer a value picker here (WorkspaceSlots).
+                          endAdornment:
+                            valueAdornments.length > 0 ? (
+                              <>
+                                {valueAdornments.map((Adornment, adornmentIndex) => (
+                                  <Adornment
+                                    key={adornmentIndex}
+                                    recordId={recordId}
+                                    value={valueField.value}
+                                    onChange={(value) => {
+                                      valueField.onChange(value);
+                                      // Same deferral as typing into the field below.
+                                      setTimeout(() => {
+                                        handleAutoAppendRow(index);
+                                      }, 0);
+                                    }}
+                                  />
+                                ))}
+                              </>
+                            ) : undefined,
+                        },
+                      }}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (
                           (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&

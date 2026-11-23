@@ -13,6 +13,7 @@ import { SpatialSidebar } from "./SpatialSidebar";
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { segmentationSession } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
+import { MomentReferencePicker } from "./MomentReferencePicker";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
@@ -23,7 +24,7 @@ afterEach(() => {
   document.body.removeAttribute("tabindex");
 });
 
-it("keeps actual editor/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
+it("keeps actual editor/picker/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
   const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, {
     delayMs: 0,
@@ -49,6 +50,7 @@ it("keeps actual editor/native surfaces locked until delayed cancel ack and rest
       <SpatialSidebar />
       <SemanticSegmentationWorkbench runtime={runtime} />
       <CurrentFramePropagationForm store={runtime.store} />
+      <MomentReferencePicker store={runtime.store} value="" onChange={() => {}} />
       <GlobalPropagationLock />
     </>,
   );
@@ -59,6 +61,9 @@ it("keeps actual editor/native surfaces locked until delayed cancel ack and rest
   expect(within(lock).getByRole("button", { name: "Stopping…" })).toHaveProperty("disabled", true);
   expect(container.inert).toBe(true);
   expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", true);
+  expect(
+    screen.getByRole("button", { name: "Reference a spatial class or instance" }),
+  ).toHaveProperty("disabled", true);
   act(() => {
     runtime.store.getState().stopPropagation();
   });
@@ -82,5 +87,8 @@ it("keeps actual editor/native surfaces locked until delayed cancel ack and rest
   });
   expect(container.inert).not.toBe(true);
   expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", false);
+  expect(
+    screen.getByRole("button", { name: "Reference a spatial class or instance" }),
+  ).toHaveProperty("disabled", false);
   runtime.dispose();
 });

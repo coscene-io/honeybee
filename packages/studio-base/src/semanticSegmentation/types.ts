@@ -77,6 +77,14 @@ export type AnnotationSummary = {
    */
   fromTimeline?: true;
 };
+export type MomentReference = {
+  id: string;
+  momentId: string;
+  recordId: string;
+  videoId: string;
+  targetType: "class" | "instance";
+  targetId: string;
+};
 export type SegmentationDocument = {
   record: { id: string; name: string };
   videos: SegmentationVideo[];
@@ -87,6 +95,7 @@ export type SegmentationDocument = {
   annotations: Record<string, FrameInstance>;
   /** Lightweight presence metadata for tree counts without fetching all frame geometry. */
   annotationSummaries: Record<string, AnnotationSummary>;
+  momentReferences: MomentReference[];
   /**
    * Loaded server observations that cannot be displayed or edited, keyed like `annotations`. The
    * adapter keeps their original geometry and re-sends it, so saving a frame never drops them.
@@ -98,6 +107,7 @@ export type SegmentationPatch = {
   classes?: Record<string, SegmentationClass | undefined>;
   instances?: Record<string, SegmentationInstance | undefined>;
   annotations?: Record<string, FrameInstance | undefined>;
+  momentReferences?: Record<string, MomentReference | undefined>;
   /** Applies across unloaded frames too. Sources are removed after their polygons are moved. */
   instanceMerges?: Record<string, string>;
   /** Polygon-ID deltas, so a save rewrites only the polygons this command changed. */
@@ -312,6 +322,11 @@ export type SemanticSegmentationStore = {
   stopPropagation: () => void;
   /** Quick annotation on the displayed frame; the result is a draft mask. */
   segmentFrame: (request: QuickSegmentRequest, signal?: AbortSignal) => Promise<QuickSegmentResult>;
+  addMomentReference: (
+    momentId: string,
+    targetType: "class" | "instance",
+    targetId: string,
+  ) => string;
   clearError: () => void;
   dispose: () => void;
 };

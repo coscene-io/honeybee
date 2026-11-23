@@ -19,6 +19,7 @@
 | 合并类别                       | 逐个 `UpdateInstance` 换类别，再 `DeleteClass`                                                                                           |
 | 合并实例                       | **不支持**，写入前就报错：API 列不出录像的全部 topic，删除源实例会连带删掉它在未打开相机上的观测                                         |
 | 传播 / 停止                    | `PropagateAnnotation` 服务端流，`direction` 为 FORWARD 或 BACKWARD；停止即取消 RPC                                                       |
+| Moment 引用                    | 不在契约里，正式服务不保存                                                                                                               |
 
 一次提交（`submit`）的顺序：
 

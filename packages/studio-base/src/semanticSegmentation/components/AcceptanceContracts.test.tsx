@@ -11,8 +11,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { segmentationSession } from "../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../service";
-import { setMockControls } from "../testing/mockService";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
+import { ActiveMomentReference } from "./ActiveMomentReference";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
@@ -220,4 +221,30 @@ it("identifies a failed stream request, unlocks controls and keeps accepted repl
   expect(runtime.store.getState().stagedOperations).toHaveLength(1);
   expect(write).not.toHaveBeenCalled();
   runtime.dispose();
+});
+
+it("keeps the form record A reference when the runtime switches to B before or during picking", async () => {
+  const a = await fixture();
+  const document = createSeedDocument();
+  document.record.id = "record-B";
+  document.videos = document.videos.map((video) => ({ ...video, recordId: "record-B" }));
+  const b = await fixture(document);
+  const value = "spatial://record-1/video-1/instance/instance-1";
+  const change = jest.fn();
+  segmentationSession.setState({ runtime: a, sourceReady: true });
+  render(<ActiveMomentReference recordId="record-1" value={value} onChange={change} />);
+  fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
+    target: { value: "instance/instance-2" },
+  });
+  act(() => {
+    segmentationSession.setState({ runtime: b });
+  });
+  expect(
+    screen.getByRole("button", { name: "Reference a spatial class or instance" }),
+  ).toHaveProperty("disabled", true);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(change).not.toHaveBeenCalled();
+  a.dispose();
+  b.dispose();
 });

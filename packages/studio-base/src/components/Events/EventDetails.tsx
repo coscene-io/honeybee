@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
+import { MomentMetadataValue } from "@foxglove/studio-base/components/Events/MomentMetadataValue";
 import {
   DOUBTFUL_MOMENT_COLOR,
   DOUBTFUL_FIELD_KEY,
@@ -129,7 +130,9 @@ export function EventDetails({
                   <Typography variant="caption" className={classes.layout1}>
                     {label}
                   </Typography>
-                  <Typography className={classes.value}>{value}</Typography>
+                  <Typography className={classes.value}>
+                    {typeof value === "string" ? <MomentMetadataValue value={value} /> : value}
+                  </Typography>
                 </Stack>
               ))}
             <CustomFieldValuesFields

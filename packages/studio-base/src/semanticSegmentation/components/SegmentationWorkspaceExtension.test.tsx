@@ -56,6 +56,7 @@ it("registers nothing while the rollout flag is off, even on a cloud record", ()
   expect(slots.leftSidebarItems).toEqual({});
   expect(slots.playbackStep).toEqual({});
   expect(slots.shortcutColumns).toEqual({});
+  expect(slots.momentValueRenderers).toEqual({});
   expect(container.innerHTML).toBe("");
 });
 

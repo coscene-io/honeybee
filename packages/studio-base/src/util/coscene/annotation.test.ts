@@ -18,6 +18,7 @@ const document: SegmentationDocument = {
   instances: [],
   annotations: {},
   annotationSummaries: {},
+  momentReferences: [],
 };
 const recordName = "warehouses/w/projects/p/records/r";
 

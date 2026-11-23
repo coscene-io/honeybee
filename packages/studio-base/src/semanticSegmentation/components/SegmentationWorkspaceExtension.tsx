@@ -12,6 +12,7 @@ import { useStore } from "zustand";
 import {
   useWorkspaceSlot,
   type LeftSidebarSlotItem,
+  type MomentValueRenderer,
   type PlaybackStepOverride,
   type ShortcutColumn,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
@@ -21,11 +22,17 @@ import { segmentationPlaybackStep, useSegmentationStepLabel } from "../cameraFra
 import { semanticSegmentationAvailable, useSemanticSegmentationFlag } from "../featureFlag";
 import { segmentationSession } from "../runtime";
 import { getSegmentationShortcuts } from "../shortcuts";
+import { ActiveMomentReference, SpatialReferenceValue } from "./ActiveMomentReference";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
 import { SpatialSidebar } from "./SpatialSidebar";
 
 const SLOT_ID = "semanticSegmentation";
+
+const renderMomentValue: MomentValueRenderer = ({ value, highlight }) =>
+  value.startsWith("spatial://") ? (
+    <SpatialReferenceValue value={value} highlight={highlight} />
+  ) : undefined;
 
 /**
  * Plugs the segmentation editor into the shared workspace chrome through WorkspaceSlots, so
@@ -55,6 +62,8 @@ function SegmentationWorkspaceSlots(): React.JSX.Element {
   );
   useWorkspaceSlot("leftSidebarItems", SLOT_ID, sidebarItem);
   useWorkspaceSlot("appBarItems", SLOT_ID, SegmentationAppBarControls);
+  useWorkspaceSlot("momentValueRenderers", SLOT_ID, renderMomentValue);
+  useWorkspaceSlot("momentValueAdornments", SLOT_ID, ActiveMomentReference);
 
   const stepCamera = useSegmentationStepLabel();
   const playbackStep = useMemo<PlaybackStepOverride | undefined>(
