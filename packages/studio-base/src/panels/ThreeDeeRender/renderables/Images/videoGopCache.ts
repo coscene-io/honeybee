@@ -123,6 +123,11 @@ export function sameVideoFrameMessage(left: MessageEvent, right: MessageEvent): 
 
 export class VideoGopCache {
   readonly #rangesByTopic = new Map<string, CachedVideoRange[]>();
+  /**
+   * framesForTopic's last listing per topic. Every mutation drops them all, so a listing never
+   * outlives (or keeps alive) frames the cache evicted.
+   */
+  readonly #topicListings = new Map<string, MessageEvent[]>();
   readonly #activeRangeByTopic = new Map<string, CachedVideoRange>();
   readonly #topicsAwaitingPostSeekFrame = new Set<string>();
   // Sorted keyframe receive times per topic. Kept independent of the frame LRU so it survives
@@ -144,6 +149,7 @@ export class VideoGopCache {
   }
 
   public addFrame(msg: MessageEvent): boolean {
+    this.#changed();
     const cachedFrame = cachedVideoFrame(msg, this.#nextFrameInsertionOrder);
     if (cachedFrame == undefined) {
       return false;
@@ -190,6 +196,7 @@ export class VideoGopCache {
   }
 
   public handleSeek(targetTime: Time): void {
+    this.#changed();
     this.#targetReceiveTimeNs = toNanoSec(targetTime);
     this.#topicsAwaitingPostSeekFrame.clear();
     for (const topic of this.#rangesByTopic.keys()) {
@@ -199,6 +206,7 @@ export class VideoGopCache {
   }
 
   public addFrameRange(messages: readonly MessageEvent[]): void {
+    this.#changed();
     if (messages.length === 0) {
       return;
     }
@@ -245,6 +253,41 @@ export class VideoGopCache {
     }
   }
 
+  /**
+   * Every frame currently held for a topic, in receive order. Unlike the replay lookups this is
+   * not bounded to one GOP, so callers that need the frames around the playhead (the annotation
+   * frame window) can read them without decoding. Eviction still applies: the list is only what
+   * the cache has kept. The array is reused until the cache changes: callers must not mutate it.
+   */
+  public framesForTopic(topic: string): MessageEvent[] {
+    const listed = this.#topicListings.get(topic);
+    if (listed) {
+      return listed;
+    }
+    const ranges = this.#rangesByTopic.get(topic);
+    const frames =
+      ranges == undefined || ranges.length === 0
+        ? []
+        : ranges
+            .flatMap((range) => range.frames)
+            .sort((left, right) =>
+              left.receiveTimeNs < right.receiveTimeNs
+                ? -1
+                : left.receiveTimeNs > right.receiveTimeNs
+                  ? 1
+                  : 0,
+            )
+            .map((frame) => frame.messageEvent);
+    this.#topicListings.set(topic, frames);
+    return frames;
+  }
+
+  #changed(): void {
+    if (this.#topicListings.size > 0) {
+      this.#topicListings.clear();
+    }
+  }
+
   public framesForReceiveTime(topic: string, targetTime: Time): MessageEvent[] | undefined {
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
@@ -265,6 +308,7 @@ export class VideoGopCache {
     topic: string,
     targetTime: Time,
   ): MessageEvent[] | undefined {
+    this.#changed();
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
@@ -309,6 +353,7 @@ export class VideoGopCache {
     topic: string,
     targetTime: Time,
   ): MessageEvent[] | undefined {
+    this.#changed();
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
@@ -343,6 +388,7 @@ export class VideoGopCache {
   }
 
   public clear(): void {
+    this.#changed();
     this.#rangesByTopic.clear();
     this.#activeRangeByTopic.clear();
     this.#topicsAwaitingPostSeekFrame.clear();
@@ -352,6 +398,7 @@ export class VideoGopCache {
   }
 
   public clearTopic(topic: string): void {
+    this.#changed();
     this.#keyframeReceiveTimesByTopic.delete(topic);
     this.#topicsAwaitingPostSeekFrame.delete(topic);
     const ranges = this.#rangesByTopic.get(topic);
@@ -389,6 +436,7 @@ export class VideoGopCache {
   }
 
   #mergeOverlappingRanges(topic: string): void {
+    this.#changed();
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length <= 1) {
       return;
@@ -426,6 +474,7 @@ export class VideoGopCache {
   }
 
   #pruneToBudget(): void {
+    this.#changed();
     while (this.#byteSize > this.#maxBytes) {
       const candidate = this.#rangeFurthestFromTarget();
       if (candidate == undefined) {
@@ -465,6 +514,7 @@ export class VideoGopCache {
   }
 
   #removeRange(topic: string, range: CachedVideoRange): void {
+    this.#changed();
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined) {
       return;

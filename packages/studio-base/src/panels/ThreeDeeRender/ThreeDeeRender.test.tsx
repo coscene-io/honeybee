@@ -14,6 +14,10 @@ import { fromNanoSec } from "@foxglove/rostime";
 import { Immutable, MessageEvent, RenderState } from "@foxglove/studio";
 import { pauseFrameForPromises } from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
 import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import {
+  segmentationImageMetadataSources,
+  segmentationImageSources,
+} from "@foxglove/studio-base/semanticSegmentation/imageSource";
 
 import type { RendererConfig } from "./IRenderer";
 import { Renderer } from "./Renderer";
@@ -148,7 +152,10 @@ jest.mock("./Renderer", () => ({
   }),
 }));
 
-function mountPanel(beforeRenderer?: (context: BuiltinPanelExtensionContext) => void) {
+function mountPanel(
+  beforeRenderer?: (context: BuiltinPanelExtensionContext) => void,
+  options: { interfaceMode?: "3d" | "image"; segmentation?: boolean } = {},
+) {
   const context = {
     initialState: {},
     saveState: jest.fn(),
@@ -159,13 +166,21 @@ function mountPanel(beforeRenderer?: (context: BuiltinPanelExtensionContext) => 
     unstable_setMessagePathDropConfig: jest.fn(),
     unstable_getPlaybackIsPlaying: () => true,
     layout: { addPanel: jest.fn() },
+    setDefaultPanelTitle: jest.fn(),
   } as unknown as BuiltinPanelExtensionContext;
   mockBeforeRenderer = beforeRenderer
     ? () => {
         beforeRenderer(context);
       }
     : undefined;
-  const view = render(<ThreeDeeRender context={context} interfaceMode="3d" testOptions={{}} />);
+  const view = render(
+    <ThreeDeeRender
+      context={context}
+      interfaceMode={options.interfaceMode ?? "3d"}
+      testOptions={{}}
+      segmentation={options.segmentation}
+    />,
+  );
   return { context, view };
 }
 async function flushRender() {
@@ -410,5 +425,54 @@ describe("onRender awaited presentation", () => {
       expect.objectContaining({ currentFrame: [message("/latest", 2n)], didSeek: false }),
     );
     view.unmount();
+  });
+});
+
+describe("spatial annotation bridge", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockBeforeRenderer = undefined;
+  });
+
+  function frameEvents(view: ReturnType<typeof render>): {
+    canvas: HTMLCanvasElement;
+    count: () => number;
+  } {
+    const canvas = view.container.querySelector("canvas")!;
+    let count = 0;
+    view.container.addEventListener("segmentation-frame", () => {
+      count++;
+    });
+    return { canvas, count: () => count };
+  }
+
+  it("exposes nothing and dispatches no per-frame event when annotation is off", () => {
+    const { view } = mountPanel(undefined, { interfaceMode: "image" });
+    const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
+    const { canvas, count } = frameEvents(view);
+
+    act(() => {
+      renderer.emit("endFrame", 0n, renderer);
+    });
+
+    expect(count()).toBe(0);
+    expect(segmentationImageSources.has(canvas)).toBe(false);
+    expect(segmentationImageMetadataSources.has(canvas)).toBe(false);
+    view.unmount();
+  });
+
+  it("bridges the image to the editor only when annotation is on", () => {
+    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: true });
+    const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
+    const { canvas, count } = frameEvents(view);
+
+    act(() => {
+      renderer.emit("endFrame", 0n, renderer);
+    });
+
+    expect(count()).toBe(1);
+    expect(segmentationImageSources.has(canvas)).toBe(true);
+    view.unmount();
+    expect(segmentationImageSources.has(canvas)).toBe(false);
   });
 });

@@ -27,6 +27,7 @@ import {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageRenderable";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import { createPlaybackInteractionStateStore } from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
+import { segmentationMaskOverlay } from "@foxglove/studio-base/semanticSegmentation/imageSource";
 
 import { ImageMode } from "./ImageMode";
 import {
@@ -35,8 +36,16 @@ import {
   WAITING_FOR_IMAGE_EMPTY_HUD_ITEM,
   WAITING_FOR_IMAGE_NOTICE_HUD_ITEM,
 } from "./MessageHandler";
+import { SegmentationMaskLayer } from "./SegmentationMaskLayer";
 import { ConfigWithDefaults } from "./types";
 import { AnyImage, CompressedVideo } from "../Images/ImageTypes";
+
+jest.mock("./SegmentationMaskLayer", () => ({
+  SegmentationMaskLayer: jest.fn().mockImplementation(() => ({
+    update: jest.fn(),
+    dispose: jest.fn(),
+  })),
+}));
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -442,6 +451,114 @@ describe("ImageMode compressed video seek replay", () => {
     expect(messageHandler.setConfig).toHaveBeenLastCalledWith(
       expect.objectContaining({ synchronize: true }),
     );
+  });
+
+  it("captures original decoded frame pixels for segmentation independently of viewport transforms", async () => {
+    const imageMode = new TestImageMode(makeRenderer());
+    expect(imageMode.captureSegmentationImage()).toBeUndefined();
+    void compressedVideoSubscription(imageMode).processQueue?.(
+      [makeVideoMessage(0n, "key")],
+      PLAYBACK_CONTEXT,
+    );
+    await flushAsyncWork();
+    const renderable = imageMode.currentImageRenderable()!;
+    const pixels = new ImageData(8, 4);
+    const decoded = jest.spyOn(renderable, "getDecodedImage").mockReturnValue(pixels);
+    renderable.userData.displayedFrameState = {
+      image: makeVideoMessage(0n, "key").message,
+      receiveTime: 0n,
+    };
+    const encode = jest
+      .spyOn(HTMLCanvasElement.prototype, "toDataURL")
+      .mockImplementation(function (this: HTMLCanvasElement) {
+        expect(this.width).toBe(8);
+        expect(this.height).toBe(4);
+        return "data:image/png;base64,original-decoded-frame";
+      });
+    expect(imageMode.captureSegmentationImageMetadata()).toMatchObject({
+      timestamp: { sec: 0, nsec: 0 },
+      receiveTime: { sec: 0, nsec: 0 },
+      topic: "/camera",
+      decodedIdentity: pixels,
+    });
+    expect(encode).not.toHaveBeenCalled();
+    expect(imageMode.captureSegmentationImage()).toMatchObject({
+      imageUrl: "data:image/png;base64,original-decoded-frame",
+      timestamp: { sec: 0, nsec: 0 },
+      receiveTime: { sec: 0, nsec: 0 },
+      topic: "/camera",
+      decodedIdentity: pixels,
+    });
+    // A newer requested message must not relabel the old displayed pixels.
+    renderable.userData.image = makeVideoMessage(900n, "delta").message;
+    expect(imageMode.captureSegmentationImage()?.timestamp).toEqual({ sec: 0, nsec: 0 });
+    imageMode.handleSeek();
+    expect(imageMode.captureSegmentationImageMetadata()).toBeUndefined();
+    expect(imageMode.captureSegmentationImage()).toBeUndefined();
+    decoded.mockReturnValue(new ImageData(8, 4));
+    renderable.userData.displayedFrameState = {
+      image: makeVideoMessage(900n, "key").message,
+      receiveTime: 900n,
+    };
+    expect(imageMode.captureSegmentationImage()?.timestamp).toEqual({ sec: 0, nsec: 900 });
+    expect(encode).toHaveBeenCalledWith("image/png");
+    imageMode.dispose();
+  });
+
+  it("encodes the PNG only when the editor reads imageUrl, once per decoded frame", async () => {
+    const imageMode = new TestImageMode(makeRenderer());
+    void compressedVideoSubscription(imageMode).processQueue?.(
+      [makeVideoMessage(0n, "key")],
+      PLAYBACK_CONTEXT,
+    );
+    await flushAsyncWork();
+    const renderable = imageMode.currentImageRenderable()!;
+    jest.spyOn(renderable, "getDecodedImage").mockReturnValue(new ImageData(8, 4));
+    renderable.userData.displayedFrameState = {
+      image: makeVideoMessage(0n, "key").message,
+      receiveTime: 0n,
+    };
+    const encode = jest
+      .spyOn(HTMLCanvasElement.prototype, "toDataURL")
+      .mockReturnValue("data:image/png;base64,frame");
+    encode.mockClear();
+    const context = jest
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({ putImageData: jest.fn() } as unknown as CanvasRenderingContext2D);
+
+    const first = imageMode.captureSegmentationImage()!;
+    const again = imageMode.captureSegmentationImage()!;
+    expect(again).toBe(first);
+    expect(encode).not.toHaveBeenCalled();
+    expect(first.imageUrl).toBe("data:image/png;base64,frame");
+    expect(again.imageUrl).toBe("data:image/png;base64,frame");
+    expect(encode).toHaveBeenCalledTimes(1);
+    imageMode.dispose();
+    encode.mockRestore();
+    context.mockRestore();
+  });
+
+  it("builds no mask layer until a mask source is installed", () => {
+    const layer = jest.mocked(SegmentationMaskLayer);
+    layer.mockClear();
+    const renderer = makeRenderer();
+    const imageMode = new TestImageMode(renderer);
+    imageMode.startFrame(0n, "", "");
+    expect(layer).not.toHaveBeenCalled();
+
+    const queued = jest.mocked(renderer.queueAnimationFrame);
+    queued.mockClear();
+    segmentationMaskOverlay.set({ frame: () => undefined, upcoming: () => [] });
+    // The redraw lets a paused panel pick the masks up on its next frame.
+    expect(queued).toHaveBeenCalled();
+    imageMode.startFrame(0n, "", "");
+    imageMode.startFrame(0n, "", "");
+    expect(layer).toHaveBeenCalledTimes(1);
+
+    imageMode.dispose();
+    const instance = layer.mock.results[0]!.value as { dispose: jest.Mock };
+    expect(instance.dispose).toHaveBeenCalled();
+    segmentationMaskOverlay.set(undefined);
   });
 
   it("retains the displayed video when synchronization changes while paused", async () => {

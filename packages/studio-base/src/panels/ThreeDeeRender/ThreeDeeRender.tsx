@@ -31,6 +31,12 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
+import {
+  segmentationCachedFrames,
+  segmentationImageMetadataSources,
+  segmentationImageSources,
+  segmentationViewControls,
+} from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
@@ -56,6 +62,7 @@ import {
   makePoseMessage,
 } from "./publish";
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
+import { ImageMode } from "./renderables/ImageMode/ImageMode";
 import { PublishClickEventMap, PublishClickType } from "./renderables/PublishClickTool";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/PublishSettings";
 import { getTopicMessageFrequencies } from "./topicMessageFrequencies";
@@ -150,8 +157,16 @@ export function ThreeDeeRender(props: {
   testOptions: TestOptions;
   /** Allow for injection or overriding of default extensions by custom extensions */
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
+  /** Expose this image to the spatial annotation editor. Off unless its feature flag is on. */
+  segmentation?: boolean;
 }): React.JSX.Element {
-  const { context, interfaceMode, testOptions, customSceneExtensions } = props;
+  const {
+    context,
+    interfaceMode,
+    testOptions,
+    customSceneExtensions,
+    segmentation = false,
+  } = props;
   const {
     initialState,
     saveState,
@@ -952,6 +967,47 @@ export function ThreeDeeRender(props: {
     },
     [renderer],
   );
+
+  useEffect(() => {
+    if (!canvas || !renderer || interfaceMode !== "image" || !segmentation) {
+      return;
+    }
+    const imageMode = () => {
+      const extension = [...renderer.sceneExtensions.values()].find(
+        (item) => item instanceof ImageMode,
+      );
+      return extension instanceof ImageMode ? extension : undefined;
+    };
+    segmentationCachedFrames.set(canvas, () => imageMode()?.cachedSegmentationFrames() ?? []);
+    segmentationImageMetadataSources.set(canvas, () =>
+      imageMode()?.captureSegmentationImageMetadata(),
+    );
+    segmentationImageSources.set(canvas, () => imageMode()?.captureSegmentationImage());
+    segmentationViewControls.set(canvas, {
+      reset: () => {
+        imageMode()?.resetViewModifications();
+        renderer.queueAnimationFrame();
+      },
+      zoom: (ratio, clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        imageMode()?.zoomViewAt(ratio, clientX - rect.left, clientY - rect.top);
+      },
+      panBy: (dx, dy) => {
+        imageMode()?.panViewBy(dx, dy);
+      },
+    });
+    const onFrame = () => {
+      canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+    };
+    renderer.on("endFrame", onFrame);
+    return () => {
+      segmentationCachedFrames.delete(canvas);
+      segmentationViewControls.delete(canvas);
+      segmentationImageMetadataSources.delete(canvas);
+      segmentationImageSources.delete(canvas);
+      renderer.off("endFrame", onFrame);
+    };
+  }, [canvas, renderer, interfaceMode, segmentation]);
 
   const selectedImageTopic = interfaceMode === "image" ? config.imageMode.imageTopic : undefined;
   const selectedImageTopicMessageFrequency = useMemo(
