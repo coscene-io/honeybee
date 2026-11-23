@@ -31,10 +31,10 @@ Each feature file starts with an H1 title and one paragraph of user-visible beha
 ## Features
 
 - [Paused start shows every camera](./paused-start-cameras.md) covers opening a record paused at its first instant, playing, and pausing.
-- [Enter and leave annotation](./annotation-session.md) covers the app-bar entry, the browser-only badge, frame-gated tree actions, and leaving.
+- [Enter and leave annotation](./annotation-session.md) covers the app-bar entry, frame-gated tree actions, and leaving.
 - [Open a local MCAP](./local-mcap.md) covers loading a recording file from disk in the web build.
 - [Keyboard shortcuts panel](./keyboard-shortcuts.md) covers the Studio shortcuts dialog and its spatial-annotation column.
-- [Canvas view popover](./canvas-view-popover.md) covers zoom, fit, pan, opacity, and the navigation profile on one canvas.
-- [Per-canvas propagation](./canvas-propagation.md) covers propagating every instance on one canvas from its panel toolbar.
+- [Canvas view popover](./canvas-view-popover.md) covers zoom, fit, pan, and opacity on one canvas.
+- [Per-canvas propagation](./canvas-propagation.md) covers propagating the checked instances on one canvas, forward, backward or both, from its panel toolbar.
 - [Per-camera frame strip and stepping](./camera-frame-steps.md) covers the ±20 frame strip under each polygon row and stepping the edited camera by real source frames.
-- [Live AnnotationService](./live-annotation-service.md) covers the cloud-only rule, the RPCs behind each action, dev test-data rules, and what dev currently blocks.
+- [Live AnnotationService](./live-annotation-service.md) covers the cloud-only rule, the RPCs behind each action, quick annotation, and dev test-data rules.

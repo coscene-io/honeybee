@@ -7,7 +7,8 @@ For a cloud record, the editor reads and saves through the published `Annotation
 - `cloud-only`: every session uses the live service. There is no badge and no switch. A local file or a record without a cloud name shows `✎ 编辑空间标注` disabled with the title `只有云端记录支持空间标注`.
 - `catalog`: classes and instances in the tree come from `ListClasses` / `ListInstances`; create, rename, recolor, move and delete call the matching CRUD RPCs on submit.
 - `frames`: geometry comes from `ListFrames` in windows of at most 10 s; a save sends one `SaveAnnotation` with the complete snapshot of each changed frame. `frame_time` is the displayed frame's log time truncated to microseconds.
-- `propagation`: `PropagateAnnotation` as a gRPC-Web server stream; STOP cancels the RPC.
+- `propagation`: `PropagateAnnotation` as a gRPC-Web server stream with `direction` FORWARD or BACKWARD; STOP cancels the RPC.
+- `quick-annotation`: each click sends `SegmentFrame` with the displayed frame as JPEG and every point so far; the result is a draft mask, saved only on 提交.
 - `instance-merge`: refused on the live service before any write.
 
 ## How to get to it (user POV)

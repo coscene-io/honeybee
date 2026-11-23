@@ -1,13 +1,12 @@
 # Canvas view popover
 
-Each annotation canvas has a view-tools button at its bottom right. It opens a menu styled like the timeline ••• menu, with a zoom stepper, fit and pan rows, the mouse or trackpad profile, overlay opacity, a 键盘快捷键 entry, and the image size.
+Each annotation canvas has a view-tools button at its bottom right. It opens a menu styled like the timeline ••• menu, with a zoom stepper, fit and pan rows, overlay opacity, a 键盘快捷键 entry, and the image size.
 
 ## Sub-features
 
 - `view-zoom` steps zoom with − and + and shows `Fit · N%` when fitted.
 - `view-fit` fits the canvas, fits the selection, and shows 100%.
 - `view-pan` toggles the pan tool and shows its selected state.
-- `view-profile` switches mouse and trackpad navigation and remembers it.
 - `view-opacity` changes the fill opacity.
 
 ## How to get to it (user POV)

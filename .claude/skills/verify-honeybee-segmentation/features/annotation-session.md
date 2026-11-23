@@ -1,6 +1,6 @@
 # Enter and leave annotation
 
-A user opens spatial annotation from the global app bar, sees that edits are stored only in this browser, creates classes once the current annotation frame has loaded, and leaves annotation from the global app bar.
+A user opens spatial annotation from the global app bar, creates classes once the current annotation frame has loaded, and leaves annotation from the global app bar.
 
 ## Sub-features
 
@@ -30,6 +30,6 @@ Preconditions:
 - Plain `text=编辑空间标注` also matches sidebar prose. Use the button text with the pencil.
 - Before the first native image, editing stays unavailable. Entry must never seek or pause playback. Dragging, pausing and explicit timeline controls retain native behavior.
 - In light theme the global controls must be dark text. Check computed color when theme matters.
-- Creating a class writes to this browser's storage for the record. Cancel with Escape unless the journey needs a class, and say so if you keep one.
+- Creating a class stages it; 提交 writes it to dev. Cancel with Escape unless the journey needs a class, and say so if you keep one.
 
 - Verify two cameras with different `data-log-time-ns`: polygons belong to each camera's displayed log time. During pending decode or playback, editing is disabled. Test native wheel zoom and blank-canvas drag; the transparent polygon overlay must follow the native image. Non-affine calibration shows an explicit unavailable message.

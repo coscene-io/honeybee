@@ -18,7 +18,7 @@
 | 删除类别（连同实例）           | `DeleteClass(force = true)`                                                                                                              |
 | 合并类别                       | 逐个 `UpdateInstance` 换类别，再 `DeleteClass`                                                                                           |
 | 合并实例                       | **不支持**，写入前就报错：API 列不出录像的全部 topic，删除源实例会连带删掉它在未打开相机上的观测                                         |
-| 传播 / 停止                    | `PropagateAnnotation` 服务端流；停止即取消 RPC                                                                                           |
+| 传播 / 停止                    | `PropagateAnnotation` 服务端流，`direction` 为 FORWARD 或 BACKWARD；停止即取消 RPC                                                       |
 | Moment 引用                    | 不在契约里，正式服务不保存                                                                                                               |
 
 一次提交（`submit`）的顺序：
@@ -57,6 +57,8 @@
 
 ## 传播
 
+传播面板列出当前画布这一帧上有几何的实例，默认勾选树里选中的实例（没选就全部），只把勾选的实例作为种子。方向有向后、向前、双向：向前时 `end_time` 早于种子帧并发送 `direction: BACKWARD`，结果按时间倒序到达；双向先向后，完成后再向前。
+
 `PropagateAnnotation` 走 gRPC-Web 服务端流：`ready` 忽略；每个 `frame` 对每个已选实例产出一条结果（服务端没返回的实例记为清除）；`error` 抛出 `传播失败（gRPC code）：message`；`done` 正常结束；没收到 `done` 就断开时报错，已收到的帧保留为草稿。停止就是中止 RPC。模型列表是 `LIVE_PROPAGATION_MODELS`（目前只有后端支持的 `sam2.1-motion`）。
 
 ## 快速标注
@@ -65,7 +67,7 @@
 
 ## 生成代码
 
-已发布的 `@coscene-io/cosceneapis-es-v2` 还没有 `services/annotation_pb`，所以从 #866 在本地生成，放在 `packages/studio-base/src/services/api/spatial-annotation/generated/`（已加入 ESLint 和 Prettier 忽略）。生成命令和换回正式包的步骤见同目录的 `README.md`。
+已发布的 `@coscene-io/cosceneapis-es-v2` 还没有 `services/annotation_pb`，所以从 cosceneapis #866 的分支（已合入 #870 的 `SegmentFrame` 和传播 `direction`）在本地生成，放在 `packages/studio-base/src/services/api/spatial-annotation/generated/`（已加入 ESLint 和 Prettier 忽略）。生成命令和换回正式包的步骤见同目录的 `README.md`。
 
 ## 已知限制与待后端确认
 
