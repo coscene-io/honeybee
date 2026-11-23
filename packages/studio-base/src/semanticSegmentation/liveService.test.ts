@@ -746,7 +746,6 @@ describe("live annotation service", () => {
     seedServer(server);
     await service.loadDocument();
     await service.loadFrameWindow("video", 0, 5);
-    expect((await service.getPropagationCapabilities!()).backward).toBe(true);
     const requests: PropagateAnnotationRequest[] = [];
     server.propagate = async function* (request) {
       requests.push(request);

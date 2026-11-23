@@ -66,8 +66,8 @@ type WireFrameSnapshotInit = MessageInitShape<typeof FrameSnapshotSchema>;
 const MAX_WINDOW_MICROS = BigInt(ANNOTATION_WINDOW_SEC) * 1_000_000n;
 const PAGE_SIZE = 1000;
 /**
- * Models the backend accepts for mask/polygon seeds. data-platform-server #2403 rejects anything
- * but sam2.1-motion with INVALID_ARGUMENT; sam3.1 in the contract example is not deployed.
+ * Models the backend accepts for mask/polygon seeds: it rejects anything but sam2.1-motion with
+ * INVALID_ARGUMENT, and sam3.1 from the contract example is not deployed.
  */
 const LIVE_PROPAGATION_MODELS = ["sam2.1-motion"];
 
@@ -142,8 +142,8 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 /**
- * Adapter from the editor's service boundary to the published AnnotationService
- * (cosceneapis PR #866). The backend keeps only current state, with no revisions or version
+ * Adapter from the editor's service boundary to the AnnotationService
+ * (coscene.dataplatform.v1alpha3). The backend keeps only current state, with no revisions or version
  * checks. Saves from other tabs or users simply overwrite the frames they send (see
  * docs/segmentation-api-integration.md).
  */
@@ -306,7 +306,8 @@ export function createLiveAnnotationService(options: {
             // Unread again, so the next camera registration retries it.
             timelineTopics.delete(topic);
             throwIfAborted(signal);
-            // The catalog stays usable without a timeline; the error is shown, not hidden.
+            // The catalog stays usable without a timeline; unloaded frames then show no presence
+            // until their geometry is read. The error is kept in diagnostics().
             ranges.delete(video.id);
             diagnostics.timelineErrors[topic] = describeRpcError(error);
           }
@@ -714,12 +715,7 @@ export function createLiveAnnotationService(options: {
     diagnostics: () => cloneSegmentation(diagnostics),
     supportsPropagationContext: true,
     supportsMultiInstanceSeeds: true,
-    getPropagationCapabilities: async () =>
-      await Promise.resolve({
-        models: [...models],
-        // The contract's `direction` (cosceneapis 66758a9) also goes backward.
-        backward: true,
-      }),
+    getPropagationCapabilities: async () => await Promise.resolve({ models: [...models] }),
     segmentFrame: async (request, signal) => {
       try {
         return await quickSegment(client, recordName, request, signal);

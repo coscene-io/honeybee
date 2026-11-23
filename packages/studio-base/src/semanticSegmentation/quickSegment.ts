@@ -51,7 +51,7 @@ async function frameJpeg(imageUrl: string, width: number, height: number): Promi
 }
 
 /**
- * Quick annotation through `AnnotationService.SegmentFrame` (cosceneapis #870): the displayed
+ * Quick annotation through `AnnotationService.SegmentFrame`: the displayed
  * frame and every click so far for one object. The server keeps no session, so every call uploads
  * the frame; SAM recomputes the embedding on a GPU in tens of milliseconds.
  */

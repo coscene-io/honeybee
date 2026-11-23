@@ -26,7 +26,7 @@ export type FrameIndex = {
   positionById: Map<string, number>;
   /** Each camera's frames in document order, duplicates included, as `frames.filter` gave. */
   framesOfVideo: Map<string, SegmentationFrame[]>;
-  /** Each camera's frames by their `index` field, for the standalone workbench's presence row. */
+  /** Each camera's frames by their `index` field, for the single-video presence row. */
   frameByVideoIndex: Map<string, Map<number, SegmentationFrame>>;
 };
 

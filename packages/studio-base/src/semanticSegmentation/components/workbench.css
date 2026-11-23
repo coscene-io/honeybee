@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: MPL-2.0 */
 .seg-workbench {
   position: relative;
-  /* Design reference palette (Feishu rev 1956) adapted to CoStudio dark chrome — DEC-010 */
+  /* Dark chrome palette for the editor overlay. */
   --seg-line: #303b50;
   --seg-muted: #9faec5;
   --seg-primary: #3b66f5;
@@ -413,7 +413,6 @@
   color: #ffb3b3;
 }
 
-/* Panel header action buttons share the entry button look. */
 
 .seg-preview {
   position: absolute;

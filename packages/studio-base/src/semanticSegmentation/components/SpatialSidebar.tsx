@@ -33,10 +33,7 @@ export function SpatialSidebar(): React.JSX.Element {
   const runtime = useStore(segmentationSession, (state) =>
     state.open ? state.runtime : (state.previewRuntime ?? state.runtime),
   );
-  const sourceReady = useStore(
-    segmentationSession,
-    (state) => !("sourceReady" in state) || state.sourceReady,
-  );
+  const sourceReady = useStore(segmentationSession, (state) => state.sourceReady);
   return runtime ? (
     <>
       <div style={{ padding: 8 }}>

@@ -8,7 +8,7 @@
 import type { SegmentationFrame } from "./types";
 
 /**
- * Wire frame identity (cosceneapis PR #866): `topic + frame_time`, where frame_time is the source
+ * Wire frame identity in the AnnotationService: `topic + frame_time`, where frame_time is the source
  * message's MCAP log_time truncated (never rounded) to whole microseconds. Locally a frame keeps
  * its full nanosecond log time; these helpers are the only place the two meet.
  */

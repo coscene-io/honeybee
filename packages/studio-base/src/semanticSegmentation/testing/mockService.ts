@@ -235,7 +235,6 @@ export function createMockSemanticSegmentationService(
   };
   const capabilities = cloneSegmentation<PropagationCapabilities>({
     models: ["sam2.1-motion", "sam3.1"],
-    backward: true,
     ...options.capabilities,
   });
   let document = cloneSegmentation(seed);

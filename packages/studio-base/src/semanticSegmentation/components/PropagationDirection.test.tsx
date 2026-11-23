@@ -50,18 +50,11 @@ function seed(document: SegmentationDocument): void {
   }
 }
 
-async function setup(options: { backward?: boolean } = {}) {
+async function setup() {
   const document = createSeedDocument();
   seed(document);
   const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
-  if (options.backward === false) {
-    const original = runtime.service.getPropagationCapabilities!.bind(runtime.service);
-    runtime.service.getPropagationCapabilities = async () => ({
-      ...(await original()),
-      backward: false,
-    });
-  }
   await runtime.initialize();
   act(() => {
     runtime.store.getState().setCurrentFrame(SEED_FRAME);
@@ -217,20 +210,4 @@ it("both directions run forward, then backward", async () => {
   );
   expect(forward).toBeGreaterThan(0n);
   expect(backward).toBeLessThan(0n);
-});
-
-it("offers no direction and refuses backward when the service is forward-only", async () => {
-  const { runtime } = await setup({ backward: false });
-  await waitFor(() => {
-    expect(runtime.store.getState().propagationCapabilities?.backward).toBe(false);
-  });
-  expect(screen.queryByRole("radiogroup", { name: "传播方向" })).toBeNull();
-  const frames = runtime.store.getState().document!.frames;
-  await expect(
-    runtime.store.getState().startPropagation({
-      instanceId: "instance-1",
-      fromFrameId: SEED_FRAME,
-      endTimeNs: frames.find((f) => f.id === "frame-18")!.logTimeNs,
-    }),
-  ).rejects.toThrow("only propagates forward");
 });

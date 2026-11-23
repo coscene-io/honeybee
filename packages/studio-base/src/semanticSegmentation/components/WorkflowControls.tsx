@@ -27,7 +27,7 @@ export function SubmissionControls({
 }: {
   store: StoreApi<SemanticSegmentationStore>;
   disabled?: boolean;
-  /** Lay the controls out as a column inside the panel header menu instead of a toolbar row. */
+  /** Lay the controls out as a column inside the submit menu instead of a toolbar row. */
   menu?: boolean;
 }): React.JSX.Element {
   const state = useStore(store);

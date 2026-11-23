@@ -1278,12 +1278,6 @@ export function createSemanticSegmentationStore(
         }
         // Forward or backward from the seed, in the order results arrive and playback follows.
         const targets = propagationTargets(initial.frames, sourceFrame, request.endTimeNs);
-        if (
-          BigInt(request.endTimeNs) < BigInt(sourceFrame.logTimeNs) &&
-          get().propagationCapabilities?.backward !== true
-        ) {
-          throw new Error("This propagation service only propagates forward");
-        }
         const seeds = resolvePropagationSeeds(request, source);
         for (const seed of seeds) {
           const annotation =

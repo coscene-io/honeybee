@@ -26,9 +26,9 @@ import type { PropagationRequest, SegmentationFrame, SemanticSegmentationStore }
 import type { CanvasPropagationScope } from "./propagationSeeds";
 
 /**
- * How far one click propagates. The API needs an end time (there is no open-ended stream), and
- * both inference backends load the whole range into memory, so the range is bounded; STOP ends it
- * early and keeps every frame received so far.
+ * How far one click propagates. The API needs an end time (there is no open-ended stream) and
+ * the backend loads the whole range into memory, so the range is bounded; STOP ends it early and
+ * keeps every frame received so far.
  */
 export const PROPAGATION_RANGES_SEC = [1, 3, 10] as const;
 const DEFAULT_RANGE_SEC = 10;
@@ -99,8 +99,7 @@ const useStyles = makeStyles()((theme) => ({
 
 /**
  * One-click propagation for one canvas: the checked seeded instances on the canvas's current
- * frame go forward, backward (when the service supports it) or both from that frame for the
- * chosen range, starting at once. "Both" runs forward, then backward if forward completed.
+ * frame go forward, backward or both from that frame for the chosen range, starting at once. "Both" runs forward, then backward if forward completed.
  */
 export function PropagationForm({
   store,
@@ -146,8 +145,6 @@ export function PropagationForm({
       setModel(capabilities.models[0]);
     }
   }, [capabilities, model]);
-  const backwardSupported = capabilities?.backward === true;
-  const effectiveDirection: PropagationDirection = backwardSupported ? direction : "forward";
   const allSeeds = scope?.seeds ?? [];
   const treeSelected = new Set(
     state.selection.filter((node) => node.type === "instance").map((node) => node.id),
@@ -228,7 +225,7 @@ export function PropagationForm({
       const seedNs = BigInt(frame.logTimeNs);
       const rangeNs = BigInt(rangeSec) * 1_000_000_000n;
       const sides: ("forward" | "backward")[] =
-        effectiveDirection === "both" ? ["forward", "backward"] : [effectiveDirection];
+        direction === "both" ? ["forward", "backward"] : [direction];
       await loader?.ensureRange(
         sides.includes("backward") ? seedNs - rangeNs : seedNs,
         sides.includes("forward") ? seedNs + rangeNs : seedNs,
@@ -241,9 +238,9 @@ export function PropagationForm({
       });
       if (runs.length === 0) {
         throw new Error(
-          effectiveDirection === "backward"
+          direction === "backward"
             ? "种子帧之前没有可传播的帧（已到录像开头）。"
-            : effectiveDirection === "forward"
+            : direction === "forward"
               ? "种子帧之后没有可传播的帧（已到录像结尾）。"
               : "种子帧前后都没有可传播的帧。",
         );
@@ -284,7 +281,7 @@ export function PropagationForm({
         </Typography>
         {frame && (
           <Typography variant="caption" color="text.secondary" aria-label="有效传播范围">
-            源帧 {frame.index + 1} · {DIRECTION_LABELS[effectiveDirection]}
+            源帧 {frame.index + 1} · {DIRECTION_LABELS[direction]}
           </Typography>
         )}
       </div>
@@ -385,39 +382,37 @@ export function PropagationForm({
         )}
       </div>
 
-      {backwardSupported && (
-        <div>
-          <Typography variant="caption" className={classes.fieldLabel}>
-            方向
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            fullWidth
-            size="small"
-            color="primary"
-            value={direction}
-            role="radiogroup"
-            aria-label="传播方向"
-            onChange={(_event, value: PropagationDirection | ReactNull) => {
-              if (value) {
-                setDirection(value);
-              }
-            }}
-          >
-            {(Object.keys(DIRECTION_LABELS) as PropagationDirection[]).map((value) => (
-              <ToggleButton
-                key={value}
-                value={value}
-                role="radio"
-                aria-checked={direction === value}
-                className={classes.toggle}
-              >
-                {DIRECTION_LABELS[value]}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </div>
-      )}
+      <div>
+        <Typography variant="caption" className={classes.fieldLabel}>
+          方向
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          fullWidth
+          size="small"
+          color="primary"
+          value={direction}
+          role="radiogroup"
+          aria-label="传播方向"
+          onChange={(_event, value: PropagationDirection | ReactNull) => {
+            if (value) {
+              setDirection(value);
+            }
+          }}
+        >
+          {(Object.keys(DIRECTION_LABELS) as PropagationDirection[]).map((value) => (
+            <ToggleButton
+              key={value}
+              value={value}
+              role="radio"
+              aria-checked={direction === value}
+              className={classes.toggle}
+            >
+              {DIRECTION_LABELS[value]}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </div>
 
       <div>
         <Typography variant="caption" className={classes.fieldLabel}>
@@ -484,8 +479,8 @@ export function PropagationForm({
         {busy === "preparing" ? "正在读取后续帧…" : "开始传播"}
       </Button>
       <Typography variant="caption" color="text.secondary">
-        最多{DIRECTION_LABELS[effectiveDirection]}传播 {rangeSec} 秒，结果逐帧出现。可随时点顶部
-        STOP 停止，已收到的帧保留为草稿，提交后才保存。
+        最多{DIRECTION_LABELS[direction]}传播 {rangeSec} 秒，结果逐帧出现。可随时点顶部 STOP
+        停止，已收到的帧保留为草稿，提交后才保存。
       </Typography>
       {state.propagation.status !== "idle" && (
         <Typography variant="caption" color="text.secondary" aria-live="polite">

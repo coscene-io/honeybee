@@ -171,8 +171,6 @@ export type PropagationCancellation = { requestId: string; status: "cancelled" }
 export type PropagationSeed = { instanceId: string } & ObservationGeometry;
 export type PropagationCapabilities = {
   models: string[];
-  /** True when an end time before the seed (backward propagation) is served. */
-  backward?: boolean;
 };
 export type PropagationRequest = {
   instanceId: string;
@@ -312,7 +310,7 @@ export type SemanticSegmentationStore = {
   startPropagation: (request: PropagationRequest) => Promise<void>;
   /** A mounted native workspace can serialize streamed display; pure stores need no presenter. */
   stopPropagation: () => void;
-  /** Quick annotation through the service; rejects when the service cannot segment (local files). */
+  /** Quick annotation on the displayed frame; the result is a draft mask. */
   segmentFrame: (request: QuickSegmentRequest, signal?: AbortSignal) => Promise<QuickSegmentResult>;
   addMomentReference: (
     momentId: string,

@@ -370,7 +370,7 @@ export function SpatialTree({
         : state.currentFrameId
           ? [state.currentFrameId]
           : [];
-  /** The global multi-camera tree, as opposed to the standalone single-video workbench. */
+  /** The multi-camera tree; otherwise a single video with a presence row around its frame. */
   const overview = sessionOpen || Object.keys(previewFrames).length > 0;
   const selection = document
     ? filterSegmentationSelection(document, state.selection, state.currentFrameId)
@@ -1142,7 +1142,7 @@ export function SpatialTree({
                 isPresent ? "present" : "absent",
               );
             }
-            // The standalone workbench: one video, with a presence row around the current frame.
+            // A single video, with a presence row around the current frame.
             const annotation =
               state.currentFrameId == undefined
                 ? undefined

@@ -28,10 +28,7 @@ export function ActiveMomentReference({
   recordId?: string;
 }): React.JSX.Element | undefined {
   const runtime = useStore(segmentationSession, (state) => state.runtime);
-  const sourceReady = useStore(
-    segmentationSession,
-    (state) => !("sourceReady" in state) || state.sourceReady,
-  );
+  const sourceReady = useStore(segmentationSession, (state) => state.sourceReady);
   return runtime ? (
     <ScopedMomentReference
       store={runtime.store}
@@ -68,7 +65,7 @@ function ScopedMomentReference({
         if (
           recordId != undefined &&
           session.runtime?.store === store &&
-          (!("sourceReady" in session) || session.sourceReady) &&
+          session.sourceReady &&
           store.getState().document?.record.id === recordId &&
           parseSpatialReference(next)?.recordId === recordId
         ) {
