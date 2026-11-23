@@ -11,16 +11,23 @@ import {
   User,
   UserSchema,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
+import { createStore } from "zustand";
 
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataContext, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
+import type { ProjectUserDirectory } from "@foxglove/studio-base/services/api/projectUserDirectory";
 
 import { UserSelect } from "./UserSelect";
 
 const alice = create(UserSchema, { name: "users/alice", nickname: "Alice", active: true });
 const inactive = create(UserSchema, { name: "users/inactive", nickname: "Inactive" });
 const listUsers = jest.fn(async (): Promise<User[]> => [alice, inactive]);
+
+const outside = create(UserSchema, { name: "users/outside", nickname: "Outside", active: true });
+const projectName = "warehouses/w/projects/p";
+const getDirectory = jest.fn<ProjectUserDirectory | undefined, [parent: string | undefined]>();
 
 function renderSelect({
   multiple = false,
@@ -35,7 +42,10 @@ function renderSelect({
 } = {}) {
   const onChange = jest.fn();
   const onClear = jest.fn();
-  const api = { listOrganizationUsers: listUsers } as unknown as NonNullable<
+  const core = createStore(
+    () => ({ externalInitConfig: { warehouseId: "w", projectId: "p" } }) as CoreDataStore,
+  );
+  const api = { getProjectUserDirectory: getDirectory } as unknown as NonNullable<
     React.ContextType<typeof CoSceneConsoleApiContext>
   >;
   function Select() {
@@ -69,13 +79,18 @@ function renderSelect({
   }
   render(
     <CoSceneConsoleApiContext.Provider value={api}>
-      <Select />
+      <CoreDataContext.Provider value={core}>
+        <Select />
+      </CoreDataContext.Provider>
     </CoSceneConsoleApiContext.Provider>,
   );
-  return { onChange, onClear };
+  return { onChange, onClear, core };
 }
 
 beforeEach(() => {
+  getDirectory.mockImplementation((parent) =>
+    parent === projectName ? { parent, listMembers: listUsers } : undefined,
+  );
   listUsers.mockReset();
   listUsers.mockResolvedValue([alice, inactive]);
 });
@@ -213,4 +228,70 @@ it.each([false, true])("preserves disabled selections (multiple=%s)", (multiple)
   }
   expect(onChange).not.toHaveBeenCalled();
   expect(onClear).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  "groups and searches project and excluded users (multiple=%s)",
+  async (multiple) => {
+    const listExcluded = jest.fn(async () => [alice, outside, inactive]);
+    getDirectory.mockReturnValue({ parent: projectName, listMembers: listUsers, listExcluded });
+    const { onChange } = renderSelect({ initialValue: multiple ? [] : "", multiple });
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.mouseDown(input);
+    await screen.findByRole("option", { name: "Outside" });
+    const list = screen.getByRole("listbox");
+    expect(Array.from(list.children).map((group) => group.textContent)).toEqual([
+      "Project membersAlice",
+      "People outside the project (may not be able to work in this project)Outside",
+    ]);
+    fireEvent.change(input, { target: { value: "Out" } });
+    expect(within(list).getAllByRole("option")).toHaveLength(1);
+    fireEvent.click(within(list).getByRole("option", { name: "Outside" }));
+    expect(onChange).toHaveBeenCalledWith(multiple ? [outside] : outside);
+  },
+);
+
+it("offers project members independently when the excluded directory fails", async () => {
+  getDirectory.mockReturnValue({
+    parent: projectName,
+    listMembers: listUsers,
+    listExcluded: jest.fn().mockRejectedValue(new Error("unavailable")),
+  });
+  renderSelect({ initialValue: "" });
+  fireEvent.mouseDown(screen.getByRole("combobox"));
+  expect(await screen.findByRole("option", { name: "Alice" })).toBeDefined();
+  expect(screen.getAllByRole("option")).toHaveLength(1);
+});
+
+it("drops old options and ignores late responses when switching to a project-members-only directory", async () => {
+  let resolveOld: (users: User[]) => void = () => {};
+  const oldMembers = jest.fn(
+    async () =>
+      await new Promise<User[]>((resolve) => {
+        resolveOld = resolve;
+      }),
+  );
+  const listExcluded = jest.fn(async () => [outside]);
+  getDirectory.mockImplementation((parent) =>
+    parent === projectName
+      ? { parent, listMembers: oldMembers, listExcluded }
+      : { parent: "warehouses/w/projects/next", listMembers: listUsers },
+  );
+  const { core, onChange } = renderSelect({ initialValue: "" });
+  const input = screen.getByRole("combobox");
+  fireEvent.focus(input);
+  fireEvent.mouseDown(input);
+  await screen.findByRole("option", { name: "Outside" });
+  act(() => {
+    core.setState({ externalInitConfig: { warehouseId: "w", projectId: "next" } });
+  });
+  expect(screen.queryByText("Outside")).toBeNull();
+  await act(async () => {
+    resolveOld([outside]);
+  });
+  fireEvent.change(input, { target: { value: "Ali" } });
+  fireEvent.click(await screen.findByRole("option", { name: "Alice" }));
+  expect(onChange).toHaveBeenCalledWith(alice);
+  expect(listExcluded).toHaveBeenCalledTimes(1);
 });
