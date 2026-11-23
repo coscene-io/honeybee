@@ -11,25 +11,51 @@ import {
   type CustomFieldValue,
   type Property,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 import {
+  Autocomplete,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
+  IconButton,
   Stack,
   TextField,
+  Typography,
+  dialogContentClasses,
 } from "@mui/material";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { CustomFieldValueFieldEditor } from "@foxglove/studio-base/components/CustomFieldProperty/editor/CustomFieldValueFieldEditor";
+import { formatMomentFieldValue } from "@foxglove/studio-base/components/PlaybackControls/momentFieldValues";
 import type { MomentCustomFieldFilters } from "@foxglove/studio-base/context/EventsContext";
 
 const useStyles = makeStyles()((theme) => ({
-  fields: { paddingTop: theme.spacing(1) },
+  condition: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    alignItems: "end",
+    gap: theme.spacing(1),
+    padding: theme.spacing(1, 1, 1, 1.5),
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: theme.shape.borderRadius,
+  },
+  addIcon: {
+    marginLeft: theme.spacing(1),
+    marginRight: theme.spacing(0.5),
+    color: theme.palette.text.secondary,
+  },
+  actions: {
+    flexWrap: "wrap",
+    paddingBottom: theme.spacing(1.5),
+    [`.${dialogContentClasses.root} + &`]: {
+      paddingTop: theme.spacing(1.5),
+    },
+  },
   clear: { marginRight: "auto" },
 }));
 
@@ -47,63 +73,119 @@ export function MomentCustomFieldFilterDialog({
   const { t } = useTranslation(["event", "general"]);
   const { classes } = useStyles();
   const titleId = useId();
+  const hintId = useId();
   const [draft, setDraft] = useState(() => new Map(filters));
-  const [fieldId, setFieldId] = useState(() => properties.find((field) => draft.has(field.id))?.id);
-  const property = properties.find((field) => field.id === fieldId) ?? properties[0];
-  const fieldValue = property ? draft.get(property.id) : undefined;
+  const [query, setQuery] = useState("");
+  const propertiesById = new Map(properties.map((property) => [property.id, property]));
+  const conditions = Array.from(draft).flatMap(([id, value]) => {
+    const property = propertiesById.get(id);
+    return property == undefined ? [] : [{ property, value }];
+  });
+  const availableProperties = properties.filter((field) => !draft.has(field.id));
+
   const updateField = (id: string, value: CustomFieldValue["value"]) => {
-    setDraft((previous) => {
-      const next = new Map(previous);
-      if (value.case == undefined || (value.case === "user" && value.value.ids.length === 0)) {
-        next.delete(id);
-      } else {
-        next.set(id, value);
-      }
-      return next;
-    });
+    setDraft((previous) => new Map(previous).set(id, value));
   };
 
   return (
-    <Dialog open fullWidth maxWidth="xs" aria-labelledby={titleId} onClose={onClose}>
+    <Dialog
+      open
+      fullWidth
+      maxWidth="sm"
+      aria-labelledby={titleId}
+      aria-describedby={hintId}
+      onClose={onClose}
+    >
       <DialogTitle id={titleId}>{t("filterCustomFields")}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} className={classes.fields}>
-          <TextField
-            select
-            fullWidth
+      <DialogContent dividers>
+        <Stack spacing={1.5}>
+          <Typography id={hintId} variant="body2" color="text.secondary">
+            {t("customFieldFilterHint")}
+          </Typography>
+          <Autocomplete
             size="small"
-            label={t("customFieldFilterField")}
-            value={property?.id ?? ""}
-            onChange={(event) => {
-              setFieldId(event.target.value);
+            options={availableProperties}
+            value={ReactNull}
+            inputValue={query}
+            disabled={availableProperties.length === 0}
+            getOptionLabel={(property) => property.name}
+            getOptionKey={(property) => property.id}
+            noOptionsText={t("general:noMatchingItemsFound")}
+            onInputChange={(_, value, reason) => {
+              setQuery(reason === "input" ? value : "");
             }}
-          >
-            {properties.map((field) => (
-              <MenuItem key={field.id} value={field.id}>
-                {draft.has(field.id)
-                  ? t("customFieldFilterActive", { field: field.name })
-                  : field.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          {property && (
-            <CustomFieldValueFieldEditor
-              key={property.id}
-              customFieldValue={create(CustomFieldValueSchema, {
-                property: { ...property, required: false },
-                value: fieldValue,
-              })}
-              onChange={(field) => {
-                updateField(property.id, field.value);
-              }}
-            />
-          )}
+            onChange={(_, property) => {
+              if (property != undefined) {
+                setDraft((previous) => new Map([[property.id, { case: undefined }], ...previous]));
+                setQuery("");
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={
+                  availableProperties.length > 0
+                    ? t("addCustomFieldFilter")
+                    : t("allCustomFieldFiltersAdded")
+                }
+                slotProps={{
+                  ...params.slotProps,
+                  input: {
+                    ...params.slotProps.input,
+                    startAdornment: <AddIcon className={classes.addIcon} fontSize="small" />,
+                  },
+                  htmlInput: {
+                    ...params.slotProps.htmlInput,
+                    "aria-label": t("addCustomFieldFilter"),
+                  },
+                }}
+              />
+            )}
+          />
+          {conditions.map(({ property, value }) => {
+            const removeLabel = t("removeCustomFieldFilter", { field: property.name });
+            return (
+              <div
+                key={property.id}
+                className={classes.condition}
+                role="group"
+                aria-label={property.name}
+              >
+                <CustomFieldValueFieldEditor
+                  key={property.type.case}
+                  customFieldValue={create(CustomFieldValueSchema, {
+                    property: { ...property, required: false },
+                    value: value.case === property.type.case ? value : undefined,
+                  })}
+                  onChange={(field) => {
+                    updateField(property.id, field.value);
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  aria-label={removeLabel}
+                  title={removeLabel}
+                  onClick={() => {
+                    setDraft((previous) => {
+                      const next = new Map(previous);
+                      next.delete(property.id);
+                      return next;
+                    });
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </div>
+            );
+          })}
         </Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions className={classes.actions}>
         <Button
           className={classes.clear}
-          disabled={draft.size === 0}
+          size="small"
+          color="inherit"
+          disabled={conditions.length === 0}
           onClick={() => {
             setDraft(new Map());
           }}
@@ -114,10 +196,18 @@ export function MomentCustomFieldFilterDialog({
         <Button
           variant="contained"
           onClick={() => {
-            onApply(draft);
+            onApply(
+              new Map(
+                conditions.flatMap(({ property, value }) =>
+                  formatMomentFieldValue({ value }, property) == undefined
+                    ? []
+                    : [[property.id, value] as const],
+                ),
+              ),
+            );
           }}
         >
-          {t("general:apply")}
+          {t("applyMomentFilters")}
         </Button>
       </DialogActions>
     </Dialog>

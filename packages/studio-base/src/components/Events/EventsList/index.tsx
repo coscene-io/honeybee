@@ -60,6 +60,7 @@ import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { EventView } from "./EventView";
 import { MomentCustomFieldFilterDialog } from "./MomentCustomFieldFilterDialog";
+import { MomentFilterChips } from "./MomentFilterChips";
 import { eventListDetails, groupEvents } from "./eventListModel";
 import { EMPTY_EVENTS } from "../../PlaybackControls/eventTimeIndex";
 import { WindowedList, type WindowedItem } from "../WindowedList";
@@ -226,8 +227,15 @@ export function EventsList(): React.JSX.Element {
   const schemaProject = useEvents((store) => store.customFieldSchemaProjectName);
   const customFieldFilters = useEvents((store) => store.customFieldFilters);
   const setCustomFieldFilters = useEvents((store) => store.setCustomFieldFilters);
-  const filterProperties = schema?.properties.filter((field) => field.type.case != undefined) ?? [];
-  const filterCount = customFieldFilters?.size ?? 0;
+  const filterProperties = useMemo(
+    () => schema?.properties.filter((field) => field.type.case != undefined) ?? [],
+    [schema],
+  );
+  const filterCount = (customFieldFilters?.size ?? 0) + (doubtfulOnly ? 1 : 0);
+  const openCustomFieldFilters = () => {
+    setFilterAnchor(undefined);
+    setFilterDialogProject(schemaProject);
+  };
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
   const refreshEvents = useEvents(selectRefreshEvents);
@@ -566,7 +574,7 @@ export function EventsList(): React.JSX.Element {
           aria-label={t("filterMoments")}
           aria-haspopup="menu"
           aria-expanded={filterAnchor != undefined}
-          color={doubtfulOnly || filterCount > 0 ? "primary" : "default"}
+          color={filterCount > 0 ? "primary" : "default"}
           onClick={(event) => {
             setFilterAnchor(event.currentTarget);
           }}
@@ -598,14 +606,7 @@ export function EventsList(): React.JSX.Element {
             {t("doubtful")}
           </MenuItem>
           {schemaProject != undefined && filterProperties.length > 0 && (
-            <MenuItem
-              onClick={() => {
-                setFilterAnchor(undefined);
-                setFilterDialogProject(schemaProject);
-              }}
-            >
-              {t("filterCustomFields")}
-            </MenuItem>
+            <MenuItem onClick={openCustomFieldFilters}>{t("filterCustomFields")}</MenuItem>
           )}
         </Menu>
         <Select
@@ -652,6 +653,25 @@ export function EventsList(): React.JSX.Element {
           </Button>
         )}
       </AppBar>
+      {filterCount > 0 && (
+        <MomentFilterChips
+          projectName={schemaProject}
+          properties={filterProperties}
+          filters={customFieldFilters}
+          doubtfulOnly={doubtfulOnly}
+          onEdit={openCustomFieldFilters}
+          onRemove={(id) => {
+            if (schemaProject != undefined && customFieldFilters != undefined) {
+              const next = new Map(customFieldFilters);
+              next.delete(id);
+              setCustomFieldFilters(schemaProject, next);
+            }
+          }}
+          onRemoveDoubtful={() => {
+            setMomentTimeline((old) => ({ ...old, doubtfulOnly: false }));
+          }}
+        />
+      )}
       {schemaProject != undefined &&
         filterDialogProject === schemaProject &&
         filterProperties.length > 0 && (

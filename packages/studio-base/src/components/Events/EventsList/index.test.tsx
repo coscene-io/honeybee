@@ -271,63 +271,130 @@ function makeConsoleApi({
   } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
 }
 
-it("applies and clears a project custom field filter without refreshing the events", async () => {
-  const property = create(PropertySchema, {
+it("shows active custom field conditions and applies multiple changes together", async () => {
+  const issue = create(PropertySchema, {
     id: "issue",
     name: "Issue category",
     description: "Enter issue category",
     type: { case: "text", value: {} },
   });
-  const schema = create(CustomFieldSchemaSchema, { properties: [property] });
-  const first = makeEvent({ name: `${FILTER_PROJECT}/events/first`, startSec: 1 });
-  first.event.displayName = "First Moment";
-  first.event.customFieldValues = [
-    create(CustomFieldValueSchema, {
-      property,
-      value: { case: "text", value: { value: "Emergency brake" } },
-    }),
-  ];
-  const second = makeEvent({ name: `${FILTER_PROJECT}/events/second`, startSec: 2 });
-  second.event.displayName = "Second Moment";
-  const otherProject = makeEvent({
-    name: "warehouses/warehouse/projects/other/events/third",
-    startSec: 3,
+  const type = create(PropertySchema, {
+    id: "type",
+    name: "Moment type",
+    type: { case: "enums", value: { values: { ann: "Annotation", diag: "Diagnosis" } } },
   });
-  otherProject.event.displayName = "Other project Moment";
-  otherProject.event.customFieldValues = first.event.customFieldValues;
-  render(
-    <Wrapper
-      events={[first, second, otherProject]}
-      consoleApi={makeConsoleApi()}
-      schema={schema}
-    />,
-  );
+  const score = create(PropertySchema, {
+    id: "score",
+    name: "Score",
+    type: { case: "number", value: {} },
+  });
+  const schema = create(CustomFieldSchemaSchema, { properties: [issue, type, score] });
+  const events = [
+    { name: "First Moment", category: "Emergency brake", typeId: "ann", project: FILTER_PROJECT },
+    { name: "Second Moment", category: "Emergency brake", typeId: "diag", project: FILTER_PROJECT },
+    { name: "Third Moment", category: "Camera", typeId: "diag", project: FILTER_PROJECT },
+    {
+      name: "Other project Moment",
+      category: "Emergency brake",
+      typeId: "ann",
+      project: "warehouses/warehouse/projects/other",
+    },
+  ].map(({ name, category, typeId, project }, index) => {
+    const entry = makeEvent({ name: `${project}/events/${index}`, startSec: index + 1 });
+    entry.event.displayName = name;
+    entry.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: issue,
+        value: { case: "text", value: { value: category } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: type,
+        value: { case: "enums", value: { id: typeId } },
+      }),
+    ];
+    return entry;
+  });
+  render(<Wrapper events={events} consoleApi={makeConsoleApi()} schema={schema} />);
+
+  const getDialog = () => within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  const getActiveFilters = () =>
+    within(screen.getByRole("group", { name: "Active moment filters" }));
   const openFilters = () => {
     fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Filter by custom fields" }));
-    return within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  };
+  const chooseOption = (element: HTMLElement, name: string) => {
+    fireEvent.mouseDown(element);
+    fireEvent.click(screen.getByRole("option", { name }));
+  };
+  const addCondition = () =>
+    getDialog().getByRole<HTMLInputElement>("combobox", { name: "Add a condition" });
+  const issueValue = () => getDialog().getByRole<HTMLInputElement>("textbox");
+  const typeValue = () =>
+    within(getDialog().getByRole("group", { name: "Moment type" })).getByRole<HTMLInputElement>(
+      "combobox",
+    );
+  const apply = () => {
+    fireEvent.click(getDialog().getByRole("button", { name: "Apply filters" }));
   };
 
-  let dialog = openFilters();
-  fireEvent.change(dialog.getByPlaceholderText("Enter issue category"), {
-    target: { value: "BRAKE" },
-  });
+  openFilters();
+  fireEvent.change(addCondition(), { target: { value: "Issue category" } });
+  fireEvent.click(screen.getByRole("option", { name: "Issue category" }));
+  expect(addCondition().value).toBe("");
+  fireEvent.change(issueValue(), { target: { value: "BRAKE" } });
+  fireEvent.mouseDown(addCondition());
+  expect(screen.queryByRole("option", { name: "Issue category" })).toBeNull();
+  fireEvent.click(screen.getByRole("option", { name: "Moment type" }));
+  chooseOption(typeValue(), "Annotation");
+  chooseOption(addCondition(), "Score");
   expect(screen.queryByText("Second Moment")).not.toBeNull();
-  fireEvent.click(dialog.getByRole("button", { name: "Apply" }));
+  apply();
 
   await waitFor(() => {
     expect(screen.queryByText("First Moment")).not.toBeNull();
     expect(screen.queryByText("Second Moment")).toBeNull();
     expect(screen.queryByText("Other project Moment")).toBeNull();
   });
+  expect(getActiveFilters().getByRole("button", { name: "Issue category · BRAKE" })).toBeTruthy();
+  expect(getActiveFilters().getByRole("button", { name: "Moment type · Annotation" })).toBeTruthy();
+  expect(getActiveFilters().queryByText("Score")).toBeNull();
 
-  dialog = openFilters();
-  fireEvent.click(dialog.getByRole("button", { name: "Clear filters" }));
-  fireEvent.click(dialog.getByRole("button", { name: "Apply" }));
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type · Annotation" }));
+  expect(issueValue().value).toBe("BRAKE");
+  expect(typeValue().value).toBe("Annotation");
+  fireEvent.change(issueValue(), { target: { value: "Camera" } });
+  fireEvent.click(getDialog().getByRole("button", { name: "Remove Moment type condition" }));
+  fireEvent.click(getDialog().getByRole("button", { name: "Cancel" }));
+
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Issue category · BRAKE" }));
+  expect(issueValue().value).toBe("BRAKE");
+  expect(typeValue().value).toBe("Annotation");
+  fireEvent.change(issueValue(), { target: { value: "Camera" } });
+  chooseOption(typeValue(), "Diagnosis");
+  apply();
+  await waitFor(() => {
+    expect(screen.queryByText("Third Moment")).not.toBeNull();
+    expect(screen.queryByText("First Moment")).toBeNull();
+    expect(screen.queryByText("Second Moment")).toBeNull();
+  });
+
+  fireEvent.keyUp(getActiveFilters().getByRole("button", { name: "Issue category · Camera" }), {
+    key: "Delete",
+  });
+  await waitFor(() => {
+    expect(screen.queryByText("Second Moment")).not.toBeNull();
+  });
+  expect(getActiveFilters().queryByText("Issue category · Camera")).toBeNull();
+
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type · Diagnosis" }));
+  fireEvent.click(getDialog().getByRole("button", { name: "Clear conditions" }));
+  apply();
   await waitFor(() => {
     expect(screen.queryByText("Second Moment")).not.toBeNull();
     expect(screen.queryByText("Other project Moment")).not.toBeNull();
   });
+  expect(screen.queryByRole("group", { name: "Active moment filters" })).toBeNull();
   expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
 });
 
