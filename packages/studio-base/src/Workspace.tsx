@@ -90,6 +90,9 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+// The composition root: the one place that mounts the segmentation feature. It plugs into the
+// shared chrome through WorkspaceSlots.
+import { SegmentationWorkspaceExtension } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspaceExtension";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import {
   logPlaybackPerformanceMetric,
@@ -468,6 +471,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
+      <SegmentationWorkspaceExtension />
       <KeyboardShortcutsDialog />
       <DeepLinksSyncAdapter deepLinks={props.deepLinks} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />

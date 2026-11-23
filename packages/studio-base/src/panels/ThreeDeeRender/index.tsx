@@ -5,7 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo, useEffect, useContext } from "react";
+import {
+  StrictMode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import { DeepPartial } from "ts-essentials";
 
 import { useCrash } from "@foxglove/hooks";
@@ -26,6 +34,14 @@ import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/cont
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import {
+  SegmentationImageEntry,
+  type SegmentationImageEntryActions,
+} from "@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry";
+import { SegmentationPropagateButton } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton";
+import { SegmentationWorkspace } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace";
+import { useSemanticSegmentationEnabled } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
+import { registerSegmentationCanvas } from "@foxglove/studio-base/semanticSegmentation/segmentationChrome";
+import {
   PlaybackDiagnosticsContext,
   type PanelDiagnostics,
 } from "@foxglove/studio-base/services/playbackDiagnostics";
@@ -43,6 +59,8 @@ type InitPanelArgs = {
   interfaceMode: InterfaceMode;
   testOptions: TestOptions;
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
+  /** Expose the image to the annotation editor (feature flag on and a cloud record open). */
+  segmentation?: boolean;
 };
 
 function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
@@ -58,6 +76,7 @@ function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
             interfaceMode={interfaceMode}
             testOptions={testOptions}
             customSceneExtensions={customSceneExtensions}
+            segmentation={args.segmentation}
           />
         </ForwardAnalyticsContextProvider>
       </CaptureErrorBoundary>
@@ -75,10 +94,12 @@ type Props = {
 type AdapterContentProps = Props & {
   extensionData?: Record<string, unknown>;
   interfaceMode: InterfaceMode;
+  additionalToolbarIcons?: ReactNode;
+  segmentation?: boolean;
 };
 
 function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
-  const { interfaceMode } = props;
+  const { interfaceMode, additionalToolbarIcons, segmentation = false } = props;
   const crash = useCrash();
   const session = useContext(PlaybackDiagnosticsContext);
   const { id: panelId } = usePanelContext();
@@ -115,6 +136,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
         interfaceMode,
         testOptions: { onDownloadImage: props.onDownloadImage, debugPicking: props.debugPicking },
         customSceneExtensions,
+        segmentation,
       }),
     [
       diagnostics,
@@ -124,6 +146,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
       props.onDownloadImage,
       props.debugPicking,
       customSceneExtensions,
+      segmentation,
     ],
   );
 
@@ -134,6 +157,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
       highestSupportedConfigVersion={1}
       saveConfig={props.saveConfig}
       initPanel={boundInitPanel}
+      additionalToolbarIcons={additionalToolbarIcons}
     />
   );
 }
@@ -144,9 +168,75 @@ function ImagePanelAdapter(props: Props) {
     () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
     [topicMessageFrequencies],
   );
+  // Spatial annotation is behind a rollout flag and needs a cloud record. Otherwise the Image
+  // panel is exactly the plain one: no editor, no per-frame events, no AnnotationService calls.
+  const segmentation = useSemanticSegmentationEnabled();
+
+  if (!segmentation) {
+    return (
+      <ThreeDeeRenderAdapterContent
+        {...props}
+        interfaceMode="image"
+        extensionData={extensionData}
+      />
+    );
+  }
+  return <SegmentationImagePanelAdapter {...props} extensionData={extensionData} />;
+}
+
+function SegmentationImagePanelAdapter(props: Props & { extensionData: Record<string, unknown> }) {
+  const containerRef = useRef<HTMLDivElement>(ReactNull);
+  const panel = usePanelContext();
+  const registration = useRef<(() => void) | undefined>(undefined);
+  const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
+  const propagateIcon = useMemo(
+    () => <SegmentationPropagateButton panelId={panel.id} />,
+    [panel.id],
+  );
+  const onActionsChange = useCallback(
+    (actions: SegmentationImageEntryActions | undefined) => {
+      registration.current?.();
+      registration.current = undefined;
+      if (!actions) {
+        return;
+      }
+      registration.current = registerSegmentationCanvas({
+        panelId: panel.id,
+        topic: imageTopic,
+        enterInline: actions.enterInline,
+        enterMaximize: actions.enterMaximize,
+        area: () => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          return rect ? rect.width * rect.height : 0;
+        },
+      });
+    },
+    [imageTopic, panel.id],
+  );
+  useEffect(
+    () => () => {
+      registration.current?.();
+    },
+    [],
+  );
 
   return (
-    <ThreeDeeRenderAdapterContent {...props} interfaceMode="image" extensionData={extensionData} />
+    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
+      <ThreeDeeRenderAdapterContent
+        {...props}
+        interfaceMode="image"
+        additionalToolbarIcons={propagateIcon}
+        segmentation
+      />
+      <SegmentationImageEntry
+        containerRef={containerRef}
+        topic={imageTopic}
+        panelId={panel.id}
+        onMaximize={panel.enterFullscreen}
+        onActionsChange={onActionsChange}
+      />
+      <SegmentationWorkspace panelId={panel.id} />
+    </div>
   );
 }
 
