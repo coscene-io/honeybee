@@ -33,6 +33,7 @@ export const LeftSidebarItemKeys = [
   "problems",
   "playlist",
   "moment",
+  "space",
   "tasks",
 ] as const;
 export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];

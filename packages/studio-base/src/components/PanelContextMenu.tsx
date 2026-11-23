@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Immutable } from "@foxglove/studio";
 import { PANEL_ROOT_CLASS_NAME } from "@foxglove/studio-base/components/PanelRoot";
+import { isInputOwnedTarget } from "@foxglove/studio-base/components/inputOwnership";
 
 /**
  * Types of items that can be included in a context menu. Either a clickable item
@@ -65,7 +66,19 @@ function PanelContextMenuComponent(props: PanelContextMenuProps): React.JSX.Elem
     // Trigger the menu when the right mouse button is released, but not if the mouse moved in
     // between press & release
     let rightClickState: "none" | "down" | "canceled" = "none";
+    // A region marked data-owns-input (see inputOwnership.ts) owns its right clicks; never open
+    // the panel menu over it.
+    const inInputOwner = (event: MouseEvent) => {
+      if (isInputOwnedTarget(event.target)) {
+        rightClickState = "none";
+        return true;
+      }
+      return false;
+    };
     const handleMouseUp = (event: MouseEvent) => {
+      if (inInputOwner(event)) {
+        return;
+      }
       if (event.button === 2 && rightClickState === "down") {
         setPosition({ x: event.clientX, y: event.clientY });
         setItems(getItems());
@@ -76,11 +89,17 @@ function PanelContextMenuComponent(props: PanelContextMenuProps): React.JSX.Elem
       rightClickState = "canceled";
     };
     const handleMouseDown = (event: MouseEvent) => {
+      if (inInputOwner(event)) {
+        return;
+      }
       if (event.button === 2) {
         rightClickState = "down";
       }
     };
     const handleContextMenu = (event: MouseEvent) => {
+      if (inInputOwner(event)) {
+        return;
+      }
       event.preventDefault();
     };
 

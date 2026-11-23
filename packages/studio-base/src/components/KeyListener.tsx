@@ -16,6 +16,8 @@
 
 import { ReactElement, useCallback, useEffect, useRef } from "react";
 
+import { inputOwnerPassesKey, isInputOwnedTarget } from "./inputOwnership";
+
 // Invoke handler for matching key.
 // By default, preventDefault() is invoked on the event. Return false to allow the default.
 type KeyHandlers = Record<string, (event: KeyboardEvent) => void | boolean | undefined>;
@@ -26,6 +28,10 @@ type Props = {
   keyPressHandlers?: KeyHandlers;
   keyUpHandlers?: KeyHandlers;
 };
+
+// Several global listeners intentionally share a shortcut. Their default prevention must not hide
+// it from peers; inside an input-owning region, prevention by the region still owns the event.
+const preventedByKeyListener = new WeakSet<KeyboardEvent>();
 
 function callHandlers(handlers: KeyHandlers | undefined, event: KeyboardEvent): void {
   if (!handlers) {
@@ -40,6 +46,7 @@ function callHandlers(handlers: KeyHandlers | undefined, event: KeyboardEvent): 
       preventDefault = handler(event) ?? true;
     } finally {
       if (preventDefault) {
+        preventedByKeyListener.add(event);
         event.preventDefault();
       }
     }
@@ -55,6 +62,19 @@ export default function KeyListener(props: Props): ReactElement {
         return;
       }
       const { target, type } = event;
+      if (props.global === true && isInputOwnedTarget(target)) {
+        // A region marked with data-owns-input (see inputOwnership.ts) owns its keys. Native
+        // listeners can run before React's handlers in the region, so ownership is checked even
+        // when the event has not been consumed yet. Keys the region passes through still reach
+        // global shortcuts unless the region consumed them; when it stops propagation this
+        // document listener never runs, and its own preventDefault is honoured here.
+        if (
+          !inputOwnerPassesKey(target, event.key) ||
+          (event.defaultPrevented && !preventedByKeyListener.has(event))
+        ) {
+          return;
+        }
+      }
       if (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
@@ -78,7 +98,7 @@ export default function KeyListener(props: Props): ReactElement {
           break;
       }
     },
-    [props.keyDownHandlers, props.keyPressHandlers, props.keyUpHandlers],
+    [props.global, props.keyDownHandlers, props.keyPressHandlers, props.keyUpHandlers],
   );
 
   useEffect(() => {

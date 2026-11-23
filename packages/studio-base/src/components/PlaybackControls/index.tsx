@@ -33,7 +33,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { useLatest, useWindowSize } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
+import { Time, areEqual, clampTime, compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -56,6 +56,7 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useWorkspaceSlotValues } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
@@ -338,6 +339,30 @@ export default function PlaybackControls(props: {
       ? seekStepMs
       : 100;
 
+  // A feature may take over back/forward (WorkspaceSlots `playbackStep`): while annotating, they
+  // step the edited camera's frames. Such a step seeks to the frame's exact log time rather than
+  // playing up to it, so state messages between the two frames (e.g. transforms) are skipped,
+  // the same as any seek; the annotation view shows images only, and playUntil would drop
+  // repeated presses while one is still playing. Alt (and Alt+Shift) still runs the player's own
+  // time step, with Alt read as "use the time step" rather than "large step".
+  const playbackStep = useWorkspaceSlotValues("playbackStep")[0];
+  const overrideStep = useCallback(
+    (direction: 1 | -1, ev: KeyboardEvent | undefined, currentTime: Time) => {
+      if (!playbackStep) {
+        return { handled: false as const, modifiers: ev };
+      }
+      return playbackStep.step(
+        direction,
+        ev,
+        (ns) => {
+          seekIfAllowed(fromNanoSec(ns));
+        },
+        toNanoSec(currentTime),
+      );
+    },
+    [playbackStep, seekIfAllowed],
+  );
+
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
       if (isKeyframeSearchActive) {
@@ -346,6 +371,10 @@ export default function PlaybackControls(props: {
 
       const { currentTime, startTime: start, endTime: end } = getTimeInfo();
       if (!currentTime || !start || !end) {
+        return;
+      }
+      const step = overrideStep(1, ev, currentTime);
+      if (step.handled) {
         return;
       }
 
@@ -358,7 +387,7 @@ export default function PlaybackControls(props: {
       //
       // i.e. Skipping coordinate frame messages may result in incorrectly rendered markers or
       // missing markers altogther.
-      const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
+      const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, step.modifiers, effectiveSeekMs);
       const clampedTargetTime = clampTime(targetTime, start, end);
 
       if (areEqual(clampedTargetTime, currentTime)) {
@@ -371,7 +400,7 @@ export default function PlaybackControls(props: {
         seekIfAllowed(clampedTargetTime);
       }
     },
-    [isKeyframeSearchActive, getTimeInfo, playUntil, seekIfAllowed, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, playUntil, seekIfAllowed, effectiveSeekMs, overrideStep],
   );
 
   const seekBackwardAction = useCallback(
@@ -384,9 +413,13 @@ export default function PlaybackControls(props: {
       if (!currentTime) {
         return;
       }
-      seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
+      const step = overrideStep(-1, ev, currentTime);
+      if (step.handled) {
+        return;
+      }
+      seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, step.modifiers, effectiveSeekMs));
     },
-    [isKeyframeSearchActive, getTimeInfo, seekIfAllowed, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, seekIfAllowed, effectiveSeekMs, overrideStep],
   );
 
   const adjustPlaybackSpeed = useCallback(
@@ -451,6 +484,8 @@ export default function PlaybackControls(props: {
   );
 
   const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
+  const seekBackwardLabel = playbackStep?.backwardLabel ?? t("seekBackward", { ns: "general" });
+  const seekForwardLabel = playbackStep?.forwardLabel ?? t("seekForward", { ns: "general" });
 
   return (
     <>
@@ -493,13 +528,8 @@ export default function PlaybackControls(props: {
               <HoverableIconButton
                 disabled={disableControls}
                 size="small"
-                aria-label={t("seekBackward", { ns: "general" })}
-                title={
-                  <ShortcutHint
-                    label={t("seekBackward", { ns: "general" })}
-                    keys={SHORTCUTS.seekBackward}
-                  />
-                }
+                aria-label={seekBackwardLabel}
+                title={<ShortcutHint label={seekBackwardLabel} keys={SHORTCUTS.seekBackward} />}
                 icon={<Previous20Regular />}
                 activeIcon={<Previous20Filled />}
                 onClick={() => {
@@ -526,13 +556,8 @@ export default function PlaybackControls(props: {
               <HoverableIconButton
                 disabled={disableControls}
                 size="small"
-                aria-label={t("seekForward", { ns: "general" })}
-                title={
-                  <ShortcutHint
-                    label={t("seekForward", { ns: "general" })}
-                    keys={SHORTCUTS.seekForward}
-                  />
-                }
+                aria-label={seekForwardLabel}
+                title={<ShortcutHint label={seekForwardLabel} keys={SHORTCUTS.seekForward} />}
                 icon={<Next20Regular />}
                 activeIcon={<Next20Filled />}
                 onClick={() => {
