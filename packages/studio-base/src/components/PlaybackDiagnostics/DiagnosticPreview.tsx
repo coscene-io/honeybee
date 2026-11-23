@@ -37,7 +37,7 @@ function Preview({
   viewport,
   startTime,
 }: Props & { session: PlaybackDiagnostics }): React.JSX.Element | ReactNull {
-  const range = useStore(session.preview, (state) => state.range);
+  const range = useStore(session.preview, (state) => (state.hovered ?? state.focused)?.range);
   if (!range) {
     return ReactNull;
   }

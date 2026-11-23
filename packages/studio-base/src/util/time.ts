@@ -16,6 +16,10 @@ import type { MarkerArray, StampedMessage } from "@foxglove/studio-base/types/Me
 
 export type TimestampMethod = "receiveTime" | "headerStamp";
 
+export function hasIntegerTime(time?: Partial<Time>): time is Time {
+  return Number.isSafeInteger(time?.sec) && Number.isSafeInteger(time?.nsec);
+}
+
 export function formatTimeRaw(stamp: Time): string {
   if (stamp.sec < 0 || stamp.nsec < 0) {
     log.error("Times are not allowed to be negative");

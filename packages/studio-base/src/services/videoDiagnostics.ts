@@ -5,8 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { inspectVideoPacket } from "@foxglove/den/video/h26x/inspectVideoPacket";
+import {
+  inspectVideoPacket,
+  type PacketInspection,
+} from "@foxglove/den/video/h26x/inspectVideoPacket";
 import { type Time, toNanoSec } from "@foxglove/rostime";
+import { hasIntegerTime } from "@foxglove/studio-base/util/time";
 
 export type FindingKind =
   | "bFrame"
@@ -32,48 +36,82 @@ export type Finding = Interval & {
   resetDecoder?: boolean;
 };
 
-// B pictures can account for most frames of a long recording. Retain timestamps in small
-// per-second buckets and materialize a finding only when a history row is requested.
-export class BFrameHistory {
-  readonly #seconds = new Map<bigint, { offsets: number[]; media: (bigint | undefined)[] }>();
+// A context-free HEVC backfill can be classified later, once lookback reaches its PPS.
+// Keep packet identities in per-second buckets and materialize only the requested B-frame rows.
+export class SliceHistory {
+  readonly #seconds = new Map<
+    bigint,
+    {
+      offsets: number[];
+      media: (bigint | undefined)[];
+      classifications: (boolean | undefined)[];
+      bIndexes: number[];
+    }
+  >();
   public size = 0;
   public first?: bigint;
   public last?: bigint;
+  public classified = false;
+  public unknownCount = 0;
 
   public constructor(private readonly topic: string) {}
 
-  public add(log: bigint, media: bigint | undefined): void {
+  public observe(
+    log: bigint,
+    media: bigint | undefined,
+    { bFrame }: PacketInspection,
+    format: "h264" | "h265",
+  ): void {
+    this.classified ||= bFrame != undefined;
+    // AVC slice types are self-contained. No later PPS can change a known non-B result.
+    if (format === "h264" && bFrame === false) {
+      return;
+    }
     const second = log / 1_000_000_000n;
     const offset = Number(log % 1_000_000_000n);
     let bucket = this.#seconds.get(second);
     if (!bucket) {
-      bucket = { offsets: [], media: [] };
+      bucket = { offsets: [], media: [], classifications: [], bIndexes: [] };
       this.#seconds.set(second, bucket);
     }
-    for (
-      let pos = bucket.offsets.indexOf(offset);
-      pos >= 0;
-      pos = bucket.offsets.indexOf(offset, pos + 1)
-    ) {
-      if (bucket.media[pos] === media) {
+    let index = bucket.offsets.indexOf(offset);
+    while (index >= 0 && bucket.media[index] !== media) {
+      index = bucket.offsets.indexOf(offset, index + 1);
+    }
+    if (index === -1) {
+      index = bucket.offsets.length;
+      bucket.offsets.push(offset);
+      bucket.media.push(media);
+      bucket.classifications.push(bFrame);
+      if (bFrame == undefined) {
+        this.unknownCount++;
+      }
+    } else {
+      const previous = bucket.classifications[index];
+      if (bFrame == undefined || previous === true || previous === bFrame) {
         return;
       }
+      if (previous == undefined) {
+        this.unknownCount--;
+      }
+      bucket.classifications[index] = bFrame;
     }
-    bucket.offsets.push(offset);
-    bucket.media.push(media);
-    this.size++;
-    if (this.first == undefined || log < this.first) {
-      this.first = log;
-    }
-    if (this.last == undefined || log > this.last) {
-      this.last = log;
+    if (bFrame === true) {
+      bucket.bIndexes.push(index);
+      this.size++;
+      if (this.first == undefined || log < this.first) {
+        this.first = log;
+      }
+      if (this.last == undefined || log > this.last) {
+        this.last = log;
+      }
     }
   }
 
   public *[Symbol.iterator](): IterableIterator<[string, Finding]> {
     for (const [second, bucket] of this.#seconds) {
-      for (const [index, offset] of bucket.offsets.entries()) {
-        const start = second * 1_000_000_000n + BigInt(offset);
+      for (const index of bucket.bIndexes) {
+        const start = second * 1_000_000_000n + BigInt(bucket.offsets[index]!);
         yield [
           `${start}/${bucket.media[index] ?? "?"}`,
           { kind: "bFrame", topic: this.topic, start, end: start },
@@ -90,6 +128,10 @@ export class VideoRun {
   public key?: FrameStamp;
   public useRecordClock = false;
   public format?: string;
+
+  public copy(): VideoRun {
+    return Object.assign(new VideoRun(), this, { pps: new Map(this.pps) });
+  }
 }
 
 type VideoInput = {
@@ -104,10 +146,8 @@ type VideoInput = {
 export type TopicDiagnostics = {
   format: string;
   coverage: Interval[];
-  classified: boolean;
-  bFrames?: BFrameHistory;
+  slices?: SliceHistory;
   sawKey: boolean;
-  unknown: boolean;
   reorder?: boolean;
   recentGap?: GapMeasurement;
   longestGap?: GapMeasurement;
@@ -147,7 +187,27 @@ function addCoverage(ranges: Interval[], start: bigint, end: bigint): void {
 
 export class VideoDiagnostics {
   public readonly topics = new Map<string, TopicDiagnostics>();
-  readonly #owners = new Map<string, object>();
+  readonly #inspectors = new Map<string, { owner?: object; readers: Set<object>; run: VideoRun }>();
+  // Panels seeking together may read the same immutable recording range independently.
+  // Share the parser state, without retaining their packets or coupling their cancellation.
+  readonly #lastLookback = new Map<string, Interval & { count: number; run: VideoRun }>();
+
+  public inspectLookback(
+    topic: string,
+    start: bigint,
+    end: bigint,
+    count: number,
+    inspect: (run: VideoRun) => void,
+  ): VideoRun {
+    const previous = this.#lastLookback.get(topic);
+    if (previous?.start === start && previous.end === end && previous.count === count) {
+      return previous.run.copy();
+    }
+    const run = new VideoRun();
+    inspect(run);
+    this.#lastLookback.set(topic, { start, end, count, run: run.copy() });
+    return run;
+  }
 
   public topic(name: string): TopicDiagnostics {
     let topic = this.topics.get(name);
@@ -155,9 +215,7 @@ export class VideoDiagnostics {
       topic = {
         format: "",
         coverage: [],
-        classified: false,
         sawKey: false,
-        unknown: false,
         findings: new Map(),
       };
       this.topics.set(name, topic);
@@ -165,16 +223,45 @@ export class VideoDiagnostics {
     return topic;
   }
 
-  public claim(topic: string, owner: object): boolean {
-    if (!this.#owners.has(topic)) {
-      this.#owners.set(topic, owner);
+  public claimRun(
+    topic: string,
+    reader: object,
+    local: VideoRun,
+    previousLog?: bigint,
+  ): VideoRun | undefined {
+    let stream = this.#inspectors.get(topic);
+    if (!stream) {
+      stream = { readers: new Set(), run: local };
+      this.#inspectors.set(topic, stream);
     }
-    return this.#owners.get(topic) === owner;
+    const continuing =
+      stream.readers.has(reader) &&
+      previousLog != undefined &&
+      stream.run.previous?.log === previousLog;
+    stream.readers.add(reader);
+    if (stream.owner == undefined) {
+      stream.owner = reader;
+      if (!continuing) {
+        stream.run = local;
+      }
+    } else if (stream.owner === reader) {
+      stream.run = local;
+    } else {
+      return undefined;
+    }
+    return stream.run;
   }
 
-  public release(topic: string, owner: object): void {
-    if (this.#owners.get(topic) === owner) {
-      this.#owners.delete(topic);
+  public release(topic: string, reader: object): void {
+    const stream = this.#inspectors.get(topic);
+    if (!stream) {
+      return;
+    }
+    stream.readers.delete(reader);
+    if (stream.readers.size === 0) {
+      this.#inspectors.delete(topic);
+    } else if (stream.owner === reader) {
+      stream.owner = undefined;
     }
   }
 
@@ -215,10 +302,7 @@ export class VideoDiagnostics {
     const topic = this.topic(topicName);
     topic.format = format;
     const log = toNanoSec(input.receiveTime);
-    const media =
-      timestamp?.sec != undefined && timestamp.nsec != undefined
-        ? toNanoSec({ sec: timestamp.sec, nsec: timestamp.nsec })
-        : undefined;
+    const media = hasIntegerTime(timestamp) ? toNanoSec(timestamp) : undefined;
     const previous = run.previous;
     if (format !== run.format || (previous && previous.log > log)) {
       run.pps.clear();
@@ -259,12 +343,8 @@ export class VideoDiagnostics {
     if (info.missing.length > 0) {
       this.record({ ...point, kind: "parameters", detail: info.missing.join(", ") });
     }
-    if (info.bFrame === true) {
-      (topic.bFrames ??= new BFrameHistory(topicName)).add(log, media);
-    }
+    (topic.slices ??= new SliceHistory(topicName)).observe(log, media, info, format);
     topic.sawKey ||= info.key && !info.problem;
-    topic.classified ||= info.bFrame != undefined;
-    topic.unknown ||= info.bFrame == undefined;
     const stamp = { media, log };
     const key = run.key;
     if (

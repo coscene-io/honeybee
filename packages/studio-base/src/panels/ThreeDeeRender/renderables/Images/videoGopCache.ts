@@ -9,6 +9,7 @@ import { H264, H265 } from "@foxglove/den/video";
 import { Time, compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
+import { hasIntegerTime } from "@foxglove/studio-base/util/time";
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
@@ -42,20 +43,11 @@ export type VideoFrameInfo = {
   byteLength: number;
 };
 
-function isTime(value: unknown): value is Time {
-  return (
-    typeof value === "object" &&
-    value != undefined &&
-    typeof (value as Partial<Time>).sec === "number" &&
-    typeof (value as Partial<Time>).nsec === "number"
-  );
-}
-
 export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefined {
   const message = msg.message as Partial<CompressedVideoLike> | undefined;
   if (
     message == undefined ||
-    !isTime(message.timestamp) ||
+    !hasIntegerTime(message.timestamp) ||
     typeof message.frame_id !== "string" ||
     typeof message.format !== "string" ||
     !VIDEO_FORMATS.has(message.format) ||

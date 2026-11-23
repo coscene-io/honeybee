@@ -44,5 +44,15 @@ it("reports missing context and incomplete inputs", () => {
   expect(inspectVideoPacket("h264", [], pps).problem).toBe("empty");
   expect(inspectVideoPacket("h265", [12, 34], pps).problem).toBe("annexB");
   expect(inspectVideoPacket("h264", [0, 0, 1, 0x41], pps).problem).toBe("malformed");
-  expect(inspectVideoPacket("h264", [0, 0, 1, 0x65, 0xb0], pps).missing).toEqual(["SPS"]);
+  expect(inspectVideoPacket("h264", [0, 0, 1, 0x65, 0xb0], pps).missing).toEqual(["SPS", "PPS"]);
+  const withoutPps = samples[0]!.key.replace("00000168ebe3cb22c0", "");
+  expect(inspectVideoPacket("h264", Buffer.from(withoutPps, "hex"), pps).missing).toEqual(["PPS"]);
+});
+
+it("rejects a trailing start code but allows Annex B trailing zero bytes", () => {
+  const read = (suffix: string) =>
+    inspectVideoPacket("h264", Buffer.from(samples[0]!.key + suffix, "hex"), new Map());
+  expect(read("0000").problem).toBeUndefined();
+  expect(read("000001").problem).toBe("malformed");
+  expect(read("00000001").problem).toBe("malformed");
 });

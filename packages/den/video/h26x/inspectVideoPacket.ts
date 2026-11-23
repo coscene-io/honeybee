@@ -152,6 +152,9 @@ export function inspectVideoPacket(
         sps.set(data instanceof Uint8Array ? data.subarray(start, end) : data.slice(start, end), 3);
         result.reorder = hevc ? H265.HasBFrames(sps) : H264.HasBFrames(sps);
       }
+      if (next === data.length - 1) {
+        throw new RangeError("Missing NAL after start code");
+      }
       start = next + 1;
     }
     if (sliceCount === 0) {
@@ -167,7 +170,7 @@ export function inspectVideoPacket(
       if (!seen.has(hevc ? 33 : 7)) {
         result.missing.push("SPS");
       }
-      if (hevc && !seen.has(34)) {
+      if (!seen.has(hevc ? 34 : 8)) {
         result.missing.push("PPS");
       }
     }

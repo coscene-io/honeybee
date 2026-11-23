@@ -28,6 +28,13 @@ it("previews historical findings only during interaction and clears on close", (
     start: 18000000000n,
     end: 20000000000n,
   });
+  session.record({
+    topic: "/camera",
+    kind: "gap",
+    duration: 2,
+    start: 30000000000n,
+    end: 32000000000n,
+  });
   const config = makeMockAppConfiguration();
   function view(state: "open" | "closed") {
     return (
@@ -46,14 +53,37 @@ it("previews historical findings only during interaction and clears on close", (
   expect(screen.queryByTestId("diagnostic-preview")).toBeNull();
   rerender(view("open"));
   fireEvent.click(screen.getByRole("button", { name: /Long keyframe interval/ }));
-  const row = screen.getByRole("listitem");
+  const [row, other] = screen.getAllByRole("listitem") as [HTMLElement, HTMLElement];
   expect(row.textContent).toContain("18.000 s");
   fireEvent.mouseEnter(row);
   expect(screen.getByTestId("diagnostic-preview")).toBeTruthy();
   fireEvent.mouseLeave(row);
   expect(screen.queryByTestId("diagnostic-preview")).toBeNull();
   fireEvent.focus(row);
+  fireEvent.mouseEnter(other);
+  expect(screen.getByTestId("diagnostic-preview").style.left).toBe("50%");
+  fireEvent.mouseLeave(other);
+  expect(screen.getByTestId("diagnostic-preview").style.left).toBe("30%");
+  fireEvent.mouseEnter(row);
+  fireEvent.blur(row);
+  expect(screen.getByTestId("diagnostic-preview").style.left).toBe("30%");
   rerender(view("closed"));
   expect(screen.queryByTestId("diagnostic-preview")).toBeNull();
-  expect(session.topic("/camera").findings.get("gap")?.size).toBe(1);
+  expect(session.topic("/camera").findings.get("gap")?.size).toBe(2);
+});
+
+it("shows timed-out seek attempts before a bound image topic's first frame", () => {
+  const session = new PlaybackDiagnostics();
+  session.bind("3d", "/camera");
+  const panel = session.panel("3d", "/camera");
+  panel.pending = { seek: { sequence: 1, started: 0, target: { sec: 1, nsec: 0 } } };
+  session.expire(panel, 10000);
+  render(
+    <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+      <PlaybackDiagnosticsContext.Provider value={session}>
+        <PerformanceSidebar />
+      </PlaybackDiagnosticsContext.Provider>
+    </AppConfigurationContext.Provider>,
+  );
+  expect(screen.getByText("Successful / cancelled / timed out · 0 / 0 / 1")).toBeTruthy();
 });

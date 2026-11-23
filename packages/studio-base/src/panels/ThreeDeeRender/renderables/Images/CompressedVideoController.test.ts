@@ -20,6 +20,7 @@ import {
   PlaybackPerformanceMetrics,
   playbackPerformanceMetrics,
 } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
+import { VideoRun } from "@foxglove/studio-base/services/videoDiagnostics";
 
 import {
   CompressedVideoController,
@@ -43,6 +44,13 @@ function frame(time: number, kind: "key" | "delta" = "delta"): MessageEvent<Comp
     },
   };
 }
+function hevc(time: number, hex: string): MessageEvent<CompressedVideo> {
+  const event = frame(time);
+  event.message.format = "h265";
+  event.message.data = Uint8Array.from(Buffer.from(hex, "hex"));
+  return event;
+}
+
 function setup(diagnostics?: PanelDiagnostics) {
   const renderer = {
     diagnostics,
@@ -104,11 +112,64 @@ it("inspects shared video once per delivery, retains replay history, and hands o
   left.controller.dispose();
   await right.controller.enqueueVideoFrames([event]);
   expect(inspect).toHaveBeenCalledTimes(2);
-  const history = session.topic("/camera").bFrames!;
+  const history = session.topic("/camera").slices!;
   expect(history.size).toBe(1);
   expect([...history][0]?.[1].start).toBe(18_000_000_000n);
   right.controller.dispose();
-  expect(session.topic("/camera").bFrames?.size).toBe(1);
+  expect(session.topic("/camera").slices?.size).toBe(1);
+});
+
+it("hands off HEVC playback to a panel that never inspected the earlier PPS", async () => {
+  const session = new PlaybackDiagnostics();
+  const left = setup({ session, panelId: "left" });
+  const right = setup({ session, panelId: "right" });
+  const key = hevc(10, "0000014401c172b422400000012801af26fa5585fffc939ffd6a121e216529f9e0");
+  await left.controller.enqueueVideoFrames([key]);
+  await right.controller.enqueueVideoFrames([key]);
+  left.controller.dispose();
+  await right.controller.enqueueVideoFrames([hevc(20, "0000010201e04497e199bea0")]);
+  expect(session.topic("/camera").slices).toMatchObject({ size: 1, unknownCount: 0 });
+  right.controller.dispose();
+});
+
+it("restores HEVC slice context across lookback windows and subsequent playback", async () => {
+  const session = new PlaybackDiagnostics();
+  const { renderer, controller } = setup({ session, panelId: "image" });
+  const other = setup({ session, panelId: "3d" });
+  const inspect = jest.spyOn(session, "inspect");
+  // PPS and an IDR in the earlier window, followed by a P and two B pictures.
+  const key = hevc(800000000, "0000014401c172b422400000012801af26fa5585fffc939ffd6a121e216529f9e0");
+  const p = hevc(2000000000, "0000010201d0195f843191f902");
+  const b = hevc(2300000000, "0000010201e04497e199bea0");
+  const next = hevc(2600000000, "0000010201e04497e199bea0");
+  renderer.currentTime = 2500000000n;
+  const badTime = hevc(900000000, "0000010201d0195f843191f902");
+  badTime.message.timestamp = { sec: NaN, nsec: 0 };
+  renderer.subscribeMessageRange = mockMessageRange([key, badTime, p, b]);
+  other.renderer.currentTime = renderer.currentTime;
+  other.renderer.subscribeMessageRange = renderer.subscribeMessageRange;
+  controller.handleSeek();
+  other.controller.handleSeek();
+  await Promise.all([controller.enqueueVideoFrames([b]), other.controller.enqueueVideoFrames([b])]);
+  // One backfill plus one complete chronological inspection shared by both panels.
+  expect(inspect).toHaveBeenCalledTimes(5);
+  const slices = session.topic("/camera").slices!;
+  expect(slices.unknownCount).toBe(0);
+  expect(slices.size).toBe(1);
+  renderer.currentTime = 2600000000n;
+  await controller.enqueueVideoFrames([next]);
+  expect(slices.size).toBe(2);
+  other.renderer.currentTime = renderer.currentTime;
+  await other.controller.enqueueVideoFrames([next]);
+  controller.dispose();
+  const afterHandoff = hevc(2700000000, "0000010201e04497e199bea0");
+  other.renderer.currentTime = 2700000000n;
+  await other.controller.enqueueVideoFrames([afterHandoff]);
+  expect(slices.size).toBe(3);
+  other.controller.dispose();
+  // A fresh, context-free observation must not downgrade the previously classified P frame.
+  session.inspect("/camera", p, new VideoRun());
+  expect(slices.unknownCount).toBe(0);
 });
 
 describe("awaited video tick scheduling", () => {

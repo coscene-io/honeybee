@@ -42,7 +42,7 @@ it("retains findings across seek, deduplicates replays and never bridges unloade
     { start: 16000000000n, end: 20000000000n },
     { start: 60000000000n, end: 60000000000n },
   ]);
-  expect(topic.bFrames?.size).toBe(1);
+  expect(topic.slices?.size).toBe(1);
   expect(topic.findings.get("regression")?.size).toBe(1);
   expect(topic.longestGap).toEqual({ duration: 3, clock: "imageClock" });
   expect(new PlaybackDiagnostics().topics.size).toBe(0);
@@ -92,9 +92,9 @@ it("times two panels independently from acceptance and excludes intermediate, ca
   for (const id of ["left", "right"]) {
     session.expectFrame(id, "/camera", 2000000000n, 1900000000n, 10n);
   }
-  session.displayed("left", "/camera", 2000000000n, 1900000000n, 9n, 30);
-  session.displayed("left", "/camera", 2000000000n, 1900000000n, 10n, 45);
-  session.displayed("right", "/camera", 2000000000n, 1900000000n, 10n, 10021);
+  session.displayed("left", "/camera", 1900000000n, 9n, {}, 30);
+  session.displayed("left", "/camera", 1900000000n, 10n, {}, 45);
+  session.displayed("right", "/camera", 1900000000n, 10n, {}, 10021);
   expect(session.panel("left", "/camera")).toMatchObject({
     samples: [25],
     successes: 1,
@@ -107,4 +107,53 @@ it("times two panels independently from acceptance and excludes intermediate, ca
     cancelled: 1,
     timeouts: 1,
   });
+});
+
+it("measures lag against the advancing player clock while a visible image stalls", () => {
+  const session = new PlaybackDiagnostics();
+  const unbind = session.bind("left", "/camera");
+  const panel = session.panel("left", "/camera");
+  const advance = (sec: number) => {
+    session.update(mockPlayerState(undefined, { currentTime: fromSec(sec) }));
+  };
+  advance(2);
+  expect(session.frameLagMs(panel)).toBeUndefined();
+  session.displayed("left", "/camera", 1900000000n, 10n, {});
+  expect(session.frameLagMs(panel)).toBe(100);
+  advance(5);
+  expect(session.frameLagMs(panel)).toBe(3100);
+  unbind();
+  expect(session.frameLagMs(panel)).toBeUndefined();
+});
+
+it("counts a seek that expired before a panel closed, including with diagnostics hidden", () => {
+  const session = new PlaybackDiagnostics();
+  const unbind = session.bind("left", "/camera");
+  session.update(
+    mockPlayerState(undefined, {
+      acceptedSeek: { sequence: 1, started: performance.now() - 10001, target: fromSec(1) },
+    }),
+  );
+  unbind();
+  expect(session.panel("left", "/camera")).toMatchObject({ timeouts: 1, cancelled: 0 });
+});
+
+it("starts a new speed sample when a slow seek acknowledges its target before backfill", () => {
+  const session = new PlaybackDiagnostics();
+  const initial = { currentTime: fromSec(1), lastSeekTime: 1, isPlaying: true };
+  session.update(mockPlayerState(undefined, initial), 0);
+  const ack = {
+    ...initial,
+    currentTime: fromSec(100),
+    acceptedSeek: { sequence: 1, started: 400, target: fromSec(100) },
+  };
+  session.update(mockPlayerState(undefined, ack), 500);
+  expect(session.actualSpeed).toBeUndefined();
+  session.update(mockPlayerState(undefined, { ...ack, lastSeekTime: 2 }), 600);
+  expect(session.actualSpeed).toBeUndefined();
+  session.update(
+    mockPlayerState(undefined, { ...ack, lastSeekTime: 2, currentTime: fromSec(101) }),
+    1600,
+  );
+  expect(session.actualSpeed).toBe(1);
 });

@@ -68,24 +68,42 @@ function FindingRow({
 }): React.JSX.Element | ReactNull {
   const { t } = useTranslation("workspace");
   const owner = useRef({});
-  const enter = () => {
-    session.preview.setState({ owner: owner.current, range: finding });
+  const enter = (kind: "hovered" | "focused") => {
+    session.preview.setState({ [kind]: { owner: owner.current, range: finding } });
   };
-  const leave = () => {
-    if (session.preview.getState().owner === owner.current) {
-      session.preview.setState({ owner: undefined, range: undefined });
+  const leave = (kind: "hovered" | "focused") => {
+    if (session.preview.getState()[kind]?.owner === owner.current) {
+      session.preview.setState({ [kind]: undefined });
     }
   };
   useEffect(() => {
     const token = owner.current;
     return () => {
-      if (session.preview.getState().owner === token) {
-        session.preview.setState({ owner: undefined, range: undefined });
+      const { hovered, focused } = session.preview.getState();
+      if (hovered?.owner === token || focused?.owner === token) {
+        session.preview.setState({
+          hovered: hovered?.owner === token ? undefined : hovered,
+          focused: focused?.owner === token ? undefined : focused,
+        });
       }
     };
   }, [session]);
   return (
-    <Row tabIndex={0} onMouseEnter={enter} onFocus={enter} onBlur={leave} onMouseLeave={leave}>
+    <Row
+      tabIndex={0}
+      onMouseEnter={() => {
+        enter("hovered");
+      }}
+      onFocus={() => {
+        enter("focused");
+      }}
+      onBlur={() => {
+        leave("focused");
+      }}
+      onMouseLeave={() => {
+        leave("hovered");
+      }}
+    >
       {stamp(session, finding.start)}
       {finding.end !== finding.start && " – " + stamp(session, finding.end)}
       {finding.otherTopic && (
@@ -205,7 +223,7 @@ function TopicSummary({
 }): React.JSX.Element | ReactNull {
   const { t } = useTranslation("workspace");
   const video = data.format === "h264" || data.format === "h265";
-  const bCount = data.bFrames?.size ?? 0;
+  const bCount = data.slices?.size ?? 0;
   return (
     <>
       <Typography variant="body2">{data.format.toUpperCase()}</Typography>
@@ -228,15 +246,15 @@ function TopicSummary({
             {bCount > 0
               ? bCount
               : t(
-                  data.classified && !data.unknown
+                  data.slices?.classified === true && data.slices.unknownCount === 0
                     ? "diagnostics.notObserved"
                     : "diagnostics.unknown",
                 )}
           </div>
-          {data.bFrames?.first != undefined && data.bFrames.last != undefined && (
+          {data.slices?.first != undefined && data.slices.last != undefined && (
             <div>
-              {t("diagnostics.firstLast")} · {stamp(session, data.bFrames.first)} /{" "}
-              {stamp(session, data.bFrames.last)}
+              {t("diagnostics.firstLast")} · {stamp(session, data.slices.first)} /{" "}
+              {stamp(session, data.slices.last)}
             </div>
           )}
           <div>
@@ -278,7 +296,13 @@ function TopicSummary({
   );
 }
 
-function PanelSummary({ panel }: { panel: PanelStats }): React.JSX.Element | ReactNull {
+function PanelSummary({
+  panel,
+  session,
+}: {
+  panel: PanelStats;
+  session: PlaybackDiagnostics;
+}): React.JSX.Element | ReactNull {
   const { t } = useTranslation("workspace");
   const sorted = [...panel.samples].sort((a, b) => a - b);
   return (
@@ -290,7 +314,7 @@ function PanelSummary({ panel }: { panel: PanelStats }): React.JSX.Element | Rea
         {t("diagnostics.decodeWait")} · {number(panel.decodeMs)} ms
       </div>
       <div>
-        {t("diagnostics.frameLag")} · {number(panel.lagMs)} ms
+        {t("diagnostics.frameLag")} · {number(session.frameLagMs(panel))} ms
       </div>
       <div>
         {t("diagnostics.seek")} · {number(panel.samples.at(-1), 0)} /{" "}
@@ -438,12 +462,12 @@ function Analysis({
                 {panels
                   .filter((p) => p.topic === name && (!panelId || panelId === p.panelId))
                   .map((p) => (
-                    <PanelSummary key={p.panelId} panel={p} />
+                    <PanelSummary key={p.panelId} panel={p} session={session} />
                   ))}
               </>
             )}
             {kinds.map((kind) => {
-              const group = kind === "bFrame" ? data.bFrames : data.findings.get(kind);
+              const group = kind === "bFrame" ? data.slices : data.findings.get(kind);
               return group &&
                 (!kindFilter || kind === kindFilter) &&
                 (!related || kind === "order") ? (

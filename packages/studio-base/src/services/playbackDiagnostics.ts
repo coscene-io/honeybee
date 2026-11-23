@@ -13,6 +13,7 @@ import type { PlayerState, PlayerStateActiveData } from "@foxglove/studio-base/p
 
 import { VideoDiagnostics, type Interval } from "./videoDiagnostics";
 
+type PreviewEntry = { owner: object; range: Interval };
 type Seek = NonNullable<PlayerStateActiveData["acceptedSeek"]>;
 const SEEK_TIMEOUT_MS = 10000;
 export type PanelStats = {
@@ -20,7 +21,7 @@ export type PanelStats = {
   panelId: string;
   active: boolean;
   status: "idle" | "decoding" | "lookback" | "displayed" | "failed" | "waiting";
-  lagMs?: number;
+  displayedFrame?: { time: bigint; owner: object };
   decodeMs?: number;
   lastSuccessSequence?: number;
   samples: number[];
@@ -32,8 +33,11 @@ export type PanelStats = {
 
 export class PlaybackDiagnostics extends VideoDiagnostics {
   public readonly panels = new Map<string, PanelStats>();
-  public readonly preview = createStore<{ owner?: object; range?: Interval }>(() => ({}));
+  public readonly preview = createStore<{ hovered?: PreviewEntry; focused?: PreviewEntry }>(
+    () => ({}),
+  );
   public start = 0n;
+  #currentTime?: bigint;
   public actualSpeed?: number;
   public targetSpeed?: number;
   public mbps?: number;
@@ -65,11 +69,14 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
   }
 
   public bind(panelId: string, topic: string): () => void {
+    this.topic(topic);
     const panel = this.panel(panelId, topic);
     panel.active = true;
     return () => {
+      this.expire(panel);
       panel.active = false;
       panel.status = "idle";
+      panel.displayedFrame = undefined;
       if (panel.pending) {
         panel.cancelled++;
         panel.pending = undefined;
@@ -84,6 +91,7 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
       return;
     }
     const time = toNanoSec(data.currentTime);
+    this.#currentTime = time;
     this.start = toNanoSec(data.startTime);
     this.targetSpeed = data.speed;
     if (data.messages !== this.#lastMessages) {
@@ -92,16 +100,15 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
       }
       this.#lastMessages = data.messages;
     }
+    const seek = data.acceptedSeek;
+    const newSeek = seek != undefined && this.#seek?.sequence !== seek.sequence;
     const sample = this.#sample;
-    if (
-      sample?.seekTime !== data.lastSeekTime ||
-      sample.playing !== data.isPlaying ||
-      now - sample.now >= 500
-    ) {
-      const continuous =
-        sample?.seekTime === data.lastSeekTime &&
-        sample.playing === data.isPlaying &&
-        now > sample.now;
+    const continuous =
+      sample != undefined &&
+      !newSeek &&
+      sample.seekTime === data.lastSeekTime &&
+      sample.playing === data.isPlaying;
+    if (!continuous || now - sample.now >= 500) {
       this.actualSpeed = continuous
         ? Number(time - sample.time) / 1e6 / (now - sample.now)
         : undefined;
@@ -116,8 +123,7 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
         playing: data.isPlaying,
       };
     }
-    const seek = data.acceptedSeek;
-    if (seek && this.#seek?.sequence !== seek.sequence) {
+    if (newSeek) {
       const skipped = Math.max(0, seek.sequence - (this.#seek?.sequence ?? 0) - 1);
       for (const panel of this.panels.values()) {
         if (panel.active) {
@@ -152,17 +158,23 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
     }
   }
 
+  public frameLagMs(panel: PanelStats): number | undefined {
+    return this.#currentTime != undefined && panel.displayedFrame != undefined
+      ? Number(this.#currentTime - panel.displayedFrame.time) / 1e6
+      : undefined;
+  }
+
   public displayed(
     panelId: string,
     topic: string,
-    clock: bigint,
     frame: bigint,
     media: bigint,
+    owner: object,
     now = performance.now(),
   ): void {
     const panel = this.panel(panelId, topic);
     panel.status = "displayed";
-    panel.lagMs = Number(clock - frame) / 1e6;
+    panel.displayedFrame = { time: frame, owner };
     this.expire(panel, now);
     const pending = panel.pending;
     if (pending?.expected === frame && pending.media === media) {

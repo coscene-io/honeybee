@@ -210,6 +210,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   #imageMicrotask = false;
   #allowStoppedImage = true;
   #lastStillTime?: bigint;
+  readonly #displayOwner = {};
   #latestImageTarget: PendingImage["event"] | undefined;
   #pendingDecodedImage: PendingDecodedImage | undefined;
   #videoDecodeRequestId = 0;
@@ -236,6 +237,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   public override dispose(): void {
     this.#disposed = true;
+    const diag = this.renderer.diagnostics;
+    const panel = diag?.session.panel(diag.panelId, this.userData.topic);
+    if (panel?.displayedFrame?.owner === this.#displayOwner) {
+      panel.displayedFrame = undefined;
+      if (panel.status === "displayed") {
+        panel.status = "idle";
+      }
+    }
     this.renderer.off("startFrame", this.#commitCandidate);
     this.#pendingImage?.resolve({ ok: false, reason: "stale" });
     this.#pendingImage = undefined;
@@ -253,8 +262,13 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     super.dispose();
   }
 
+  public endStillImageCoverage(): void {
+    this.#lastStillTime = undefined;
+  }
+
   /** Invalidate pending image work without starting a worker RPC. */
   public invalidateImage(): void {
+    this.endStillImageCoverage();
     this.#imageGeneration++;
     this.userData.displayedFrameState = undefined;
     this.#clearPendingDecodedImage();
@@ -264,7 +278,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   }
 
   public resetForSeek(): void {
-    this.#lastStillTime = undefined;
     this.invalidateImage();
     this.#lateTargetRequestId = undefined;
     this.#videoDecodeRequestId++;
@@ -438,7 +451,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         .catch((error: unknown) => {
           log.error(error);
           if (!this.#disposed && generation === this.#imageGeneration) {
-            this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${String(error)}`);
+            this.addError(
+              DECODE_IMAGE_ERR_KEY,
+              `Error decoding image: ${String(error)}`,
+              pending.event.receiveTime,
+            );
           }
           pending.resolve({ ok: false, reason: "failed" });
         })
@@ -480,6 +497,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         targetFrame.message,
         options.resizeWidth,
         options.onDecoded,
+        targetFrame,
       );
       if (result.ok) {
         options.updateImageState?.(targetFrame);
@@ -526,7 +544,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
             resolve({ ok: false, reason: "failed" });
             return;
           }
-          this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
+          this.addError(
+            DECODE_IMAGE_ERR_KEY,
+            `Error decoding image: ${(err as Error).message}`,
+            targetFrame.receiveTime,
+          );
           resolve({ ok: false, reason: "failed" });
         });
     });
@@ -618,9 +640,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       diag?.session.displayed(
         diag.panelId,
         this.userData.topic,
-        this.renderer.currentTime,
         receiveTime,
         toNanoSec(getTimestampFromImage(candidate.event.message)),
+        this.#displayOwner,
       );
     }
     this.update();
@@ -1274,12 +1296,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
   }
 
-  protected addError(key: string, message: string): void {
-    if (key === DECODE_IMAGE_ERR_KEY) {
-      this.#recordDecodeResult(message);
-    }
+  protected addError(key: string, message: string, receiveTime?: Time): void {
     if (this.isDisposed()) {
       return;
+    }
+    if (key === DECODE_IMAGE_ERR_KEY && receiveTime != undefined) {
+      this.#recordDecodeResult(message, receiveTime);
     }
     // must account for if the renderable is part of `ImageMode` or `Images` scene extension
     this.renderer.settings.errors.add(IMAGE_TOPIC_PATH, key, message);

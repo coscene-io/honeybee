@@ -95,6 +95,8 @@ export class Images extends SceneExtension<ImageRenderable> {
   #cameraInfoByTopic = new Map<string, CameraInfo>();
   #compressedVideoControllers = new Map<string, CompressedVideoController>();
 
+  #diagnosticBindings = new Map<string, () => void>();
+
   protected supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
   public constructor(renderer: IRenderer, name: string = Images.extensionId) {
@@ -111,6 +113,10 @@ export class Images extends SceneExtension<ImageRenderable> {
       controller.dispose();
     }
     this.#compressedVideoControllers.clear();
+    for (const unbind of this.#diagnosticBindings.values()) {
+      unbind();
+    }
+    this.#diagnosticBindings.clear();
     super.dispose();
   }
 
@@ -120,7 +126,7 @@ export class Images extends SceneExtension<ImageRenderable> {
       return;
     }
 
-    const preservedTopics = this.#visibleCompressedVideoTopics();
+    const preservedTopics = this.#visibleTopics(COMPRESSED_VIDEO_DATATYPES);
     for (const [topic, renderable] of this.renderables) {
       if (preservedTopics.has(topic)) {
         continue;
@@ -133,7 +139,7 @@ export class Images extends SceneExtension<ImageRenderable> {
   }
 
   public override handleSeek(): void {
-    for (const topic of this.#visibleCompressedVideoTopics()) {
+    for (const topic of this.#visibleTopics(COMPRESSED_VIDEO_DATATYPES)) {
       this.#compressedVideoControllerForTopic(topic).handleSeek();
     }
   }
@@ -219,17 +225,34 @@ export class Images extends SceneExtension<ImageRenderable> {
         this.#compressedVideoControllers.delete(topic);
       }
     }
-    this.#disposeHiddenVideoControllers();
+    this.#handleConfigChange();
   };
 
   #handleConfigChange = (): void => {
     this.#disposeHiddenVideoControllers();
+    const diag = this.renderer.diagnostics;
+    if (!diag) {
+      return;
+    }
+    const visible = this.#visibleTopics(this.supportedImageSchemas);
+    for (const [topic, unbind] of this.#diagnosticBindings) {
+      if (!visible.has(topic)) {
+        unbind();
+        this.renderables.get(topic)?.endStillImageCoverage();
+        this.#diagnosticBindings.delete(topic);
+      }
+    }
+    for (const topic of visible) {
+      if (!this.#diagnosticBindings.has(topic)) {
+        this.#diagnosticBindings.set(topic, diag.session.bind(diag.panelId, topic));
+      }
+    }
   };
 
-  #visibleCompressedVideoTopics(): Set<string> {
+  #visibleTopics(schemas: Set<string>): Set<string> {
     const topics = new Set<string>();
     for (const topic of this.renderer.topics ?? []) {
-      if (!topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
+      if (!topicIsConvertibleToSchema(topic, schemas)) {
         continue;
       }
       const settings: Partial<LayerSettingsImage> | undefined =
@@ -423,7 +446,7 @@ export class Images extends SceneExtension<ImageRenderable> {
   };
 
   #disposeHiddenVideoControllers(): void {
-    const visibleTopics = this.#visibleCompressedVideoTopics();
+    const visibleTopics = this.#visibleTopics(COMPRESSED_VIDEO_DATATYPES);
     for (const [topic, controller] of this.#compressedVideoControllers) {
       if (!visibleTopics.has(topic)) {
         controller.dispose();

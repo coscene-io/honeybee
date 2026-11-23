@@ -18,6 +18,7 @@ import {
 import { MessageEvent } from "@foxglove/studio";
 import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { VideoRun } from "@foxglove/studio-base/services/videoDiagnostics";
+import { hasIntegerTime } from "@foxglove/studio-base/util/time";
 
 import type {
   CompressedVideoFrameEvent,
@@ -80,6 +81,9 @@ export class CompressedVideoController {
   #cacheNeedsKeyframe = false;
   #lastInputPublishTimeNs: bigint | undefined;
   #diagnosticRun = new VideoRun();
+  #lastDeliveryTime?: bigint;
+  // The decode cache fills in absent timestamps. Keep the original evidence for those frames.
+  readonly #incompleteSources = new WeakMap<MessageEvent, PartialMessageEvent<CompressedVideo>>();
   readonly #state: { lookbackCancel?: () => void; lookbackGeneration?: number } = {};
 
   public constructor(args: {
@@ -120,15 +124,21 @@ export class CompressedVideoController {
       await this.#work;
       return;
     }
-    let frames = input
-      .filter((event) => event.topic === this.#topic)
-      .map((event): VideoInputEvent => ({
+    let frames: VideoInputEvent[] = [];
+    for (const event of input) {
+      if (event.topic !== this.#topic) {
+        continue;
+      }
+      const timestamp = event.message.timestamp;
+      const frame: VideoInputEvent = {
         ...event,
         message: {
-          timestamp: {
-            sec: event.message.timestamp?.sec ?? 0,
-            nsec: event.message.timestamp?.nsec ?? 0,
-          },
+          timestamp: hasIntegerTime(timestamp)
+            ? timestamp
+            : {
+                sec: Number.isSafeInteger(timestamp?.sec) ? timestamp!.sec! : 0,
+                nsec: Number.isSafeInteger(timestamp?.nsec) ? timestamp!.nsec! : 0,
+              },
           frame_id: event.message.frame_id ?? "",
           format: event.message.format ?? "",
           data:
@@ -136,13 +146,26 @@ export class CompressedVideoController {
               ? event.message.data
               : [],
         },
-      }));
+      };
+      if (!hasIntegerTime(timestamp)) {
+        this.#incompleteSources.set(frame, event);
+      }
+      frames.push(frame);
+    }
     if (frames.length === 0 || this.#disposed) {
       await this.#work;
       return;
     }
     const diagnostics = this.#renderer.diagnostics?.session;
-    if (diagnostics?.claim(this.#topic, this) === true) {
+    const run = diagnostics?.claimRun(
+      this.#topic,
+      this,
+      this.#diagnosticRun,
+      this.#lastDeliveryTime,
+    );
+    this.#lastDeliveryTime = toNanoSec(frames[frames.length - 1]!.receiveTime);
+    if (diagnostics && run) {
+      this.#diagnosticRun = run;
       for (const event of input) {
         if (event.topic === this.#topic) {
           diagnostics.inspect(this.#topic, event, this.#diagnosticRun);
@@ -165,7 +188,9 @@ export class CompressedVideoController {
     if (regressed) {
       const timestamp = this.#lastInputPublishTimeNs;
       const observedRun = this.#diagnosticRun;
+      const lastDeliveryTime = this.#lastDeliveryTime;
       this.handleTimestampRegression();
+      this.#lastDeliveryTime = lastDeliveryTime;
       this.#diagnosticRun = observedRun;
       this.#lastInputPublishTimeNs = timestamp;
       frames = frames.slice(epochStart);
@@ -288,6 +313,7 @@ export class CompressedVideoController {
   }
 
   public resetPlaybackState(): void {
+    this.#lastDeliveryTime = undefined;
     this.#diagnosticRun = new VideoRun();
     this.#generation++;
     this.#state.lookbackCancel?.();
@@ -360,7 +386,8 @@ export class CompressedVideoController {
         backfillTarget != undefined
           ? this.#seekReplayFrames
           : this.#cache.seekAndReturnFramesForReceiveTime(this.#topic, targetTime);
-      if (frames == undefined && this.#renderer.subscribeMessageRange != undefined) {
+      const needsLookback = frames == undefined;
+      if (needsLookback && this.#renderer.subscribeMessageRange != undefined) {
         frames = await this.#lookbackFrames(generation, targetTime);
       }
       if (
@@ -371,6 +398,22 @@ export class CompressedVideoController {
         return;
       }
       this.#cacheNeedsKeyframe = false;
+      const session = this.#renderer.diagnostics?.session;
+      const cachedRun = needsLookback
+        ? undefined
+        : session?.claimRun(this.#topic, this, new VideoRun());
+      if (session && cachedRun) {
+        // Restore the diagnostic context before continuing playback from a cached GOP.
+        this.#diagnosticRun = cachedRun;
+        for (const frame of frames) {
+          session.inspect(
+            this.#topic,
+            this.#incompleteSources.get(frame) ?? (frame as VideoInputEvent),
+            this.#diagnosticRun,
+          );
+        }
+      }
+      this.#lastDeliveryTime = toNanoSec(frames[frames.length - 1]!.receiveTime);
       const normalized = frames.map((frame) =>
         normalizeVideoMessageEvent(frame as MessageEvent<CompressedVideo>),
       );
@@ -409,6 +452,7 @@ export class CompressedVideoController {
     // Track the recovery that this panel tick is awaiting.
     const finishMetricsTask = playbackPerformanceMetrics.beginVisualTask();
     let found = false;
+    const windows: { start: Time; events: MessageEvent[] }[] = [];
     try {
       this.#onSeekKeyframeSearchChange?.({ active: true });
       const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
@@ -446,7 +490,11 @@ export class CompressedVideoController {
           }
           return undefined;
         }
-        collected = mergeFramesByReceiveTime(slice, collected);
+        if (diag) {
+          windows.push({ start, events: slice });
+        }
+        const decodable = slice.filter((event) => parseVideoFrameInfo(event) != undefined);
+        collected = mergeFramesByReceiveTime(decodable, collected);
         coveredStart = start;
         const gop = gopEndingAt(collected, this.#topic, targetTime);
         if (gop.length > 0) {
@@ -460,6 +508,39 @@ export class CompressedVideoController {
       }
       return undefined;
     } finally {
+      const earliest = windows.at(-1);
+      if (diag && earliest) {
+        const count = windows.reduce((sum, slice) => sum + slice.events.length, 0);
+        const run = diag.session.inspectLookback(
+          this.#topic,
+          toNanoSec(earliest.start),
+          toNanoSec(targetTime),
+          count,
+          (context) => {
+            // Range reads work backwards and include both endpoints. Inspect each packet once
+            // in recording order, with PPS and keyframe context from the preceding window.
+            for (let i = windows.length - 1; i >= 0; i--) {
+              const nextStart = windows[i - 1]?.start;
+              for (const event of windows[i]!.events) {
+                if (nextStart && compare(event.receiveTime, nextStart) === 0) {
+                  continue;
+                }
+                if (event.message != undefined && typeof event.message === "object") {
+                  diag.session.inspect(
+                    this.#topic,
+                    event as MessageEvent<CompressedVideo>,
+                    context,
+                  );
+                }
+              }
+            }
+          },
+        );
+        if (this.#isCurrentLookback(generation)) {
+          this.#diagnosticRun = run;
+          diag.session.claimRun(this.#topic, this, run);
+        }
+      }
       if (stats?.status === "lookback" && this.#isCurrentLookback(generation)) {
         stats.status = found ? "decoding" : "waiting";
       }
@@ -573,27 +654,7 @@ export class CompressedVideoController {
         timeRange: { start: startTime, end: endTime },
         onNewRangeIterator: async (iterator) => {
           try {
-            const session = this.#renderer.diagnostics?.session;
-            const run = new VideoRun();
-            const observe =
-              session?.claim(this.#topic, this) === true
-                ? (event: MessageEvent) => {
-                    if (
-                      this.#isCurrentLookback(generation) &&
-                      event.message != undefined &&
-                      typeof event.message === "object"
-                    ) {
-                      session.inspect(this.#topic, event as MessageEvent<CompressedVideo>, run);
-                    }
-                  }
-                : undefined;
-            const frames = await collectFramesInRange(
-              iterator,
-              this.#topic,
-              startTime,
-              endTime,
-              observe,
-            );
+            const frames = await collectFramesInRange(iterator, this.#topic, startTime, endTime);
             if (this.#isCurrentLookback(generation)) {
               // A genuinely empty range is still a successful read.
               finish(frames, "success");
@@ -622,7 +683,6 @@ async function collectFramesInRange(
   topic: string,
   startTime: Time,
   endTime: Time,
-  observe?: (event: MessageEvent) => void,
 ): Promise<MessageEvent[]> {
   const frames: MessageEvent[] = [];
   for await (const batch of iterator) {
@@ -636,12 +696,7 @@ async function collectFramesInRange(
       ) {
         continue;
       }
-      observe?.(messageEvent);
-      const frameInfo = parseVideoFrameInfo(messageEvent);
-      if (frameInfo == undefined) {
-        continue;
-      }
-      frames.push(normalizeVideoMessageEvent(messageEvent as MessageEvent<CompressedVideo>));
+      frames.push(messageEvent);
     }
   }
   return frames;
