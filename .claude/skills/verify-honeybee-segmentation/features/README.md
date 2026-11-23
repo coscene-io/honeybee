@@ -13,7 +13,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 - Use one ego-browser task space named `verify honeybee segmentation` and its page `p1`.
 - Open the record with `scripts/open-record.sh` instead of typing into the clock box. The clock rejects the `+08` zone.
-- Prefer visible text and ARIA labels: `✎ 编辑空间标注`, `结束标注`, `当前播放时间`, `键盘快捷键`.
+- Prefer visible text and ARIA labels: `编辑空间标注`, `结束标注`, `当前播放时间`, `键盘快捷键`.
 - Press keys through `page.keyboard.press` with focus where a user would have it. Click the canvas first for canvas shortcuts.
 - Plan several actions in one script call, then observe once.
 

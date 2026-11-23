@@ -70,8 +70,8 @@ it("shows exact frame/instance/type staging and confirms local-only reset while 
   );
   render(<SubmissionControls store={runtime.store} />);
   fireEvent.click(screen.getByLabelText("查看暂存操作"));
-  expect(await screen.findByText(/帧 1 \[frame-0\] · 实例 instance-1/)).toBeTruthy();
-  expect(screen.getByText(/帧 2 \[frame-1\] · 实例 instance-2/)).toBeTruthy();
+  expect(await screen.findByText(/帧 1 · Person Person 1/)).toBeTruthy();
+  expect(screen.getByText(/帧 2 · Object Object 1/)).toBeTruthy();
   expect(screen.getAllByText("类型：Edit polygon")).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "清除暂存" }));
   fireEvent.click(screen.getByRole("button", { name: "取消" }));
@@ -80,7 +80,9 @@ it("shows exact frame/instance/type staging and confirms local-only reset while 
   fireEvent.click(screen.getByRole("button", { name: "仅清除未提交修改" }));
   expect(runtime.store.getState().stagedOperations).toHaveLength(0);
   expect(JSON.stringify(runtime.store.getState().submissionQueue[0]?.operations)).toBe(queued);
-  expect(screen.getByRole("button", { name: "提交" }).className).toContain("seg-primary");
+  expect(screen.getByRole("button", { name: "提交" }).className).toContain(
+    "MuiButton-colorPrimary",
+  );
   await act(async () => {
     release?.();
     await runtime.store.getState().waitForSubmissions();
@@ -98,7 +100,7 @@ it("keeps clean staging and empty queues honest, and cannot fabricate an empty M
     </>,
   );
   const submit = screen.getByRole("button", { name: "提交" });
-  expect(submit.className).toContain("seg-primary");
+  expect(submit.className).toContain("MuiButton-colorPrimary");
   expect(submit.textContent).toBe("提交");
   fireEvent.click(screen.getByLabelText("查看暂存操作"));
   expect(screen.getByText("当前没有暂存修改")).toBeTruthy();

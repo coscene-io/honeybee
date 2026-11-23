@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Button, Collapse, Typography } from "@mui/material";
 import { useState } from "react";
 
 import { patchAnnotationKeys } from "../service";
@@ -18,9 +19,24 @@ export function OperationScope({
   document?: SegmentationDocument;
 }): React.JSX.Element {
   const scopes = new Set<string>();
+  // Names for people; the hover title keeps the stable IDs for support.
+  const instanceName = (id: string) => {
+    const instance = document?.instances.find((item) => item.id === id);
+    const category = document?.classes.find((item) => item.id === instance?.classId);
+    return instance ? `${category ? `${category.name} ` : ""}${instance.name}` : id;
+  };
+  const className = (id: string) => document?.classes.find((item) => item.id === id)?.name ?? id;
+  const titles = new Map<string, string>();
+  const add = (scope: string, title: string) => {
+    scopes.add(scope);
+    titles.set(scope, title);
+  };
   const addFrame = (frameId: string, instanceId: string) => {
     const frame = document?.frames.find((item) => item.id === frameId);
-    scopes.add(`帧 ${frame ? `${frame.index + 1} [${frameId}]` : frameId} · 实例 ${instanceId}`);
+    add(
+      `帧 ${frame ? frame.index + 1 : "?"} · ${instanceName(instanceId)}`,
+      `${frameId} · ${instanceId}`,
+    );
   };
   // Record-wide deletes and merges also touch frames whose geometry is not loaded.
   for (const key of document ? patchAnnotationKeys(document, operation.patch) : []) {
@@ -36,25 +52,38 @@ export function OperationScope({
     addFrame(change.frameId, change.instanceId);
   }
   for (const id of Object.keys(operation.patch.classes ?? {})) {
-    scopes.add(`类别 ${id} · 记录范围`);
+    add(`类别 ${className(id)} · 全部帧`, id);
   }
   for (const id of Object.keys(operation.patch.instances ?? {})) {
-    scopes.add(`实例 ${id} · 记录范围`);
+    add(`实例 ${instanceName(id)} · 全部帧`, id);
   }
   for (const reference of Object.values(operation.patch.momentReferences ?? {})) {
     if (reference) {
-      scopes.add(`一刻 ${reference.momentId} · ${reference.targetType} ${reference.targetId}`);
+      add(
+        `一刻引用 · ${reference.targetType === "class" ? className(reference.targetId) : instanceName(reference.targetId)}`,
+        `${reference.momentId} · ${reference.targetId}`,
+      );
     }
   }
   return (
     <div>
-      <strong>类型：{operation.label}</strong>
+      <Typography variant="body2">类型：{operation.label}</Typography>
       {[...scopes].map((scope) => (
-        <p className="seg-muted" key={scope}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          component="p"
+          key={scope}
+          title={titles.get(scope)}
+        >
           {scope}
-        </p>
+        </Typography>
       ))}
-      {scopes.size === 0 && <p className="seg-muted">记录 {document?.record.id ?? "未打开"}</p>}
+      {scopes.size === 0 && (
+        <Typography variant="caption" color="text.secondary" component="p">
+          记录 {document?.record.id ?? "未打开"}
+        </Typography>
+      )}
     </div>
   );
 }
@@ -69,21 +98,26 @@ export function OperationList({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   return (
-    <details
-      onToggle={(event) => {
-        setOpen(event.currentTarget.open);
-      }}
-    >
-      <summary>查看批次修改范围</summary>
-      {open && (
-        <ol>
+    <div>
+      <Button
+        size="small"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((value) => !value);
+        }}
+      >
+        {open ? "收起修改范围" : "查看批次修改范围"}
+      </Button>
+      {/* Mounted only while open: large snapshots stay out of the render path. */}
+      <Collapse in={open} unmountOnExit>
+        <ol style={{ margin: 0, paddingLeft: 20 }}>
           {operations.map((operation) => (
             <li key={operation.id}>
               <OperationScope operation={operation} document={document} />
             </li>
           ))}
         </ol>
-      )}
-    </details>
+      </Collapse>
+    </div>
   );
 }

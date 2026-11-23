@@ -69,10 +69,10 @@ it("opens and maximizes the only canvas from the app bar", () => {
   const unregister = registerSegmentationCanvas(only);
   renderBar();
   fireEvent.click(screen.getByTitle("编辑空间标注"));
-  fireEvent.click(screen.getByLabelText("放大并编辑空间标注"));
+  fireEvent.click(screen.getByRole("button", { name: "放大并编辑空间标注" }));
   expect(only.inline).toHaveBeenCalledTimes(1);
   expect(only.maximize).toHaveBeenCalledTimes(1);
-  expect(screen.getByTitle("编辑空间标注").textContent).toBe("✎ 编辑空间标注");
+  expect(screen.getByTitle("编辑空间标注").textContent).toBe("编辑空间标注");
   act(() => {
     unregister();
   });

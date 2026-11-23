@@ -600,7 +600,7 @@ describe("structure tree acceptance", () => {
     expect(submit).toHaveBeenCalledTimes(1);
     expect(store.getState().submissionQueue[0]!.status).toBe("failed");
     expect(store.getState().submissionQueue[0]!.error).toBe("Simulated service failure");
-    expect(screen.getByRole("alert").textContent).toBe("Simulated service failure");
+    expect(screen.getByRole("alert").textContent).toContain("Simulated service failure");
     expect(screen.getByRole("button", { name: "重试提交" })).toBeDefined();
     expect(store.getState().document).toEqual(localBeforeSubmit);
     expect(await service.loadFrameWindow("video-1", 0, 0.6)).toEqual(backendBefore);

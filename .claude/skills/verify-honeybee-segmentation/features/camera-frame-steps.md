@@ -12,7 +12,7 @@ During an annotation session, each polygon row in the tree shows a strip of that
 
 ## How to get to it (user POV)
 
-- Enter annotation with `✎ 编辑空间标注`, draw a polygon, then look under its camera row in the tree.
+- Enter annotation with `编辑空间标注`, draw a polygon, then look under its camera row in the tree.
 - Use the timeline previous and next buttons, or the arrow keys, while the session is open.
 
 ## Driving it with ego-browser

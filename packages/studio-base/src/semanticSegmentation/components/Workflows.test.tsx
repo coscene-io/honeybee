@@ -160,7 +160,7 @@ describe("workbench workflow integration", () => {
     });
     const stop = await screen.findByRole("button", { name: "STOP · 停止传播" });
     expect(container.inert).toBe(true);
-    expect(stop.closest(".seg-global-lock")?.parentElement).toBe(document.body);
+    expect(stop.closest('[aria-label="在线传播锁定"]')?.parentElement).toBe(document.body);
     const shortcut = new KeyboardEvent("keydown", {
       key: "ArrowRight",
       bubbles: true,

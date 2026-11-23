@@ -53,9 +53,9 @@ Stable handles:
 
 - Playback clock: `input[aria-label="当前播放时间"], input[title="当前播放时间"]`. Its value looks like `2026-03-31 11:09:03.719 AM +08`. Typing into it fails validation because the zone is `+08`. Seek by clicking the timeline track instead.
 - Play and pause: `page.keyboard.press("Space")` with focus outside an input.
-- Enter annotation: `✎ 编辑空间标注` in `[data-testid="segmentation-app-bar"]`. All camera surfaces join the global session; the clock does not move.
+- Enter annotation: `编辑空间标注` in `[data-testid="segmentation-app-bar"]`. All camera surfaces join the global session; the clock does not move.
 - Leave annotation: `结束标注` inside `[data-testid="segmentation-app-bar"]`.
-- Backend: every session reads and saves through the live AnnotationService; there is no browser-only mode and no backend badge. A source without a cloud record shows `✎ 编辑空间标注` disabled (title `只有云端记录支持空间标注`). See [`features/live-annotation-service.md`](features/live-annotation-service.md).
+- Backend: every session reads and saves through the live AnnotationService; there is no browser-only mode and no backend badge. A source without a cloud record shows `编辑空间标注` disabled (title `只有云端记录支持空间标注`). See [`features/live-annotation-service.md`](features/live-annotation-service.md).
 - Frame diagnostics: `[data-testid="segmentation-native-overlay"]` exposes `data-topic`, `data-log-time-ns`, `data-source-ready` for each camera. These identify the actual decoded image, not the playhead.
 - Hidden file input for local files: `input[data-puppeteer-file-upload]`.
 

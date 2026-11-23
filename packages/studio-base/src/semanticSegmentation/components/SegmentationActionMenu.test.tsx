@@ -87,7 +87,7 @@ it("holds submission, version history and ending the session behind 提交", asy
   expect(within(menu).getByText(/待提交队列 1/)).toBeTruthy();
   expect(within(menu).getByRole("button", { name: "清除暂存" })).toBeTruthy();
   expect(within(menu).queryByRole("button", { name: "撤销" })).toBeNull();
-  fireEvent.click(within(menu).getByRole("button", { name: "结束标注" }));
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "结束标注" }));
   expect(segmentationSession.getState().open).toBe(false);
   runtime.dispose();
 });

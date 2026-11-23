@@ -52,7 +52,9 @@ it("stages edits without writes and keeps newer B dirty when A is acknowledged",
       store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-2")],
     ).some((item) => item.id === later),
   ).toBe(true);
-  expect(screen.getByRole("button", { name: /提交 1/ }).className).toContain("seg-dirty");
+  expect(screen.getByRole("button", { name: /提交 1/ }).className).toContain(
+    "MuiButton-colorWarning",
+  );
   expect(submit).toHaveBeenCalledTimes(1);
   expect(
     polygonsOf(

@@ -5,6 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+
+/** A destructive confirmation. Rendered only while open, so it never outlives its context. */
 export function WorkflowConfirmation({
   title,
   children,
@@ -21,45 +24,26 @@ export function WorkflowConfirmation({
   disabled?: boolean;
 }): React.JSX.Element {
   return (
-    <div className="seg-modal-backdrop">
-      <div
-        className="seg-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onCancel();
-          }
-          if (event.key === "Tab") {
-            const controls = [
-              ...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
-            ];
-            const first = controls[0];
-            const last = controls[controls.length - 1];
-            if (event.shiftKey && event.target === first) {
-              event.preventDefault();
-              last?.focus();
-            } else if (!event.shiftKey && event.target === last) {
-              event.preventDefault();
-              first?.focus();
-            }
-          }
-        }}
-      >
-        <h2>{title}</h2>
-        {children}
-        <div className="seg-row">
-          <button type="button" disabled={disabled} onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-          <button type="button" autoFocus onClick={onCancel}>
-            取消
-          </button>
-        </div>
-      </div>
-    </div>
+    <Dialog
+      open
+      maxWidth="xs"
+      fullWidth
+      onClose={onCancel}
+      // Keys stay in the dialog: the editor and playback shortcuts must not see them.
+      onKeyDown={(event) => {
+        event.stopPropagation();
+      }}
+    >
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>{children}</DialogContent>
+      <DialogActions>
+        <Button autoFocus onClick={onCancel}>
+          取消
+        </Button>
+        <Button variant="contained" color="error" disabled={disabled} onClick={onConfirm}>
+          {confirmLabel}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

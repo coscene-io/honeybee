@@ -5,19 +5,48 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import StopIcon from "@mui/icons-material/Stop";
+import { Button, LinearProgress, Paper, Typography } from "@mui/material";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
 import { segmentationSession } from "../runtime";
 import type { SemanticSegmentationStore } from "../types";
 
+const useStyles = makeStyles()((theme) => ({
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: theme.zIndex.modal + 1,
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    padding: theme.spacing(2),
+    backgroundColor: theme.palette.action.disabledBackground,
+  },
+  bar: {
+    position: "relative",
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(2),
+    maxWidth: 640,
+    padding: theme.spacing(1.5, 2),
+  },
+  text: { display: "flex", flexDirection: "column", minWidth: 0 },
+  progress: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  stop: { flexShrink: 0, whiteSpace: "nowrap" },
+}));
+
 function ActiveLock({
   store,
 }: {
   store: StoreApi<SemanticSegmentationStore>;
 }): React.JSX.Element | undefined {
+  const { classes } = useStyles();
   const propagation = useStore(store, (state) => state.propagation);
   const overlayRef = useRef<HTMLDivElement>(ReactNull);
   const stopRef = useRef<HTMLButtonElement>(ReactNull);
@@ -72,25 +101,35 @@ function ActiveLock({
     ? createPortal(
         <div
           ref={overlayRef}
-          className="seg-global-lock"
+          className={classes.overlay}
           role="dialog"
           aria-modal="true"
           aria-label="在线传播锁定"
         >
-          <div className="seg-global-stop" role="status">
-            <strong>
-              {stopping ? "正在停止传播，等待服务确认" : "在线传播中"} · 已接收{" "}
-              {propagation.processedFrames} 帧
-            </strong>
-            <span>
-              {!stopping && propagation.processedFrames === 0
-                ? "正在准备视频和模型，第一帧通常要等 10–20 秒…"
-                : "画面跟随最新结果；其他操作已锁定，停止后可继续编辑。"}
-            </span>
-            {stopping && propagation.error && <span role="alert">{propagation.error}</span>}
-            <button
-              type="button"
+          <Paper elevation={12} className={classes.bar} role="status">
+            <div className={classes.text}>
+              <Typography variant="subtitle2">
+                {stopping ? "正在停止传播，等待服务确认" : "在线传播中"} · 已接收{" "}
+                {propagation.processedFrames} 帧
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {!stopping && propagation.processedFrames === 0
+                  ? "正在准备视频和模型，第一帧通常要等 10–20 秒…"
+                  : "画面跟随最新结果；其他操作已锁定，停止后可继续编辑。"}
+              </Typography>
+              {stopping && propagation.error && (
+                <Typography variant="caption" color="error" role="alert">
+                  {propagation.error}
+                </Typography>
+              )}
+            </div>
+            <Button
               ref={stopRef}
+              className={classes.stop}
+              variant="contained"
+              color="error"
+              disableElevation
+              startIcon={<StopIcon />}
               disabled={stopDisabled}
               onKeyDown={(event) => {
                 if (!stopDisabled && (event.key === "Enter" || event.key === " ")) {
@@ -104,8 +143,9 @@ function ActiveLock({
               }}
             >
               {stopping ? (stopDisabled ? "正在停止…" : "重试停止") : "STOP · 停止传播"}
-            </button>
-          </div>
+            </Button>
+            <LinearProgress className={classes.progress} color={stopping ? "warning" : "primary"} />
+          </Paper>
         </div>,
         document.body,
       )

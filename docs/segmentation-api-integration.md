@@ -1,6 +1,6 @@
 # 语义分割编辑器与 AnnotationService
 
-编辑器通过正式的 `AnnotationService`（cosceneapis #866，gRPC-Web）读写云端录像的标注。只有云端录像能标注；本地文件上「✎ 编辑空间标注」是禁用的。几何模型（一个观测只有一种几何）见 [segmentation-geometry-model.md](segmentation-geometry-model.md)，Mask 的 GPU 渲染见 [segmentation-mask-render.md](segmentation-mask-render.md)。
+编辑器通过正式的 `AnnotationService`（cosceneapis #866，gRPC-Web）读写云端录像的标注。只有云端录像能标注；本地文件上「编辑空间标注」是禁用的。几何模型（一个观测只有一种几何）见 [segmentation-geometry-model.md](segmentation-geometry-model.md)，Mask 的 GPU 渲染见 [segmentation-mask-render.md](segmentation-mask-render.md)。
 
 ## 适配器
 

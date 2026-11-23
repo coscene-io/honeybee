@@ -25,7 +25,6 @@
 .seg-workbench * {
   box-sizing: border-box;
 }
-.seg-workbench button:not(.MuiButtonBase-root),
 .seg-workbench input {
   font: inherit;
   color: inherit;
@@ -34,78 +33,13 @@
   border-radius: 5px;
   padding: 6px 10px;
 }
-.seg-workbench button:not(.MuiButtonBase-root) {
-  cursor: pointer;
-}
-.seg-workbench button:not(.MuiButtonBase-root):hover:not(:disabled) {
-  background: #293a54;
-  border-color: #739bf0;
-}
 .seg-workbench :focus-visible {
   outline: 2px solid #82b4ff;
   outline-offset: 2px;
 }
-.seg-workbench button:not(.MuiButtonBase-root):disabled,
 .seg-workbench input:disabled {
   opacity: 0.45;
   cursor: default;
-}
-.seg-workbench button.seg-primary {
-  background: var(--seg-primary);
-  border-color: var(--seg-primary-border);
-  color: #fff;
-}
-.seg-workbench button.seg-dirty {
-  background: var(--seg-dirty);
-  border-color: #f0b75a;
-  color: var(--seg-dirty-text);
-  font-weight: 600;
-}
-.seg-workbench button.seg-submit {
-  min-width: 72px;
-  padding-inline: 14px;
-}
-
-.seg-queue-details > summary {
-  list-style: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  padding: 4px 10px;
-  border: 1px solid #3a4961;
-  border-radius: 999px;
-  background: #1a2536;
-  font-size: 12px;
-}
-.seg-queue-details > summary::-webkit-details-marker {
-  display: none;
-}
-.seg-queue-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #2ec27e;
-  flex-shrink: 0;
-}
-
-.seg-muted {
-  color: var(--seg-muted);
-  font-size: 12px;
-}
-
-.seg-popover {
-  position: absolute;
-  top: 40px;
-  right: 0;
-  width: 320px;
-  max-height: 300px;
-  overflow: auto;
-  background: #202d42;
-  border: 1px solid #52647f;
-  padding: 14px;
-  z-index: 10;
-  box-shadow: 0 8px 24px #0008;
 }
 .seg-body {
   flex: 1;
@@ -131,52 +65,6 @@
 .seg-canvas > * {
   flex: 1;
 }
-
-.seg-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.seg-controls {
-  overflow: auto;
-  border-left: 1px solid var(--seg-line);
-  background: #151e2c;
-}
-.seg-section {
-  padding: 14px;
-  border-bottom: 1px solid var(--seg-line);
-}
-.seg-section h2 {
-  font-size: 13px;
-  margin: 0 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.seg-controls-close {
-  margin-left: auto;
-}
-.seg-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
-}
-.seg-card {
-  background: #1c293b;
-  border: 1px solid var(--seg-line);
-  border-radius: 5px;
-  padding: 9px;
-}
-.seg-card p {
-  margin: 4px 0;
-}
-.seg-status {
-  padding: 8px 16px;
-  background: #213c38;
-  color: #a5edce;
-  border-bottom: 1px solid #34584d;
-}
 .seg-notifications {
   position: absolute;
   inset: auto 8px 36px;
@@ -189,18 +77,6 @@
   overflow-y: auto;
   pointer-events: none;
 }
-.seg-notifications > .seg-status {
-  max-width: min(640px, 100%);
-  border: 1px solid var(--seg-line);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px #0005;
-  overflow-wrap: anywhere;
-  pointer-events: auto;
-}
-.seg-error {
-  background: #48252d;
-  color: #ffb8bf;
-}
 .seg-disabled {
   min-width: 0;
   min-height: 0;
@@ -210,28 +86,6 @@
   border: 0;
   margin: 0;
   padding: 0;
-}
-
-.seg-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
-  background: #080d17e8;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-.seg-modal {
-  width: min(520px, 100%);
-  background: #1a2639;
-  border: 1px solid #52647f;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 12px 60px #0009;
-}
-.seg-modal h2 {
-  margin: 0 0 16px;
-  font-size: 17px;
 }
 
 .seg-entry-error {
@@ -257,54 +111,9 @@
     sans-serif;
 }
 
-.seg-global-lock {
-  position: fixed;
-  inset: 0;
-  z-index: 2200;
-  background: #0b14231a;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 16px;
-}
-.seg-global-stop {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  background: #1b293e;
-  border: 1px solid #a5bddf;
-  border-radius: 8px;
-  padding: 14px 20px;
-  box-shadow: 0 6px 30px #0008;
-  color: #e6eefb;
-  font:
-    13px/1.5 Inter,
-    sans-serif;
-}
-.seg-global-stop button {
-  background: #cf3549;
-  border: 1px solid #ff8998;
-  color: white;
-  padding: 9px 18px;
-  border-radius: 5px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .seg-embedded .seg-body {
   position: relative;
   grid-template-columns: minmax(0, 1fr) !important;
-}
-.seg-embedded .seg-controls {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: min(340px, 100%);
-  z-index: 12;
-  box-shadow: -8px 0 24px #0007;
-}
-.seg-controls[hidden] {
-  display: none;
 }
 
 .seg-embedded .seg-canvas {
@@ -312,14 +121,6 @@
 }
 .seg-canvas-focused {
   box-shadow: inset 0 0 0 2px #55b8de;
-}
-
-.seg-card {
-  overflow-wrap: anywhere;
-}
-
-.seg-section p {
-  overflow-wrap: anywhere;
 }
 
 .seg-preview {
@@ -337,42 +138,6 @@
   background: #1b293ee6;
   color: #d5e4f7;
   pointer-events: none;
-}
-
-.seg-app-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 4px;
-  padding-left: 8px;
-  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
-  -webkit-app-region: no-drag;
-}
-
-.seg-app-bar > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.seg-app-bar > button:hover:not(:disabled) {
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.seg-app-bar > button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 /* The native Image panel owns the pixels; embedded annotation is only an overlay. */

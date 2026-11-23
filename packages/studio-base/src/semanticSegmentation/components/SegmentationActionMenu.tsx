@@ -6,10 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ArrowRedo20Regular, ArrowUndo20Regular } from "@fluentui/react-icons";
-import { Popover } from "@mui/material";
+import { Button, Divider, MenuItem, MenuList, Popover } from "@mui/material";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
+
+import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 
 import {
   endSegmentationSession,
@@ -19,161 +21,26 @@ import {
 } from "../runtime";
 import { SubmissionControls } from "./WorkflowControls";
 
-import "./workbench.css";
-
 const useStyles = makeStyles()((theme) => ({
   paper: {
     marginTop: theme.spacing(0.5),
-    width: 280,
+    width: 300,
     maxWidth: "calc(100vw - 24px)",
-    border: `1px solid ${theme.palette.divider}`,
-    backgroundImage: "none",
   },
-  menu: {
-    display: "flex",
-    flexDirection: "column",
-    gap: theme.spacing(0.5),
-    padding: theme.spacing(1),
-    color: theme.palette.text.primary,
-    fontSize: theme.typography.body2.fontSize,
-    "& hr": {
-      width: "100%",
-      margin: theme.spacing(0.5, 0),
-      border: 0,
-      borderTop: `1px solid ${theme.palette.divider}`,
-    },
-    "& button:focus-visible, & input:focus-visible, & summary:focus-visible": {
-      outline: `2px solid ${theme.palette.primary.main}`,
-      outlineOffset: 1,
-    },
-  },
-  item: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing(1.5),
-    width: "100%",
-    minHeight: 32,
-    padding: theme.spacing(0, 1),
-    border: 0,
-    borderRadius: theme.shape.borderRadius,
-    background: "none",
-    color: "inherit",
-    font: "inherit",
-    textAlign: "left",
-    cursor: "pointer",
-    "&:hover:not(:disabled)": { backgroundColor: theme.palette.action.hover },
-    "&:disabled": { color: theme.palette.text.disabled, cursor: "default" },
-  },
-  danger: { color: theme.palette.error.main },
-  badge: {
-    display: "inline-block",
-    marginLeft: theme.spacing(0.75),
-    padding: theme.spacing(0, 0.75),
+  content: { padding: theme.spacing(1.5, 1.5, 1) },
+  submit: { whiteSpace: "nowrap", gap: theme.spacing(0.75) },
+  count: {
+    minWidth: 18,
+    padding: theme.spacing(0, 0.5),
     borderRadius: 9,
     backgroundColor: theme.palette.warning.main,
     color: theme.palette.warning.contrastText,
     fontSize: 11,
     fontWeight: 600,
-    lineHeight: "16px",
+    lineHeight: "18px",
+    textAlign: "center",
   },
-  // Layout and colors for the shared SubmissionControls when it is shown as a menu.
-  submission: {
-    "& .seg-menu-submission": {
-      display: "flex",
-      flexDirection: "column",
-      gap: theme.spacing(1),
-    },
-    "& .seg-menu-submission input": {
-      order: 1,
-      height: 32,
-      minWidth: 0,
-      padding: theme.spacing(0, 1),
-      border: `1px solid ${theme.palette.divider}`,
-      borderRadius: theme.shape.borderRadius,
-      backgroundColor: theme.palette.background.default,
-      color: theme.palette.text.primary,
-      font: "inherit",
-      "&::placeholder": { color: theme.palette.text.secondary },
-      "&:disabled": { opacity: 0.5 },
-    },
-    "& .seg-menu-submission .seg-submit": {
-      order: 2,
-      height: 32,
-      border: 0,
-      borderRadius: theme.shape.borderRadius,
-      backgroundColor: theme.palette.primary.main,
-      color: theme.palette.primary.contrastText,
-      font: "inherit",
-      fontWeight: 600,
-      cursor: "pointer",
-      "&.seg-dirty": {
-        backgroundColor: theme.palette.warning.main,
-        color: theme.palette.warning.contrastText,
-      },
-      "&:disabled": {
-        backgroundColor: theme.palette.action.disabledBackground,
-        color: theme.palette.action.disabled,
-        cursor: "default",
-      },
-    },
-    "& .seg-menu-submission .seg-queue-details": {
-      order: 3,
-      color: theme.palette.text.primary,
-      // Reset the legacy dark "pill" summary from workbench.css so it reads like the other menu rows.
-      "& summary": {
-        display: "flex",
-        alignItems: "center",
-        gap: theme.spacing(1),
-        minHeight: 32,
-        padding: theme.spacing(0, 1),
-        border: 0,
-        borderRadius: theme.shape.borderRadius,
-        backgroundColor: "transparent",
-        color: "inherit",
-        fontSize: "inherit",
-        cursor: "pointer",
-        listStyle: "none",
-        "&:hover": { backgroundColor: theme.palette.action.hover },
-        "&::-webkit-details-marker": { display: "none" },
-      },
-    },
-    "& .seg-menu-submission .seg-queue-dot": {
-      width: 8,
-      height: 8,
-      borderRadius: "50%",
-      backgroundColor: theme.palette.success.main,
-    },
-    "& .seg-menu-submission .seg-popover": {
-      position: "static",
-      width: "auto",
-      maxHeight: 200,
-      overflow: "auto",
-      marginTop: theme.spacing(0.5),
-      padding: theme.spacing(1, 1.5),
-      border: `1px solid ${theme.palette.divider}`,
-      borderRadius: theme.shape.borderRadius,
-      backgroundColor: theme.palette.background.default,
-      boxShadow: "none",
-      color: theme.palette.text.primary,
-      "& ol": { margin: theme.spacing(0.5, 0), paddingLeft: theme.spacing(2.5) },
-      "& p": { margin: theme.spacing(0.5, 0) },
-    },
-    "& .seg-menu-submission .seg-clear": {
-      order: 4,
-      minHeight: 32,
-      padding: theme.spacing(0, 1),
-      border: 0,
-      borderRadius: theme.shape.borderRadius,
-      background: "none",
-      color: theme.palette.error.main,
-      font: "inherit",
-      textAlign: "left",
-      cursor: "pointer",
-      "&:hover:not(:disabled)": { backgroundColor: theme.palette.action.hover },
-      "&:disabled": { color: theme.palette.text.disabled, cursor: "default" },
-    },
-  },
+  danger: { color: theme.palette.error.main },
 }));
 
 function ActionButtons({
@@ -183,7 +50,7 @@ function ActionButtons({
   runtime: SegmentationRuntime;
   sourceReady: boolean;
 }): React.JSX.Element {
-  const { classes, cx } = useStyles();
+  const { classes } = useStyles();
   const { store } = runtime;
   const state = useStore(store);
   const [submitAnchor, setSubmitAnchor] = useState<HTMLElement>();
@@ -198,26 +65,27 @@ function ActionButtons({
   };
   return (
     <>
-      <button
-        type="button"
+      <AppBarIconButton
         title="撤销标注"
         aria-label="撤销标注"
         disabled={busy || !dirty}
         onClick={state.undo}
       >
         <ArrowUndo20Regular />
-      </button>
-      <button
-        type="button"
+      </AppBarIconButton>
+      <AppBarIconButton
         title="重做标注"
         aria-label="重做标注"
         disabled={busy || !state.canRedo}
         onClick={state.redo}
       >
         <ArrowRedo20Regular />
-      </button>
-      <button
-        type="button"
+      </AppBarIconButton>
+      <Button
+        className={classes.submit}
+        variant="outlined"
+        size="small"
+        color="inherit"
         aria-haspopup="dialog"
         aria-expanded={submitAnchor != undefined}
         onClick={(event) => {
@@ -226,12 +94,11 @@ function ActionButtons({
       >
         提交
         {dirty && (
-          <span className={classes.badge} aria-label={`${staged} 项暂存`}>
+          <span className={classes.count} aria-label={`${staged} 项暂存`}>
             {staged}
           </span>
         )}
-      </button>
-
+      </Button>
       <Popover
         open={submitAnchor != undefined}
         anchorEl={submitAnchor}
@@ -241,30 +108,31 @@ function ActionButtons({
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{ paper: { className: classes.paper } }}
       >
-        <div className={cx(classes.menu, classes.submission)} role="dialog" aria-label="提交">
-          <SubmissionControls store={store} disabled={busy} menu />
-          <hr />
-          <button
-            type="button"
-            className={classes.item}
-            onClick={() => {
-              openWorkflowPanel("seg-submissions");
-              closeSubmit();
-            }}
-          >
-            提交队列
-          </button>
-          <button
-            type="button"
-            className={cx(classes.item, classes.danger)}
-            disabled={locked}
-            onClick={() => {
-              closeSubmit();
-              endSegmentationSession();
-            }}
-          >
-            结束标注
-          </button>
+        <div role="dialog" aria-label="提交">
+          <div className={classes.content}>
+            <SubmissionControls store={store} disabled={busy} menu />
+          </div>
+          <Divider />
+          <MenuList dense>
+            <MenuItem
+              onClick={() => {
+                openWorkflowPanel("seg-submissions");
+                closeSubmit();
+              }}
+            >
+              提交队列
+            </MenuItem>
+            <MenuItem
+              className={classes.danger}
+              disabled={locked}
+              onClick={() => {
+                closeSubmit();
+                endSegmentationSession();
+              }}
+            >
+              结束标注
+            </MenuItem>
+          </MenuList>
         </div>
       </Popover>
     </>

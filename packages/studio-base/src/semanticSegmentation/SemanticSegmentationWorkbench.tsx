@@ -5,7 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Alert, Button } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 
 import { SegmentationCanvas } from "./components/SegmentationCanvas";
@@ -17,6 +19,11 @@ import {
 } from "./runtime";
 
 import "./components/workbench.css";
+
+const useStyles = makeStyles()({
+  // The notices column ignores the pointer so the canvas stays usable around it.
+  notice: { pointerEvents: "auto", maxWidth: 480 },
+});
 
 /** One Image panel's canvas over the shared session. Playback, STOP and submit live outside. */
 export type SemanticSegmentationWorkbenchProps = {
@@ -40,6 +47,7 @@ export function SemanticSegmentationWorkbench({
   focused,
   onClaimFocus,
 }: SemanticSegmentationWorkbenchProps): React.JSX.Element {
+  const { classes } = useStyles();
   const { store } = runtime;
   const viewportRef = useRef<HTMLDivElement>(ReactNull);
   const rootRef = useRef<HTMLDivElement>(ReactNull);
@@ -104,34 +112,41 @@ export function SemanticSegmentationWorkbench({
     >
       <div className="seg-notifications" data-testid="workbench-notices">
         {state.frameWindowError && active && (
-          <div role="alert" className="seg-status seg-error seg-row">
+          <Alert
+            severity="error"
+            variant="filled"
+            className={classes.notice}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                disabled={state.loading || locked}
+                onClick={() => {
+                  void state.retryCurrentFrameWindow().catch((error: unknown) => {
+                    setInitializationError(String(error));
+                  });
+                }}
+              >
+                重试当前标注窗口
+              </Button>
+            }
+          >
             当前标注窗口读取失败：{state.frameWindowError.message}
-            <button
-              type="button"
-              disabled={state.loading || locked}
-              onClick={() => {
-                void state.retryCurrentFrameWindow().catch((error: unknown) => {
-                  setInitializationError(String(error));
-                });
-              }}
-            >
-              重试当前标注窗口
-            </button>
-          </div>
+          </Alert>
         )}
         {generalError && active && (
-          <div role="alert" className="seg-status seg-error seg-row">
+          <Alert
+            severity="error"
+            variant="filled"
+            className={classes.notice}
+            onClose={() => {
+              state.clearError();
+              setInitializationError(undefined);
+            }}
+            slotProps={{ closeButton: { "aria-label": "关闭错误提示", title: "关闭错误提示" } }}
+          >
             {generalError}
-            <button
-              type="button"
-              onClick={() => {
-                state.clearError();
-                setInitializationError(undefined);
-              }}
-            >
-              关闭错误提示
-            </button>
-          </div>
+          </Alert>
         )}
         {!frameReady && slowLoad && (
           <div
