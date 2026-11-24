@@ -1,10 +1,10 @@
 # 语义分割编辑器与 AnnotationService
 
-编辑器通过正式的 `AnnotationService`（cosceneapis #866，gRPC-Web）读写云端录像的标注。只有云端录像能标注；本地文件上「编辑空间标注」是禁用的。几何模型（一个观测只有一种几何）见 [segmentation-geometry-model.md](segmentation-geometry-model.md)，Mask 的 GPU 渲染见 [segmentation-mask-render.md](segmentation-mask-render.md)。
+编辑器通过正式的 `AnnotationService`（cosceneapis #866，gRPC-Web）读写云端录像的标注。只有云端录像能标注。功能由发布 flag `honeybee_semantic_segmentation` 控制（见下文「启用方式与发布顺序」）；flag 关闭、或打开的不是云端录像时，「编辑空间标注」入口**隐藏**（不是禁用），也不会有任何 `AnnotationService` 请求。几何模型（一个观测只有一种几何）见 [segmentation-geometry-model.md](segmentation-geometry-model.md)，Mask 的 GPU 渲染见 [segmentation-mask-render.md](segmentation-mask-render.md)。
 
 ## 适配器
 
-`semanticSegmentation/liveService.ts` 实现 `SemanticSegmentationService`（`service.ts`），store 和界面只依赖这个接口。入口是 `util/coscene/annotation.ts` 的 `createLiveSemanticSegmentationService({ recordName, startNs, document })`，用 Honeybee 现有的 `getPromiseClient`（同一个 base URL 和鉴权拦截器）。
+`semanticSegmentation/liveService.ts` 实现 `SemanticSegmentationService`（`service.ts`），store 和界面只依赖这个接口。入口是 `util/coscene/annotation.ts` 的 `createLiveSemanticSegmentationService({ consoleApi, recordName, startNs, document })`。客户端来自 `CoSceneConsoleApi.rpcClient(AnnotationService)`，所以和其他记录相关的 RPC 共用同一个 base URL、鉴权拦截器和会话（桌面端登出也一并生效）；没有 `consoleApi` 或不是云端录像时返回 `undefined`。
 
 | 前端动作                       | 调用                                                                                                                                     |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -59,7 +59,7 @@
 
 传播面板列出当前画布这一帧上有几何的实例，默认勾选树里选中的实例（没选就全部），只把勾选的实例作为种子。方向有向后、向前、双向：向前时 `end_time` 早于种子帧并发送 `direction: BACKWARD`，结果按时间倒序到达；双向先向后，完成后再向前。
 
-`PropagateAnnotation` 走 gRPC-Web 服务端流：`ready` 忽略；每个 `frame` 对每个已选实例产出一条结果（服务端没返回的实例记为清除）；`error` 抛出 `传播失败（gRPC code）：message`；`done` 正常结束；没收到 `done` 就断开时报错，已收到的帧保留为草稿。停止就是中止 RPC。模型列表是 `LIVE_PROPAGATION_MODELS`（目前只有后端支持的 `sam2.1-motion`）。
+`PropagateAnnotation` 走 gRPC-Web 服务端流：`ready` 忽略；每个 `frame` 对每个已选实例产出一条结果（服务端没返回的实例记为清除）；`error` 抛出 `AnnotationRpcError`（带 gRPC code 名称和服务端 message），界面再经 i18n 把 code 映射成本地化文案；`done` 正常结束；没收到 `done` 就断开时报错，已收到的帧保留为草稿。停止就是中止 RPC。模型列表是 `LIVE_PROPAGATION_MODELS`（目前只有后端支持的 `sam2.1-motion`）。
 
 ## 快速标注
 
@@ -76,4 +76,13 @@
 - 时间轴摘要只覆盖已注册的帧，树上看不到整段录像的标注分布。
 - 后端不校验 mask 像素总数和多边形坐标上界，目前由前端兜底；建议服务端也校验。
 - `ListTimelineRanges` 每个观测返回一个单点区间，没有合并成连续区间，页数随观测数增长。
-- Mask 没有宽高字段；相机换分辨率后旧 mask 会按新尺寸解码失败（前端会提示并原样保留）。
+- Mask 没有宽高字段；同一个 topic 换了解码尺寸后，旧 mask 会按新尺寸解码失败（前端会指出它是在哪个尺寸下标注的，并原样保留）。
+- **标注固定在 720p 的 H.264 转码画质上。** 所有转码 profile（480p、720p……）用的是同一个 topic（`…/h264`），只是尺寸不同，而 mask 与尺寸绑定，所以在 720p 标的 mask 不能在 480p 下读出。开始标注时如果当前是别的转码画质，页面会切到 720p 并提示（需要再点一次「编辑」）；没有 720p 的记录用最接近的一档（距离相同取更高的）。raw 画质保持 raw、不切换。
+- **raw 与 h264 是两个 topic，标注各自独立，不会互相映射。** 同一个相机在 raw 下标的内容，在转码画质下看不到，反过来也一样。目前先作为已知限制。
+
+## 启用方式与发布顺序
+
+- 功能受 GrowthBook flag `honeybee_semantic_segmentation` 控制，默认关闭。没有 GrowthBook provider 时回退到 cos-config 里的 `FEATURE_FLAG_GROWTHBOOK.honeybee_semantic_segmentation`。
+- 只有 flag 开启**并且**打开的是云端记录（Core Data 里的记录名合法，且数据源是 `coscene-data-platform`）时才可用。否则 Image 面板就是普通面板：不挂载编辑器、不建 mask 图层、不发逐帧事件、没有应用栏入口和 空间 标签页、没有 `AnnotationService` 请求，编辑器代码也不会被下载（工作区扩展和 Image 面板的标注适配器都是按需加载的 chunk）。
+- 发布顺序：先在目标环境部署 `AnnotationService`（后端 #2403，目前仅 dev），再在该环境打开 flag。
+- 未提交的操作只在内存里：存在未保存的标注工作时，离开页面会弹出确认；切换到别的记录后，带未保存工作的运行时仍保留在内存中，回到原记录才能重试或丢弃。

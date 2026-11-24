@@ -1163,23 +1163,6 @@ export function createSemanticSegmentationStore(
         }
         return await service.segmentFrame(request, signal);
       },
-      addMomentReference(momentId, targetType, targetId) {
-        const exists =
-          targetType === "class"
-            ? document().classes.some((item) => item.id === targetId)
-            : document().instances.some((item) => item.id === targetId);
-        if (!exists) {
-          throw new SegmentationError("errorUnknownReferenceTarget");
-        }
-        const id = uuidv4();
-        const videoId = document().frames.find((frame) => frame.id === frameId())!.videoId;
-        stage("Reference annotation in moment", {
-          momentReferences: {
-            [id]: { id, momentId, targetType, targetId, recordId: document().record.id, videoId },
-          },
-        });
-        return id;
-      },
       clearError() {
         set({ error: undefined });
       },

@@ -14,8 +14,7 @@ import { useStore } from "zustand";
 
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 
-import { annotationRecord } from "../annotationRecord";
-import { semanticSegmentationAvailable, useSemanticSegmentationFlag } from "../featureFlag";
+import { useSemanticSegmentationEnabled } from "../featureFlag";
 import { endSegmentationSession, segmentationSession } from "../runtime";
 import { mainSegmentationCanvas, segmentationChrome } from "../segmentationChrome";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
@@ -41,11 +40,9 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
   const { t } = useTranslation("segmentation");
   const canvases = useStore(segmentationChrome, (state) => state.canvases);
   const open = useStore(segmentationSession, (state) => state.open);
-  const recordName = useStore(annotationRecord, (state) => state.recordName);
-  const flagOn = useSemanticSegmentationFlag();
   // Annotations are read and saved only through the AnnotationService: the entry is offered only
   // with the rollout flag on and a cloud record open, and is hidden (not disabled) otherwise.
-  const available = semanticSegmentationAvailable({ flagOn, recordName });
+  const available = useSemanticSegmentationEnabled();
   const first = mainSegmentationCanvas(canvases);
 
   if (!open && (!available || first == undefined)) {

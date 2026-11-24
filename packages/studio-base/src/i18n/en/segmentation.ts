@@ -20,6 +20,10 @@ export const segmentation = {
   allFrames: "All frames",
   annotateInstance: "Annotate this instance",
   annotateNode: "Annotate {{name}}",
+  annotationProfileNearest:
+    "This record has no 720p video; annotation is fixed to the closest, {{height}}p, so everyone annotates at the same size. Click Edit again to start.",
+  annotationProfileSwitched:
+    "Annotation is fixed to {{height}}p video quality, because masks are tied to the image size. Switched; click Edit again to start.",
   annotationDisplay: "Annotation display",
   annotationViewport: "Annotation viewport",
   batchFailed: "Failed",
@@ -194,7 +198,6 @@ export const segmentation = {
   errorUnknownInstance: "Unknown instance",
   errorUnknownInstanceOrClass: "Unknown instance or class",
   errorUnknownPolygon: "Unknown polygon in current frame",
-  errorUnknownReferenceTarget: "Reference target does not exist",
   errorUnknownSourceClass: "Unknown source class",
   errorUnknownSourceInstance: "Unknown source instance",
   errorUnknownTargetClass: "Unknown target class",
@@ -382,7 +385,6 @@ export const segmentation = {
   scopeClass: "Class {{name}} · all frames",
   scopeFrame: "Frame {{frame}} · {{instance}}",
   scopeInstance: "Instance {{name}} · all frames",
-  scopeMomentReference: "Moment reference · {{name}}",
   scopeNoRecord: "No record open",
   scopePolygonsHint: "{{scopePolygonsCount}} polygons in scope: click one to edit its vertices",
   scopeRecord: "Record {{id}}",

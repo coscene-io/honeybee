@@ -106,18 +106,8 @@ describe("structure tree acceptance", () => {
     expect(strip.children).toHaveLength(41);
     expect(strip.children[40]!.getAttribute("title")).toBe("Frame +20: present");
   });
-  it("preserves references and every polygon across rename and backend display refresh", async () => {
+  it("preserves every polygon across rename and backend display refresh", async () => {
     const document = structureDocument();
-    document.momentReferences = [
-      {
-        id: "ref",
-        momentId: "moment",
-        recordId: document.record.id,
-        videoId: "video-1",
-        targetType: "instance",
-        targetId: "I",
-      },
-    ];
     const { store, service } = await setup(document);
     const before = store.getState().document!;
     menu("C", "Rename class");
@@ -140,7 +130,6 @@ describe("structure tree acceptance", () => {
       before.instances.map((item) => item.id),
     );
     expect(geometry(store.getState().document!)).toEqual(geometry(before));
-    expect(store.getState().document!.momentReferences).toEqual(before.momentReferences);
     act(() => {
       store.getState().submit();
     });
@@ -170,7 +159,6 @@ describe("structure tree acceptance", () => {
         .sort(),
     ).toEqual(before.instances.map((item) => item.id).sort());
     expect(geometry(refreshedStore.getState().document!)).toEqual(geometry(before));
-    expect(refreshedStore.getState().document!.momentReferences).toEqual(before.momentReferences);
     refreshedStore.getState().dispose();
   });
 
@@ -566,7 +554,7 @@ describe("structure tree acceptance", () => {
     const before = invariant(store);
     act(() => {
       expect(() => {
-        store.getState().runTransaction("Scoped action failure", () => {
+        store.getState().runTransaction("opLabelEditTree", () => {
           store.getState().moveInstance("I", "D");
           store.getState().deletePolygon("U-P-0");
           store.getState().moveInstance("J", "missing-class");
@@ -637,10 +625,10 @@ describe("structure tree acceptance", () => {
       target: { value: "instance/7" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
-    expect(onChange).toHaveBeenCalledWith("spatial://second-record/video-1/instance/7");
+    expect(onChange).toHaveBeenCalledWith("spatial://second-record/instance/7");
     expect(
       resolveSpatialReference(
-        "spatial://record-1/video-1/instance/7",
+        "spatial://record-1/instance/7",
         b.getState().document,
         i18n.getFixedT("en", "segmentation"),
       ),

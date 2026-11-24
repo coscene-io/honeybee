@@ -64,7 +64,7 @@ export function useTreeShell({
         return;
       }
       try {
-        state.runTransaction("Edit spatial tree", action);
+        state.runTransaction("opLabelEditTree", action);
         setError(undefined);
       } catch (err) {
         setError(segmentationErrorText(err));

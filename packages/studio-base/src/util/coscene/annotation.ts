@@ -12,6 +12,9 @@ import {
 import type { SegmentationDocument } from "@foxglove/studio-base/semanticSegmentation/types";
 import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { AnnotationService } from "@foxglove/studio-base/services/api/spatial-annotation";
+import { isAnnotationRecordName } from "@foxglove/studio-base/util/coscene/annotationRecordName";
+
+export { isAnnotationRecordName };
 
 /**
  * Live spatial-annotation client for `coscene.dataplatform.v1alpha3.services.AnnotationService`.
@@ -20,15 +23,9 @@ import { AnnotationService } from "@foxglove/studio-base/services/api/spatial-an
  *
  * Transport is the console API's gRPC-Web client (`ConsoleApi.rpcClient`), so auth, base URL and
  * the desktop session match every other record RPC. Propagation is a server stream on it.
+ *
+ * The service is undefined for sources it cannot address (local files).
  */
-const RECORD_NAME = /^warehouses\/[^/]+\/projects\/[^/]+\/records\/[^/]+$/;
-
-/** True for a cloud record the annotation service can address. */
-export function isAnnotationRecordName(recordName: string | undefined): recordName is string {
-  return recordName != undefined && RECORD_NAME.test(recordName);
-}
-
-/** The live service for a cloud record; undefined for sources it cannot address (local files). */
 export function createLiveSemanticSegmentationService(args: {
   /** Undefined outside the console API provider: there is then no authenticated client. */
   consoleApi: Pick<ConsoleApi, "rpcClient"> | undefined;

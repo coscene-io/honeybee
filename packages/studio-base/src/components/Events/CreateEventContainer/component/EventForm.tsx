@@ -38,7 +38,7 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
-import { useWorkspaceSlotValues } from "@foxglove/studio-base/context/WorkspaceSlots";
+import { useWorkspaceSlotEntries } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 
 import { CreateEventForm } from "../types";
@@ -88,7 +88,7 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
   const { classes } = useStyles();
   const { t } = useTranslation("event");
   const { formatTime } = usePlaybackTimeFormat();
-  const valueAdornments = useWorkspaceSlotValues("momentValueAdornments");
+  const valueAdornments = useWorkspaceSlotEntries("momentValueAdornments");
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const [isComposition, setIsComposition] = useState(false);
 
@@ -420,7 +420,8 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
                   render={({ field: valueField }) => (
                     <TextField
                       {...valueField}
-                      fullWidth
+                      // Unchanged layout unless a feature adds an adornment.
+                      fullWidth={valueAdornments.length > 0}
                       size="small"
                       variant="filled"
                       placeholder={t("attributeValue")}
@@ -431,9 +432,9 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
                           endAdornment:
                             valueAdornments.length > 0 ? (
                               <>
-                                {valueAdornments.map((Adornment, adornmentIndex) => (
+                                {valueAdornments.map(([adornmentId, Adornment]) => (
                                   <Adornment
-                                    key={adornmentIndex}
+                                    key={adornmentId}
                                     recordId={recordId}
                                     value={valueField.value}
                                     onChange={(value) => {

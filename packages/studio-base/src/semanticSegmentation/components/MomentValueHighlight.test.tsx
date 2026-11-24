@@ -21,7 +21,7 @@ describe("MomentMetadataValue", () => {
     ]);
   });
 
-  // U5: spatial:// values used to drop the highlight and show Chinese in the English UI.
+  // spatial:// values used to drop the highlight and show Chinese in the English UI.
   it("lets a registered renderer show its values, keeping the highlight", () => {
     let unregister = () => {};
     act(() => {

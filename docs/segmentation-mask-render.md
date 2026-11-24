@@ -14,7 +14,7 @@ Image 面板（ThreeDeeRender 的 ImageMode）本身就是 WebGL2 场景。Mask 
 document (RLE counts)            Worker                     GPU（每个 Image 面板）
   overlaySource:                 buildMaskPlanes            SegmentationMaskLayer
   topic + logTimeNs → geometry   RLE → 转置整数位平面   →   DataTexture R8/R16/R32UI
-  稳定 geometry id               LRU 96 MB（各面板共享）    texelFetch + 最高可见 bit
+  稳定 geometry id               按字节限额缓存（各面板共享）    texelFetch + 最高可见 bit
   style: visible / selected      按时间窗预取               与图像同一帧提交
 ```
 
@@ -22,7 +22,7 @@ document (RLE counts)            Worker                     GPU（每个 Image �
 - **重叠**：每个实例一个 bit，重叠区域不会丢实例。着色时选中的实例优先，否则取最高 slot；描边约 1.5 个屏幕像素，任何缩放下至少 1 个图像像素。
 - **精确到帧**：叠加层按 `topic + logTimeNs` 匹配显示帧；当前帧的位平面还没就绪就这一帧不画，绝不显示相邻帧的 mask。
 - **稳定 id**：geometry id 只随 counts 变化，播放中不断注册新帧不会让已构建的位平面失效。
-- **构建与缓存**（`maskOverlay/maskPlaneCache.ts`）：位平面在 Worker 里构建，CPU 侧 LRU 上限 96 MB，各面板按份额共享；预取按时间窗而不是固定帧数。
+- **构建与缓存**（`maskOverlay/maskPlaneCache.ts`）：位平面在 Worker 里构建，CPU 侧缓存有字节上限，各面板共享。每个面板当前显示的帧会被固定（不会被淘汰）；预取额度的 75% 只在附近有 mask 的面板之间分配；预取按时间窗而不是固定帧数。
 
 ## 降级
 
@@ -43,7 +43,7 @@ document (RLE counts)            Worker                     GPU（每个 Image �
 
 - 已在 macOS 上的 Chromium（Apple Silicon，ANGLE Metal）验证：R8UI/R16UI/R32UI `texelFetch`、五路相机播放和暂停、上下文丢失后由 three.js 恢复（只在微基准里触发过）。
 - 未验证：Windows、Linux（尤其是无 GPU 时的软件渲染）、Safari、Firefox；产品页面里的 WebGL 上下文丢失；4K 源和超过 64 个实例的真实数据。
-- 已知瓶颈：多实例播放时主要开销在侧栏实例树（`SpatialTree`、`CameraFrameStrip`、`AnnotationPreview`），不在 GPU，mask 和多边形一样受影响。
+- 侧栏实例树（`SpatialTree`、`CameraFrameStrip`、`AnnotationPreview`）已用窄选择器和 memo 拆分，不再是已知瓶颈；没有在真实的多实例长录像上重新测过。
 
 ## 需要和后端对齐
 

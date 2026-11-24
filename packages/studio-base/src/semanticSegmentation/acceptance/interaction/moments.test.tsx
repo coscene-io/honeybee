@@ -73,7 +73,6 @@ it.each(["class", "instance"] as const)(
     const value = input.value;
     expect(parseSpatialReference(value)).toEqual({
       recordId: "record-1",
-      videoId: "video-1",
       targetType: type,
       targetId,
     });
@@ -145,7 +144,7 @@ it("does not replace record A's reference with a target from record B", async ()
   }
   segmentationSession.setState({ runtime: a, sourceReady: true });
   const onChange = jest.fn();
-  const scopedA = "spatial://record-1/video-1/instance/instance-1";
+  const scopedA = "spatial://record-1/instance/instance-1";
   const view = render(
     <ActiveMomentReference recordId="record-1" value={scopedA} onChange={onChange} />,
   );

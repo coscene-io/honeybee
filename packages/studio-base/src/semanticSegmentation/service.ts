@@ -248,7 +248,6 @@ export function applySegmentationPatches(
 function applyPatchToCopy(next: SegmentationDocument, patch: SegmentationPatch): void {
   next.classes = patchCollection(next.classes, patch.classes);
   next.instances = patchCollection(next.instances, patch.instances);
-  next.momentReferences = patchCollection(next.momentReferences, patch.momentReferences);
   const touched = new Set<string>();
   for (const [key, value] of Object.entries(patch.annotations ?? {})) {
     touched.add(key);

@@ -229,7 +229,7 @@ it("keeps the form record A reference when the runtime switches to B before or d
   document.record.id = "record-B";
   document.videos = document.videos.map((video) => ({ ...video, recordId: "record-B" }));
   const b = await fixture(document);
-  const value = "spatial://record-1/video-1/instance/instance-1";
+  const value = "spatial://record-1/instance/instance-1";
   const change = jest.fn();
   segmentationSession.setState({ runtime: a, sourceReady: true });
   render(<ActiveMomentReference recordId="record-1" value={value} onChange={change} />);

@@ -490,25 +490,6 @@ describe("semantic segmentation state", () => {
       store.getState().document!.instances.filter((item) => item.classId === "class-1"),
     ).toHaveLength(3);
   });
-
-  it("keeps moment references stable through rename and class movement", async () => {
-    const { store } = await setup();
-    const id = store.getState().addMomentReference("moment-1", "instance", "instance-1");
-    store.getState().renameInstance("instance-1", "Renamed");
-    store.getState().moveInstance("instance-1", "class-2");
-    store.getState().submit();
-    await store.getState().waitForSubmissions();
-    expect(store.getState().document!.momentReferences).toEqual([
-      {
-        id,
-        momentId: "moment-1",
-        targetType: "instance",
-        targetId: "instance-1",
-        recordId: "record-1",
-        videoId: "video-1",
-      },
-    ]);
-  });
 });
 
 describe("selection validity after document changes", () => {

@@ -13,7 +13,6 @@ const document: SegmentationDocument = {
   record: { id: "r", name: "record" },
   videos: [],
   frames: [],
-  momentReferences: [],
   classes: [
     { id: "a", name: "A", color: "red" },
     { id: "b", name: "B", color: "blue" },

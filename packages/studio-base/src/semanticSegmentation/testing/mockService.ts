@@ -161,7 +161,6 @@ export function createSeedDocument(): SegmentationDocument {
     annotationSummaries: Object.fromEntries(
       Object.keys(annotations).map((key) => [key, { polygonCount: 1, pointCount: 4 }]),
     ),
-    momentReferences: [],
   };
 }
 

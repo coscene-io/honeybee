@@ -21,6 +21,10 @@ export const segmentation: Partial<TypeOptions["resources"]["segmentation"]> = {
   allFrames: "全部帧",
   annotateInstance: "标注此实例",
   annotateNode: "标注 {{name}}",
+  annotationProfileNearest:
+    "该记录没有 720p 视频，标注固定使用最接近的 {{height}}p，以保证大家标注的尺寸一致。请再次点击“编辑”开始。",
+  annotationProfileSwitched:
+    "标注固定使用 {{height}}p 视频画质（mask 与图像尺寸绑定），已为你切换。请再次点击“编辑”开始。",
   annotationDisplay: "标注显示",
   annotationViewport: "标注视口",
   batchFailed: "失败",
@@ -182,7 +186,6 @@ export const segmentation: Partial<TypeOptions["resources"]["segmentation"]> = {
   errorUnknownInstance: "未知的实例",
   errorUnknownInstanceOrClass: "未知的实例或类别",
   errorUnknownPolygon: "当前帧中没有这个多边形",
-  errorUnknownReferenceTarget: "引用的目标不存在",
   errorUnknownSourceClass: "未知的源类别",
   errorUnknownSourceInstance: "未知的源实例",
   errorUnknownTargetClass: "未知的目标类别",
@@ -358,7 +361,6 @@ export const segmentation: Partial<TypeOptions["resources"]["segmentation"]> = {
   scopeClass: "类别 {{name}} · 全部帧",
   scopeFrame: "帧 {{frame}} · {{instance}}",
   scopeInstance: "实例 {{name}} · 全部帧",
-  scopeMomentReference: "一刻引用 · {{name}}",
   scopeNoRecord: "记录未打开",
   scopePolygonsHint: "范围内有 {{scopePolygonsCount}} 个多边形：点击其中一个以编辑顶点",
   scopeRecord: "记录 {{id}}",
