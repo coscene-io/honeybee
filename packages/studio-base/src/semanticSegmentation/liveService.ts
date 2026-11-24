@@ -33,7 +33,7 @@ import {
   windowBoundaryMicros,
   wireFrameTimeMicros,
 } from "./frameTime";
-import { maskRunsFromCounts } from "./maskCodec";
+import { inferMaskFrameSize, maskCountsCoverage, maskRunsFromCounts } from "./maskCodec";
 import { maskObservation, observationHasGeometry, polygonObservation } from "./maskGeometry";
 import { describeViolation, toContractPolygon } from "./polygonContract";
 import { quickSegment } from "./quickSegment";
@@ -431,6 +431,23 @@ export function createLiveAnnotationService(options: {
         maskRunsFromCounts(wire.geometry.value.counts, size.width, size.height);
       } catch (error) {
         diagnostics.maskSizeMismatches++;
+        const madeFor = inferMaskFrameSize(
+          maskCountsCoverage(wire.geometry.value.counts),
+          size.width,
+          size.height,
+        );
+        if (madeFor) {
+          // Same topic, another decoded size (e.g. another transcode quality): say which.
+          return {
+            unreadable: segmentationText("unreadableMaskOtherSize", {
+              topic: video.topic,
+              maskWidth: madeFor.width,
+              maskHeight: madeFor.height,
+              width: size.width,
+              height: size.height,
+            }),
+          };
+        }
         return {
           unreadable: segmentationText("unreadableMaskSize", {
             topic: video.topic,
@@ -1110,7 +1127,7 @@ export function createLiveAnnotationService(options: {
     async *propagate(request, signal): AsyncIterable<PropagationResult> {
       const source = doc.frames.find((frame) => frame.id === request.fromFrameId);
       if (!source) {
-        throw new Error("Unknown source frame");
+        throw new SegmentationError("errorUnknownSourceFrame");
       }
       const video = videoOf(source.videoId);
       const size = sizeOf(video);
@@ -1119,7 +1136,7 @@ export function createLiveAnnotationService(options: {
       const endMicros = truncateToMicros(request.endTimeNs);
       // Earlier than the seed propagates backward (`direction: BACKWARD`).
       if (endMicros === seedMicros) {
-        throw new Error("End time must differ from the seed frame");
+        throw new SegmentationError("errorEndTimeEqualsSeed");
       }
       const seeds =
         request.seeds ??

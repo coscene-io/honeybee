@@ -365,6 +365,14 @@ export function releaseSegmentationRuntime(holder: string): void {
   });
 }
 
+/**
+ * Whether any runtime in the registry holds work the user has not saved: staged edits, a batch
+ * that has not succeeded, or a running propagation. A page unload would lose it.
+ */
+export function hasUnsavedSegmentationWork(): boolean {
+  return [...heldRuntimes.values()].some((held) => holdsUnsavedWork(held.runtime));
+}
+
 /** Runtimes alive in the registry, for diagnostics and tests. */
 export function heldSegmentationRuntimeCount(): number {
   return heldRuntimes.size;
