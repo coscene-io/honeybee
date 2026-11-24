@@ -121,7 +121,6 @@ describe("workbench workflow integration", () => {
     const value = onChange.mock.calls[0]![0] as string;
     expect(parseSpatialReference(value)).toEqual({
       recordId: "record-1",
-      videoId: "video-1",
       targetType: "instance",
       targetId: "instance-1",
     });
@@ -139,10 +138,19 @@ describe("workbench workflow integration", () => {
     );
     expect(resolveSpatialReference(value, undefined, t)).toContain("(record not open)");
     expect(
-      parseSpatialReference(encodeSpatialReference("record/odd", "class", "id:odd", "video/odd"))
-        ?.recordId,
+      parseSpatialReference(encodeSpatialReference("record/odd", "class", "id:odd"))?.recordId,
     ).toBe("record/odd");
-    expect(parseSpatialReference("spatial://bad/%zz/class/id")).toBeUndefined();
+    expect(parseSpatialReference("spatial://bad%zz/class/id")).toBeUndefined();
+    // The persisted format names the record, the kind and the id only; a camera segment written by
+    // earlier builds is read and ignored.
+    expect(encodeSpatialReference("record-1", "instance", "instance-1")).toBe(
+      "spatial://record-1/instance/instance-1",
+    );
+    expect(parseSpatialReference("spatial://record-1/old-video/instance/instance-1")).toEqual({
+      recordId: "record-1",
+      targetType: "instance",
+      targetId: "instance-1",
+    });
     runtime.store.getState().dispose();
   });
   it("makes every app surface inert while STOP remains outside and restores prior inert state", async () => {
@@ -250,7 +258,7 @@ describe("workbench workflow integration", () => {
       target: { value: "instance/instance-1" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
-    expect(onChange).toHaveBeenLastCalledWith("spatial://record-1/video-2/instance/instance-1");
+    expect(onChange).toHaveBeenLastCalledWith("spatial://record-1/instance/instance-1");
     fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
     rerender(<MomentReferencePicker store={runtime.store} value="" onChange={onChange} disabled />);
     expect(

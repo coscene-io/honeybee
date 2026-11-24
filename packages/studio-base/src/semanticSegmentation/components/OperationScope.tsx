@@ -67,19 +67,6 @@ export function OperationScope({
   for (const id of Object.keys(operation.patch.instances ?? {})) {
     add(t("scopeInstance", { name: instanceName(id) }), id);
   }
-  for (const reference of Object.values(operation.patch.momentReferences ?? {})) {
-    if (reference) {
-      add(
-        t("scopeMomentReference", {
-          name:
-            reference.targetType === "class"
-              ? className(reference.targetId)
-              : instanceName(reference.targetId),
-        }),
-        `${reference.momentId} · ${reference.targetId}`,
-      );
-    }
-  }
   return (
     <div>
       <Typography variant="body2">

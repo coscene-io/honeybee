@@ -333,7 +333,6 @@ it("replays dependent patches in order without touching base or patch data, merg
   // Structural sharing: what no patch touched is the base's own object, not a copy; what a patch
   // wrote is the patch's value copied, so a later change to the patch cannot reach the output.
   expect(next.classes).toBe(document.classes);
-  expect(next.momentReferences).toBe(document.momentReferences);
   expect(next.frames).toBe(document.frames);
   (patches[0]!.instances!.created as { name: string }).name = "Changed patch";
   expect(next.instances.find((instance) => instance.id === "created")!.name).toBe("Created");

@@ -25,9 +25,14 @@ import type { StoreApi } from "zustand";
 
 import type { SegmentationDocument, SemanticSegmentationStore } from "../types";
 
+/**
+ * A reference to a class or instance, as stored in Moment metadata: \`spatial://<record>/<class|instance>/<id>\`.
+ * This format is persisted outside the editor, so it carries only what identifies the target: the
+ * record, the kind and the id (a UUID within the record). It names no camera, quality or player,
+ * which can change without the target changing.
+ */
 export type SpatialReference = {
   recordId: string;
-  videoId?: string;
   targetType: "class" | "instance";
   targetId: string;
 };
@@ -36,25 +41,21 @@ export function encodeSpatialReference(
   recordId: string,
   targetType: "class" | "instance",
   targetId: string,
-  videoId?: string,
 ): string {
-  const scope = videoId
-    ? `${encodeURIComponent(recordId)}/${encodeURIComponent(videoId)}`
-    : encodeURIComponent(recordId);
-  return `spatial://${scope}/${targetType}/${encodeURIComponent(targetId)}`;
+  return `spatial://${encodeURIComponent(recordId)}/${targetType}/${encodeURIComponent(targetId)}`;
 }
 
 export function parseSpatialReference(value: string): SpatialReference | undefined {
-  const match = /^spatial:\/\/([^/]+)\/(?:([^/]+)\/)?(class|instance)\/([^/]+)$/.exec(value);
+  // A camera segment, written by earlier builds, is read and ignored.
+  const match = /^spatial:\/\/([^/]+)\/(?:[^/]+\/)?(class|instance)\/([^/]+)$/.exec(value);
   if (!match) {
     return undefined;
   }
   try {
     return {
       recordId: decodeURIComponent(match[1]!),
-      videoId: match[2] ? decodeURIComponent(match[2]) : undefined,
-      targetType: match[3] as "class" | "instance",
-      targetId: decodeURIComponent(match[4]!),
+      targetType: match[2] as "class" | "instance",
+      targetId: decodeURIComponent(match[3]!),
     };
   } catch {
     return undefined;
@@ -71,11 +72,8 @@ export function resolveSpatialReference(
   if (!reference) {
     return undefined;
   }
-  const { recordId, videoId, targetType, targetId } = reference;
-  if (
-    document?.record.id !== recordId ||
-    (videoId && !document.videos.some((video) => video.id === videoId))
-  ) {
+  const { recordId, targetType, targetId } = reference;
+  if (document?.record.id !== recordId) {
     return t(targetType === "class" ? "referenceClassClosed" : "referenceInstanceClosed", {
       id: targetId,
     });
@@ -249,12 +247,7 @@ export function MomentReferencePicker({
                 }
                 if (selected && document && openedScope) {
                   onChange(
-                    encodeSpatialReference(
-                      openedScope.recordId,
-                      selected.type,
-                      selected.id,
-                      openedScope.videoId,
-                    ),
+                    encodeSpatialReference(openedScope.recordId, selected.type, selected.id),
                   );
                   close();
                 }
