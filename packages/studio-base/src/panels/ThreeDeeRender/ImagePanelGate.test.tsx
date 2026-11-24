@@ -75,10 +75,11 @@ describe("Image panel spatial annotation gate", () => {
     expect(props.additionalToolbarIcons).toBeUndefined();
   });
 
-  it("mounts the editor entry, workspace and propagate button when annotation is on", () => {
+  it("mounts the editor entry, workspace and propagate button when annotation is on", async () => {
     mockEnabled = true;
     render(<Image config={{ imageMode: { imageTopic: "/camera" } }} saveConfig={jest.fn()} />);
-    expect(screen.getByTestId("segmentation-entry")).toBeTruthy();
+    // The editor is a lazily loaded chunk.
+    expect(await screen.findByTestId("segmentation-entry")).toBeTruthy();
     expect(screen.getByTestId("segmentation-workspace")).toBeTruthy();
     const props = mockAdapterProps.mock.calls.at(-1)![0] as Record<string, unknown>;
     expect(props.additionalToolbarIcons).toBeDefined();
