@@ -65,7 +65,12 @@ describe("MessagePipeline store", () => {
     // reset() runs when the playerId changes (e.g. opening another recording). Unlike the
     // playback controls, which the reducer rebinds from capabilities on the next player state,
     // subscribeMessageRange is a closure over the current player and must survive the reset.
+    const oldSession = store.getState().diagnostics;
+    oldSession.topic("/before-reconnect");
     store.getState().reset();
+    // A pending decoder may still finish for the previous WebSocket session.
+    oldSession.topic("/late-frame");
+    expect(store.getState().diagnostics.topics.size).toBe(0);
 
     const rangeArgs: SubscribeMessageRangeArgs = {
       topic: "/camera",

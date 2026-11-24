@@ -28,46 +28,22 @@ function formatTime(value: Timestamp): string {
   return dayjs(timestampDate(value)).format("YYYY-MM-DD HH:mm:ss");
 }
 
-/** Resolve selected user fields once per user set, independently of playback updates. */
-export function useMomentFieldFormat(
-  events: TimelinePositionedEvent[],
-  schema?: MomentCustomFieldSchema,
-  projectName?: string,
-): Required<MomentFieldFormatOptions> {
+export function useMomentUserNames(
+  userIds: readonly string[],
+  scopeKey?: string,
+): ReadonlyMap<string, string> {
   const consoleApi = useConsoleApi();
-  const userFieldIdsJson = useMemo(
+  const requestedNamesJson = useMemo(
     () =>
       JSON.stringify(
-        getTrackProperties(schema)
-          .filter((property) => property.type.case === "user")
-          .map((property) => property.id)
-          .sort(),
+        [
+          ...new Set(userIds.filter((id) => id !== "" && id !== "users/").map(normalizeUserName)),
+        ].sort(),
       )!,
-    [schema],
+    [userIds],
   );
-  const requestedNamesJson = useMemo(() => {
-    const fieldIds = new Set(JSON.parse(userFieldIdsJson) as string[]);
-    const names = new Set<string>();
-    if (projectName != undefined && fieldIds.size > 0) {
-      for (const entry of events) {
-        if (!isMomentInProject(entry, projectName)) {
-          continue;
-        }
-        for (const field of entry.event.customFieldValues) {
-          if (field.property && fieldIds.has(field.property.id) && field.value.case === "user") {
-            for (const id of field.value.value.ids) {
-              if (id !== "" && id !== "users/") {
-                names.add(normalizeUserName(id));
-              }
-            }
-          }
-        }
-      }
-    }
-    return JSON.stringify([...names].sort())!;
-  }, [events, projectName, userFieldIdsJson]);
 
-  const requestKey = JSON.stringify([projectName, userFieldIdsJson, requestedNamesJson])!;
+  const requestKey = JSON.stringify([scopeKey, requestedNamesJson])!;
   const [resolved, setResolved] = useState<{
     api: ReturnType<typeof useConsoleApi>;
     key: string;
@@ -113,9 +89,46 @@ export function useMomentFieldFormat(
   }, [consoleApi, requestKey, requestedNamesJson]);
 
   // Do not expose the previous scope's names during the render before effect cleanup.
-  const userNames =
-    resolved?.api === consoleApi && resolved.key === requestKey
-      ? resolved.userNames
-      : EMPTY_USER_NAMES;
+  return resolved?.api === consoleApi && resolved.key === requestKey
+    ? resolved.userNames
+    : EMPTY_USER_NAMES;
+}
+
+/** Resolve selected user fields once per user set, independently of playback updates. */
+export function useMomentFieldFormat(
+  events: TimelinePositionedEvent[],
+  schema?: MomentCustomFieldSchema,
+  projectName?: string,
+): Required<MomentFieldFormatOptions> {
+  const userFieldIdsJson = useMemo(
+    () =>
+      JSON.stringify(
+        getTrackProperties(schema)
+          .filter((property) => property.type.case === "user")
+          .map((property) => property.id)
+          .sort(),
+      )!,
+    [schema],
+  );
+  const userIds = useMemo(() => {
+    const fieldIds = new Set(JSON.parse(userFieldIdsJson) as string[]);
+    const ids = new Set<string>();
+    if (projectName != undefined && fieldIds.size > 0) {
+      for (const entry of events) {
+        if (!isMomentInProject(entry, projectName)) {
+          continue;
+        }
+        for (const field of entry.event.customFieldValues) {
+          if (field.property && fieldIds.has(field.property.id) && field.value.case === "user") {
+            for (const id of field.value.value.ids) {
+              ids.add(id);
+            }
+          }
+        }
+      }
+    }
+    return [...ids];
+  }, [events, projectName, userFieldIdsJson]);
+  const userNames = useMomentUserNames(userIds, JSON.stringify([projectName, userFieldIdsJson]));
   return useMemo(() => ({ userNames, formatTime }), [userNames]);
 }

@@ -17,7 +17,7 @@ import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
 import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
-import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/useVisibleEvents";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,

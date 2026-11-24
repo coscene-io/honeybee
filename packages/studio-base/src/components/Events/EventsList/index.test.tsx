@@ -7,10 +7,19 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { create } from "@bufbuild/protobuf";
-import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { DurationSchema, TimestampSchema, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { ProjectSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { RecordSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import {
+  CustomFieldSchemaSchema,
+  CustomFieldValueSchema,
+  EnumValueSchema,
+  PropertySchema,
+  TextValueSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
@@ -23,6 +32,8 @@ import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/C
 import { type DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import {
   type EventsStore,
+  type MomentCustomFieldFilter,
+  type MomentCustomFieldFilters,
   type TimelinePositionedEvent,
   useEvents,
 } from "@foxglove/studio-base/context/EventsContext";
@@ -33,6 +44,7 @@ import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api/moment-custom-field/types";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
@@ -61,6 +73,7 @@ type DeleteFile = (args: { name: string }) => Promise<unknown>;
 const selectDialogs = (store: DialogsStore) => store.dialogs;
 const DELETE_CONFIRM_PROMPT =
   "After deletion, moments cannot be restored. Please proceed with caution.";
+const FILTER_PROJECT = "warehouses/warehouse/projects/project";
 
 function TestDialogs(): React.JSX.Element {
   const dialogs = useDialogs(selectDialogs);
@@ -123,12 +136,29 @@ function SeedCoreData({
   return ReactNull;
 }
 
-function SeedEvents({ events }: { events: TimelinePositionedEvent[] }): ReactNull {
+function SeedEvents({
+  events,
+  schema,
+  initialFilters,
+}: {
+  events: TimelinePositionedEvent[];
+  schema?: MomentCustomFieldSchema;
+  initialFilters?: MomentCustomFieldFilters;
+}): ReactNull {
   const setEvents = useEvents((store: EventsStore) => store.setEvents);
+  const setSchema = useEvents((store: EventsStore) => store.setCustomFieldSchema);
+  const setFilters = useEvents((store: EventsStore) => store.setCustomFieldFilters);
 
   useEffect(() => {
     setEvents({ loading: false, value: events });
   }, [events, setEvents]);
+
+  useEffect(() => {
+    setSchema(schema, FILTER_PROJECT);
+    if (initialFilters != undefined) {
+      setFilters(FILTER_PROJECT, initialFilters);
+    }
+  }, [schema, setSchema, initialFilters, setFilters]);
 
   return ReactNull;
 }
@@ -182,6 +212,8 @@ function Wrapper({
   consoleApi,
   view = "sidebar",
   events,
+  schema,
+  initialFilters,
   projectArchived,
   recordArchived,
   seekPlayback,
@@ -190,6 +222,8 @@ function Wrapper({
   consoleApi: React.ContextType<typeof CoSceneConsoleApiContext>;
   view?: "sidebar" | "moments";
   events: TimelinePositionedEvent[];
+  schema?: MomentCustomFieldSchema;
+  initialFilters?: MomentCustomFieldFilters;
   projectArchived?: boolean;
   recordArchived?: boolean;
   seekPlayback?: (time: { sec: number; nsec: number }) => void;
@@ -214,7 +248,7 @@ function Wrapper({
                         projectArchived={projectArchived}
                         recordArchived={recordArchived}
                       />
-                      <SeedEvents events={events} />
+                      <SeedEvents events={events} schema={schema} initialFilters={initialFilters} />
                       <EventFetchCountProbe />
                       <EventToModifyProbe />
                       <HoverProbe />
@@ -250,6 +284,261 @@ function makeConsoleApi({
     updateEvent: Object.assign(jest.fn(), { permission: () => true }),
   } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
 }
+
+function renderFilterEvents(initial?: { category: string; typeId: string }) {
+  const issue = create(PropertySchema, {
+    id: "issue",
+    name: "Issue category",
+    description: "Enter issue category",
+    type: { case: "text", value: {} },
+  });
+  const type = create(PropertySchema, {
+    id: "type",
+    name: "Moment type",
+    type: { case: "enums", value: { values: { ann: "Annotation", diag: "Diagnosis" } } },
+  });
+  const score = create(PropertySchema, {
+    id: "score",
+    name: "Score",
+    type: { case: "number", value: {} },
+  });
+  const schema = create(CustomFieldSchemaSchema, { properties: [issue, type, score] });
+  const events = [
+    { name: "First Moment", category: "Emergency brake", typeId: "ann", project: FILTER_PROJECT },
+    { name: "Second Moment", category: "Emergency brake", typeId: "diag", project: FILTER_PROJECT },
+    { name: "Third Moment", category: "Camera", typeId: "diag", project: FILTER_PROJECT },
+    {
+      name: "Other project Moment",
+      category: "Emergency brake",
+      typeId: "ann",
+      project: "warehouses/warehouse/projects/other",
+    },
+  ].map(({ name, category, typeId, project }, index) => {
+    const entry = makeEvent({ name: `${project}/events/${index}`, startSec: index + 1 });
+    entry.event.displayName = name;
+    entry.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: issue,
+        value: { case: "text", value: { value: category } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: type,
+        value: { case: "enums", value: { id: typeId } },
+      }),
+    ];
+    return entry;
+  });
+  const initialFilters =
+    initial &&
+    new Map<string, MomentCustomFieldFilter>([
+      ["issue", { case: "text", value: create(TextValueSchema, { value: initial.category }) }],
+      ["type", { case: "enums", value: create(EnumValueSchema, { id: initial.typeId }) }],
+    ]);
+  render(
+    <Wrapper
+      events={events}
+      consoleApi={makeConsoleApi()}
+      schema={schema}
+      initialFilters={initialFilters}
+    />,
+  );
+}
+
+function getFilterDialog() {
+  return within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+}
+
+function getActiveFilters() {
+  return within(screen.getByRole("group", { name: "Active moment filters" }));
+}
+
+function chooseOption(element: HTMLElement, name: string) {
+  fireEvent.mouseDown(element);
+  fireEvent.click(screen.getByRole("option", { name }));
+}
+
+function getMomentTypeInput(dialog: ReturnType<typeof getFilterDialog>) {
+  return within(dialog.getByRole("group", { name: "Moment type" })).getByRole<HTMLInputElement>(
+    "combobox",
+  );
+}
+
+it("applies custom field conditions together and shows the active filters", async () => {
+  renderFilterEvents();
+  fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Filter by custom fields" }));
+  const dialog = getFilterDialog();
+  const addCondition = () =>
+    dialog.getByRole<HTMLInputElement>("combobox", { name: "Add a condition" });
+  fireEvent.change(addCondition(), { target: { value: "Issue category" } });
+  fireEvent.click(screen.getByRole("option", { name: "Issue category" }));
+  expect(addCondition().value).toBe("");
+  fireEvent.change(dialog.getByRole("textbox"), { target: { value: "BRAKE" } });
+  fireEvent.mouseDown(addCondition());
+  expect(screen.queryByRole("option", { name: "Issue category" })).toBeNull();
+  fireEvent.click(screen.getByRole("option", { name: "Moment type" }));
+  chooseOption(getMomentTypeInput(dialog), "Annotation");
+  chooseOption(addCondition(), "Score");
+  expect(screen.queryByText("Second Moment")).not.toBeNull();
+  fireEvent.click(dialog.getByRole("button", { name: "Apply filters" }));
+
+  await waitFor(() => {
+    expect(screen.queryByText("First Moment")).not.toBeNull();
+    expect(screen.queryByText("Second Moment")).toBeNull();
+    expect(screen.queryByText("Other project Moment")).toBeNull();
+  });
+  expect(getActiveFilters().getByRole("button", { name: "Issue category: BRAKE" })).toBeTruthy();
+  expect(getActiveFilters().getByRole("button", { name: "Moment type: Annotation" })).toBeTruthy();
+  expect(getActiveFilters().queryByText("Score")).toBeNull();
+
+  expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
+});
+
+it("discards canceled custom field edits and applies the next draft", async () => {
+  renderFilterEvents({ category: "BRAKE", typeId: "ann" });
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type: Annotation" }));
+  const firstDialog = getFilterDialog();
+  const issue = firstDialog.getByRole<HTMLInputElement>("textbox");
+  expect(issue.value).toBe("BRAKE");
+  expect(getMomentTypeInput(firstDialog).value).toBe("Annotation");
+  fireEvent.change(issue, { target: { value: "Camera" } });
+  fireEvent.click(firstDialog.getByRole("button", { name: "Remove Moment type condition" }));
+  fireEvent.click(firstDialog.getByRole("button", { name: "Cancel" }));
+
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Issue category: BRAKE" }));
+  const nextDialog = getFilterDialog();
+  const restoredIssue = nextDialog.getByRole<HTMLInputElement>("textbox");
+  expect(restoredIssue.value).toBe("BRAKE");
+  const restoredType = getMomentTypeInput(nextDialog);
+  expect(restoredType.value).toBe("Annotation");
+  fireEvent.change(restoredIssue, { target: { value: "Camera" } });
+  chooseOption(restoredType, "Diagnosis");
+  fireEvent.click(nextDialog.getByRole("button", { name: "Apply filters" }));
+  await waitFor(() => {
+    expect(screen.queryByText("Third Moment")).not.toBeNull();
+    expect(screen.queryByText("First Moment")).toBeNull();
+    expect(screen.queryByText("Second Moment")).toBeNull();
+  });
+  const activeFilters = getActiveFilters();
+  expect(activeFilters.getByRole("button", { name: "Issue category: Camera" })).toBeTruthy();
+  expect(activeFilters.getByRole("button", { name: "Moment type: Diagnosis" })).toBeTruthy();
+  expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
+});
+
+it("removes one active custom field filter and clears the rest", async () => {
+  renderFilterEvents({ category: "Camera", typeId: "diag" });
+  expect(screen.queryByText("Second Moment")).toBeNull();
+  fireEvent.keyUp(getActiveFilters().getByRole("button", { name: "Issue category: Camera" }), {
+    key: "Delete",
+  });
+  await waitFor(() => {
+    expect(screen.queryByText("Second Moment")).not.toBeNull();
+  });
+  expect(getActiveFilters().queryByText("Issue category: Camera")).toBeNull();
+
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type: Diagnosis" }));
+  const dialog = getFilterDialog();
+  fireEvent.click(dialog.getByRole("button", { name: "Clear conditions" }));
+  fireEvent.click(dialog.getByRole("button", { name: "Apply filters" }));
+  await waitFor(() => {
+    expect(screen.queryByText("Second Moment")).not.toBeNull();
+    expect(screen.queryByText("Other project Moment")).not.toBeNull();
+  });
+  expect(screen.queryByRole("group", { name: "Active moment filters" })).toBeNull();
+  expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
+});
+
+it("validates and applies numeric and date ranges together", async () => {
+  const score = create(PropertySchema, {
+    id: "score",
+    name: "Score",
+    type: { case: "number", value: {} },
+  });
+  const time = create(PropertySchema, {
+    id: "observed",
+    name: "Observed at",
+    type: { case: "time", value: {} },
+  });
+  const schema = create(CustomFieldSchemaSchema, { properties: [score, time] });
+  const events = [
+    { name: "Matching moment", number: 0, minute: 1 },
+    { name: "Too high", number: 3, minute: 1 },
+    { name: "Too late", number: 0, minute: 2 },
+  ].map(({ name, number, minute }, index) => {
+    const entry = makeEvent({ name: `${FILTER_PROJECT}/events/${index}`, startSec: index + 1 });
+    entry.event.displayName = name;
+    entry.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: score,
+        value: { case: "number", value: { value: number } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: time,
+        value: {
+          case: "time",
+          value: { value: timestampFromDate(new Date(2026, 0, 10, 10, minute, 59)) },
+        },
+      }),
+    ];
+    return entry;
+  });
+  render(
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Wrapper events={events} consoleApi={makeConsoleApi()} schema={schema} />
+    </LocalizationProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Filter by custom fields" }));
+  const dialog = within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  const add = (field: string) => {
+    fireEvent.mouseDown(dialog.getByRole("combobox", { name: "Add a condition" }));
+    fireEvent.click(screen.getByRole("option", { name: field }));
+  };
+  const setNumber = (name: string, value: string) => {
+    fireEvent.change(dialog.getByRole("textbox", { name }), { target: { value } });
+  };
+  const setDate = (name: string, value: string) => {
+    fireEvent.change(dialog.getByLabelText(name, { selector: "input" }), {
+      target: { value },
+    });
+  };
+  const apply = dialog.getByRole<HTMLButtonElement>("button", { name: "Apply filters" });
+
+  add("Score");
+  setNumber("Minimum", "0");
+  expect(dialog.getByText("Enter both the minimum and maximum.")).toBeTruthy();
+  expect(apply.disabled).toBe(true);
+  setNumber("Maximum", "-0.5");
+  expect(dialog.getByText("The minimum must be less than or equal to the maximum.")).toBeTruthy();
+  setNumber("Maximum", "2");
+
+  add("Observed at");
+  setDate("Start Time", "2026-01-10 10:02");
+  setDate("End Time", "2026-01-10 10:01");
+  expect(dialog.getByText("The start must be before or at the end.")).toBeTruthy();
+  expect(apply.disabled).toBe(true);
+  setDate("Start Time", "2026-01-10 10:00");
+  expect(apply.disabled).toBe(false);
+  fireEvent.click(apply);
+  await waitFor(() => {
+    expect(screen.queryByText("Matching moment")).not.toBeNull();
+    expect(screen.queryByText("Too high")).toBeNull();
+    expect(screen.queryByText("Too late")).toBeNull();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Score: 0 – 2" }));
+  const reopened = within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  expect(reopened.getByRole<HTMLInputElement>("textbox", { name: "Minimum" }).value).toBe("0");
+  fireEvent.mouseDown(reopened.getByRole("combobox", { name: "Comparison" }));
+  fireEvent.click(screen.getByRole("option", { name: ">" }));
+  expect(reopened.queryByRole("textbox", { name: "Maximum" })).toBeNull();
+  fireEvent.click(reopened.getByRole("button", { name: "Apply filters" }));
+  await waitFor(() => {
+    expect(screen.queryByText("Matching moment")).toBeNull();
+    expect(screen.queryByText("Too high")).not.toBeNull();
+    expect(screen.queryByText("Too late")).toBeNull();
+  });
+});
 
 it("filters doubtful display with keyword AND semantics while Delete All retains the complete collection", async () => {
   const first = makeEvent({ name: "Doubtful target", startSec: 1 });
