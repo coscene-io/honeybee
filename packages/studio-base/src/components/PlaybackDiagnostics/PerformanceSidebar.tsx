@@ -76,6 +76,18 @@ function FindingRow({
       session.preview.setState({ [kind]: undefined });
     }
   };
+  const { start, end } = finding;
+  useEffect(() => {
+    const { hovered, focused } = session.preview.getState();
+    const token = owner.current;
+    if (hovered?.owner === token || focused?.owner === token) {
+      const entry = { owner: token, range: { start, end } };
+      session.preview.setState({
+        hovered: hovered?.owner === token ? entry : hovered,
+        focused: focused?.owner === token ? entry : focused,
+      });
+    }
+  }, [session, start, end]);
   useEffect(() => {
     const token = owner.current;
     return () => {
@@ -165,6 +177,10 @@ function Findings({
       }
     }
   }
+  const lastPage = Math.max(0, Math.ceil(count / PAGE_SIZE) - 1);
+  if (page > lastPage) {
+    setPage(lastPage);
+  }
   if (count === 0) {
     return ReactNull;
   }
@@ -227,6 +243,9 @@ function TopicSummary({
   return (
     <>
       <Typography variant="body2">{data.format.toUpperCase()}</Typography>
+      {(data.truncated || data.slices?.truncated === true) && (
+        <Typography variant="caption">{t("diagnostics.historyLimited")}</Typography>
+      )}
       {data.coverage.length > 0 && (
         <details>
           <summary>
@@ -246,7 +265,7 @@ function TopicSummary({
             {bCount > 0
               ? bCount
               : t(
-                  data.slices?.classified === true && data.slices.unknownCount === 0
+                  data.slices?.allObservedSlicesClassified() === true
                     ? "diagnostics.notObserved"
                     : "diagnostics.unknown",
                 )}
@@ -514,7 +533,12 @@ export function ImageDiagnostics({
       </Button>
       {open &&
         (topic ? (
-          <Analysis key={topic} session={session} panelId={panelId} topic={topic} />
+          <Analysis
+            key={`${session.id}/${topic}`}
+            session={session}
+            panelId={panelId}
+            topic={topic}
+          />
         ) : (
           <Typography variant="caption">{t("diagnostics.awaitData")}</Typography>
         ))}
@@ -528,7 +552,7 @@ export function PerformanceSidebar(): React.JSX.Element | ReactNull {
   const session = useContext(PlaybackDiagnosticsContext);
   return session ? (
     <ScrollArea>
-      <Analysis session={session} />
+      <Analysis key={session.id} session={session} />
     </ScrollArea>
   ) : (
     ReactNull

@@ -28,6 +28,7 @@ import {
   isRemoteVideoFrameReference,
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import { RosValue } from "@foxglove/studio-base/players/types";
+import { hasIntegerTime } from "@foxglove/studio-base/util/time";
 
 import { AnyImage, CompressedVideo, getTimestampFromImage } from "./ImageTypes";
 import { decodeCompressedImageToBitmap, isVideoKeyframe } from "./decodeImage";
@@ -309,7 +310,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       ("header" in image ? image.header.frame_id : image.frame_id);
     this.userData.frameId =
       typeof rawFrameId === "string" ? this.renderer.normalizeFrameId(rawFrameId) : rawFrameId;
-    this.userData.messageTime = toNanoSec("header" in image ? image.header.stamp : image.timestamp);
+    this.userData.messageTime = imageMediaTime(image) ?? this.userData.receiveTime;
   }
 
   public override details(): Record<string, RosValue> {
@@ -389,7 +390,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       receiveTime: messageEvent?.receiveTime ?? fromNanoSec(this.userData.receiveTime),
     };
     const diag = this.renderer.diagnostics;
-    if (diag) {
+    if (diag && messageEvent) {
       const stats = diag.session.panel(diag.panelId, this.userData.topic);
       stats.status = "decoding";
       const observed = toNanoSec(event.receiveTime);
@@ -403,7 +404,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.userData.topic,
         this.renderer.currentTime,
         toNanoSec(event.receiveTime),
-        toNanoSec(getTimestampFromImage(image)),
+        imageMediaTime(image),
       );
     }
     this.#latestImageTarget = event;
@@ -483,7 +484,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.userData.topic,
         this.renderer.currentTime,
         toNanoSec(targetFrame.receiveTime),
-        toNanoSec(targetFrame.message.timestamp),
+        imageMediaTime(targetFrame.message),
       );
     }
     for (const frame of frames) {
@@ -513,7 +514,15 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       frames,
       seq,
       options.onDecoded,
-      options,
+      options.retainLateTarget === true
+        ? {
+            ...options,
+            onLateTargetFrameSettled: (result) => {
+              this.#recordDecodeDuration(started, result);
+              options.onLateTargetFrameSettled?.(result);
+            },
+          }
+        : options,
     );
 
     return await new Promise<ImageSetImageResult>((resolve) => {
@@ -641,7 +650,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         diag.panelId,
         this.userData.topic,
         receiveTime,
-        toNanoSec(getTimestampFromImage(candidate.event.message)),
+        imageMediaTime(candidate.event.message),
         this.#displayOwner,
       );
     }
@@ -1315,6 +1324,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 }
 
 let tempColor = { r: 0, g: 0, b: 0, a: 0 };
+
+function imageMediaTime(image: AnyImage): bigint | undefined {
+  const stamp = getTimestampFromImage(image);
+  return hasIntegerTime(stamp) ? toNanoSec(stamp) : undefined;
+}
 
 function createCanvasTexture(bitmap: ImageBitmap): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(
