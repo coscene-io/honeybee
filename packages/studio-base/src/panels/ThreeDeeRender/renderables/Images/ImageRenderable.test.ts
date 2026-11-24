@@ -372,6 +372,50 @@ describe("ImageRenderable candidate scheduling", () => {
     renderable.dispose();
   });
 
+  it("displays a still image with an invalid media stamp and measures its seek by receive time", async () => {
+    const session = new PlaybackDiagnostics();
+    mockRenderer.diagnostics = { session, panelId: "image" };
+    const renderable = new TestImageRenderable([new MockVideoFrame() as unknown as VideoFrame]);
+    const panel = session.panel("image", mockUserData.topic);
+    const target = { sec: 2, nsec: 0 };
+    panel.pending = { seek: { sequence: 1, started: performance.now(), target } };
+    mockRenderer.currentTime = 2000000000n;
+    const image = {
+      ...sampleImage,
+      header: { ...sampleImage.header, stamp: { sec: 1, nsec: 0.5 } },
+    };
+    await renderable.setImage(image, undefined, undefined, { receiveTime: target });
+    commit();
+    expect(renderable.userData.displayedFrameState?.image).toBe(image);
+    expect(panel.successes).toBe(1);
+    renderable.dispose();
+  });
+
+  it("does not use a settings-only redecode as the expected seek frame", async () => {
+    const session = new PlaybackDiagnostics();
+    mockRenderer.diagnostics = { session, panelId: "image" };
+    const renderable = new TestImageRenderable(
+      Array.from({ length: 3 }, () => new MockVideoFrame() as unknown as VideoFrame),
+    );
+    const panel = session.panel("image", mockUserData.topic);
+    const event = { receiveTime: { sec: 1, nsec: 0 } };
+    await renderable.setImage(sampleImage, undefined, undefined, event);
+    commit();
+    panel.pending = {
+      seek: { sequence: 1, started: performance.now(), target: { sec: 2, nsec: 0 } },
+    };
+    mockRenderer.currentTime = 2000000000n;
+    renderable.setSettings({ ...renderable.userData.settings, flatColor: "#ff0000" });
+    await flushPromises();
+    commit();
+    expect(panel.pending).toEqual({ seek: expect.anything() });
+    expect(panel.successes).toBe(0);
+    await renderable.setImage(sampleImage, undefined, undefined, event);
+    commit();
+    expect(panel.successes).toBe(1);
+    renderable.dispose();
+  });
+
   it("clears the displayed frame only when its owning renderable is removed", async () => {
     const session = new PlaybackDiagnostics();
     mockRenderer.diagnostics = { session, panelId: "image" };
@@ -642,6 +686,9 @@ describe("ImageRenderable candidate scheduling", () => {
   it.each([100, 2000])(
     "keeps one late correction with a %i ms deadline without holding the current batch",
     async (anyFrameTimeoutMs) => {
+      const session = new PlaybackDiagnostics();
+      mockRenderer.diagnostics = { session, panelId: "image" };
+      const panel = session.panel("image", mockUserData.topic);
       let resolve!: (result: AwaitTargetFrameResult) => void;
       const late = new MockVideoFrame() as unknown as VideoFrame;
       const target = videoFrameEvent(1n, 1, "key");
@@ -663,6 +710,7 @@ describe("ImageRenderable candidate scheduling", () => {
         }),
       ).resolves.toMatchObject({ reason: "timeout" });
       expect(awaitTargetFrame).toHaveBeenCalledWith({ requestId: 1, timeoutMs: anyFrameTimeoutMs });
+      expect(panel.decodeMs).toBeUndefined();
       resolve({
         type: "TargetFrame",
         requestId: 1,
@@ -674,6 +722,7 @@ describe("ImageRenderable candidate scheduling", () => {
       expect(renderable.getDecodedImage()).toBeUndefined();
       commit();
       expect(renderable.getDecodedImage()).toBe(late);
+      expect(panel.decodeMs).toBeGreaterThanOrEqual(0);
       renderable.dispose();
     },
   );

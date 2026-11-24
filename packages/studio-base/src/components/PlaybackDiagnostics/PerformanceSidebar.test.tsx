@@ -62,8 +62,18 @@ it("previews historical findings only during interaction and clears on close", (
   fireEvent.focus(row);
   fireEvent.mouseEnter(other);
   expect(screen.getByTestId("diagnostic-preview").style.left).toBe("50%");
+  session.record({
+    topic: "/camera",
+    kind: "gap",
+    duration: 6,
+    start: 18000000000n,
+    end: 24000000000n,
+  });
+  rerender(view("open"));
+  expect(screen.getByTestId("diagnostic-preview").style.left).toBe("50%");
   fireEvent.mouseLeave(other);
   expect(screen.getByTestId("diagnostic-preview").style.left).toBe("30%");
+  expect(parseFloat(screen.getByTestId("diagnostic-preview").style.width)).toBeCloseTo(10);
   fireEvent.mouseEnter(row);
   fireEvent.blur(row);
   expect(screen.getByTestId("diagnostic-preview").style.left).toBe("30%");
@@ -86,4 +96,53 @@ it("shows timed-out seek attempts before a bound image topic's first frame", () 
     </AppConfigurationContext.Provider>,
   );
   expect(screen.getByText("Successful / cancelled / timed out · 0 / 0 / 1")).toBeTruthy();
+});
+
+it("clears the selected topic when a new playback session starts", () => {
+  const config = makeMockAppConfiguration();
+  const view = (session: PlaybackDiagnostics) => (
+    <AppConfigurationContext.Provider value={config}>
+      <PlaybackDiagnosticsContext.Provider value={session}>
+        <PerformanceSidebar />
+      </PlaybackDiagnosticsContext.Provider>
+    </AppConfigurationContext.Provider>
+  );
+  const first = new PlaybackDiagnostics();
+  first.topic("/first");
+  const { rerender } = render(view(first));
+  fireEvent.mouseDown(screen.getAllByRole("combobox")[0]!);
+  fireEvent.click(screen.getByRole("option", { name: "/first" }));
+  const second = new PlaybackDiagnostics();
+  second.topic("/second");
+  rerender(view(second));
+  expect(screen.getByText("/second")).toBeTruthy();
+  expect(screen.queryByText("/first")).toBeNull();
+});
+
+it("returns to a populated page when a live update reduces the filtered finding count", () => {
+  const session = new PlaybackDiagnostics();
+  for (let i = 0; i < 21; i++) {
+    session.record({
+      topic: "/camera",
+      kind: "gap",
+      duration: 2,
+      start: BigInt(i),
+      end: BigInt(i + 2),
+    });
+  }
+  const config = makeMockAppConfiguration();
+  const view = () => (
+    <AppConfigurationContext.Provider value={config}>
+      <PlaybackDiagnosticsContext.Provider value={session}>
+        <PerformanceSidebar />
+      </PlaybackDiagnosticsContext.Provider>
+    </AppConfigurationContext.Provider>
+  );
+  const { rerender } = render(view());
+  fireEvent.click(screen.getByRole("button", { name: /Long keyframe interval/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  session.record({ topic: "/camera", kind: "gap", duration: 0.5, start: 0n, end: 1n });
+  rerender(view());
+  expect(screen.getAllByRole("listitem")).toHaveLength(20);
 });

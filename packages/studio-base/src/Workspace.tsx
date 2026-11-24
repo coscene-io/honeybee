@@ -118,8 +118,6 @@ const useStyles = makeStyles()({
     outline: "none",
     overflow: "hidden",
   },
-  // Containing block for overlays laid over the panel layout.
-  layout: { position: "relative" },
 });
 
 type WorkspaceProps = CustomWindowControlsProps & {
@@ -491,7 +489,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         >
           {/* To ensure no stale player state remains, we unmount all panels when players change */}
           <RemountOnValueChange value={playerId}>
-            <Stack className={classes.layout}>
+            <Stack>
               <PanelLayout />
             </Stack>
           </RemountOnValueChange>

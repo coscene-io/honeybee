@@ -345,6 +345,7 @@ export default function PlaybackControls(props: {
   // the same as any seek; the annotation view shows images only, and playUntil would drop
   // repeated presses while one is still playing. Alt (and Alt+Shift) still runs the player's own
   // time step, with Alt read as "use the time step" rather than "large step".
+  // Only one feature can take over the step; if several register, the first one wins.
   const playbackStep = useWorkspaceSlotValues("playbackStep")[0];
   const overrideStep = useCallback(
     (direction: 1 | -1, ev: KeyboardEvent | undefined, currentTime: Time) => {
