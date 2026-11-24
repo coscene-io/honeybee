@@ -45,6 +45,7 @@ import type {
   TopicStats,
 } from "@foxglove/studio-base/players/types";
 import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
+import { PlaybackDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import type { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { ContextInternal } from "./index";
@@ -315,6 +316,7 @@ export default function MockMessagePipelineProvider(
       return {
         mockProps,
         player: undefined,
+        diagnostics: new PlaybackDiagnostics(),
         dispatch,
         reset,
         subscriptionMemoizer: makeSubscriptionMemoizer(),

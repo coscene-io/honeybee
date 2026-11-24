@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as _ from "lodash-es";
 import { createContext } from "react";
 import { createStore } from "zustand/vanilla";
 
@@ -24,6 +25,7 @@ export type PanelStats = {
   displayedFrame?: { time: bigint; owner: object };
   decodeMs?: number;
   lastSuccessSequence?: number;
+  lastAttemptSequence?: number;
   samples: number[];
   successes: number;
   cancelled: number;
@@ -32,6 +34,7 @@ export type PanelStats = {
 };
 
 export class PlaybackDiagnostics extends VideoDiagnostics {
+  public readonly id = _.uniqueId("playback-diagnostics-");
   public readonly panels = new Map<string, PanelStats>();
   public readonly preview = createStore<{ hovered?: PreviewEntry; focused?: PreviewEntry }>(
     () => ({}),
@@ -44,6 +47,7 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
   public buffering = false;
   #sample?: { now: number; time: bigint; bytes: number; seekTime: number; playing: boolean };
   #seek?: Seek;
+  #backfilling?: Seek;
   public latestSeekSequence(): number | undefined {
     return this.#seek?.sequence;
   }
@@ -72,6 +76,12 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
     this.topic(topic);
     const panel = this.panel(panelId, topic);
     panel.active = true;
+    // The topic list can arrive after an initial seek is accepted. A panel which
+    // subscribes before backfill completes can still display its target frame.
+    if (this.#backfilling && panel.lastAttemptSequence !== this.#backfilling.sequence) {
+      panel.pending = { seek: this.#backfilling };
+      panel.lastAttemptSequence = this.#backfilling.sequence;
+    }
     return () => {
       this.expire(panel);
       panel.active = false;
@@ -86,6 +96,8 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
 
   public update(state: PlayerState, now = performance.now()): void {
     const data = state.activeData;
+    this.#backfilling =
+      data?.acceptedSeek?.backfillPending === true ? data.acceptedSeek : undefined;
     this.buffering = state.presence === "BUFFERING";
     if (!data) {
       return;
@@ -130,6 +142,7 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
           this.expire(panel, seek.started);
           panel.cancelled += skipped + (panel.pending ? 1 : 0);
           panel.pending = { seek };
+          panel.lastAttemptSequence = seek.sequence;
         }
       }
       this.#seek = seek;
@@ -148,7 +161,7 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
     topic: string,
     clock: bigint,
     frame: bigint,
-    media: bigint,
+    media: bigint | undefined,
   ): void {
     const panel = this.panel(panelId, topic);
     const pending = panel.pending;
@@ -168,7 +181,7 @@ export class PlaybackDiagnostics extends VideoDiagnostics {
     panelId: string,
     topic: string,
     frame: bigint,
-    media: bigint,
+    media: bigint | undefined,
     owner: object,
     now = performance.now(),
   ): void {

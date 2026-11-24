@@ -31,7 +31,7 @@ describe("<KeyListener />", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
-  // Regression (U1): a guard on defaultPrevented / cancelBubble swallowed shortcuts app-wide,
+  // Regression: a guard on defaultPrevented / cancelBubble swallowed shortcuts app-wide,
   // because MUI Slider, Menu, Autocomplete and editors prevent or stop key events routinely.
   it.each(["keydown", "keypress", "keyup"])(
     "still handles %s events that controls outside an input owner prevented or stopped",

@@ -9,7 +9,7 @@ import { fromSec } from "@foxglove/rostime";
 import { mockPlayerState } from "@foxglove/studio-base/players/TopicAliasingPlayer/mocks";
 
 import { PlaybackDiagnostics } from "./playbackDiagnostics";
-import { VideoRun } from "./videoDiagnostics";
+import { DIAGNOSTIC_HISTORY_LIMIT, SliceHistory, VideoRun } from "./videoDiagnostics";
 
 it("retains findings across seek, deduplicates replays and never bridges unloaded ranges", () => {
   const session = new PlaybackDiagnostics();
@@ -47,6 +47,51 @@ it("retains findings across seek, deduplicates replays and never bridges unloade
   expect(topic.longestGap).toEqual({ duration: 3, clock: "imageClock" });
   expect(new PlaybackDiagnostics().topics.size).toBe(0);
 });
+
+it("bounds packet identities, per-kind findings and disjoint coverage across a long session", () => {
+  const session = new PlaybackDiagnostics();
+  const slices = new SliceHistory("/camera");
+  const packet = { key: false, missing: [] };
+  for (let i = 0; i <= DIAGNOSTIC_HISTORY_LIMIT; i++) {
+    const log = BigInt(i);
+    // Include distinct frames with the same log time, as well as unknown HEVC backfills.
+    slices.observe(0n, log, { ...packet, bFrame: true }, "h265");
+    slices.observe(1n, log, packet, "h265");
+    slices.observe(2n, log, { ...packet, bFrame: false }, "h265");
+    session.record({ kind: "empty", topic: "/camera", start: log, end: log });
+    session.cover("/camera", log, log);
+  }
+  expect(slices.size).toBe(DIAGNOSTIC_HISTORY_LIMIT);
+  expect(slices.unknownCount).toBe(DIAGNOSTIC_HISTORY_LIMIT);
+  expect(slices.truncated).toBe(true);
+  expect([...slices][0]?.[0]).toBe("0/1");
+  // A replay of a retained known slice cannot downgrade it to unknown.
+  slices.observe(2n, 1n, packet, "h265");
+  slices.observe(1n, 1n, { ...packet, bFrame: true }, "h265");
+  expect(slices.unknownCount).toBe(DIAGNOSTIC_HISTORY_LIMIT - 1);
+  const topic = session.topic("/camera");
+  expect(topic.truncated).toBe(true);
+  expect(topic.findings.get("empty")?.size).toBe(DIAGNOSTIC_HISTORY_LIMIT);
+  expect(topic.coverage).toHaveLength(DIAGNOSTIC_HISTORY_LIMIT);
+  expect(topic.coverage[0]).toEqual({ start: 1n, end: 1n });
+});
+
+it.each([DIAGNOSTIC_HISTORY_LIMIT, DIAGNOSTIC_HISTORY_LIMIT + 1])(
+  "keeps uncertainty when resolving the retained subset of %i unknown HEVC slices",
+  (count) => {
+    const slices = new SliceHistory("/camera");
+    const packet = { key: false, missing: [] };
+    for (let i = 0; i < count; i++) {
+      slices.observe(BigInt(i), undefined, packet, "h265");
+    }
+    for (let i = count - DIAGNOSTIC_HISTORY_LIMIT; i < count; i++) {
+      slices.observe(BigInt(i), undefined, { ...packet, bFrame: false }, "h265");
+    }
+    expect(slices.unknownCount).toBe(0);
+    expect(slices.size).toBe(0);
+    expect(slices.allObservedSlicesClassified()).toBe(count === DIAGNOSTIC_HISTORY_LIMIT);
+  },
+);
 
 it("measures continuous keyframe intervals in recording time across reordered presentation timestamps", () => {
   const session = new PlaybackDiagnostics();
@@ -107,6 +152,26 @@ it("times two panels independently from acceptance and excludes intermediate, ca
     cancelled: 1,
     timeouts: 1,
   });
+});
+
+it("includes panels that bind during seek backfill and excludes panels opened afterwards", () => {
+  const session = new PlaybackDiagnostics();
+  const seek = { sequence: 1, started: performance.now(), target: fromSec(2) };
+  session.update(
+    mockPlayerState(undefined, { acceptedSeek: { ...seek, backfillPending: true } }),
+    seek.started,
+  );
+  session.bind("initial image", "/camera");
+  const unbind = session.bind("removed", "/camera");
+  unbind();
+  session.bind("removed", "/camera");
+  expect(session.panel("removed", "/camera").pending).toBeUndefined();
+  session.update(mockPlayerState(undefined, { acceptedSeek: seek }), seek.started + 50);
+  session.expectFrame("initial image", "/camera", 2000000000n, 1900000000n, 1n);
+  session.displayed("initial image", "/camera", 1900000000n, 1n, {}, seek.started + 75);
+  expect(session.panel("initial image", "/camera").samples).toEqual([75]);
+  session.bind("late", "/camera");
+  expect(session.panel("late", "/camera").pending).toBeUndefined();
 });
 
 it("measures lag against the advancing player clock while a visible image stalls", () => {

@@ -75,8 +75,14 @@ describe("MessagePipeline/MessageOrderTracker", () => {
     const tracker = new MessageOrderTracker(session);
     const previous = { ...message(7, 10), topic: "/bar" };
     const state = playerStateWithMessages([previous, message(8, 9)]);
-    tracker.update(state);
-    tracker.update(state);
+    expect(tracker.update(state)).toEqual([
+      {
+        severity: "warn",
+        message: "Data went back in time",
+        error: expect.objectContaining({ message: expect.stringMatching(/on \/foo.*on \/bar/) }),
+      },
+    ]);
+    expect(tracker.update(state)).toEqual([]);
     const group = session.topics.get("/foo")?.findings.get("order");
     expect(Array.from(group!.values())).toEqual([
       {
@@ -88,15 +94,18 @@ describe("MessagePipeline/MessageOrderTracker", () => {
         duration: 1,
       },
     ]);
-    tracker.update(playerStateWithMessages([message(1, 2), message(1, 1)]));
+    const backfill = playerStateWithMessages([message(1, 2), message(1, 1)]);
+    expect(tracker.update(backfill)).toEqual([
+      expect.objectContaining({ message: "Data went back in time" }),
+    ]);
     expect(group?.size).toBe(1);
   });
 
   it("accepts monotonic delivery and equal record times", () => {
     const session = new VideoDiagnostics();
-    new MessageOrderTracker(session).update(
-      playerStateWithMessages([message(8, 9), message(7, 9), message(6, 10)]),
-    );
+    const tracker = new MessageOrderTracker(session);
+    tracker.update(playerStateWithMessages([message(8, 9), message(7, 9), message(6, 10)]));
+    tracker.dispose();
     expect(session.topics.size).toBe(0);
   });
 });
