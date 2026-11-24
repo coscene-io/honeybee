@@ -20,7 +20,7 @@ export type MomentFieldFormatOptions = {
 
 /** Format a projection without changing stored values or hiding unknown historical IDs. */
 export function formatMomentFieldValue(
-  field: CustomFieldValue,
+  field: Pick<CustomFieldValue, "value">,
   property: Property,
   options: MomentFieldFormatOptions = {},
 ): string | undefined {
