@@ -80,7 +80,9 @@ describe("mock service with MOCK masks", () => {
     await mock.submit({
       id: "delete-1",
       message: "delete one mock observation",
-      operations: [{ id: "op", label: "delete", patch: { annotations: { [key]: undefined } } }],
+      operations: [
+        { id: "op", labelKey: "opLabelEditPolygon", patch: { annotations: { [key]: undefined } } },
+      ],
     });
     const saved = storage.get("test")!;
     expect(saved).not.toContain('"source":"mock"');

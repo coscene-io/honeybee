@@ -34,7 +34,7 @@ it("restores dependent grouped deltas as one undo step without submitting or mut
   store.getState().redo();
   store.getState().renameClass("class-1", "Prior edit");
   const prior = store.getState().document;
-  store.getState().runTransaction("Create polygon in new instance", () => {
+  store.getState().runTransaction("opLabelEditTree", () => {
     const instance = store.getState().addInstance("class-2", "New instance");
     store.getState().addPolygon(instance, triangle);
   });
@@ -141,7 +141,7 @@ it.each(["edit", "undo", "redo", "revert"] as const)(
     store.getState().undo();
     const before = store.getState();
     expect(() => {
-      store.getState().runTransaction("Fail atomically", () => {
+      store.getState().runTransaction("opLabelEditTree", () => {
         if (action === "edit") {
           store.getState().renameClass("class-1", "Discarded");
         } else if (action === "revert") {

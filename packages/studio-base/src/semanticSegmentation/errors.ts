@@ -18,6 +18,8 @@ export type SegmentationTextCode = Extract<
   keyof typeof en,
   `error${string}` | `unreadable${string}` | `violation${string}` | `rpcReason${string}`
 >;
+/** An operation label shown in the staged list and the submission queue. */
+export type OperationLabelKey = Extract<keyof typeof en, `opLabel${string}`>;
 export type SegmentationErrorCode = Extract<SegmentationTextCode, `error${string}`>;
 export type SegmentationTextParams = Record<string, string | number>;
 

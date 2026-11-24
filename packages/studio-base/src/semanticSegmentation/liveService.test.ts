@@ -434,7 +434,7 @@ describe("live annotation service", () => {
       operations: [
         {
           id: uuidv4(),
-          label: "draw",
+          labelKey: "opLabelEditPolygon",
           patch: {
             instances: { [mine]: { id: mine, classId: CLASS_ID, name: "mug 2" } },
             annotations: {
@@ -459,7 +459,7 @@ describe("live annotation service", () => {
       operations: [
         {
           id: uuidv4(),
-          label: "clear other",
+          labelKey: "opLabelEditPolygon",
           patch: { annotations: { [frameInstanceKey(frameId, OTHER_ID)]: undefined } },
         },
       ],
@@ -486,7 +486,7 @@ describe("live annotation service", () => {
       operations: [
         {
           id: uuidv4(),
-          label: "draw",
+          labelKey: "opLabelEditPolygon",
           patch: {
             instances: { [mine]: { id: mine, classId: CLASS_ID, name: "mug 2" } },
             annotations: Object.fromEntries(
@@ -600,6 +600,26 @@ describe("live annotation service", () => {
     expect(service.diagnostics().maskSizeMismatches).toBe(1);
   });
 
+  it("names the size a mask was annotated at when the same topic now decodes at another size", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    server.frames = [
+      wireFrame({
+        instance: `${R}/instances/${OTHER_ID}`,
+        frameTime: frameTimeOf(LOG_TIMES[0]!),
+        geometry: { case: "mask", value: { counts: encodeCounts([10, 10, 1280 * 720 - 20]) } },
+      }),
+    ];
+    await service.loadDocument();
+    const frameWindow = await service.loadFrameWindow("video", 0, 5);
+    expect(
+      frameWindow.unreadable?.[frameInstanceKey(document.frames[0]!.id, OTHER_ID)]?.reason,
+    ).toContain("1280×720");
+    expect(
+      frameWindow.unreadable?.[frameInstanceKey(document.frames[0]!.id, OTHER_ID)]?.reason,
+    ).toContain("640×480");
+  });
+
   it("re-sends an unreadable observation verbatim until the user replaces that instance there", async () => {
     const { server, service, document } = setup();
     seedServer(server);
@@ -630,7 +650,7 @@ describe("live annotation service", () => {
       operations: [
         {
           id: uuidv4(),
-          label: "draw",
+          labelKey: "opLabelEditPolygon",
           patch: {
             instances: { [newInstance]: { id: newInstance, classId: CLASS_ID, name: "mug 2" } },
             annotations: {
@@ -660,7 +680,7 @@ describe("live annotation service", () => {
       operations: [
         {
           id: uuidv4(),
-          label: "replace",
+          labelKey: "opLabelEditPolygon",
           patch: {
             annotations: {
               [otherKey]: {
@@ -693,7 +713,7 @@ describe("live annotation service", () => {
         operations: [
           {
             id: uuidv4(),
-            label: "paint",
+            labelKey: "opLabelEditPolygon",
             patch: {
               annotations: {
                 [frameInstanceKey(frameId, OTHER_ID)]: {
@@ -721,7 +741,7 @@ describe("live annotation service", () => {
     const key = frameInstanceKey(frameId, newInstance);
     const operation: StagedOperation = {
       id: uuidv4(),
-      label: "draw",
+      labelKey: "opLabelEditPolygon",
       patch: {
         classes: { [newClass]: { id: newClass, name: "[it] mug", color: "#00ff00" } },
         instances: { [newInstance]: { id: newInstance, classId: newClass, name: "mug 1" } },
@@ -779,7 +799,7 @@ describe("live annotation service", () => {
     const frameId = document.frames[1]!.id;
     const polygon = (points: { x: number; y: number }[]): StagedOperation => ({
       id: uuidv4(),
-      label: "draw",
+      labelKey: "opLabelEditPolygon",
       patch: {
         classes: { [newClass]: { id: newClass, name: "[it] mug", color: "#00ff00" } },
         instances: { [newInstance]: { id: newInstance, classId: newClass, name: "mug 1" } },
@@ -852,7 +872,7 @@ describe("live annotation service", () => {
         operations: [
           {
             id: uuidv4(),
-            label: "new class and draw",
+            labelKey: "opLabelEditPolygon",
             patch: {
               classes: { [newClass]: { id: newClass, name: "x", color: "#000000" } },
               polygonChanges: {
@@ -895,7 +915,7 @@ describe("live annotation service", () => {
         operations: [
           {
             id: uuidv4(),
-            label: "merge",
+            labelKey: "opLabelEditPolygon",
             patch: {
               instances: { [target]: { id: target, classId: CLASS_ID, name: "t" } },
               instanceMerges: { [OTHER_ID]: target },
@@ -916,7 +936,11 @@ describe("live annotation service", () => {
       id: uuidv4(),
       message: "",
       operations: [
-        { id: uuidv4(), label: "delete", patch: { instances: { [OTHER_ID]: undefined } } },
+        {
+          id: uuidv4(),
+          labelKey: "opLabelEditPolygon",
+          patch: { instances: { [OTHER_ID]: undefined } },
+        },
       ],
     });
     expect(server.calls).toEqual([`deleteInstance:${R}/instances/${OTHER_ID}`]);
@@ -933,7 +957,7 @@ describe("live annotation service", () => {
       operations: [
         {
           id: uuidv4(),
-          label: "delete class",
+          labelKey: "opLabelEditPolygon",
           patch: { classes: { [CLASS_ID]: undefined }, instances: { [OTHER_ID]: undefined } },
         },
       ],

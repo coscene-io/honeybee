@@ -9,7 +9,9 @@ import {
   countsFromRuns,
   decodeCounts,
   encodeCounts,
+  inferMaskFrameSize,
   maskContains,
+  maskCountsCoverage,
   maskIou,
   maskRunsFromCounts,
   unionRuns,
@@ -17,6 +19,15 @@ import {
 import { maskToSimplePolygons, polygonsToRuns, type PixelPolygon } from "./maskPolygon";
 import codecFixture from "./testing/fixtures/codec.json";
 import maskFixture from "./testing/fixtures/masks.json";
+
+describe("mask frame size inference", () => {
+  it("covers the counts and names common sizes and the current aspect ratio", () => {
+    expect(maskCountsCoverage(encodeCounts([5, 5, 90]))).toBe(100);
+    expect(inferMaskFrameSize(1280 * 720, 854, 480)).toEqual({ width: 1280, height: 720 });
+    expect(inferMaskFrameSize(720 * 360, 800, 400)).toEqual({ width: 720, height: 360 });
+    expect(inferMaskFrameSize(12345, 854, 480)).toBeUndefined();
+  });
+});
 
 describe("COCO RLE counts", () => {
   it.each(codecFixture.cases.map((item, index) => [index, item] as const))(
