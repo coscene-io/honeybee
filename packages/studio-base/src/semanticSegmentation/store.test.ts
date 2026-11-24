@@ -92,6 +92,8 @@ describe("default creation tool", () => {
     expect(set).toHaveBeenLastCalledWith("polygon");
     store.getState().startDrawing("instance-1");
     expect(store.getState().creationTool).toBe("polygon");
+  });
+});
 
 describe("loaded frame geometry", () => {
   async function limited(maxLoadedFrames: number) {
