@@ -125,7 +125,7 @@ export function useClassCreation(env: TreeEnv) {
         setCreationError(env.t("classNameLength"));
         return;
       }
-      env.state.runTransaction("Create class", () => {
+      env.state.runTransaction("opLabelCreateClass", () => {
         env.state.addClass(trimmed);
       });
       cancel();

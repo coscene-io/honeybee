@@ -11,6 +11,7 @@ import { polygonsOf } from "./maskGeometry";
 import {
   acquireSegmentationRuntime,
   createSegmentationRuntime,
+  hasUnsavedSegmentationWork,
   heldSegmentationRuntimeCount,
   releaseSegmentationRuntime,
   segmentationSession,
@@ -281,6 +282,20 @@ describe("runtime registry", () => {
     await flush();
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(heldSegmentationRuntimeCount()).toBe(0);
+  });
+
+  it("reports unsaved work across held runtimes until it is saved", async () => {
+    const { runtime } = tracked();
+    acquireSegmentationRuntime("record-g", "panel-1", () => runtime);
+    await runtime.initialize();
+    expect(hasUnsavedSegmentationWork()).toBe(false);
+    runtime.store.getState().addClass("Unsaved");
+    expect(hasUnsavedSegmentationWork()).toBe(true);
+    runtime.store.getState().submit();
+    await runtime.store.getState().waitForSubmissions();
+    expect(hasUnsavedSegmentationWork()).toBe(false);
+    releaseSegmentationRuntime("panel-1");
+    await flush();
   });
 
   it("gives a returning panel the runtime that held unsaved work", async () => {

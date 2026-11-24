@@ -11,30 +11,22 @@ import path from "path";
 import { segmentation as en } from "@foxglove/studio-base/i18n/en/segmentation";
 import { segmentation as zh } from "@foxglove/studio-base/i18n/zh/segmentation";
 
-// U7: editor copy lives in the `segmentation` namespace, not in component source.
+// Editor copy lives in the `segmentation` namespace, not in component source.
+function sourceFiles(dir: string): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      // Fixtures and acceptance tests are not shipped UI.
+      return ["testing", "acceptance"].includes(entry.name) ? [] : sourceFiles(file);
+    }
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [file] : [];
+  });
+}
+
 describe("segmentation i18n", () => {
-  const uiFiles = [
-    ...fs
-      .readdirSync(__dirname)
-      .filter((name) => /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
-      .map((name) => path.join(__dirname, name)),
-    path.join(__dirname, "..", "SemanticSegmentationWorkbench.tsx"),
-    path.join(__dirname, "..", "cameraFrames.ts"),
-    path.join(__dirname, "..", "segmentationChrome.ts"),
-    // Errors thrown by the store, service and adapter carry codes (errors.ts), not copy.
-    ...[
-      "frameTime.ts",
-      "liveService.ts",
-      "polygonContract.ts",
-      "propagationRunner.ts",
-      "quickSegment.ts",
-      "runtime.ts",
-      "service.ts",
-      "sourceFrames.ts",
-      "store.ts",
-      "submissionQueue.ts",
-    ].map((name) => path.join(__dirname, "..", name)),
-  ];
+  // Every source file of the feature, including the canvas/, spatialTree/ and maskOverlay/
+  // folders. Errors thrown by the store, service and adapter carry codes (errors.ts), not copy.
+  const uiFiles = sourceFiles(path.join(__dirname, ".."));
 
   it.each(uiFiles.map((file) => [path.relative(path.join(__dirname, ".."), file), file]))(
     "%s has no hard-coded Chinese copy",

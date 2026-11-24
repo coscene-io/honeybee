@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * A function with a stable identity that always calls the latest closure. Handlers that read
@@ -15,7 +15,9 @@ export function useStableCallback<Args extends unknown[], Result>(
   fn: (...args: Args) => Result,
 ): (...args: Args) => Result {
   const latest = useRef(fn);
-  latest.current = fn;
+  useLayoutEffect(() => {
+    latest.current = fn;
+  });
   return useCallback((...args: Args) => latest.current(...args), []);
 }
 
@@ -27,7 +29,9 @@ type AnyFunction = (...args: never[]) => unknown;
  */
 export function useStableActions<T extends Record<string, AnyFunction>>(actions: T): T {
   const latest = useRef(actions);
-  latest.current = actions;
+  useLayoutEffect(() => {
+    latest.current = actions;
+  });
   const [stable] = useState(
     () =>
       Object.fromEntries(

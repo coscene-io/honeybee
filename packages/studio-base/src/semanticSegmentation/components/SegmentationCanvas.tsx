@@ -36,8 +36,6 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-export type { SegmentationCanvasProps } from "./canvas/canvasTypes";
-
 /**
  * The annotation overlay of an image: polygons and their handles, the brush, quick annotation, the
  * view tools and the context menu. State lives in `canvas/canvasUi`, what follows from it in

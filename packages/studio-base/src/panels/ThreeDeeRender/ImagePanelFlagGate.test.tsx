@@ -7,10 +7,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { render, screen } from "@testing-library/react";
-import { createStore, type StoreApi } from "zustand";
 
-import { CoreDataContext, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
+import { CoreDataContext } from "@foxglove/studio-base/context/CoreDataContext";
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
+import { createCoreDataSourceStore } from "@foxglove/studio-base/semanticSegmentation/testing/coreDataSource";
 
 import { ImagePanel } from "./index";
 
@@ -61,10 +61,8 @@ const Image = ImagePanel as unknown as (props: {
 }) => React.JSX.Element;
 
 // The real rollout gate (no featureFlag mock): flag from cos-config, record from Core Data.
-function renderOnCloudRecord(): void {
-  const core = createStore(() => ({
-    record: { loading: false, value: { name: "warehouses/w/projects/p/records/r" } },
-  })) as unknown as StoreApi<CoreDataStore>;
+function renderOnSource(source?: Parameters<typeof createCoreDataSourceStore>[0]): void {
+  const core = createCoreDataSourceStore(source);
   render(
     <CoreDataContext.Provider value={core}>
       <Image config={{ imageMode: { imageTopic: "/camera" } }} saveConfig={jest.fn()} />
@@ -78,7 +76,7 @@ describe("Image panel on a cloud record, real rollout gate", () => {
   });
 
   it("stays the plain Image panel while the flag is off", () => {
-    renderOnCloudRecord();
+    renderOnSource();
     expect(screen.getByTestId("image-renderer")).toBeTruthy();
     expect(screen.queryByTestId("segmentation-entry")).toBeNull();
     expect(screen.queryByTestId("segmentation-workspace")).toBeNull();
@@ -86,12 +84,24 @@ describe("Image panel on a cloud record, real rollout gate", () => {
     expect(props.additionalToolbarIcons).toBeUndefined();
   });
 
-  it("mounts the editor once the flag is on", () => {
+  it("mounts the editor (loaded on demand) once the flag is on", async () => {
     window.cosConfig = {
       FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
     } as typeof window.cosConfig;
-    renderOnCloudRecord();
-    expect(screen.getByTestId("segmentation-entry")).toBeTruthy();
+    renderOnSource();
+    expect(await screen.findByTestId("segmentation-entry")).toBeTruthy();
     expect(screen.getByTestId("segmentation-workspace")).toBeTruthy();
+  });
+
+  it("stays the plain Image panel on a local file even with the flag on and a stale record", () => {
+    window.cosConfig = {
+      FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
+    } as typeof window.cosConfig;
+    renderOnSource({
+      recordName: "warehouses/w/projects/p/records/r",
+      dataSourceId: "remote-file",
+    });
+    expect(screen.getByTestId("image-renderer")).toBeTruthy();
+    expect(screen.queryByTestId("segmentation-entry")).toBeNull();
   });
 });

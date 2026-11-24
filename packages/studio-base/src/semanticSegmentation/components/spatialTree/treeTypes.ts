@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { OperationLabelKey } from "../../errors";
 import type { SegmentationNodeRef } from "../../types";
 
 export type FlatTreeRow = {
@@ -34,12 +35,12 @@ export type TreeDialog =
   | { type: "delete-class"; id: string };
 
 /** Operation labels shown in the submission queue for each tree dialog. */
-export const dialogOperationLabels: Record<TreeDialog["type"], string> = {
-  rename: "Rename",
-  merge: "Merge instances",
-  move: "Move instances",
-  delete: "Delete",
-  "delete-class": "Delete class",
+export const dialogOperationLabels: Record<TreeDialog["type"], OperationLabelKey> = {
+  rename: "opLabelRename",
+  merge: "opLabelMergeInstances",
+  move: "opLabelMoveInstances",
+  delete: "opLabelDelete",
+  "delete-class": "opLabelDeleteClass",
 };
 
 export type TreeMenu = { node: SegmentationNodeRef; x: number; y: number };

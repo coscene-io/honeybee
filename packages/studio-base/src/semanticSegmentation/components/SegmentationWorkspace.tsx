@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 
@@ -67,9 +68,18 @@ export function SegmentationWorkspace({
 }: {
   panelId: string;
 }): React.JSX.Element | undefined {
-  const session = useStore(segmentationSession);
-  const surface = session.surfaces[panelId];
-  const focused = session.panelId === panelId;
+  // Only the fields read here: a whole-store subscription re-rendered every panel's workspace for
+  // any panel's surface change.
+  const session = useStore(
+    segmentationSession,
+    useShallow((state) => ({
+      open: state.open,
+      runtime: state.runtime,
+      surface: state.surfaces[panelId],
+      focused: state.panelId === panelId,
+    })),
+  );
+  const { surface, focused } = session;
   if (!session.open || !session.runtime || surface?.imageUrl == undefined) {
     return undefined;
   }

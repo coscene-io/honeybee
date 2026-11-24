@@ -130,7 +130,7 @@ export function removeVertices(c: CanvasContext, refs: VertexRef[], known?: Prev
       }
     };
     if (plan.length > 1) {
-      c.state.runTransaction("Delete vertices", apply);
+      c.state.runTransaction("opLabelDeleteVertices", apply);
     } else {
       apply();
     }
@@ -214,7 +214,7 @@ export function nudge(c: CanvasContext, key: string, step: 1 | 10): void {
       }
     };
     if (groups.length > 1) {
-      c.state.runTransaction("Move vertices", apply);
+      c.state.runTransaction("opLabelMoveVertices", apply);
     } else {
       apply();
     }
