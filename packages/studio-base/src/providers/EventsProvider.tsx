@@ -32,7 +32,7 @@ function filtersForSchema(
   const active = new Map(
     schema.properties.flatMap((property) => {
       const value = filters.get(property.id);
-      return value?.case != undefined && value.case === property.type.case
+      return value != undefined && value.case === property.type.case
         ? [[property.id, value] as const]
         : [];
     }),

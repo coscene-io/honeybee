@@ -13,6 +13,7 @@ import { EMPTY_EVENTS } from "@foxglove/studio-base/components/PlaybackControls/
 import { isMomentInProject } from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import {
   useEvents,
+  type MomentCustomFieldFilter,
   type TimelinePositionedEvent,
 } from "@foxglove/studio-base/context/EventsContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -25,7 +26,7 @@ function bareUserId(id: string): string {
 
 export function matchesMomentField(
   value: CustomFieldValue["value"],
-  filter: CustomFieldValue["value"],
+  filter: MomentCustomFieldFilter,
 ): boolean {
   switch (filter.case) {
     case "text":
@@ -33,8 +34,30 @@ export function matchesMomentField(
         value.case === "text" &&
         value.value.value.toLowerCase().includes(filter.value.value.toLowerCase())
       );
-    case "number":
-      return value.case === "number" && value.value.value === filter.value.value;
+    case "number": {
+      if (value.case !== "number" || !Number.isFinite(value.value.value)) {
+        return false;
+      }
+      const actual = value.value.value;
+      switch (filter.operator) {
+        case "between":
+          return actual >= filter.min && actual <= filter.max;
+        case "=":
+          return actual === filter.value;
+        case "!=":
+          return actual !== filter.value;
+        case ">=":
+          return actual >= filter.value;
+        case ">":
+          return actual > filter.value;
+        case "<=":
+          return actual <= filter.value;
+        case "<":
+          return actual < filter.value;
+        default:
+          return false;
+      }
+    }
     case "enums": {
       if (value.case !== "enums") {
         return false;
@@ -44,21 +67,21 @@ export function matchesMomentField(
     }
     case "time": {
       const actual = value.case === "time" ? value.value.value : undefined;
-      const expected = filter.value.value;
-      // The field picker accepts values to minute precision.
+      if (actual == undefined) {
+        return false;
+      }
+      // Compare at the picker's precision so the inclusive end covers the full minute.
+      const minute = Math.floor(timestampDate(actual).getTime() / 60_000) * 60_000;
       return (
-        actual != undefined &&
-        expected != undefined &&
-        Math.floor(timestampDate(actual).getTime() / 60_000) ===
-          Math.floor(timestampDate(expected).getTime() / 60_000)
+        Number.isFinite(minute) &&
+        (filter.start == undefined || minute >= filter.start) &&
+        (filter.end == undefined || minute <= filter.end)
       );
     }
     case "user": {
       const ids = value.case === "user" ? value.value.ids.map(bareUserId) : [];
       return filter.value.ids.map(bareUserId).some((id) => id !== "" && ids.includes(id));
     }
-    case undefined:
-      return false;
   }
 }
 

@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { create } from "@bufbuild/protobuf";
-import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { DurationSchema, TimestampSchema, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { ProjectSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { RecordSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
@@ -16,6 +16,8 @@ import {
   CustomFieldValueSchema,
   PropertySchema,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
@@ -396,6 +398,98 @@ it("shows active custom field conditions and applies multiple changes together",
   });
   expect(screen.queryByRole("group", { name: "Active moment filters" })).toBeNull();
   expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
+});
+
+it("validates and applies numeric and date ranges together", async () => {
+  const score = create(PropertySchema, {
+    id: "score",
+    name: "Score",
+    type: { case: "number", value: {} },
+  });
+  const time = create(PropertySchema, {
+    id: "observed",
+    name: "Observed at",
+    type: { case: "time", value: {} },
+  });
+  const schema = create(CustomFieldSchemaSchema, { properties: [score, time] });
+  const events = [
+    { name: "Matching moment", number: 0, minute: 1 },
+    { name: "Too high", number: 3, minute: 1 },
+    { name: "Too late", number: 0, minute: 2 },
+  ].map(({ name, number, minute }, index) => {
+    const entry = makeEvent({ name: `${FILTER_PROJECT}/events/${index}`, startSec: index + 1 });
+    entry.event.displayName = name;
+    entry.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: score,
+        value: { case: "number", value: { value: number } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: time,
+        value: {
+          case: "time",
+          value: { value: timestampFromDate(new Date(2026, 0, 10, 10, minute, 59)) },
+        },
+      }),
+    ];
+    return entry;
+  });
+  render(
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Wrapper events={events} consoleApi={makeConsoleApi()} schema={schema} />
+    </LocalizationProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Filter by custom fields" }));
+  const dialog = within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  const add = (field: string) => {
+    fireEvent.mouseDown(dialog.getByRole("combobox", { name: "Add a condition" }));
+    fireEvent.click(screen.getByRole("option", { name: field }));
+  };
+  const setNumber = (name: string, value: string) => {
+    fireEvent.change(dialog.getByRole("textbox", { name }), { target: { value } });
+  };
+  const setDate = (name: string, value: string) => {
+    fireEvent.change(dialog.getByLabelText(name, { selector: "input" }), {
+      target: { value },
+    });
+  };
+  const apply = dialog.getByRole<HTMLButtonElement>("button", { name: "Apply filters" });
+
+  add("Score");
+  setNumber("Minimum", "0");
+  expect(dialog.getByText("Enter both the minimum and maximum.")).toBeTruthy();
+  expect(apply.disabled).toBe(true);
+  setNumber("Maximum", "-0.5");
+  expect(dialog.getByText("The minimum must be less than or equal to the maximum.")).toBeTruthy();
+  setNumber("Maximum", "2");
+
+  add("Observed at");
+  setDate("Start Time", "2026-01-10 10:02");
+  setDate("End Time", "2026-01-10 10:01");
+  expect(dialog.getByText("The start must be before or at the end.")).toBeTruthy();
+  expect(apply.disabled).toBe(true);
+  setDate("Start Time", "2026-01-10 10:00");
+  expect(apply.disabled).toBe(false);
+  fireEvent.click(apply);
+  await waitFor(() => {
+    expect(screen.queryByText("Matching moment")).not.toBeNull();
+    expect(screen.queryByText("Too high")).toBeNull();
+    expect(screen.queryByText("Too late")).toBeNull();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Score: 0 – 2" }));
+  const reopened = within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
+  expect(reopened.getByRole<HTMLInputElement>("textbox", { name: "Minimum" }).value).toBe("0");
+  fireEvent.mouseDown(reopened.getByRole("combobox", { name: "Comparison" }));
+  fireEvent.click(screen.getByRole("option", { name: ">" }));
+  expect(reopened.queryByRole("textbox", { name: "Maximum" })).toBeNull();
+  fireEvent.click(reopened.getByRole("button", { name: "Apply filters" }));
+  await waitFor(() => {
+    expect(screen.queryByText("Matching moment")).toBeNull();
+    expect(screen.queryByText("Too high")).not.toBeNull();
+    expect(screen.queryByText("Too late")).toBeNull();
+  });
 });
 
 it("filters doubtful display with keyword AND semantics while Delete All retains the complete collection", async () => {

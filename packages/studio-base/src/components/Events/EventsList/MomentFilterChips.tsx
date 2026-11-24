@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 import type { Property } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { Chip, chipClasses } from "@mui/material";
 import dayjs from "dayjs";
@@ -15,7 +14,10 @@ import { makeStyles } from "tss-react/mui";
 
 import { formatMomentFieldValue } from "@foxglove/studio-base/components/PlaybackControls/momentFieldValues";
 import { useMomentUserNames } from "@foxglove/studio-base/components/PlaybackControls/useMomentFieldFormat";
-import type { MomentCustomFieldFilters } from "@foxglove/studio-base/context/EventsContext";
+import type {
+  MomentCustomFieldFilter,
+  MomentCustomFieldFilters,
+} from "@foxglove/studio-base/context/EventsContext";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -34,10 +36,41 @@ const useStyles = makeStyles()((theme) => ({
       color: theme.palette.text.secondary,
     },
   },
+  timeChip: {
+    height: "auto",
+    minHeight: 22,
+    [`& .${chipClasses.label}`]: {
+      whiteSpace: "normal",
+      overflowWrap: "anywhere",
+      paddingBlock: theme.spacing(0.25),
+    },
+  },
 }));
 
-const formatFilterTime = (value: Timestamp) =>
-  dayjs(timestampDate(value)).format("YYYY-MM-DD HH:mm");
+const formatFilterTime = (value: number) => dayjs(value).format("YYYY-MM-DD HH:mm");
+
+function formatFilter(
+  filter: MomentCustomFieldFilter,
+  property: Property,
+  userNames: ReadonlyMap<string, string>,
+): string | undefined {
+  switch (filter.case) {
+    case "number":
+      return filter.operator === "between"
+        ? `${filter.min} – ${filter.max}`
+        : `${filter.operator} ${filter.value}`;
+    case "time": {
+      const start = filter.start == undefined ? undefined : formatFilterTime(filter.start);
+      const end = filter.end == undefined ? undefined : formatFilterTime(filter.end);
+      if (start != undefined && end != undefined) {
+        return `${start} – ${end}`;
+      }
+      return start != undefined ? `>= ${start}` : end != undefined ? `<= ${end}` : undefined;
+    }
+    default:
+      return formatMomentFieldValue({ value: filter }, property, { userNames });
+  }
+}
 
 export function MomentFilterChips({
   projectName,
@@ -56,7 +89,7 @@ export function MomentFilterChips({
   onRemove: (id: string) => void;
   onRemoveDoubtful: () => void;
 }): React.JSX.Element {
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const { t } = useTranslation("event");
   const userIds = useMemo(
     () =>
@@ -83,15 +116,12 @@ export function MomentFilterChips({
         if (value == undefined) {
           return undefined;
         }
-        const display = formatMomentFieldValue({ value }, property, {
-          userNames,
-          formatTime: formatFilterTime,
-        });
+        const display = formatFilter(value, property, userNames);
         const label = display == undefined ? property.name : `${property.name}: ${display}`;
         return (
           <Chip
             key={property.id}
-            className={classes.chip}
+            className={cx(classes.chip, value.case === "time" && classes.timeChip)}
             size="small"
             variant="outlined"
             label={label}

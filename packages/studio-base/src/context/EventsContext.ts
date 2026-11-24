@@ -25,7 +25,15 @@ export type MomentCreationScope = {
 
 export type MomentCreationDefaults = MomentCreationScope & { values: CustomFieldValue[] };
 
-export type MomentCustomFieldFilters = ReadonlyMap<string, CustomFieldValue["value"]>;
+export type MomentNumberOperator = "=" | "!=" | ">=" | ">" | "<=" | "<";
+
+export type MomentCustomFieldFilter =
+  | Exclude<CustomFieldValue["value"], { case: "number" | "time" | undefined }>
+  | { case: "number"; operator: MomentNumberOperator; value: number }
+  | { case: "number"; operator: "between"; min: number; max: number }
+  | { case: "time"; start?: number; end?: number };
+
+export type MomentCustomFieldFilters = ReadonlyMap<string, MomentCustomFieldFilter>;
 
 export type ToModifyEvent = {
   name: string;

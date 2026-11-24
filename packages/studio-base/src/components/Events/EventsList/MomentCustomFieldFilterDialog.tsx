@@ -8,7 +8,6 @@
 import { create } from "@bufbuild/protobuf";
 import {
   CustomFieldValueSchema,
-  type CustomFieldValue,
   type Property,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import AddIcon from "@mui/icons-material/Add";
@@ -31,8 +30,10 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { CustomFieldValueFieldEditor } from "@foxglove/studio-base/components/CustomFieldProperty/editor/CustomFieldValueFieldEditor";
-import { formatMomentFieldValue } from "@foxglove/studio-base/components/PlaybackControls/momentFieldValues";
 import type { MomentCustomFieldFilters } from "@foxglove/studio-base/context/EventsContext";
+
+import { MomentNumberFilterEditor, MomentTimeFilterEditor } from "./MomentRangeFilterEditors";
+import { createFilterDraft, resolveFilterDraft, type MomentFilterDraft } from "./momentFilterDraft";
 
 const useStyles = makeStyles()((theme) => ({
   condition: {
@@ -74,16 +75,25 @@ export function MomentCustomFieldFilterDialog({
   const { classes } = useStyles();
   const titleId = useId();
   const hintId = useId();
-  const [draft, setDraft] = useState(() => new Map(filters));
+  const [draft, setDraft] = useState(
+    () =>
+      new Map(
+        Array.from(filters ?? [], ([id, filter]) => [id, createFilterDraft(filter.case, filter)]),
+      ),
+  );
   const [query, setQuery] = useState("");
   const propertiesById = new Map(properties.map((property) => [property.id, property]));
-  const conditions = Array.from(draft).flatMap(([id, value]) => {
+  const conditions = Array.from(draft).flatMap(([id, saved]) => {
     const property = propertiesById.get(id);
-    return property == undefined ? [] : [{ property, value }];
+    if (property == undefined) {
+      return [];
+    }
+    const value = saved.case === property.type.case ? saved : createFilterDraft(property.type.case);
+    return [{ property, value, ...resolveFilterDraft(value, property) }];
   });
   const availableProperties = properties.filter((field) => !draft.has(field.id));
 
-  const updateField = (id: string, value: CustomFieldValue["value"]) => {
+  const updateField = (id: string, value: MomentFilterDraft) => {
     setDraft((previous) => new Map(previous).set(id, value));
   };
 
@@ -116,7 +126,10 @@ export function MomentCustomFieldFilterDialog({
             }}
             onChange={(_, property) => {
               if (property != undefined) {
-                setDraft((previous) => new Map([[property.id, { case: undefined }], ...previous]));
+                setDraft(
+                  (previous) =>
+                    new Map([[property.id, createFilterDraft(property.type.case)], ...previous]),
+                );
                 setQuery("");
               }
             }}
@@ -142,7 +155,7 @@ export function MomentCustomFieldFilterDialog({
               />
             )}
           />
-          {conditions.map(({ property, value }) => {
+          {conditions.map(({ property, value, error }) => {
             const removeLabel = t("removeCustomFieldFilter", { field: property.name });
             return (
               <div
@@ -151,16 +164,38 @@ export function MomentCustomFieldFilterDialog({
                 role="group"
                 aria-label={property.name}
               >
-                <CustomFieldValueFieldEditor
-                  key={property.type.case}
-                  customFieldValue={create(CustomFieldValueSchema, {
-                    property: { ...property, required: false },
-                    value: value.case === property.type.case ? value : undefined,
-                  })}
-                  onChange={(field) => {
-                    updateField(property.id, field.value);
-                  }}
-                />
+                {value.case === "number" ? (
+                  <MomentNumberFilterEditor
+                    name={property.name}
+                    draft={value}
+                    error={error == undefined ? undefined : t(error)}
+                    onChange={(next) => {
+                      updateField(property.id, next);
+                    }}
+                  />
+                ) : value.case === "time" ? (
+                  <MomentTimeFilterEditor
+                    name={property.name}
+                    draft={value}
+                    error={error == undefined ? undefined : t(error)}
+                    onChange={(next) => {
+                      updateField(property.id, next);
+                    }}
+                  />
+                ) : (
+                  <CustomFieldValueFieldEditor
+                    key={property.type.case}
+                    customFieldValue={create(CustomFieldValueSchema, {
+                      property: { ...property, required: false },
+                      value,
+                    })}
+                    onChange={({ value: next }) => {
+                      if (next.case !== "number" && next.case !== "time") {
+                        updateField(property.id, next);
+                      }
+                    }}
+                  />
+                )}
                 <IconButton
                   size="small"
                   aria-label={removeLabel}
@@ -195,13 +230,12 @@ export function MomentCustomFieldFilterDialog({
         <Button onClick={onClose}>{t("general:cancel")}</Button>
         <Button
           variant="contained"
+          disabled={conditions.some(({ error }) => error != undefined)}
           onClick={() => {
             onApply(
               new Map(
-                conditions.flatMap(({ property, value }) =>
-                  formatMomentFieldValue({ value }, property) == undefined
-                    ? []
-                    : [[property.id, value] as const],
+                conditions.flatMap(({ property, filter }) =>
+                  filter == undefined ? [] : [[property.id, filter] as const],
                 ),
               ),
             );
