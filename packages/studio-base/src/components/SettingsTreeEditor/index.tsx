@@ -57,9 +57,11 @@ const makeStablePath = memoizeWeak((key: string) => [key]);
 export default function SettingsTreeEditor({
   variant,
   settings,
+  trailingSection,
 }: {
   variant: "panel" | "log";
   settings: Immutable<SettingsTree>;
+  trailingSection?: { id: string; label: string; content: React.JSX.Element };
 }): React.JSX.Element {
   const { classes } = useStyles();
   const { actionHandler, focusedPath } = settings;
@@ -137,6 +139,9 @@ export default function SettingsTreeEditor({
   const showTitleField =
     filterText.length === 0 && panelInfo?.hasCustomToolbar !== true && variant !== "log";
 
+  const showTrailingSection =
+    trailingSection?.label.toLocaleLowerCase().includes(filterText.toLocaleLowerCase()) === true;
+
   const handleFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setFilterText(event.target.value);
   }, []);
@@ -196,6 +201,17 @@ export default function SettingsTreeEditor({
         {memoizedNodes.map(({ key, props }) => (
           <NodeEditor key={key} {...props} />
         ))}
+        {showTrailingSection && (
+          <NodeEditor
+            actionHandler={actionHandler}
+            defaultOpen={false}
+            filter={filterText}
+            settings={{ label: trailingSection.label }}
+            path={makeStablePath(trailingSection.id)}
+          >
+            {trailingSection.content}
+          </NodeEditor>
+        )}
       </div>
     </Stack>
   );
