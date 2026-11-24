@@ -8,7 +8,7 @@
 import { summarizeObservation } from "./maskGeometry";
 import type { FrameWindow, SegmentationDocument } from "./types";
 
-function frameOfKey(key: string): string {
+export function frameOfKey(key: string): string {
   return (JSON.parse(key) as [string, string])[0];
 }
 
@@ -55,6 +55,28 @@ export function mergeFrameWindow(
     ...rest,
     annotations,
     annotationSummaries,
+    ...(Object.keys(unreadable).length > 0 ? { unreadableObservations: unreadable } : {}),
+  };
+}
+
+/**
+ * The document without the geometry and unreadable entries of `frameIds`. Summaries stay, so the
+ * tree keeps its presence counts; a later window read fills the geometry in again.
+ */
+export function evictFrames(
+  document: SegmentationDocument,
+  frameIds: ReadonlySet<string>,
+): SegmentationDocument {
+  const annotations = Object.fromEntries(
+    Object.entries(document.annotations).filter(([, item]) => !frameIds.has(item.frameId)),
+  );
+  const { unreadableObservations: current, ...rest } = document;
+  const unreadable = Object.fromEntries(
+    Object.entries(current ?? {}).filter(([, item]) => !frameIds.has(item.frameId)),
+  );
+  return {
+    ...rest,
+    annotations,
     ...(Object.keys(unreadable).length > 0 ? { unreadableObservations: unreadable } : {}),
   };
 }

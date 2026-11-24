@@ -12,8 +12,8 @@ import { createStore, StoreApi } from "zustand";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
 
 import { ANNOTATION_WINDOW_SEC, annotationWindow } from "./annotationFrames";
-import { SegmentationError, type SegmentationErrorCode } from "./errors";
-import { mergeFrameWindow } from "./frameWindows";
+import { SegmentationError, type OperationLabelKey, type SegmentationErrorCode } from "./errors";
+import { evictFrames, frameOfKey, mergeFrameWindow } from "./frameWindows";
 import {
   maskObservation,
   maskOfRuns,
@@ -52,6 +52,9 @@ const POLYGON_PROBLEMS: Record<NormalizedPolygonProblem, SegmentationErrorCode> 
   area: "errorPolygonArea",
 };
 
+/** Loaded frame geometry kept in memory (a few tens of KB per mask frame at most). */
+const MAX_LOADED_FRAMES = 1500;
+
 /** A stored polygon is complete: at least three vertices enclosing a nonzero area. */
 function validateCompletePolygon(points: NormalizedPoint[]) {
   const problem = normalizedPolygonProblem(points);
@@ -67,6 +70,8 @@ export type SemanticSegmentationStoreOptions = {
    * see an unprojected document. Must return its input when there is nothing to change.
    */
   projectDocument?: (document: SegmentationDocument) => SegmentationDocument;
+  /** Frames whose geometry stays in memory; farther ones are read again when needed. */
+  maxLoadedFrames?: number;
   /** The remembered creation tool (an app setting). Without it the choice lasts for this store. */
   creationToolSetting?: {
     get: () => unknown;
@@ -137,7 +142,7 @@ export function createSemanticSegmentationStore(
   let disposed = false;
   const isDisposed = () => disposed;
   const loadedFrames = new Set<string>();
-  let transaction: { id: string; label: string } | undefined;
+  let transaction: { id: string; labelKey: OperationLabelKey } | undefined;
   // Each entry is one immutable command (possibly several grouped operations).
   let redoStack: StagedOperation[][] = [];
   const store = createStore<SemanticSegmentationStore>((rawSet, get) => {
@@ -190,6 +195,63 @@ export function createSemanticSegmentationStore(
           : {}),
       };
     }
+    /** Frames with edits that have not been saved: their base geometry must stay. */
+    function framesWithUnsavedEdits(): Set<string> {
+      const frames = new Set<string>();
+      const operations = [
+        ...get().submissionQueue.flatMap((batch) =>
+          batch.status === "succeeded" ? [] : batch.operations,
+        ),
+        ...get().stagedOperations,
+      ];
+      for (const { patch } of operations) {
+        for (const key of [
+          ...Object.keys(patch.annotations ?? {}),
+          ...Object.keys(patch.polygonChanges ?? {}),
+        ]) {
+          frames.add(frameOfKey(key));
+        }
+      }
+      return frames;
+    }
+    /**
+     * Keeps the geometry of at most `maxLoadedFrames` frames: the ones nearest the current frame in
+     * time. Frames with unsaved edits stay. Without this a long recording played through with masks
+     * would hold all of its RLE geometry.
+     */
+    function evictDistantFrames(): void {
+      const limit = options.maxLoadedFrames ?? MAX_LOADED_FRAMES;
+      if (!base || loadedFrames.size <= limit) {
+        return;
+      }
+      const frames = sourceFrames();
+      const current = frames.find((frame) => frame.id === get().currentFrameId);
+      if (!current) {
+        return;
+      }
+      const protectedFrames = framesWithUnsavedEdits();
+      const candidates = frames
+        .filter((frame) => loadedFrames.has(frame.id) && !protectedFrames.has(frame.id))
+        .sort(
+          (a, b) =>
+            Math.abs(b.timestampSec - current.timestampSec) -
+            Math.abs(a.timestampSec - current.timestampSec),
+        );
+      const evicted = new Set<string>();
+      for (const frame of candidates) {
+        if (loadedFrames.size - evicted.size <= limit || frame.id === current.id) {
+          break;
+        }
+        evicted.add(frame.id);
+      }
+      if (evicted.size === 0) {
+        return;
+      }
+      base = evictFrames(base, evicted);
+      for (const id of evicted) {
+        loadedFrames.delete(id);
+      }
+    }
     function rebuild() {
       if (!base) {
         return;
@@ -210,7 +272,7 @@ export function createSemanticSegmentationStore(
       set({ document: next, ...prunedRefs(next) });
     }
     function stage(
-      label: string,
+      labelKey: OperationLabelKey,
       patch: SegmentationPatch,
       options?: { internal?: true; exitEditing?: true },
     ) {
@@ -273,7 +335,7 @@ export function createSemanticSegmentationStore(
       }
       const operation: StagedOperation = {
         id: uuidv4(),
-        label: transaction?.label ?? label,
+        labelKey: transaction?.labelKey ?? labelKey,
         ...(transaction ? { groupId: transaction.id } : {}),
         patch: normalized,
       };
@@ -331,14 +393,14 @@ export function createSemanticSegmentationStore(
       return cloneSegmentation(found);
     }
     function stageObservation(
-      label: string,
+      labelKey: OperationLabelKey,
       targetFrameId: string,
       instanceId: string,
       next: FrameInstance | undefined,
       options?: { exitEditing?: true },
     ) {
       stage(
-        label,
+        labelKey,
         { annotations: { [frameInstanceKey(targetFrameId, instanceId)]: next } },
         options,
       );
@@ -597,6 +659,7 @@ export function createSemanticSegmentationStore(
             for (const id of filled) {
               loadedFrames.add(id);
             }
+            evictDistantFrames();
             rebuild();
           } catch {
             // Playback keeps going; the foreground load on pause reports any error.
@@ -644,6 +707,7 @@ export function createSemanticSegmentationStore(
           for (const id of windowFrames) {
             loadedFrames.add(id);
           }
+          evictDistantFrames();
           rebuild();
         } catch (error) {
           if (!isDisposed() && !controller.signal.aborted) {
@@ -774,7 +838,7 @@ export function createSemanticSegmentationStore(
         }
         const id = uuidv4();
         // The app's categorical palette, the same colours plots use for series.
-        stage("Create class", {
+        stage("opLabelCreateClass", {
           classes: {
             [id]: { id, name: trimmed, color: getLineColor(undefined, document().classes.length) },
           },
@@ -791,7 +855,7 @@ export function createSemanticSegmentationStore(
         if (document().classes.some((value) => value.id !== id && value.name === trimmed)) {
           throw new SegmentationError("errorClassNameExists");
         }
-        stage("Rename class", { classes: { [id]: { ...item, name: trimmed } } });
+        stage("opLabelRenameClass", { classes: { [id]: { ...item, name: trimmed } } });
         exitEditing();
       },
       deleteClass(id) {
@@ -804,7 +868,7 @@ export function createSemanticSegmentationStore(
             .map((instance) => [instance.id, undefined]),
         );
         stage(
-          "Delete class and instances",
+          "opLabelDeleteClassAndInstances",
           { classes: { [id]: undefined }, instances },
           { exitEditing: true },
         );
@@ -814,7 +878,7 @@ export function createSemanticSegmentationStore(
         if (!instance) {
           throw new SegmentationError("errorUnknownInstance");
         }
-        stage("Rename instance", {
+        stage("opLabelRenameInstance", {
           instances: { [id]: { ...instance, name: checkedName(name, "Instance") } },
         });
         exitEditing();
@@ -828,7 +892,7 @@ export function createSemanticSegmentationStore(
           throw new SegmentationError("errorUnknownSourceClass");
         }
         stage(
-          "Move class instances",
+          "opLabelMoveClassInstances",
           {
             instances: Object.fromEntries(
               document()
@@ -844,7 +908,7 @@ export function createSemanticSegmentationStore(
           throw new SegmentationError("errorUnknownClass");
         }
         const id = uuidv4();
-        stage("Create instance", {
+        stage("opLabelCreateInstance", {
           instances: {
             [id]: { id, classId, name: name ?? nextInstanceName(document().instances) },
           },
@@ -858,7 +922,7 @@ export function createSemanticSegmentationStore(
           throw new SegmentationError("errorUnknownInstanceOrClass");
         }
         stage(
-          "Move instance",
+          "opLabelMoveInstance",
           { instances: { [id]: { ...item, classId } } },
           { exitEditing: true },
         );
@@ -868,7 +932,7 @@ export function createSemanticSegmentationStore(
           throw new SegmentationError("errorUnknownInstance");
         }
         stage(
-          "Delete instance",
+          "opLabelDeleteInstance",
           scope === "frame"
             ? { annotations: { [frameInstanceKey(frameId(), id)]: undefined } }
             : { instances: { [id]: undefined } },
@@ -889,7 +953,7 @@ export function createSemanticSegmentationStore(
           ],
         };
         stageObservation(
-          "Create polygon",
+          "opLabelCreatePolygon",
           frameId(),
           instanceId,
           mergeObservations(current, added, instanceId),
@@ -897,25 +961,25 @@ export function createSemanticSegmentationStore(
         set({ focus: { type: "instance", id: instanceId }, editing: true, drawing: undefined });
         return id;
       },
-      addMask(instanceId, mask, label = "Quick annotate") {
+      addMask(instanceId, mask, labelKey = "opLabelQuickAnnotate") {
         assertMaskFitsFrame(mask);
         const added = maskObservation(frameId(), instanceId, cloneSegmentation(mask));
         if (!added) {
           throw new SegmentationError("errorEmptyMask");
         }
         stageObservation(
-          label,
+          labelKey,
           frameId(),
           instanceId,
           mergeObservations(observation(instanceId), added, instanceId),
         );
         set({ focus: { type: "instance", id: instanceId }, editing: true, drawing: undefined });
       },
-      replaceMask(instanceId, mask, label = "Brush") {
+      replaceMask(instanceId, mask, labelKey = "opLabelBrush") {
         assertMaskFitsFrame(mask);
         observation(instanceId);
         stageObservation(
-          label,
+          labelKey,
           frameId(),
           instanceId,
           maskObservation(frameId(), instanceId, cloneSegmentation(mask)),
@@ -932,7 +996,7 @@ export function createSemanticSegmentationStore(
         if (!next) {
           throw new SegmentationError("errorPolygonsCoverNoPixel");
         }
-        stageObservation("Convert to mask", frameId(), instanceId, next);
+        stageObservation("opLabelConvertToMask", frameId(), instanceId, next);
       },
       convertToPolygons(instanceId) {
         const current = observation(instanceId);
@@ -947,7 +1011,7 @@ export function createSemanticSegmentationStore(
         if (!next) {
           throw new SegmentationError("errorMaskTooThin");
         }
-        stageObservation("Convert to polygons", frameId(), instanceId, next);
+        stageObservation("opLabelConvertToPolygons", frameId(), instanceId, next);
       },
       setPolygonPoints(id, points) {
         validateCompletePolygon(points);
@@ -955,12 +1019,12 @@ export function createSemanticSegmentationStore(
         current.polygons = current.polygons.map((polygon) =>
           polygon.id === id ? { ...polygon, points: cloneSegmentation(points) } : polygon,
         );
-        stageObservation("Edit polygon", current.frameId, current.instanceId, current);
+        stageObservation("opLabelEditPolygon", current.frameId, current.instanceId, current);
       },
       deletePolygon(id) {
         const current = findPolygon(id);
         stageObservation(
-          "Delete polygon",
+          "opLabelDeletePolygon",
           current.frameId,
           current.instanceId,
           polygonObservation(
@@ -981,7 +1045,7 @@ export function createSemanticSegmentationStore(
           throw new SegmentationError("errorUnknownSourceInstance");
         }
         stage(
-          "Merge instances",
+          "opLabelMergeInstances",
           {
             instances: Object.fromEntries(sources.map((id) => [id, undefined])),
             instanceMerges: Object.fromEntries(sources.map((id) => [id, targetInstanceId])),
@@ -1021,9 +1085,9 @@ export function createSemanticSegmentationStore(
             targetInstanceId,
           );
         }
-        stage("Move polygons to instance", { annotations: changes }, { exitEditing: true });
+        stage("opLabelMovePolygons", { annotations: changes }, { exitEditing: true });
       },
-      runTransaction(label, command) {
+      runTransaction(labelKey, command) {
         assertEditable();
         if (transaction) {
           command();
@@ -1031,7 +1095,7 @@ export function createSemanticSegmentationStore(
         }
         const previous = get();
         const previousRedoStack = redoStack;
-        transaction = { id: uuidv4(), label };
+        transaction = { id: uuidv4(), labelKey };
         try {
           command();
         } catch (error) {
