@@ -15,7 +15,7 @@ import { SpatialTree } from "./SpatialTree";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
-// U9: the canvas and the tree subscribed to the whole store, so every queue, error and
+// The canvas and the tree subscribed to the whole store, so every queue, error and
 // propagation-progress update re-rendered thousands of lines of UI.
 it("does not re-render the canvas or the tree for state they do not show", async () => {
   const store = createSemanticSegmentationStore(

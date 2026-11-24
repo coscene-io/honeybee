@@ -45,12 +45,23 @@ describe("semantic segmentation rollout flag", () => {
     expect(result.current).toBe(true);
   });
 
-  it("needs both the flag and a cloud record", () => {
-    expect(semanticSegmentationAvailable({ flagOn: true, recordName: RECORD })).toBe(true);
-    expect(semanticSegmentationAvailable({ flagOn: false, recordName: RECORD })).toBe(false);
-    expect(semanticSegmentationAvailable({ flagOn: true, recordName: undefined })).toBe(false);
-    expect(semanticSegmentationAvailable({ flagOn: true, recordName: "file:///local.mcap" })).toBe(
+  it("needs the flag, a cloud record and the cloud data source", () => {
+    const cloud = "coscene-data-platform";
+    const available = (args: {
+      flagOn: boolean;
+      recordName: string | undefined;
+      dataSourceId: string | undefined;
+    }) => semanticSegmentationAvailable(args);
+    expect(available({ flagOn: true, recordName: RECORD, dataSourceId: cloud })).toBe(true);
+    expect(available({ flagOn: false, recordName: RECORD, dataSourceId: cloud })).toBe(false);
+    expect(available({ flagOn: true, recordName: undefined, dataSourceId: cloud })).toBe(false);
+    expect(available({ flagOn: true, recordName: "file:///local.mcap", dataSourceId: cloud })).toBe(
       false,
     );
+    // A local file opened after a cloud record leaves the old record in Core Data.
+    expect(available({ flagOn: true, recordName: RECORD, dataSourceId: "remote-file" })).toBe(
+      false,
+    );
+    expect(available({ flagOn: true, recordName: RECORD, dataSourceId: undefined })).toBe(false);
   });
 });
