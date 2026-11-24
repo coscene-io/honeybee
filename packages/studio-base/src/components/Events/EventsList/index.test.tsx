@@ -356,18 +356,18 @@ it("shows active custom field conditions and applies multiple changes together",
     expect(screen.queryByText("Second Moment")).toBeNull();
     expect(screen.queryByText("Other project Moment")).toBeNull();
   });
-  expect(getActiveFilters().getByRole("button", { name: "Issue category · BRAKE" })).toBeTruthy();
-  expect(getActiveFilters().getByRole("button", { name: "Moment type · Annotation" })).toBeTruthy();
+  expect(getActiveFilters().getByRole("button", { name: "Issue category: BRAKE" })).toBeTruthy();
+  expect(getActiveFilters().getByRole("button", { name: "Moment type: Annotation" })).toBeTruthy();
   expect(getActiveFilters().queryByText("Score")).toBeNull();
 
-  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type · Annotation" }));
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type: Annotation" }));
   expect(issueValue().value).toBe("BRAKE");
   expect(typeValue().value).toBe("Annotation");
   fireEvent.change(issueValue(), { target: { value: "Camera" } });
   fireEvent.click(getDialog().getByRole("button", { name: "Remove Moment type condition" }));
   fireEvent.click(getDialog().getByRole("button", { name: "Cancel" }));
 
-  fireEvent.click(getActiveFilters().getByRole("button", { name: "Issue category · BRAKE" }));
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Issue category: BRAKE" }));
   expect(issueValue().value).toBe("BRAKE");
   expect(typeValue().value).toBe("Annotation");
   fireEvent.change(issueValue(), { target: { value: "Camera" } });
@@ -379,15 +379,15 @@ it("shows active custom field conditions and applies multiple changes together",
     expect(screen.queryByText("Second Moment")).toBeNull();
   });
 
-  fireEvent.keyUp(getActiveFilters().getByRole("button", { name: "Issue category · Camera" }), {
+  fireEvent.keyUp(getActiveFilters().getByRole("button", { name: "Issue category: Camera" }), {
     key: "Delete",
   });
   await waitFor(() => {
     expect(screen.queryByText("Second Moment")).not.toBeNull();
   });
-  expect(getActiveFilters().queryByText("Issue category · Camera")).toBeNull();
+  expect(getActiveFilters().queryByText("Issue category: Camera")).toBeNull();
 
-  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type · Diagnosis" }));
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Moment type: Diagnosis" }));
   fireEvent.click(getDialog().getByRole("button", { name: "Clear conditions" }));
   apply();
   await waitFor(() => {

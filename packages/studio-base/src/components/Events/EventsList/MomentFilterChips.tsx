@@ -87,7 +87,7 @@ export function MomentFilterChips({
           userNames,
           formatTime: formatFilterTime,
         });
-        const label = display == undefined ? property.name : `${property.name} · ${display}`;
+        const label = display == undefined ? property.name : `${property.name}: ${display}`;
         return (
           <Chip
             key={property.id}
