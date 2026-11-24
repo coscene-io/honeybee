@@ -25,8 +25,8 @@ import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/del
 import {
   DOUBTFUL_MOMENT_COLOR,
   isMomentDoubtful,
-  useVisibleEvents,
 } from "@foxglove/studio-base/components/Events/momentDoubtful";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/useVisibleEvents";
 import {
   MessagePipelineContext,
   useMessagePipeline,

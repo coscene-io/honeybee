@@ -36,25 +36,35 @@ export type Finding = Interval & {
   resetDecoder?: boolean;
 };
 
+// Keep collecting while the sidebar is closed, with bounded detail per topic and category.
+export const DIAGNOSTIC_HISTORY_LIMIT = 1024;
+
+function trimHistory(entries: Map<string, unknown> | Set<string>): boolean {
+  if (entries.size <= DIAGNOSTIC_HISTORY_LIMIT) {
+    return false;
+  }
+  return entries.delete(entries.keys().next().value!);
+}
+
+// Index B-frame locations by recording and image time without retaining frame payloads.
 // A context-free HEVC backfill can be classified later, once lookback reaches its PPS.
-// Keep packet identities in per-second buckets and materialize only the requested B-frame rows.
 export class SliceHistory {
-  readonly #seconds = new Map<
-    bigint,
-    {
-      offsets: number[];
-      media: (bigint | undefined)[];
-      classifications: (boolean | undefined)[];
-      bIndexes: number[];
-    }
-  >();
+  readonly #unknown = new Set<string>();
+  #omittedUnknown = false;
+  readonly #knownNonB = new Set<string>();
+  readonly #bFrames = new Map<string, bigint>();
   public size = 0;
+  public unknownCount = 0;
   public first?: bigint;
   public last?: bigint;
   public classified = false;
-  public unknownCount = 0;
+  public truncated = false;
 
   public constructor(private readonly topic: string) {}
+
+  public allObservedSlicesClassified(): boolean {
+    return this.classified && this.#unknown.size === 0 && !this.#omittedUnknown;
+  }
 
   public observe(
     log: bigint,
@@ -67,56 +77,43 @@ export class SliceHistory {
     if (format === "h264" && bFrame === false) {
       return;
     }
-    const second = log / 1_000_000_000n;
-    const offset = Number(log % 1_000_000_000n);
-    let bucket = this.#seconds.get(second);
-    if (!bucket) {
-      bucket = { offsets: [], media: [], classifications: [], bIndexes: [] };
-      this.#seconds.set(second, bucket);
+    const key = `${log}/${media ?? "?"}`;
+    if (this.#bFrames.has(key)) {
+      return;
     }
-    let index = bucket.offsets.indexOf(offset);
-    while (index >= 0 && bucket.media[index] !== media) {
-      index = bucket.offsets.indexOf(offset, index + 1);
-    }
-    if (index === -1) {
-      index = bucket.offsets.length;
-      bucket.offsets.push(offset);
-      bucket.media.push(media);
-      bucket.classifications.push(bFrame);
-      if (bFrame == undefined) {
-        this.unknownCount++;
+    if (bFrame == undefined) {
+      if (!this.#knownNonB.has(key)) {
+        this.#unknown.add(key);
+        if (trimHistory(this.#unknown)) {
+          // After eviction a later replay cannot prove that every unknown slice was resolved.
+          this.#omittedUnknown = true;
+          this.truncated = true;
+        }
       }
     } else {
-      const previous = bucket.classifications[index];
-      if (bFrame == undefined || previous === true || previous === bFrame) {
-        return;
-      }
-      if (previous == undefined) {
-        this.unknownCount--;
-      }
-      bucket.classifications[index] = bFrame;
-    }
-    if (bFrame === true) {
-      bucket.bIndexes.push(index);
-      this.size++;
-      if (this.first == undefined || log < this.first) {
-        this.first = log;
-      }
-      if (this.last == undefined || log > this.last) {
-        this.last = log;
+      this.#unknown.delete(key);
+      if (bFrame) {
+        this.#knownNonB.delete(key);
+        this.#bFrames.set(key, log);
+        this.truncated = trimHistory(this.#bFrames) || this.truncated;
+        this.size = this.#bFrames.size;
+        if (this.first == undefined || log < this.first) {
+          this.first = log;
+        }
+        if (this.last == undefined || log > this.last) {
+          this.last = log;
+        }
+      } else {
+        this.#knownNonB.add(key);
+        this.truncated = trimHistory(this.#knownNonB) || this.truncated;
       }
     }
+    this.unknownCount = this.#unknown.size;
   }
 
   public *[Symbol.iterator](): IterableIterator<[string, Finding]> {
-    for (const [second, bucket] of this.#seconds) {
-      for (const index of bucket.bIndexes) {
-        const start = second * 1_000_000_000n + BigInt(bucket.offsets[index]!);
-        yield [
-          `${start}/${bucket.media[index] ?? "?"}`,
-          { kind: "bFrame", topic: this.topic, start, end: start },
-        ];
-      }
+    for (const [key, start] of this.#bFrames) {
+      yield [key, { kind: "bFrame", topic: this.topic, start, end: start }];
     }
   }
 }
@@ -146,6 +143,7 @@ type VideoInput = {
 export type TopicDiagnostics = {
   format: string;
   coverage: Interval[];
+  truncated: boolean;
   slices?: SliceHistory;
   sawKey: boolean;
   reorder?: boolean;
@@ -155,7 +153,8 @@ export type TopicDiagnostics = {
 };
 
 // Sorted, disjoint intervals. Only bridge consecutive messages from a single delivery run.
-function addCoverage(ranges: Interval[], start: bigint, end: bigint): void {
+function addCoverage(topic: TopicDiagnostics, start: bigint, end: bigint): void {
+  const ranges = topic.coverage;
   let low = 0;
   let high = ranges.length;
   while (low < high) {
@@ -169,6 +168,11 @@ function addCoverage(ranges: Interval[], start: bigint, end: bigint): void {
   const current = ranges[low];
   if (!current || current.start > end) {
     ranges.splice(low, 0, { start, end });
+    if (ranges.length > DIAGNOSTIC_HISTORY_LIMIT) {
+      // Preserve the newly observed interval, including after a backwards seek.
+      ranges.splice(low === 0 ? ranges.length - 1 : 0, 1);
+      topic.truncated = true;
+    }
     return;
   }
   if (start < current.start) {
@@ -215,6 +219,7 @@ export class VideoDiagnostics {
       topic = {
         format: "",
         coverage: [],
+        truncated: false,
         sawKey: false,
         findings: new Map(),
       };
@@ -266,7 +271,8 @@ export class VideoDiagnostics {
   }
 
   public record(finding: Finding, key = String(finding.start)): void {
-    const { findings } = this.topic(finding.topic);
+    const topic = this.topic(finding.topic);
+    const { findings } = topic;
     let group = findings.get(finding.kind);
     if (!group) {
       group = new Map();
@@ -276,6 +282,7 @@ export class VideoDiagnostics {
       finding.resetDecoder = true;
     }
     group.set(key, finding);
+    topic.truncated = trimHistory(group) || topic.truncated;
   }
 
   public decoderReset(topic: string, log: bigint, previous: bigint, current: bigint): void {
@@ -291,7 +298,7 @@ export class VideoDiagnostics {
   }
 
   public cover(topic: string, start: bigint, end: bigint): void {
-    addCoverage(this.topic(topic).coverage, start <= end ? start : end, end);
+    addCoverage(this.topic(topic), start <= end ? start : end, end);
   }
 
   public inspect(topicName: string, input: VideoInput, run: VideoRun): void {
@@ -309,7 +316,7 @@ export class VideoDiagnostics {
       run.key = undefined;
     }
     run.format = format;
-    addCoverage(topic.coverage, previous && previous.log < log ? previous.log : log, log);
+    addCoverage(topic, previous && previous.log < log ? previous.log : log, log);
     if (media == undefined) {
       run.useRecordClock = true;
     }

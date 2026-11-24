@@ -367,12 +367,8 @@ export class IterablePlayer implements Player {
   public seekPlayback(time: Time): void {
     // Wait to perform seek until initialization is complete
     if (this.#state === "preinit" || this.#state === "initialize") {
-      log.debug(`Ignoring seek, state=${this.#state}`);
-      this.#seekTarget = time;
-      // Start the latency clock now so the deferred backfill still emits a completion event
-      // (with seek_id 0 — no attempt event exists for initialization seeks). Without this,
-      // deep-link seeks were silently excluded from latency data.
-      this.#seekStartTime = Date.now();
+      log.debug(`Deferring seek, state=${this.#state}`);
+      this.#acceptSeek(this.#start && this.#end ? clampTime(time, this.#start, this.#end) : time);
       return;
     }
 
@@ -395,20 +391,24 @@ export class IterablePlayer implements Player {
       return;
     }
 
-    this.#acceptedSeek = {
-      sequence: (this.#acceptedSeek?.sequence ?? 0) + 1,
-      started: performance.now(),
-      target: targetTime,
-    };
     this.#metricsCollector.seek(targetTime);
-    this.#seekTarget = targetTime;
-    this.#seekStartTime = Date.now();
+    this.#acceptSeek(targetTime);
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
     this.#lastRangeMillis = undefined;
     this.#lastStamp = undefined;
 
     this.#setState("seek-backfill");
+  }
+
+  #acceptSeek(target: Time): void {
+    this.#acceptedSeek = {
+      sequence: (this.#acceptedSeek?.sequence ?? 0) + 1,
+      started: performance.now(),
+      target,
+    };
+    this.#seekTarget = target;
+    this.#seekStartTime = Date.now();
   }
 
   public setSubscriptions(newSubscriptions: SubscribePayload[]): void {
@@ -729,6 +729,9 @@ export class IterablePlayer implements Player {
       // This brings the value in bounds
       if (this.#seekTarget) {
         this.#seekTarget = clampTime(this.#seekTarget, start, end);
+        if (this.#acceptedSeek) {
+          this.#acceptedSeek = { ...this.#acceptedSeek, target: this.#seekTarget };
+        }
       }
 
       this.#metadata = metadata ?? [];
@@ -1052,7 +1055,10 @@ export class IterablePlayer implements Player {
         repeatEnabled: this.#repeatEnabled,
         speed: this.#speed,
         lastSeekTime: this.#lastSeekEmitTime,
-        acceptedSeek: this.#acceptedSeek,
+        acceptedSeek:
+          this.#acceptedSeek && this.#seekStartTime != undefined
+            ? { ...this.#acceptedSeek, backfillPending: true }
+            : this.#acceptedSeek,
         topics: this.#providerTopics,
         topicStats: this.#providerTopicStats,
         datatypes: this.#providerDatatypes,
