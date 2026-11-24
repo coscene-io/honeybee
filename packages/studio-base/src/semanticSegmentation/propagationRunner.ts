@@ -346,7 +346,7 @@ export function createPropagationRunner(shared: StoreContext): Pick<
           // One run is one undo step, however many frames it filled.
           const operation: StagedOperation = {
             id: uuidv4(),
-            label: "Propagate frame",
+            labelKey: "opLabelPropagateFrame",
             groupId: context.requestId,
             patch: { annotations: { [key]: annotation } },
           };

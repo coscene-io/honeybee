@@ -184,6 +184,7 @@ def write(name: str, cases: list[dict]) -> None:
     # One line per vertex pair and per short list keeps diffs reviewable.
     text = re.sub(r"\[\s+(-?\d+),\s+(-?\d+)\s+\]", r"[\1, \2]", text)
     text = re.sub(r"\[\s+(-?\d+),\s+(-?\d+),\s+(-?\d+),\s+(-?\d+)\s+\]", r"[\1, \2, \3, \4]", text)
+    # Format the result with `yarn prettier --write` before committing it.
     (HERE / name).write_text(text + "\n")
 
 

@@ -125,6 +125,42 @@ export function runsFromIntervals(intervals: Uint32Array, width: number, height:
   return { width, height, intervals, area, bbox };
 }
 
+/** The pixels the counts cover (the sum of every run), whatever the frame size. */
+export function maskCountsCoverage(counts: string): number {
+  return decodeCounts(counts).reduce((sum, run) => sum + run, 0);
+}
+
+const COMMON_FRAME_SIZES: readonly { width: number; height: number }[] = [
+  { width: 640, height: 360 },
+  { width: 640, height: 480 },
+  { width: 854, height: 480 },
+  { width: 960, height: 540 },
+  { width: 1024, height: 768 },
+  { width: 1280, height: 720 },
+  { width: 1280, height: 960 },
+  { width: 1920, height: 1080 },
+  { width: 2560, height: 1440 },
+  { width: 3840, height: 2160 },
+];
+
+/**
+ * The frame size a mask covering `covered` pixels was made for, when it is a common size or has
+ * the aspect ratio of the current `width`×`height`; undefined when it cannot be told.
+ */
+export function inferMaskFrameSize(
+  covered: number,
+  width: number,
+  height: number,
+): { width: number; height: number } | undefined {
+  const sameAspect = [240, 360, 480, 540, 720, 1080, 1440, 2160].map((h) => ({
+    width: Math.round((h * width) / height),
+    height: h,
+  }));
+  return [...COMMON_FRAME_SIZES, ...sameAspect].find(
+    (size) => size.width * size.height === covered,
+  );
+}
+
 /** Throws when the counts do not cover exactly the bound source frame. */
 export function maskRunsFromCounts(counts: string, width: number, height: number): MaskRuns {
   if (!(width > 0 && height > 0 && Number.isInteger(width) && Number.isInteger(height))) {
