@@ -12,7 +12,7 @@
 
 ## 创建
 
-绘制是一次会话：store 只记 `drawing = { instanceId, frameId }` 和 `creationTool`（`polygon` / `quick`，记在 localStorage）。草稿（顶点或 SAM 点击）只在画布里，取消不留任何东西，完成时一次性写入完整几何（`addPolygon` / `addMask`）。
+绘制是一次会话：store 只记 `drawing = { instanceId, frameId }` 和 `creationTool`（`polygon` / `quick`，记在应用设置 `segmentation.creationTool` 里）。草稿（顶点或 SAM 点击）只在画布里，取消不留任何东西，完成时一次性写入完整几何（`addPolygon` / `addMask`）。
 
 | 工具        | 快捷键                | 产出                                                         |
 | ----------- | --------------------- | ------------------------------------------------------------ |
