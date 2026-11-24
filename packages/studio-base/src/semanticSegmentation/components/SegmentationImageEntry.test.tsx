@@ -13,6 +13,7 @@ import { createRef } from "react";
 import { fromNanoSec } from "@foxglove/rostime";
 import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
+import { annotationProfileNavigation } from "../annotationProfile";
 import { segmentationImageSources, type SegmentationImage } from "../imageSource";
 import { segmentationSession } from "../runtime";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
@@ -239,6 +240,55 @@ it("ignores initialization completing after a source switch", async () => {
     await new Promise((resolve) => setTimeout(resolve, 1100));
   });
   expect(segmentationSession.getState().open).toBe(false);
+});
+
+describe("annotation quality", () => {
+  const parameters = () => pipeline.playerState.urlState.parameters as Record<string, string>;
+  let reload: jest.SpyInstance;
+  const originalFetch = globalThis.fetch;
+  let manifests = 0;
+
+  beforeEach(() => {
+    reload = jest.spyOn(annotationProfileNavigation, "reload").mockImplementation(() => {});
+    globalThis.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        profiles: [
+          { id: "480p15", modality: "video", params: { h: 480 } },
+          { id: "720p15", modality: "video", params: { h: 720 } },
+        ],
+      }),
+    })) as unknown as typeof fetch;
+    parameters().shardMode = "manifest";
+    parameters().manifestUrl = `https://manifest.example/${++manifests}.json`;
+  });
+  afterEach(() => {
+    reload.mockRestore();
+    globalThis.fetch = originalFetch;
+    delete parameters().shardMode;
+    delete parameters().manifestUrl;
+    delete parameters().profile;
+  });
+
+  it("switches the page to 720p instead of starting on another transcode quality", async () => {
+    parameters().profile = "";
+    fixture();
+    act(() => {
+      enterAnnotation();
+    });
+    await waitFor(() => {
+      expect(reload).toHaveBeenCalledWith("ds.profile=720p15");
+    });
+    expect(segmentationSession.getState().open).toBe(false);
+  });
+
+  it("starts on 720p, and on raw (another topic) without switching", async () => {
+    parameters().profile = "raw";
+    fixture();
+    const runtime = await open();
+    expect(runtime).toBeDefined();
+    expect(reload).not.toHaveBeenCalled();
+  });
 });
 
 it("detaches the frame listener and clears captured image resources on panel removal", async () => {

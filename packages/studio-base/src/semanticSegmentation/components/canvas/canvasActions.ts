@@ -131,7 +131,7 @@ export function commitPolygonPreview(
       current.setPolygonPoints(changed[0]!.polygonId, latest[changed[0]!.polygonId]!);
     } else {
       // One undo step for a batch that spans several polygons.
-      current.runTransaction("Move vertices", () => {
+      current.runTransaction("opLabelMoveVertices", () => {
         for (const target of changed) {
           current.setPolygonPoints(target.polygonId, latest[target.polygonId]!);
         }
@@ -168,7 +168,11 @@ export function finishStroke(c: CanvasContext, points: EditorPoint[]): void {
       throw new Error(c.t("convertBeforePainting"));
     }
     const mask = applyStroke(focusedObservation, runs, brush.mode);
-    c.state.replaceMask(focusedInstanceId, mask, brush.mode === "paint" ? "Brush" : "Erase");
+    c.state.replaceMask(
+      focusedInstanceId,
+      mask,
+      brush.mode === "paint" ? "opLabelBrush" : "opLabelErase",
+    );
   });
 }
 

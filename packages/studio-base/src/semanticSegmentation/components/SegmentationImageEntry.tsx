@@ -34,7 +34,7 @@ import {
   previewWindowNeedsLoad,
   previewWindowStartSec,
 } from "../annotationFrames";
-import { annotationRecord } from "../annotationRecord";
+import { ensureAnnotationProfile, needsAnnotationProfileCheck } from "../annotationProfile";
 import { cameraStepTarget } from "../cameraFrames";
 import {
   imageFrameIdentity,
@@ -235,9 +235,6 @@ export function SegmentationImageEntry({
   // The live client comes from the console API so it shares its session (and desktop sign-out).
   const consoleApi = useContext(CoSceneConsoleApiContext);
   const annotatable = injectedService != undefined || isAnnotationRecordName(recordName);
-  useEffect(() => {
-    annotationRecord.setState({ recordName });
-  }, [recordName]);
   const createService = useCallback(
     (startNs: bigint, document: SegmentationDocument): SemanticSegmentationService | undefined =>
       injectedService ??
@@ -1085,23 +1082,41 @@ export function SegmentationImageEntry({
     ],
   );
 
+  const enterRef = useRef(enter);
   useLayoutEffect(() => {
+    enterRef.current = enter;
+  });
+  useLayoutEffect(() => {
+    const start = (mode: "inline" | "maximize") => {
+      const go = () => {
+        void enterRef.current(mode).catch((cause: unknown) => {
+          setError(String(cause));
+        });
+      };
+      if (segmentationSession.getState().open || !needsAnnotationProfileCheck(playerUrlState)) {
+        go();
+        return;
+      }
+      // Annotation is fixed to one transcode quality; on another one the page switches to it
+      // (and the user starts again once it is back).
+      void ensureAnnotationProfile(playerUrlState).then((result) => {
+        if (result === "ready") {
+          go();
+        }
+      });
+    };
     onActionsChange({
       enterInline: () => {
-        void enter("inline").catch((cause: unknown) => {
-          setError(String(cause));
-        });
+        start("inline");
       },
       enterMaximize: () => {
-        void enter("maximize").catch((cause: unknown) => {
-          setError(String(cause));
-        });
+        start("maximize");
       },
     });
     return () => {
       onActionsChange(undefined);
     };
-  }, [enter, onActionsChange]);
+  }, [enter, onActionsChange, playerUrlState]);
 
   useLayoutEffect(() => {
     onAvailabilityChange?.(sessionRuntime == undefined ? "available" : "hidden");

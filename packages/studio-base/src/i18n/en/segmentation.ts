@@ -20,6 +20,10 @@ export const segmentation = {
   allFrames: "All frames",
   annotateInstance: "Annotate this instance",
   annotateNode: "Annotate {{name}}",
+  annotationProfileNearest:
+    "This record has no 720p video; annotation is fixed to the closest, {{height}}p, so everyone annotates at the same size. Click Edit again to start.",
+  annotationProfileSwitched:
+    "Annotation is fixed to {{height}}p video quality, because masks are tied to the image size. Switched; click Edit again to start.",
   annotationDisplay: "Annotation display",
   annotationViewport: "Annotation viewport",
   batchFailed: "Failed",

@@ -183,7 +183,7 @@ it("propagates backward onto earlier frames", async () => {
   // Results land on frame-19 … frame-15 (one second before the seed) and nowhere else.
   const written = runtime.store
     .getState()
-    .stagedOperations.filter((op) => op.label === "Propagate frame")
+    .stagedOperations.filter((op) => op.labelKey === "opLabelPropagateFrame")
     .flatMap((op) => Object.keys(op.patch.annotations ?? {}));
   expect(new Set(written)).toEqual(
     new Set(

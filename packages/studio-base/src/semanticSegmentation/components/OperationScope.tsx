@@ -82,7 +82,9 @@ export function OperationScope({
   }
   return (
     <div>
-      <Typography variant="body2">{t("operationType", { label: operation.label })}</Typography>
+      <Typography variant="body2">
+        {t("operationType", { label: t(operation.labelKey) })}
+      </Typography>
       {[...scopes].map((scope) => (
         <Typography
           variant="caption"

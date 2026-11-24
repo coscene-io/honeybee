@@ -9,10 +9,10 @@
 import { ThemeProvider } from "@mui/material/styles";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
+import { CoreDataContext } from "@foxglove/studio-base/context/CoreDataContext";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import { createMuiTheme } from "@foxglove/theme";
 
-import { annotationRecord } from "../annotationRecord";
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
 import { segmentationSession } from "../runtime";
 import {
@@ -21,6 +21,7 @@ import {
   type SegmentationCanvasEntry,
 } from "../segmentationChrome";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
+import { createCoreDataSourceStore } from "../testing/coreDataSource";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
 
@@ -35,13 +36,17 @@ function canvas(
   return { panelId, topic, enterInline: inline, enterMaximize: maximize, inline, maximize };
 }
 
+let core = createCoreDataSourceStore();
+
 function renderBar(): void {
   render(
-    <ThemeProvider theme={theme}>
-      <MockCurrentLayoutProvider>
-        <SegmentationAppBarControls />
-      </MockCurrentLayoutProvider>
-    </ThemeProvider>,
+    <CoreDataContext.Provider value={core}>
+      <ThemeProvider theme={theme}>
+        <MockCurrentLayoutProvider>
+          <SegmentationAppBarControls />
+        </MockCurrentLayoutProvider>
+      </ThemeProvider>
+    </CoreDataContext.Provider>,
   );
 }
 
@@ -49,12 +54,11 @@ beforeEach(() => {
   window.cosConfig = {
     FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
   } as typeof window.cosConfig;
-  annotationRecord.setState({ recordName: "warehouses/w/projects/p/records/r" });
+  core = createCoreDataSourceStore();
 });
 
 afterEach(() => {
   window.cosConfig = undefined;
-  annotationRecord.setState({ recordName: undefined });
   segmentationChrome.setState({ canvases: [] });
   segmentationSession.setState({
     runtime: undefined,
@@ -85,7 +89,7 @@ it("opens and maximizes the only canvas from the app bar", () => {
 });
 
 it("hides the entry for a source without a cloud record", () => {
-  annotationRecord.setState({ recordName: undefined });
+  core = createCoreDataSourceStore({ dataSourceId: "file" });
   const unregister = registerSegmentationCanvas(canvas("panel-1", "/camera"));
   renderBar();
   expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();

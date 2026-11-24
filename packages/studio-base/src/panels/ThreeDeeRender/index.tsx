@@ -7,11 +7,12 @@
 
 import {
   StrictMode,
+  Suspense,
+  lazy,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
   type ReactNode,
 } from "react";
 import { DeepPartial } from "ts-essentials";
@@ -33,14 +34,7 @@ import { mountPanel } from "@foxglove/studio-base/components/PanelExtensionAdapt
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
-import {
-  SegmentationImageEntry,
-  type SegmentationImageEntryActions,
-} from "@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry";
-import { SegmentationPropagateButton } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton";
-import { SegmentationWorkspace } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace";
 import { useSemanticSegmentationEnabled } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
-import { registerSegmentationCanvas } from "@foxglove/studio-base/semanticSegmentation/segmentationChrome";
 import {
   PlaybackDiagnosticsContext,
   type PanelDiagnostics,
@@ -181,62 +175,34 @@ function ImagePanelAdapter(props: Props) {
       />
     );
   }
-  return <SegmentationImagePanelAdapter {...props} extensionData={extensionData} />;
+  return <SegmentationImagePanel {...props} extensionData={extensionData} />;
 }
 
-function SegmentationImagePanelAdapter(props: Props & { extensionData: Record<string, unknown> }) {
-  const containerRef = useRef<HTMLDivElement>(ReactNull);
-  const panel = usePanelContext();
-  const registration = useRef<(() => void) | undefined>(undefined);
-  const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
-  const propagateIcon = useMemo(
-    () => <SegmentationPropagateButton panelId={panel.id} />,
-    [panel.id],
-  );
-  const onActionsChange = useCallback(
-    (actions: SegmentationImageEntryActions | undefined) => {
-      registration.current?.();
-      registration.current = undefined;
-      if (!actions) {
-        return;
-      }
-      registration.current = registerSegmentationCanvas({
-        panelId: panel.id,
-        topic: imageTopic,
-        enterInline: actions.enterInline,
-        enterMaximize: actions.enterMaximize,
-        area: () => {
-          const rect = containerRef.current?.getBoundingClientRect();
-          return rect ? rect.width * rect.height : 0;
-        },
-      });
-    },
-    [imageTopic, panel.id],
-  );
-  useEffect(
-    () => () => {
-      registration.current?.();
-    },
-    [],
-  );
+// The editor is loaded only when it is used (flag on and a cloud record open), so other Image
+// panels and the 3D panel never download it.
+const SegmentationImagePanelAdapter = lazy(async () => ({
+  default: (
+    await import("@foxglove/studio-base/semanticSegmentation/components/SegmentationImagePanelAdapter")
+  ).SegmentationImagePanelAdapter,
+}));
 
-  return (
-    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
+function SegmentationImagePanel(props: Props & { extensionData: Record<string, unknown> }) {
+  const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
+  const renderPanel = useCallback(
+    ({ additionalToolbarIcons }: { additionalToolbarIcons: ReactNode }) => (
       <ThreeDeeRenderAdapterContent
         {...props}
         interfaceMode="image"
-        additionalToolbarIcons={propagateIcon}
+        additionalToolbarIcons={additionalToolbarIcons}
         segmentation
       />
-      <SegmentationImageEntry
-        containerRef={containerRef}
-        topic={imageTopic}
-        panelId={panel.id}
-        onMaximize={panel.enterFullscreen}
-        onActionsChange={onActionsChange}
-      />
-      <SegmentationWorkspace panelId={panel.id} />
-    </div>
+    ),
+    [props],
+  );
+  return (
+    <Suspense fallback={ReactNull}>
+      <SegmentationImagePanelAdapter imageTopic={imageTopic} renderPanel={renderPanel} />
+    </Suspense>
   );
 }
 

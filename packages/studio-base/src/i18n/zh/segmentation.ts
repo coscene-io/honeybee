@@ -21,6 +21,10 @@ export const segmentation: Partial<TypeOptions["resources"]["segmentation"]> = {
   allFrames: "全部帧",
   annotateInstance: "标注此实例",
   annotateNode: "标注 {{name}}",
+  annotationProfileNearest:
+    "该记录没有 720p 视频，标注固定使用最接近的 {{height}}p，以保证大家标注的尺寸一致。请再次点击“编辑”开始。",
+  annotationProfileSwitched:
+    "标注固定使用 {{height}}p 视频画质（mask 与图像尺寸绑定），已为你切换。请再次点击“编辑”开始。",
   annotationDisplay: "标注显示",
   annotationViewport: "标注视口",
   batchFailed: "失败",

@@ -566,7 +566,7 @@ describe("structure tree acceptance", () => {
     const before = invariant(store);
     act(() => {
       expect(() => {
-        store.getState().runTransaction("Scoped action failure", () => {
+        store.getState().runTransaction("opLabelEditTree", () => {
           store.getState().moveInstance("I", "D");
           store.getState().deletePolygon("U-P-0");
           store.getState().moveInstance("J", "missing-class");

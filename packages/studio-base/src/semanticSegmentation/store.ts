@@ -1170,7 +1170,7 @@ export function createSemanticSegmentationStore(
         }
         const id = uuidv4();
         const videoId = document().frames.find((frame) => frame.id === frameId())!.videoId;
-        stage("Reference annotation in moment", {
+        stage("opLabelEditPolygon", {
           momentReferences: {
             [id]: { id, momentId, targetType, targetId, recordId: document().record.id, videoId },
           },
