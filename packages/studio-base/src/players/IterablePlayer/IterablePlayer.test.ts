@@ -559,6 +559,7 @@ describe("IterablePlayer", () => {
       presence: PlayerPresence.BUFFERING,
       activeData: {
         ...seekCompleteState.activeData!,
+        acceptedSeek: { ...seekCompleteState.activeData!.acceptedSeek!, backfillPending: true },
         lastSeekTime: 0,
       },
     };
@@ -911,6 +912,7 @@ describe("IterablePlayer", () => {
 
     const baseState: PlayerStateWithoutPlayerId = {
       activeData: {
+        acceptedSeek: { sequence: 1, started: expect.any(Number), target: fromSec(0.5) },
         currentTime: fromSec(0.5),
         startTime: { sec: 0, nsec: 0 },
         endTime: { sec: 1, nsec: 0 },
@@ -948,13 +950,42 @@ describe("IterablePlayer", () => {
         presence: PlayerPresence.INITIALIZING,
         progress: {},
       },
-      { ...baseState, progress: {} },
+      {
+        ...baseState,
+        progress: {},
+        activeData: {
+          ...baseState.activeData,
+          acceptedSeek: { ...baseState.activeData!.acceptedSeek, backfillPending: true },
+        },
+      },
       { ...baseState, progress: {} },
       baseState,
     ]);
 
     void player.close();
     await player.isClosed;
+  });
+
+  it("reports the clamped target of a seek accepted before the source range is known", async () => {
+    const player = new IterablePlayer({
+      source: new TestSource(),
+      enablePreload: false,
+      sourceId: "test",
+    });
+    player.seekPlayback(fromSec(-1));
+    const store = new PlayerStateStore(4);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+    try {
+      const states = await store.done;
+      expect(states.at(-1)?.activeData).toMatchObject({
+        currentTime: fromSec(0),
+        acceptedSeek: { sequence: 1, target: fromSec(0), started: expect.any(Number) },
+      });
+    } finally {
+      await player.close();
+    }
   });
 
   it("should start a new iterator mid-tick when old iterator finishes", async () => {

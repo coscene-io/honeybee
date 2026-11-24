@@ -17,8 +17,9 @@
 import Logger from "@foxglove/log";
 import type { Time } from "@foxglove/rostime";
 import { isLessThan, subtract as subtractTimes, toSec, toNanoSec } from "@foxglove/rostime";
-import type { PlayerState, MessageEvent } from "@foxglove/studio-base/players/types";
+import type { PlayerState, MessageEvent, PlayerProblem } from "@foxglove/studio-base/players/types";
 import type { VideoDiagnostics } from "@foxglove/studio-base/services/videoDiagnostics";
+import { formatFrame } from "@foxglove/studio-base/util/time";
 
 const DRIFT_THRESHOLD_SEC = 1; // Maximum amount of drift allowed.
 const WAIT_FOR_SEEK_SEC = 1; // How long we wait for a change in `lastSeekTime` before warning.
@@ -35,6 +36,7 @@ class MessageOrderTracker {
   #lastMessages: readonly MessageEvent[] = [];
   #lastMessageTime?: Time;
   #lastMessageTopic?: string;
+  #lastMessageWasBackfill = false;
   #lastLastSeekTime?: number;
   #warningTimeout?: ReturnType<typeof setTimeout>;
 
@@ -49,11 +51,18 @@ class MessageOrderTracker {
 
   public constructor(private readonly diagnostics: VideoDiagnostics) {}
 
-  public update(playerState: PlayerState): void {
+  public dispose(): void {
+    clearTimeout(this.#warningTimeout);
+    this.#warningTimeout = undefined;
+    this.#incorrectMessages = [];
+  }
+
+  public update(playerState: PlayerState): PlayerProblem[] {
     if (!playerState.activeData) {
-      return;
+      return [];
     }
 
+    const problems: PlayerProblem[] = [];
     const { messages, currentTime, lastSeekTime } = playerState.activeData;
     let didSeek = false;
 
@@ -107,29 +116,42 @@ class MessageOrderTracker {
         }
 
         if (
-          !didSeek &&
           this.#lastMessageTime &&
           this.#lastMessageTopic != undefined &&
           isLessThan(messageTime, this.#lastMessageTime)
         ) {
-          const start = toNanoSec(messageTime);
-          const previous = toNanoSec(this.#lastMessageTime);
-          this.diagnostics.record(
-            {
-              kind: "order",
-              topic: message.topic,
-              otherTopic: this.#lastMessageTopic,
-              start,
-              end: previous,
-              duration: Number(previous - start) / 1e9,
-            },
-            JSON.stringify([this.#lastMessageTopic, String(previous), String(start)]),
-          );
+          problems.push({
+            severity: "warn",
+            message: "Data went back in time",
+            error: new Error(
+              `Processed a message on ${message.topic} at ${formatFrame(messageTime)} which is earlier than ` +
+                `last processed message on ${this.#lastMessageTopic} at ${formatFrame(this.#lastMessageTime)}.`,
+            ),
+          });
+          // Keep the player warning for unordered messages within a backfill. Only
+          // continuous delivery is evidence of a recording-order issue in diagnostics.
+          if (!didSeek && !this.#lastMessageWasBackfill) {
+            const start = toNanoSec(messageTime);
+            const previous = toNanoSec(this.#lastMessageTime);
+            this.diagnostics.record(
+              {
+                kind: "order",
+                topic: message.topic,
+                otherTopic: this.#lastMessageTopic,
+                start,
+                end: previous,
+                duration: Number(previous - start) / 1e9,
+              },
+              JSON.stringify([this.#lastMessageTopic, String(previous), String(start)]),
+            );
+          }
         }
         this.#lastMessageTopic = message.topic;
-        this.#lastMessageTime = didSeek ? undefined : messageTime;
+        this.#lastMessageTime = messageTime;
+        this.#lastMessageWasBackfill = didSeek;
       }
     }
+    return problems;
   }
 }
 
