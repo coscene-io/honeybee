@@ -22,6 +22,8 @@ async function storeWithSeed() {
     createMockSemanticSegmentationService({ document, controls: { delayMs: 0 } }),
   );
   await store.getState().initialize();
+  // These tests draw polygons; the default tool is quick annotation.
+  store.getState().setCreationTool("polygon");
   store.getState().setCurrentFrame("frame-0");
   await store.getState().loadFrameWindow("video-side", 0, 0.8);
   return store;

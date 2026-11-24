@@ -74,11 +74,14 @@ export type SemanticSegmentationStoreOptions = {
   };
 };
 
-function initialCreationTool(setting: SemanticSegmentationStoreOptions["creationToolSetting"]) {
+/** New annotations start with quick annotation; a remembered "polygon" choice is kept. */
+function initialCreationTool(
+  setting: SemanticSegmentationStoreOptions["creationToolSetting"],
+): CreationTool {
   try {
-    return setting?.get() === "quick" ? "quick" : "polygon";
+    return setting?.get() === "polygon" ? "polygon" : "quick";
   } catch {
-    return "polygon";
+    return "quick";
   }
 }
 

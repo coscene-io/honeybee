@@ -42,6 +42,59 @@ async function setup() {
   return { service, store };
 }
 
+describe("default creation tool", () => {
+  async function storeWith(stored: unknown) {
+    const set = jest.fn();
+    const store = createSemanticSegmentationStore(
+      createMockSemanticSegmentationService({ controls: { delayMs: 0, streamDelayMs: 0 } }),
+      { creationToolSetting: { get: () => stored, set } },
+    );
+    await store.getState().initialize();
+    return { store, set };
+  }
+
+  it("starts with quick annotation when nothing is stored, or the value is unknown", async () => {
+    for (const stored of [undefined, "", "bogus", 7]) {
+      expect((await storeWith(stored)).store.getState().creationTool).toBe("quick");
+    }
+    expect(
+      createSemanticSegmentationStore(createMockSemanticSegmentationService()).getState()
+        .creationTool,
+    ).toBe("quick");
+  });
+
+  it("falls back to quick when the setting cannot be read", async () => {
+    const store = createSemanticSegmentationStore(
+      createMockSemanticSegmentationService({ controls: { delayMs: 0, streamDelayMs: 0 } }),
+      {
+        creationToolSetting: {
+          get: () => {
+            throw new Error("unavailable");
+          },
+          set: () => {},
+        },
+      },
+    );
+    expect(store.getState().creationTool).toBe("quick");
+  });
+
+  it("keeps a stored polygon choice", async () => {
+    expect((await storeWith("polygon")).store.getState().creationTool).toBe("polygon");
+    expect((await storeWith("quick")).store.getState().creationTool).toBe("quick");
+  });
+
+  it("every way to start drawing uses the current tool unless one is named, and remembers a manual switch", async () => {
+    const { store, set } = await storeWith(undefined);
+    store.getState().startDrawing("instance-empty");
+    expect(store.getState().creationTool).toBe("quick");
+    store.getState().cancelDrawing();
+    store.getState().setCreationTool("polygon");
+    expect(set).toHaveBeenLastCalledWith("polygon");
+    store.getState().startDrawing("instance-1");
+    expect(store.getState().creationTool).toBe("polygon");
+  });
+});
+
 describe("semantic segmentation state", () => {
   it("creates stable empty tree nodes, preserves float coordinates and undoes local changes", async () => {
     const { store } = await setup();
