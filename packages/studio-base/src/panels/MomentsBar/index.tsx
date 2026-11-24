@@ -7,7 +7,7 @@
 
 import { useMemo } from "react";
 
-import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/useVisibleEvents";
 import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar, {
   PANEL_TOOLBAR_MIN_HEIGHT,

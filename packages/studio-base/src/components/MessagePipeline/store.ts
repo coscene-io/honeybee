@@ -27,6 +27,7 @@ import type {
 import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
 import type { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
 import type { S3FileService } from "@foxglove/studio-base/services/S3FileService";
+import { PlaybackDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import type { FramePromise } from "./pauseFrameForPromise";
@@ -54,6 +55,7 @@ export type MessagePipelineInternalState = {
   reset: () => void;
 
   player?: Player;
+  diagnostics: PlaybackDiagnostics;
 
   /** used to keep track of whether we need to update public.startPlayback/playUntil/etc. */
   lastCapabilities: string[];
@@ -113,6 +115,7 @@ export function createMessagePipelineStore({
 
   return createStore((set, get) => ({
     player: initialPlayer,
+    diagnostics: new PlaybackDiagnostics(),
     publishersById: {},
     allPublishers: [],
     subscriptionMemoizer: makeSubscriptionMemoizer(),
@@ -129,6 +132,7 @@ export function createMessagePipelineStore({
     reset() {
       set((prev) => ({
         ...prev,
+        diagnostics: new PlaybackDiagnostics(),
         publishersById: {},
         allPublishers: [],
         subscriptionMemoizer: makeSubscriptionMemoizer(),

@@ -49,6 +49,9 @@ export function CustomFieldTimeEditor({
       // label={property?.description ?? t("pleaseSelect")}
       onChange={(newValue: Dayjs | ReactNull) => {
         if (newValue) {
+          if (!newValue.isValid()) {
+            return;
+          }
           customFieldValue.value = {
             case: "time",
             value: create(TimeValueSchema, { value: timestampFromDate(newValue.toDate()) }),
