@@ -39,6 +39,7 @@ import { icons } from "./icons";
 import { prepareSettingsNodes } from "./utils";
 
 type NodeEditorProps = {
+  children?: React.JSX.Element;
   actionHandler: (action: SettingsTreeAction) => void;
   defaultOpen?: boolean;
   open?: boolean;
@@ -154,6 +155,14 @@ const useStyles = makeStyles()((theme) => ({
     width: "100%",
   },
 
+  toggleButton: {
+    background: "none",
+    border: 0,
+    color: "inherit",
+    padding: 0,
+    textAlign: "start",
+  },
+
   nodeHeaderToggleHasProperties: {
     cursor: "pointer",
   },
@@ -178,9 +187,9 @@ function ExpansionArrow({ expanded }: { expanded: boolean }): React.JSX.Element 
 
   const Component = expanded ? ArrowDownIcon : ArrowRightIcon;
   return (
-    <div className={classes.iconWrapper}>
+    <span className={classes.iconWrapper}>
       <Component />
-    </div>
+    </span>
   );
 }
 
@@ -308,7 +317,8 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
 
   const { fields, children } = settings;
   const hasChildren = children != undefined && Object.keys(children).length > 0;
-  const hasProperties = fields != undefined || hasChildren;
+  const hasProperties = fields != undefined || hasChildren || props.children != undefined;
+  const Toggle = hasProperties && !state.editing ? "button" : "div";
 
   const rootRef = useRef<HTMLDivElement>(ReactNull);
 
@@ -455,8 +465,11 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
         })}
         ref={rootRef}
       >
-        <div
+        <Toggle
+          type={Toggle === "button" ? "button" : undefined}
+          aria-expanded={Toggle === "button" ? isOpen : undefined}
           className={cx(classes.nodeHeaderToggle, {
+            [classes.toggleButton]: Toggle === "button",
             [classes.nodeHeaderToggleHasProperties]: hasProperties,
             [classes.nodeHeaderToggleVisible]: visible,
           })}
@@ -501,6 +514,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
             />
           ) : (
             <Typography
+              component="span"
               noWrap={true}
               variant="subtitle2"
               color={visible ? "textPrimary" : "textDisabled"}
@@ -512,7 +526,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
               <HighlightedText text={settings.label ?? t("general")} highlight={filter} />
             </Typography>
           )}
-        </div>
+        </Toggle>
         <Stack alignItems="center" direction="row">
           {settings.renamable === true && !state.editing && (
             <IconButton
@@ -596,6 +610,9 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
         </>
       )}
       {isOpen && childNodes}
+      {isOpen && props.children && (
+        <div style={{ gridColumn: "span 2", minWidth: 0 }}>{props.children}</div>
+      )}
       {indent === 1 && <Divider style={{ gridColumn: "span 2" }} />}
     </>
   );

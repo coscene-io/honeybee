@@ -295,7 +295,7 @@ export type PlayerStateActiveData = {
   // 这样我们就不会查看过时的数据。
   lastSeekTime: number;
   /** Monotonic start of the last accepted user seek, including its backfill. */
-  acceptedSeek?: { sequence: number; started: number; target: Time };
+  acceptedSeek?: { sequence: number; started: number; target: Time; backfillPending?: true };
 
   // A list of topics that panels can subscribe to. This list may change across states,
   // but when a topic is removed from the list we should treat it as a seek (i.e. lastSeekTime

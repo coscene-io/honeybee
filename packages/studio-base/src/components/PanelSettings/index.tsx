@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Divider, Typography } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useUnmount } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -30,6 +30,7 @@ import {
   PanelStateStore,
   usePanelStateStore,
 } from "@foxglove/studio-base/context/PanelStateContext";
+import { PlaybackDiagnosticsContext } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { PanelConfig } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -60,7 +61,7 @@ export default function PanelSettings({
 }>): React.JSX.Element {
   const { classes } = useStyles();
 
-  const { t } = useTranslation("panelSettings");
+  const { t } = useTranslation(["panelSettings", "workspace"]);
   const singlePanelId = useCurrentLayoutSelector(singlePanelIdSelector);
   const {
     selectedPanelIds: originalSelectedPanelIds,
@@ -132,6 +133,7 @@ export default function PanelSettings({
   ]);
 
   const [config] = useConfigById(selectedPanelId);
+  const diagnostics = useContext(PlaybackDiagnosticsContext);
 
   const settingsTreeSelector = useCallback(
     (state: PanelStateStore) =>
@@ -187,17 +189,29 @@ export default function PanelSettings({
               <Divider />
             </>
           )}
-          {panelType === "Image" && (
-            <ImageDiagnostics
-              panelId={selectedPanelId}
-              topic={(config as { imageMode?: { imageTopic?: string } }).imageMode?.imageTopic}
-            />
-          )}
           {settingsTree != undefined || showTitleField ? (
             <SettingsTreeEditor
               variant="panel"
               key={selectedPanelId}
               settings={settingsTree ?? EMPTY_SETTINGS_TREE}
+              trailingSection={
+                panelType === "Image" && diagnostics
+                  ? {
+                      id: "playbackDiagnostics",
+                      label: t("workspace:diagnostics.image"),
+                      content: (
+                        <ImageDiagnostics
+                          session={diagnostics}
+                          panelId={selectedPanelId}
+                          topic={
+                            (config as { imageMode?: { imageTopic?: string } }).imageMode
+                              ?.imageTopic
+                          }
+                        />
+                      ),
+                    }
+                  : undefined
+              }
             />
           ) : (
             <Stack flex="auto" alignItems="center" justifyContent="center" paddingX={1}>
