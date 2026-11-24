@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { OperationLabelKey } from "./errors";
 import type { QuickSegmentRequest, QuickSegmentResult } from "./quickSegment";
 
 /** Coordinates are floating point values in [0, 1], relative to the original image. */
@@ -124,7 +125,8 @@ export type StagedOperation = {
   /** Synchronous user commands share one Undo boundary. */
   groupId?: string;
   id: string;
-  label: string;
+  /** An `opLabel…` key of the `segmentation` namespace; shown translated. */
+  labelKey: OperationLabelKey;
   patch: SegmentationPatch;
 };
 /**
@@ -291,9 +293,9 @@ export type SemanticSegmentationStore = {
    */
   addPolygon: (instanceId: string, points: NormalizedPoint[]) => string;
   /** Union a mask into the instance's observation on the current frame (polygons are rasterized). */
-  addMask: (instanceId: string, mask: SegmentationMask, label?: string) => void;
+  addMask: (instanceId: string, mask: SegmentationMask, labelKey?: OperationLabelKey) => void;
   /** Replace the instance's mask on the current frame (brush/eraser); an empty mask clears it. */
-  replaceMask: (instanceId: string, mask: SegmentationMask, label?: string) => void;
+  replaceMask: (instanceId: string, mask: SegmentationMask, labelKey?: OperationLabelKey) => void;
   /** Rasterize a polygon observation on the current frame into a mask (sub-pixel precision only). */
   convertToMask: (instanceId: string) => void;
   /** Vectorize a mask observation on the current frame; holes and slivers are lost (see `maskConversionLoss`). */
@@ -303,7 +305,7 @@ export type SemanticSegmentationStore = {
   mergeInstances: (sourceIds: string[], targetInstanceId: string) => void;
   mergePolygons: (polygonIds: string[], targetInstanceId: string) => void;
   /** Group synchronous local mutations; rollback all staged changes if the command throws. */
-  runTransaction: (label: string, command: () => undefined) => void;
+  runTransaction: (labelKey: OperationLabelKey, command: () => undefined) => void;
   undo: () => void;
   /** Restore the last undone local command without submitting it. */
   redo: () => void;

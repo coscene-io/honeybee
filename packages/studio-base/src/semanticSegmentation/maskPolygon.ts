@@ -554,8 +554,8 @@ function segmentsTouch(
  * polygon has distinct vertices, no backtracking edge and no self-intersection, and there are no
  * holes (polygons union, they do not XOR). A component with holes is cut into vertical strips that
  * overlap by one column at a column through each hole, which opens every hole into a notch; strips
- * then trace like hole-free masks. Rings are Douglas-Peucker simplified with eps like
- * maskToPolygons; a ring that simplification makes self-intersecting falls back to its exact trace.
+ * then trace like hole-free masks. Rings are Douglas-Peucker simplified with tolerance
+ * `eps` (pixels); a ring that simplification makes self-intersecting falls back to its exact trace.
  */
 export function maskToSimplePolygons(mask: MaskRuns, eps = 1): PixelPolygon[] {
   const box = bitmapOfRuns(mask);

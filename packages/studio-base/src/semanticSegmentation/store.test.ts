@@ -42,6 +42,46 @@ async function setup() {
   return { service, store };
 }
 
+describe("loaded frame geometry", () => {
+  async function limited(maxLoadedFrames: number) {
+    const service = createMockSemanticSegmentationService({
+      controls: { delayMs: 0, streamDelayMs: 0 },
+    });
+    const store = createSemanticSegmentationStore(service, { maxLoadedFrames });
+    await store.getState().initialize();
+    return store;
+  }
+  const geometryOf = (store: Awaited<ReturnType<typeof limited>>, frameId: string) =>
+    Object.values(store.getState().document!.annotations).filter((item) => item.frameId === frameId)
+      .length;
+
+  it("drops the geometry of frames far from the current one once the limit is exceeded", async () => {
+    const store = await limited(30);
+    expect(geometryOf(store, "frame-0")).toBeGreaterThan(0);
+    store.getState().setCurrentFrame("frame-110");
+    await store.getState().loadFrameWindow("video-1", 20, 24);
+    expect(geometryOf(store, "frame-110")).toBeGreaterThan(0);
+    expect(geometryOf(store, "frame-0")).toBe(0);
+    expect(store.getState().isFrameReady("frame-0")).toBe(false);
+    // Coming back reads it again.
+    store.getState().setCurrentFrame("frame-0");
+    await store.getState().loadFrameWindow("video-1", 0, 4);
+    expect(geometryOf(store, "frame-0")).toBeGreaterThan(0);
+  });
+
+  it("keeps frames with unsaved edits and everything under the limit", async () => {
+    const store = await limited(30);
+    store.getState().addPolygon("instance-2", triangle);
+    store.getState().setCurrentFrame("frame-110");
+    await store.getState().loadFrameWindow("video-1", 20, 24);
+    expect(geometryOf(store, "frame-0")).toBeGreaterThan(0);
+    const roomy = await limited(1000);
+    roomy.getState().setCurrentFrame("frame-110");
+    await roomy.getState().loadFrameWindow("video-1", 20, 24);
+    expect(geometryOf(roomy, "frame-0")).toBeGreaterThan(0);
+  });
+});
+
 describe("semantic segmentation state", () => {
   it("creates stable empty tree nodes, preserves float coordinates and undoes local changes", async () => {
     const { store } = await setup();
@@ -449,7 +489,7 @@ describe("compound editor commands", () => {
     const { store } = await setup();
     store.getState().renameClass("class-1", "Operator");
     const before = store.getState().document;
-    store.getState().runTransaction("Move class contents", () => {
+    store.getState().runTransaction("opLabelEditTree", () => {
       store.getState().moveInstance("instance-1", "class-2");
       store.getState().moveInstance("instance-empty", "class-2");
     });
@@ -468,7 +508,7 @@ describe("compound editor commands", () => {
     store.getState().setEditing(true);
     const before = store.getState();
     expect(() => {
-      store.getState().runTransaction("Invalid move", () => {
+      store.getState().runTransaction("opLabelEditTree", () => {
         store.getState().addInstance("class-2");
         store.getState().moveInstance("instance-1", "missing-class");
       });
@@ -481,7 +521,7 @@ describe("compound editor commands", () => {
 
   it("retains independent CAS deltas when a grouped command is submitted", async () => {
     const { store, service } = await setup();
-    store.getState().runTransaction("Create moved polygon", () => {
+    store.getState().runTransaction("opLabelEditTree", () => {
       const id = store.getState().addInstance("class-2", "Moved");
       store.getState().mergePolygons(["instance-1-polygon-0"], id);
     });
@@ -562,7 +602,7 @@ describe("one geometry per observation", () => {
     const { store } = await setup();
     store.getState().addMask("instance-empty", rectangleMask(10, 10, 20, 20));
     const emptyKey = frameInstanceKey("frame-0", "instance-empty");
-    store.getState().replaceMask("instance-empty", rectangleMask(0, 0, 0, 0), "Erase");
+    store.getState().replaceMask("instance-empty", rectangleMask(0, 0, 0, 0), "opLabelErase");
     expect(store.getState().document!.annotations[emptyKey]).toBeUndefined();
   });
 
