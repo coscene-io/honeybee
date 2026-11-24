@@ -92,8 +92,16 @@ export function useWorkspaceSlot<K extends WorkspaceSlotName>(
   );
 }
 
-/** The registered entries of one slot, in registration order. */
-export function useWorkspaceSlotValues<K extends WorkspaceSlotName>(slot: K): Slots[K][string][] {
+/** The registered `[id, value]` pairs of one slot, in registration order. */
+export function useWorkspaceSlotEntries<K extends WorkspaceSlotName>(
+  slot: K,
+): [string, Slots[K][string]][] {
   const entries = useWorkspaceSlots((slots) => slots[slot]);
-  return useMemo(() => Object.values(entries) as Slots[K][string][], [entries]);
+  return useMemo(() => Object.entries(entries) as [string, Slots[K][string]][], [entries]);
+}
+
+/** The registered values of one slot, in registration order. */
+export function useWorkspaceSlotValues<K extends WorkspaceSlotName>(slot: K): Slots[K][string][] {
+  const entries = useWorkspaceSlotEntries(slot);
+  return useMemo(() => entries.map(([, value]) => value), [entries]);
 }

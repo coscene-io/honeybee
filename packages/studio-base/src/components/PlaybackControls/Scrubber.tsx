@@ -28,7 +28,7 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
 import { add as addTimes, toSec, fromSec, Time } from "@foxglove/rostime";
-import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/useVisibleEvents";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {

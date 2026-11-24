@@ -27,10 +27,7 @@ import { useS3FileService } from "@foxglove/studio-base/context/S3FileServiceCon
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
 import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import type { Player, PlayerState, SubscribePayload } from "@foxglove/studio-base/players/types";
-import {
-  PlaybackDiagnostics,
-  PlaybackDiagnosticsContext,
-} from "@foxglove/studio-base/services/playbackDiagnostics";
+import { PlaybackDiagnosticsContext } from "@foxglove/studio-base/services/playbackDiagnostics";
 
 import MessageOrderTracker from "./MessageOrderTracker";
 import type { FramePromise } from "./pauseFrameForPromise";
@@ -93,6 +90,7 @@ type ProviderProps = {
   player?: Player;
 };
 
+const selectDiagnostics = (state: MessagePipelineInternalState) => state.diagnostics;
 const selectRenderDone = (state: MessagePipelineInternalState) => state.renderDone;
 const selectSubscriptions = (state: MessagePipelineInternalState) => state.public.subscriptions;
 
@@ -110,16 +108,17 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   // Note: This throws away any publishers, subscribers, etc that panels may have registered. We
   // are ok with this behavior because the <Workspace> re-mounts all panels when a player changes.
   // The re-mounted panels will re-initialize and setup new publishers and subscribers.
-  const { store, diagnostics } = useMemo(() => {
-    const pipelineStore = createMessagePipelineStore({
-      promisesToWaitForRef,
-      initialPlayer: player,
-      urdfStorage,
-      s3FileService,
-    });
-    return { store: pipelineStore, diagnostics: new PlaybackDiagnostics() };
-  }, [player, urdfStorage, s3FileService]);
-
+  const store = useMemo(
+    () =>
+      createMessagePipelineStore({
+        promisesToWaitForRef,
+        initialPlayer: player,
+        urdfStorage,
+        s3FileService,
+      }),
+    [player, urdfStorage, s3FileService],
+  );
+  const diagnostics = useStore(store, selectDiagnostics);
   const subscriptions = useStore(store, selectSubscriptions);
 
   // Debounce the subscription updates for players. This batches multiple subscribe calls
@@ -197,7 +196,6 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     }
 
     const { listener, cleanupListener } = createPlayerListener({
-      diagnostics,
       msPerFrameRef,
       promisesToWaitForRef,
       store,
@@ -212,7 +210,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
         renderDone: undefined,
       });
     };
-  }, [player, store, diagnostics]);
+  }, [player, store]);
 
   return (
     <PlaybackDiagnosticsContext.Provider value={diagnostics}>
@@ -245,7 +243,6 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
  * - https://stackoverflow.com/questions/53985411/understanding-javascript-closure-variable-capture-in-v8
  */
 function createPlayerListener(args: {
-  diagnostics: PlaybackDiagnostics;
   msPerFrameRef: React.RefObject<number>;
   promisesToWaitForRef: React.RefObject<FramePromise[]>;
   store: StoreApi<MessagePipelineInternalState>;
@@ -256,7 +253,7 @@ function createPlayerListener(args: {
   // console.log("create player listener");
   const { msPerFrameRef, promisesToWaitForRef, store } = args;
   const updateState = store.getState().dispatch;
-  const messageOrderTracker = new MessageOrderTracker(args.diagnostics);
+  let messageOrderTracker = new MessageOrderTracker(store.getState().diagnostics);
   let closed = false;
   let prevPlayerId: string | undefined;
   let resolveFn: undefined | (() => void);
@@ -269,9 +266,16 @@ function createPlayerListener(args: {
       throw new Error("New playerState was emitted before last playerState was rendered.");
     }
 
+    if (prevPlayerId != undefined && listenerPlayerState.playerId !== prevPlayerId) {
+      messageOrderTracker.dispose();
+      store.getState().reset();
+      messageOrderTracker = new MessageOrderTracker(store.getState().diagnostics);
+    }
+    prevPlayerId = listenerPlayerState.playerId;
+
     // check for any out-of-order or out-of-sync messages
-    args.diagnostics.update(listenerPlayerState);
-    messageOrderTracker.update(listenerPlayerState);
+    store.getState().diagnostics.update(listenerPlayerState);
+    const problems = messageOrderTracker.update(listenerPlayerState);
 
     const promise = new Promise<void>((resolve) => {
       resolveFn = () => {
@@ -316,14 +320,15 @@ function createPlayerListener(args: {
       }, frameTime);
     }
 
-    if (prevPlayerId != undefined && listenerPlayerState.playerId !== prevPlayerId) {
-      store.getState().reset();
-    }
-    prevPlayerId = listenerPlayerState.playerId;
-
     updateState({
       type: "update-player-state",
-      playerState: listenerPlayerState,
+      playerState:
+        problems.length > 0
+          ? {
+              ...listenerPlayerState,
+              problems: problems.concat(listenerPlayerState.problems ?? []),
+            }
+          : listenerPlayerState,
       renderDone,
     });
 
@@ -333,6 +338,7 @@ function createPlayerListener(args: {
     listener,
     cleanupListener() {
       closed = true;
+      messageOrderTracker.dispose();
       resolveFn = undefined;
     },
   };

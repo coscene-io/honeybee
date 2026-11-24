@@ -25,6 +25,16 @@ export type MomentCreationScope = {
 
 export type MomentCreationDefaults = MomentCreationScope & { values: CustomFieldValue[] };
 
+export type MomentNumberOperator = "=" | "!=" | ">=" | ">" | "<=" | "<";
+
+export type MomentCustomFieldFilter =
+  | Exclude<CustomFieldValue["value"], { case: "number" | "time" | undefined }>
+  | { case: "number"; operator: MomentNumberOperator; value: number }
+  | { case: "number"; operator: "between"; min: number; max: number }
+  | { case: "time"; start?: number; end?: number };
+
+export type MomentCustomFieldFilters = ReadonlyMap<string, MomentCustomFieldFilter>;
+
 export type ToModifyEvent = {
   name: string;
   /** Timeline projection that opened this editor; absent for list-based editing. */
@@ -123,6 +133,9 @@ export type EventsStore = {
 
   /** Resource name of the project that owns the current schema. */
   customFieldSchemaProjectName?: string;
+
+  customFieldFilters?: MomentCustomFieldFilters;
+  setCustomFieldFilters: (projectName: string, filters: MomentCustomFieldFilters) => void;
 
   lastCreatedMomentDefaults?: MomentCreationDefaults;
   setLastCreatedMomentDefaults: (defaults: MomentCreationDefaults) => void;
