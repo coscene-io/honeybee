@@ -399,7 +399,7 @@ export class ImageMode
   }
 
   public override handleSeek(): void {
-    this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
+    this.#blockSegmentationCaptureOfCurrentImage();
     this.#segmentationCapture = undefined;
     this.imageRenderable?.invalidateImage();
     const topic = this.#compressedVideoTopic;
@@ -410,7 +410,7 @@ export class ImageMode
   }
 
   public override removeAllRenderables(options: RemoveAllRenderablesOptions = {}): void {
-    this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
+    this.#blockSegmentationCaptureOfCurrentImage();
     this.#segmentationCapture = undefined;
     // To avoid flickering while seeking or changing subscriptions, we avoid clearing the
     // ImageRenderable for a short timeout. When a new image message arrives, we cancel the timeout,
@@ -1325,6 +1325,15 @@ export class ImageMode
 
   #segmentationCapture: { image: SegmentationImage; encode: () => string } | undefined;
   #segmentationBlockedImage: object | undefined;
+  /** Set once something asks for a capture; panels nobody annotates never hold a frame for it. */
+  #segmentationCaptureRequested = false;
+
+  /** A capture right after a seek must not return the frame shown before it. */
+  #blockSegmentationCaptureOfCurrentImage(): void {
+    if (this.#segmentationCaptureRequested) {
+      this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
+    }
+  }
 
   /**
    * The compressed frames this panel still holds for its image topic, in receive order. Only what
@@ -1339,6 +1348,7 @@ export class ImageMode
   }
 
   public captureSegmentationImageMetadata(): SegmentationImageMetadata | undefined {
+    this.#segmentationCaptureRequested = true;
     const renderable = this.imageRenderable;
     const image = renderable?.getDecodedImage();
     const displayed = renderable?.userData.displayedFrameState;
