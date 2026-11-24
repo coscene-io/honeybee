@@ -37,7 +37,6 @@ const Content = styled(Stack)(({ theme }) => ({
   overflowWrap: "anywhere",
   ...theme.typography.body2,
 }));
-const SettingsArea = styled("div")({ maxHeight: "45vh", overflowY: "auto" });
 const ScrollArea = styled("div")({ height: "100%", overflowY: "auto" });
 
 const PAGE_SIZE = 20;
@@ -510,41 +509,21 @@ function Analysis({
 }
 
 export function ImageDiagnostics({
+  session,
   panelId,
   topic,
 }: {
+  session: PlaybackDiagnostics;
   panelId: string;
   topic?: string;
-}): React.JSX.Element | ReactNull {
+}): React.JSX.Element {
   const { t } = useTranslation("workspace");
-  const session = useContext(PlaybackDiagnosticsContext);
-  const [open, setOpen] = useState(false);
-  return session ? (
-    <SettingsArea>
-      <Button
-        size="small"
-        aria-expanded={open}
-        onClick={() => {
-          setOpen(!open);
-        }}
-      >
-        {open ? "▾ " : "▸ "}
-        {t("diagnostics.image")}
-      </Button>
-      {open &&
-        (topic ? (
-          <Analysis
-            key={`${session.id}/${topic}`}
-            session={session}
-            panelId={panelId}
-            topic={topic}
-          />
-        ) : (
-          <Typography variant="caption">{t("diagnostics.awaitData")}</Typography>
-        ))}
-    </SettingsArea>
+  return topic ? (
+    <Analysis key={`${session.id}/${topic}`} session={session} panelId={panelId} topic={topic} />
   ) : (
-    ReactNull
+    <Content>
+      <Typography variant="caption">{t("diagnostics.awaitData")}</Typography>
+    </Content>
   );
 }
 
