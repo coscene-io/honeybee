@@ -102,9 +102,9 @@ describe("a failed submission", () => {
 
     store.getState().discardSubmission(failed);
     expect(store.getState().submissionQueue).toEqual([]);
-    expect(store.getState().stagedOperations.map((operation) => operation.label)).toEqual([
-      "Create polygon",
-      "Create class",
+    expect(store.getState().stagedOperations.map((operation) => operation.labelKey)).toEqual([
+      "opLabelCreatePolygon",
+      "opLabelCreateClass",
     ]);
     const document = store.getState().document!;
     expect(document.classes.find((item) => item.id === "class-1")?.name).not.toBe("Lost");
