@@ -142,17 +142,17 @@ export function useFeatureValueWithConfig<T extends JSONValue>(featureKey: strin
 }
 
 /**
- * Like `useFeatureValueWithConfig`, but also works outside a GrowthBookProvider (stories, isolated
- * tests), where there is no client and the configured fallback is the value.
+ * Like `useFeatureIsOnWithConfig`, but also works outside a GrowthBookProvider (isolated tests),
+ * where there is no client and the configured fallback is the value.
  */
-export function useOptionalFeatureValueWithConfig<T extends JSONValue>(
+export function useOptionalFeatureIsOnWithConfig(
   featureKey: string,
-  fallback: T,
-): T {
+  options: { fallback?: boolean } = {},
+): boolean {
   // The context type claims a client, but outside a provider there is none.
   const growthbook = useContext(GrowthBookContext).growthbook as GrowthBook | undefined;
-  const localFallback = getConfiguredFallback(featureKey, fallback);
+  const localFallback = getConfiguredFallback(featureKey, options.fallback ?? false);
   return growthbook == undefined
-    ? localFallback
-    : (growthbook.getFeatureValue<JSONValue>(featureKey, localFallback) as T);
+    ? localFallback === true
+    : growthbook.getFeatureValue<JSONValue>(featureKey, localFallback) === true;
 }
