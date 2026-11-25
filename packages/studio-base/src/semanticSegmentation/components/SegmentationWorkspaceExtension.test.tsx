@@ -21,7 +21,6 @@ import {
   WorkspaceSlotsProvider,
   createWorkspaceSlotsStore,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
-
 import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
