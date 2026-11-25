@@ -8,13 +8,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { polygonsOf } from "./maskGeometry";
-import {
-  acquireSegmentationRuntime,
-  createSegmentationRuntime,
-  heldSegmentationRuntimeCount,
-  releaseSegmentationRuntime,
-  segmentationSession,
-} from "./runtime";
+import { createSegmentationRuntime } from "./runtime";
+import { createSegmentationHost } from "./segmentationHost";
 import { frameInstanceKey } from "./service";
 import { createMockSegmentationRuntime } from "./testing/mockRuntime";
 import {
@@ -115,11 +110,10 @@ it.each(["forward", "backward"] as const)(
   "seeks to the last %s result as soon as a burst of results ends",
   async (direction) => {
     const document = createSeedDocument();
-    const runtime = createMockSegmentationRuntime(document);
+    const seek = jest.fn();
+    const runtime = createMockSegmentationRuntime(document, { seek });
     setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
     await runtime.initialize();
-    const seek = jest.fn();
-    segmentationSession.setState({ seek });
     try {
       const { store } = runtime;
       store.getState().setCurrentFrame("frame-20");
@@ -136,7 +130,6 @@ it.each(["forward", "backward"] as const)(
         BigInt(frames.find((frame) => frame.id === last)!.logTimeNs),
       );
     } finally {
-      segmentationSession.setState({ seek: undefined });
       runtime.dispose();
     }
   },
@@ -207,6 +200,13 @@ it("remembers the creation tool through the injected setting", async () => {
 });
 
 describe("runtime registry", () => {
+  let host = createSegmentationHost();
+  beforeEach(() => {
+    host = createSegmentationHost();
+  });
+  afterEach(() => {
+    host.dispose();
+  });
   const flush = async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   };
@@ -225,31 +225,31 @@ describe("runtime registry", () => {
 
   it("disposes a runtime when its last panel lets go, and clears the session's references", async () => {
     const { runtime, dispose } = tracked();
-    expect(acquireSegmentationRuntime("record-a", "panel-1", () => runtime).created).toBe(true);
-    expect(acquireSegmentationRuntime("record-a", "panel-2", jest.fn()).runtime).toBe(runtime);
-    segmentationSession.setState({ runtime, previewRuntime: runtime, open: true });
-    releaseSegmentationRuntime("panel-1");
+    expect(host.registry.acquire("record-a", "panel-1", () => runtime).created).toBe(true);
+    expect(host.registry.acquire("record-a", "panel-2", jest.fn()).runtime).toBe(runtime);
+    host.session.setState({ runtime, previewRuntime: runtime, open: true });
+    host.registry.release("panel-1");
     await flush();
     expect(dispose).not.toHaveBeenCalled();
-    releaseSegmentationRuntime("panel-2");
+    host.registry.release("panel-2");
     await flush();
     expect(dispose).toHaveBeenCalledTimes(1);
-    expect(segmentationSession.getState()).toMatchObject({
+    expect(host.session.getState()).toMatchObject({
       runtime: undefined,
       previewRuntime: undefined,
       open: false,
     });
-    expect(heldSegmentationRuntimeCount()).toBe(0);
+    expect(host.registry.heldCount()).toBe(0);
   });
 
   it("keeps a runtime for a panel that remounts in the same commit", async () => {
     const { runtime, dispose } = tracked();
-    acquireSegmentationRuntime("record-b", "panel-1", () => runtime);
-    releaseSegmentationRuntime("panel-1");
-    expect(acquireSegmentationRuntime("record-b", "panel-1", jest.fn()).runtime).toBe(runtime);
+    host.registry.acquire("record-b", "panel-1", () => runtime);
+    host.registry.release("panel-1");
+    expect(host.registry.acquire("record-b", "panel-1", jest.fn()).runtime).toBe(runtime);
     await flush();
     expect(dispose).not.toHaveBeenCalled();
-    releaseSegmentationRuntime("panel-1");
+    host.registry.release("panel-1");
     await flush();
     expect(dispose).toHaveBeenCalledTimes(1);
   });
@@ -257,40 +257,85 @@ describe("runtime registry", () => {
   it("releases the previous record when a panel moves to another one", async () => {
     const first = tracked();
     const second = tracked();
-    acquireSegmentationRuntime("record-c", "panel-1", () => first.runtime);
-    acquireSegmentationRuntime("record-d", "panel-1", () => second.runtime);
+    host.registry.acquire("record-c", "panel-1", () => first.runtime);
+    host.registry.acquire("record-d", "panel-1", () => second.runtime);
     await flush();
     expect(first.dispose).toHaveBeenCalledTimes(1);
     expect(second.dispose).not.toHaveBeenCalled();
-    releaseSegmentationRuntime("panel-1");
+    host.registry.release("panel-1");
     await flush();
     expect(second.dispose).toHaveBeenCalledTimes(1);
   });
 
   it("keeps unsaved work until it is saved, then disposes the runtime", async () => {
     const { runtime, dispose } = tracked();
-    acquireSegmentationRuntime("record-e", "panel-1", () => runtime);
+    host.registry.acquire("record-e", "panel-1", () => runtime);
     await runtime.initialize();
     runtime.store.getState().addClass("Unsaved");
-    releaseSegmentationRuntime("panel-1");
+    host.registry.release("panel-1");
     await flush();
     expect(dispose).not.toHaveBeenCalled();
-    expect(heldSegmentationRuntimeCount()).toBe(1);
+    expect(host.registry.heldCount()).toBe(1);
     runtime.store.getState().submit();
     await runtime.store.getState().waitForSubmissions();
     await flush();
     expect(dispose).toHaveBeenCalledTimes(1);
-    expect(heldSegmentationRuntimeCount()).toBe(0);
+    expect(host.registry.heldCount()).toBe(0);
+  });
+
+  it("reports unsaved work across held runtimes until it is saved", async () => {
+    const { runtime } = tracked();
+    host.registry.acquire("record-g", "panel-1", () => runtime);
+    await runtime.initialize();
+    expect(host.registry.hasUnsavedWork()).toBe(false);
+    runtime.store.getState().addClass("Unsaved");
+    expect(host.registry.hasUnsavedWork()).toBe(true);
+    runtime.store.getState().submit();
+    await runtime.store.getState().waitForSubmissions();
+    expect(host.registry.hasUnsavedWork()).toBe(false);
+    host.registry.release("panel-1");
+    await flush();
+  });
+
+  it("shares one runtime between two panels and creates it once", () => {
+    const { runtime } = tracked();
+    const create = jest.fn(() => runtime);
+    const first = host.registry.acquire("record-h", "panel-1", create);
+    const second = host.registry.acquire("record-h", "panel-2", create);
+    expect(second.runtime).toBe(first.runtime);
+    expect([first.created, second.created]).toEqual([true, false]);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("disposes every runtime when the host goes away, unsaved work included", async () => {
+    const { runtime, dispose } = tracked();
+    host.registry.acquire("record-i", "panel-1", () => runtime);
+    await runtime.initialize();
+    runtime.store.getState().addClass("Unsaved");
+    host.session.setState({ runtime, open: true });
+    host.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(host.registry.heldCount()).toBe(0);
+    expect(host.session.getState()).toMatchObject({ runtime: undefined, open: false });
+  });
+
+  it("keeps hosts apart: a runtime held by one is unknown to another", () => {
+    const other = createSegmentationHost();
+    const { runtime } = tracked();
+    host.registry.acquire("record-j", "panel-1", () => runtime);
+    expect(other.registry.heldCount()).toBe(0);
+    expect(other.registry.hasUnsavedWork()).toBe(false);
+    other.dispose();
   });
 
   it("gives a returning panel the runtime that held unsaved work", async () => {
     const { runtime, dispose } = tracked();
-    acquireSegmentationRuntime("record-f", "panel-1", () => runtime);
+    host.registry.acquire("record-f", "panel-1", () => runtime);
     await runtime.initialize();
     runtime.store.getState().addClass("Unsaved");
-    releaseSegmentationRuntime("panel-1");
+    host.registry.release("panel-1");
     await flush();
-    expect(acquireSegmentationRuntime("record-f", "panel-2", jest.fn())).toEqual({
+    expect(host.registry.acquire("record-f", "panel-2", jest.fn())).toEqual({
       runtime,
       created: false,
     });
@@ -298,8 +343,25 @@ describe("runtime registry", () => {
     await runtime.store.getState().waitForSubmissions();
     await flush();
     expect(dispose).not.toHaveBeenCalled();
-    releaseSegmentationRuntime("panel-2");
+    host.registry.release("panel-2");
     await flush();
     expect(dispose).toHaveBeenCalledTimes(1);
   });
+});
+
+it("forwards the service's methods to the store", async () => {
+  const document = createSeedDocument();
+  const service = createMockSemanticSegmentationService({
+    document,
+    controls: { delayMs: 0, streamDelayMs: 0 },
+  });
+  const segmentFrame = jest.fn(async () => ({ mask: undefined, score: 0 }));
+  service.segmentFrame = segmentFrame;
+  const runtime = createSegmentationRuntime(service, document);
+  expect(runtime.store.getState().supportsInstanceMerge).toBe(service.supportsInstanceMerge);
+  await runtime.store
+    .getState()
+    .segmentFrame({ topic: "t", logTimeNs: "1", width: 1, height: 1, imageUrl: "", points: [] });
+  expect(segmentFrame).toHaveBeenCalledTimes(1);
+  runtime.dispose();
 });
