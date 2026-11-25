@@ -5,10 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { maskArea, polygonsOf } from "../maskGeometry";
-import { frameInstanceKey } from "../service";
-import type { PropagationSeed, SegmentationDocument } from "../types";
 import { hasPolygonArea } from "./editorGeometry";
+import { maskArea, polygonsOf } from "./maskGeometry";
+import { frameInstanceKey } from "./service";
+import type { PropagationSeed, SegmentationDocument } from "./types";
 
 /** What one canvas can propagate: every seeded instance on its current frame of one video. */
 export type CanvasPropagationScope = {

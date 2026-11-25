@@ -9,7 +9,7 @@ import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
 import { annotationWindow } from "./annotationFrames";
-import { SegmentationError, segmentationText } from "./errors";
+import { SegmentationError, segmentationText, segmentationErrorText } from "./errors";
 import { mergeFrameWindow } from "./frameWindows";
 import { maskObservation, maskOf, polygonObservation, polygonsOf } from "./maskGeometry";
 import {
@@ -20,7 +20,7 @@ import {
   resolvePropagationSeeds,
   validatePropagationCapabilities,
 } from "./service";
-import { message, type StoreContext } from "./storeContext";
+import type { StoreInternals } from "./storeInternals";
 import type {
   FrameInstance,
   PropagationContext,
@@ -32,7 +32,7 @@ import type {
  * Propagation runs for the store: streams inferred frames into staging (one undo step per run),
  * moves playback along with them, and stops on request or when the context changes.
  */
-export function createPropagationRunner(shared: StoreContext): Pick<
+export function createPropagationRunner(shared: StoreInternals): Pick<
   SemanticSegmentationStore,
   "startPropagation" | "stopPropagation"
 > & {
@@ -116,9 +116,9 @@ export function createPropagationRunner(shared: StoreContext): Pick<
               ...get().propagation,
               status: "stopping",
               cancellationPending: false,
-              error: message(error),
+              error: segmentationErrorText(error),
             },
-            error: message(error),
+            error: segmentationErrorText(error),
           });
         }
       });
@@ -272,7 +272,7 @@ export function createPropagationRunner(shared: StoreContext): Pick<
                       videoId: context.videoId,
                       startSec,
                       endSec,
-                      message: message(error),
+                      message: segmentationErrorText(error),
                     },
                   });
                 }
@@ -401,7 +401,7 @@ export function createPropagationRunner(shared: StoreContext): Pick<
         if (!isDisposed() && propagationController === controller && !controller.signal.aborted) {
           const failure = segmentationText("errorPropagationRequestFailed", {
             requestId: context.requestId,
-            error: message(error),
+            error: segmentationErrorText(error),
           });
           set({
             propagation: {

@@ -312,6 +312,8 @@ function holdsUnsavedWork(runtime: SegmentationRuntime): boolean {
 type HeldRuntime = {
   runtime: SegmentationRuntime;
   holders: Set<string>;
+  /** Stops forwarding the runtime's changes to the registry's subscribers. */
+  unwatch: () => void;
   /** Set while the runtime has no holder but unsaved work: collects it once that is saved. */
   awaitClean?: () => void;
 };
@@ -342,6 +344,8 @@ export type SegmentationRegistry = {
    * succeeded, or a running propagation. A page unload would lose it.
    */
   hasUnsavedWork: () => boolean;
+  /** Calls `listener` whenever `hasUnsavedWork` may answer differently; returns the unsubscribe. */
+  subscribe: (listener: () => void) => () => void;
   /** Runtimes alive in the registry, for diagnostics and tests. */
   heldCount: () => number;
   /** Disposes every runtime, unsaved work included: the registry's owner is going away. */
@@ -351,6 +355,12 @@ export type SegmentationRegistry = {
 export function createSegmentationRegistry(session: SegmentationSession): SegmentationRegistry {
   const heldRuntimes = new Map<string, HeldRuntime>();
   const holderKeys = new Map<string, string>();
+  const listeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of listeners) {
+      listener();
+    }
+  };
 
   function collect(key: string): void {
     const held = heldRuntimes.get(key);
@@ -385,7 +395,9 @@ export function createSegmentationRegistry(session: SegmentationSession): Segmen
         ...(current.previewRuntime === held.runtime ? { previewRuntime: undefined } : {}),
       });
     }
+    held.unwatch();
     held.runtime.dispose();
+    notify();
   }
 
   const release = (holder: string): void => {
@@ -408,8 +420,10 @@ export function createSegmentationRegistry(session: SegmentationSession): Segmen
       let held = heldRuntimes.get(key);
       const created = held == undefined;
       if (!held) {
-        held = { runtime: create(), holders: new Set() };
+        const runtime = create();
+        held = { runtime, holders: new Set(), unwatch: runtime.store.subscribe(notify) };
         heldRuntimes.set(key, held);
+        notify();
       }
       held.holders.add(holder);
       holderKeys.set(holder, key);
@@ -418,6 +432,12 @@ export function createSegmentationRegistry(session: SegmentationSession): Segmen
     },
     release,
     hasUnsavedWork: () => [...heldRuntimes.values()].some((held) => holdsUnsavedWork(held.runtime)),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     heldCount: () => heldRuntimes.size,
     dispose() {
       holderKeys.clear();

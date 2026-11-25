@@ -34,6 +34,10 @@ export function englishSegmentationText(
   code: SegmentationTextCode,
   params: SegmentationTextParams = {},
 ): string {
+  if (i18next.isInitialized) {
+    return i18next.getFixedT("en", "segmentation")(code, params);
+  }
+  // Before i18n is initialized (module load, workers) the resource is filled in here.
   return interpolate(en[code], params);
 }
 

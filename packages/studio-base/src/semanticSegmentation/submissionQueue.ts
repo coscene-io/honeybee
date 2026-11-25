@@ -7,9 +7,9 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { SegmentationError } from "./errors";
+import { SegmentationError, segmentationErrorText } from "./errors";
 import { cloneSegmentation, patchAnnotationKeys } from "./service";
-import { message, type StoreContext } from "./storeContext";
+import type { StoreInternals } from "./storeInternals";
 import type { SemanticSegmentationStore, SubmissionBatch } from "./types";
 
 /** Acknowledged batches listed for feedback. */
@@ -21,7 +21,7 @@ const KEPT_SUCCEEDED_BATCHES = 5;
  * would write over what it should have saved.
  */
 export function createSubmissionQueue(
-  context: StoreContext,
+  context: StoreInternals,
 ): Pick<
   SemanticSegmentationStore,
   "submit" | "waitForSubmissions" | "retrySubmission" | "discardSubmission"
@@ -85,8 +85,8 @@ export function createSubmissionQueue(
         if (isDisposed()) {
           return;
         }
-        updateBatch(batch.id, { status: "failed", error: message(error) });
-        set({ error: message(error) });
+        updateBatch(batch.id, { status: "failed", error: segmentationErrorText(error) });
+        set({ error: segmentationErrorText(error) });
       }
       rebuild();
     }
