@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -82,7 +82,7 @@ function TestHarness({
 }
 
 describe("<Sidebars />", () => {
-  it("restores the preferred right sidebar item once it becomes available", () => {
+  it("restores the preferred right sidebar item once it becomes available", async () => {
     const { rerender } = render(
       <TestHarness
         initialRightKey="record-info"
@@ -93,18 +93,20 @@ describe("<Sidebars />", () => {
 
     expect(screen.getByText("Right Variables")).toBeTruthy();
 
-    rerender(
-      <TestHarness
-        initialRightKey="record-info"
-        leftItems={LEFT_ITEMS_WITH_TASKS}
-        rightItems={RIGHT_ITEMS_WITH_RECORD_INFO}
-      />,
-    );
+    await act(async () => {
+      rerender(
+        <TestHarness
+          initialRightKey="record-info"
+          leftItems={LEFT_ITEMS_WITH_TASKS}
+          rightItems={RIGHT_ITEMS_WITH_RECORD_INFO}
+        />,
+      );
+    });
 
     expect(screen.getByText("Right Record Info")).toBeTruthy();
   });
 
-  it("does not switch away from a manual fallback selection when the original right item appears", () => {
+  it("does not switch away from a manual fallback selection when the original right item appears", async () => {
     const { rerender } = render(
       <TestHarness
         initialRightKey="record-info"
@@ -116,18 +118,20 @@ describe("<Sidebars />", () => {
     fireEvent.click(screen.getByTestId("extensions-right"));
     expect(screen.getByText("Right Extensions")).toBeTruthy();
 
-    rerender(
-      <TestHarness
-        initialRightKey="record-info"
-        leftItems={LEFT_ITEMS_WITH_TASKS}
-        rightItems={RIGHT_ITEMS_WITH_RECORD_INFO}
-      />,
-    );
+    await act(async () => {
+      rerender(
+        <TestHarness
+          initialRightKey="record-info"
+          leftItems={LEFT_ITEMS_WITH_TASKS}
+          rightItems={RIGHT_ITEMS_WITH_RECORD_INFO}
+        />,
+      );
+    });
 
     expect(screen.getByText("Right Extensions")).toBeTruthy();
   });
 
-  it("restores the preferred left sidebar item once it becomes available", () => {
+  it("restores the preferred left sidebar item once it becomes available", async () => {
     const { rerender } = render(
       <TestHarness
         initialLeftKey="tasks"
@@ -138,13 +142,15 @@ describe("<Sidebars />", () => {
 
     expect(screen.getByText("Left Panel Settings")).toBeTruthy();
 
-    rerender(
-      <TestHarness
-        initialLeftKey="tasks"
-        leftItems={LEFT_ITEMS_WITH_TASKS}
-        rightItems={RIGHT_ITEMS_WITH_RECORD_INFO}
-      />,
-    );
+    await act(async () => {
+      rerender(
+        <TestHarness
+          initialLeftKey="tasks"
+          leftItems={LEFT_ITEMS_WITH_TASKS}
+          rightItems={RIGHT_ITEMS_WITH_RECORD_INFO}
+        />,
+      );
+    });
 
     expect(screen.getByText("Left Tasks")).toBeTruthy();
   });

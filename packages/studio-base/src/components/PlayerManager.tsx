@@ -311,14 +311,29 @@ export default function PlayerManager(
     [globalVariablesRef, perfRegistry, userScriptActions, setDataSource],
   );
 
-  useLayoutEffect(
-    () => void playerInstances?.player.setUserScripts(userScripts),
-    [playerInstances?.player, userScripts],
-  );
+  useLayoutEffect(() => {
+    userScriptActions.setTimings(playerInstances?.player.timings);
+    return () => {
+      userScriptActions.setTimings(undefined);
+    };
+  }, [playerInstances?.player, userScriptActions]);
 
-  // Update the alias functions when they change. We do not need to re-render the player manager
-  // since nothing in the local state has changed.
   const extensionCatalogContext = useContext(ExtensionCatalogContext);
+  useLayoutEffect(() => {
+    const player = playerInstances?.player;
+    if (!player) {
+      return;
+    }
+    let utilities = extensionCatalogContext?.getState().installedUserScriptUtilities;
+    void player.setUserScripts(userScripts, utilities);
+    return extensionCatalogContext?.subscribe((state) => {
+      if (utilities !== state.installedUserScriptUtilities) {
+        utilities = state.installedUserScriptUtilities;
+        void player.setUserScripts(userScripts, utilities);
+      }
+    });
+  }, [extensionCatalogContext, playerInstances?.player, userScripts]);
+
   useEffect(() => {
     // Stable empty alias functions if we don't have any
     const emptyAliasFunctions: Immutable<TopicAliasFunctions> = [];

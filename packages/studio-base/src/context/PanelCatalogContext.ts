@@ -24,6 +24,8 @@ export type PanelInfo = {
   // for product, if whitelisting is set, only show the panel if the panel type is in the whitelisting
   // for development, this property is does't work, the panel will always be shown
   whitelisting?: string[];
+  /** Keep existing tiles loadable while hiding this panel from the add/change picker. */
+  legacy?: boolean;
   description?: string;
   thumbnail?: string;
   help?: React.ReactNode;

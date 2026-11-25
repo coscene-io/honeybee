@@ -176,6 +176,7 @@ describe("UnconnectedPanelLayout", () => {
       loadState: "loading",
       loadErrors: [],
       installedExtensions: undefined,
+      installedUserScriptUtilities: [],
       installedMessageConverters: [],
       installedPanels: {},
       installedTopicAliasFunctions: [],

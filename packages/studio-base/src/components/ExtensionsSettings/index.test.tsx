@@ -28,6 +28,7 @@ function renderSettings(overrides: Partial<ExtensionCatalog>): void {
     loadState: "ready",
     loadErrors: [],
     installedExtensions: [],
+    installedUserScriptUtilities: [],
     installedMessageConverters: [],
     installedPanels: {},
     installedTopicAliasFunctions: [],

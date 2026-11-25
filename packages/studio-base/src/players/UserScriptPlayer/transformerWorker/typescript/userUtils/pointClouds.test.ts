@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { getReader as getRenderReader } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/pointClouds/fieldReaders";
+
 import {
   sensor_msgs__PointCloud2,
   readPoints,
@@ -14,30 +16,47 @@ import {
 } from "./pointClouds"; // Adjust the import path as needed
 import { Point } from "./types"; // Adjust the import path as needed
 
-jest.mock("./readers", () => ({
-  getReader: jest.fn().mockImplementation(() => ({
-    read: jest.fn((data: Uint8Array, dataStart: number) => data[dataStart]),
-  })),
-}));
-
 describe("readPoints", () => {
-  it("should read points correctly from a PointCloud2 message", () => {
-    const message: sensor_msgs__PointCloud2 = {
-      header: { frame_id: "", stamp: { sec: 0, nsec: 0 }, seq: 0 },
-      height: 2,
-      width: 2,
-      fields: [{ name: "x", offset: 0, datatype: 7, count: 1 }],
-      is_bigendian: false,
-      point_step: 4,
-      row_step: 1,
-      data: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
-      is_dense: true,
-    };
-
-    const points = readPoints(message);
-
-    expect(points).toEqual([[1], [5], [2], [6]]);
-  });
+  it.each([true, false])(
+    "reads signed, unsigned and double fields in sliced buffers (big endian %p)",
+    (bigEndian) => {
+      const data = new Uint8Array(40).subarray(3);
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      for (const base of [0, 16]) {
+        view.setInt8(base, -3);
+        view.setUint32(base + 1, 4_000_000_000, !bigEndian);
+        view.setFloat64(base + 5, base + 1.5, !bigEndian);
+      }
+      const message: sensor_msgs__PointCloud2 = {
+        header: { frame_id: "", stamp: { sec: 0, nsec: 0 }, seq: 0 },
+        height: 2,
+        width: 1,
+        point_step: 13,
+        row_step: 16,
+        is_dense: true,
+        is_bigendian: bigEndian,
+        data,
+        fields: [
+          { name: "i", offset: 0, datatype: 1, count: 1 },
+          { name: "u", offset: 1, datatype: 6, count: 1 },
+          { name: "f", offset: 5, datatype: 8, count: 1 },
+        ],
+      };
+      expect(readPoints(message)).toEqual([
+        [-3, 4_000_000_000, 1.5],
+        [-3, 4_000_000_000, 17.5],
+      ]);
+      if (!bigEndian) {
+        const renderValues = [0, message.row_step].map((base) =>
+          message.fields.map((field) => getRenderReader(field, message.point_step)!(view, base)),
+        );
+        expect(readPoints(message)).toEqual(renderValues);
+      }
+      expect(() => readPoints({ ...message, data: data.subarray(0, 28) })).toThrow(
+        "not enough data",
+      );
+    },
+  );
 });
 
 describe("norm", () => {

@@ -25,7 +25,7 @@ import { MutexLocked } from "@foxglove/den/async";
 import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { Time, compare } from "@foxglove/rostime";
-import { Metadata, ParameterValue } from "@foxglove/studio";
+import { Metadata, ParameterValue, UserScriptUtility } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import {
   IPerformanceRegistry,
@@ -42,6 +42,7 @@ import {
   ProcessMessageOutput,
   RegistrationOutput,
   UserScriptLog,
+  UserScriptTiming,
 } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 import { hasTransformerErrors } from "@foxglove/studio-base/players/UserScriptPlayer/utils";
 import {
@@ -101,6 +102,7 @@ type RuntimeRpc = {
 
 /** Mutable state protected by a mutex lock */
 type ProtectedState = {
+  utilities: readonly UserScriptUtility[];
   scriptRegistrationCache: ScriptRegistrationCacheItem[];
   scriptRegistrations: readonly ScriptRegistration[];
   lastPlayerStateActiveData?: PlayerStateActiveData;
@@ -117,6 +119,8 @@ type ProtectedState = {
 export default class UserScriptPlayer implements Player {
   #player: Player;
   #perfRegistry?: IPerformanceRegistry;
+  // The sidebar samples this map only while its timing tab is visible.
+  public readonly timings = new Map<string, UserScriptTiming>();
   #totalTimeMetric?: PerformanceMetricID;
 
   // Datatypes and topics are derived from scriptRegistrations, but memoized so they only change when needed
@@ -162,6 +166,7 @@ export default class UserScriptPlayer implements Player {
 
   #protectedState = new MutexLocked<ProtectedState>({
     userScripts: {},
+    utilities: [],
     scriptRegistrations: [],
     scriptRegistrationCache: [],
     lastPlayerStateActiveData: undefined,
@@ -461,14 +466,29 @@ export default class UserScriptPlayer implements Player {
   }
 
   // Called when userScript state is updated (i.e. scripts are saved)
-  public async setUserScripts(userScripts: UserScripts): Promise<void> {
+  public async setUserScripts(
+    userScripts: UserScripts,
+    utilities: readonly UserScriptUtility[] = [],
+  ): Promise<void> {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const newPlayerState = await this.#protectedState.runExclusive(async (state) => {
+      const utilitiesChanged =
+        state.utilities !== utilities && !_.isEqual(state.utilities, utilities);
+      if (utilitiesChanged) {
+        state.utilities = utilities;
+        state.scriptRegistrationCache = [];
+      }
       for (const scriptId of Object.keys(userScripts)) {
         const prevScript = state.userScripts[scriptId];
         const newScript = userScripts[scriptId];
-        if (prevScript && newScript && prevScript.sourceCode !== newScript.sourceCode) {
-          // if source code of a user script changed then we need to mark it for re-processing input messages
+        if (
+          utilitiesChanged ||
+          (prevScript &&
+            newScript &&
+            (prevScript.sourceCode !== newScript.sourceCode ||
+              prevScript.rotationConvention !== newScript.rotationConvention))
+        ) {
+          // Reprocess the last input when the script or its dependencies change.
           this.#userScriptIdsNeedUpdate.add(scriptId);
         }
       }
@@ -546,9 +566,19 @@ export default class UserScriptPlayer implements Player {
       rosLib,
       typesLib,
       datatypes: scriptDatatypes,
+      utilities: state.utilities,
+      rotationConvention: userScript.rotationConvention,
     };
     const transformWorker = this.#getTransformWorker();
+    const compileStart = performance.now();
     const scriptData = await transformWorker.send<ScriptData>("transform", transformMessage);
+    const timing: UserScriptTiming = {
+      name,
+      compileMs: performance.now() - compileStart,
+      calls: 0,
+      totalMs: 0,
+      maxMs: 0,
+    };
     const { inputTopics, outputTopic, transpiledCode, projectCode, outputDatatype } = scriptData;
 
     // alertKey is a unique identifier for each user script so we can manage alerts from
@@ -698,6 +728,10 @@ export default class UserScriptPlayer implements Player {
           return undefined;
         }
 
+        timing.calls++;
+        timing.totalMs += result.elapsedMs;
+        timing.maxMs = Math.max(timing.maxMs, result.elapsedMs);
+
         const allDiagnostics = result.userScriptDiagnostics;
         if (result.error) {
           allDiagnostics.push({
@@ -768,6 +802,7 @@ export default class UserScriptPlayer implements Player {
     const blockProcessor = buildMessageProcessor();
 
     const result: ScriptRegistration = {
+      timing,
       scriptId,
       scriptData,
       inputs: inputTopics,
@@ -869,6 +904,7 @@ export default class UserScriptPlayer implements Player {
     // `scriptRegistrations` array is not re-defined, which will invalidate
     // downstream caches. (i.e. `this._getTopics`)
     if (state.scriptRegistrations.length === 0 && Object.entries(state.userScripts).length === 0) {
+      this.timings.clear();
       return;
     }
 
@@ -914,7 +950,9 @@ export default class UserScriptPlayer implements Player {
     // Clear the output -> input map and re-populate it again with with all the script registrations
     state.inputsByOutputTopic.clear();
 
+    this.timings.clear();
     for (const scriptRegistration of allScriptRegistrations) {
+      this.timings.set(scriptRegistration.scriptId, scriptRegistration.timing);
       const { scriptData, scriptId } = scriptRegistration;
 
       if (!scriptData.outputTopic) {
@@ -1006,13 +1044,13 @@ export default class UserScriptPlayer implements Player {
     // necessary because we won't emit a new state otherwise if there are no other active
     // subscriptions.
     if (changedTopicsRequireEmitState && this.#playerState?.activeData) {
-      const newTopics = _.unionBy(
-        this.#playerState.activeData.topics,
+      // Rebuild from upstream metadata; the previous output includes removed script topics.
+      const newTopics = this.#getTopics(
+        state.lastPlayerStateActiveData.topics,
         this.#memoizedScriptTopics,
-        (top) => top.name,
       );
       const newDatatypes = this.#getDatatypes(
-        this.#playerState.activeData.datatypes,
+        state.lastPlayerStateActiveData.datatypes,
         this.#memoizedScriptDatatypes,
       );
       this.#playerState = {
@@ -1021,6 +1059,7 @@ export default class UserScriptPlayer implements Player {
           ...this.#playerState.activeData,
           datatypes: newDatatypes,
           topics: newTopics,
+          messages: [], // Metadata-only notification. The playback update supplies the next messages.
         },
       };
       await this.#queueEmitState(lifecycleGeneration);
@@ -1080,9 +1119,10 @@ export default class UserScriptPlayer implements Player {
           unit: "ms per frame",
         });
       }
-      using $timer = this.#totalTimeMetric
-        ? this.#perfRegistry?.scopeTimer(this.#totalTimeMetric)
-        : undefined;
+      using $timer =
+        this.#totalTimeMetric != undefined
+          ? this.#perfRegistry?.scopeTimer(this.#totalTimeMetric)
+          : undefined;
       void $timer;
 
       const { messages, topics, datatypes } = activeData;
@@ -1527,6 +1567,7 @@ export default class UserScriptPlayer implements Player {
       this.#transformDispose = undefined;
     }
 
+    this.timings.clear();
     if (this.#totalTimeMetric != undefined) {
       this.#perfRegistry?.unregisterMetric(this.#totalTimeMetric);
       this.#totalTimeMetric = undefined;

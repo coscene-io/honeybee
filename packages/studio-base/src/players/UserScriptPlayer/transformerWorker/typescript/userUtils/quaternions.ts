@@ -42,3 +42,20 @@ export function quaternionToEuler(quaternion: Quaternion): Euler {
     yaw,
   };
 }
+
+/** Convert roll (X), pitch (Y), yaw (Z) in degrees to a unit quaternion (ZYX). */
+export function eulerToQuaternion({ roll, pitch, yaw }: Euler): Quaternion {
+  const halfRadians = Math.PI / 360;
+  const cr = Math.cos(roll * halfRadians);
+  const sr = Math.sin(roll * halfRadians);
+  const cp = Math.cos(pitch * halfRadians);
+  const sp = Math.sin(pitch * halfRadians);
+  const cy = Math.cos(yaw * halfRadians);
+  const sy = Math.sin(yaw * halfRadians);
+  return {
+    x: sr * cp * cy - cr * sp * sy,
+    y: cr * sp * cy + sr * cp * sy,
+    z: cr * cp * sy - sr * sp * cy,
+    w: cr * cp * cy + sr * sp * sy,
+  };
+}

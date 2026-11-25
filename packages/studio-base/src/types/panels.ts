@@ -32,7 +32,12 @@ export type TimeDisplayMethod = "SEC" | "TOD" | "REL";
 
 export type PrefixDisplayMedia = "true" | "false";
 
-export type UserScript = { name: string; sourceCode: string };
+export type UserScript = {
+  name: string;
+  sourceCode: string;
+  /** Layouts predating this setting use Honeybee's historical inverse rotation. */
+  rotationConvention?: "standard";
+};
 export type UserScripts = {
   [scriptId: string]: UserScript;
 };

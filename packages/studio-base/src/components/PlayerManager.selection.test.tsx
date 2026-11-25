@@ -72,8 +72,9 @@ jest.mock("@foxglove/studio-base/context/UrdfStorageContext", () => ({
 jest.mock("@foxglove/studio-base/context/PerformanceContext", () => ({
   usePerformance: () => mockEmpty,
 }));
+const mockUserScriptActions = { setTimings: jest.fn() };
 jest.mock("@foxglove/studio-base/context/UserScriptStateContext", () => ({
-  useUserScriptState: () => mockEmpty,
+  useUserScriptState: () => mockUserScriptActions,
 }));
 jest.mock("@foxglove/studio-base/hooks", () => ({ useAppConfigurationValue: () => [] }));
 jest.mock("@foxglove/studio-base/hooks/useConfirm", () => ({ useConfirm: () => undefined }));

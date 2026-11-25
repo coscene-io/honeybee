@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { quaternionToEuler } from "./quaternions";
+import { eulerToQuaternion, quaternionToEuler } from "./quaternions";
 
 describe("quaternions", () => {
   it("converts quaternions to euler angles", () => {
@@ -21,4 +21,11 @@ describe("quaternions", () => {
     expect(euler.pitch).toBeCloseTo(20);
     expect(euler.yaw).toBeCloseTo(30);
   });
+});
+
+it("round trips degree-valued roll, pitch and yaw", () => {
+  const actual = quaternionToEuler(eulerToQuaternion({ roll: -30, pitch: 20, yaw: 90 }));
+  expect(actual.roll).toBeCloseTo(-30);
+  expect(actual.pitch).toBeCloseTo(20);
+  expect(actual.yaw).toBeCloseTo(90);
 });

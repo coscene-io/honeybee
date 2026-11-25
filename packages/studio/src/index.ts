@@ -542,9 +542,20 @@ export type TopicAliasFunction = (
   }>,
 ) => TopicAlias[];
 
+/** A TypeScript module available to layout scripts as a relative import. */
+export type UserScriptUtility = { name: string; source: string };
+
 export interface ExtensionContext {
   /** The current _mode_ of the application. */
   readonly mode: "production" | "development" | "test";
+
+  /**
+   * Expose a TypeScript module to layout scripts, e.g. `import { scale } from "./team.ts"`.
+   * Names are unique across installed utilities (case-insensitive). Use letters, digits,
+   * underscores or hyphens followed by .ts. Built-in names and user-script- are reserved.
+   * @example context.registerUserScriptUtility({ name: "team.ts", source: "export const scale = 2;" });
+   */
+  registerUserScriptUtility(utility: UserScriptUtility): void;
 
   registerPanel(params: ExtensionPanelRegistration): void;
 

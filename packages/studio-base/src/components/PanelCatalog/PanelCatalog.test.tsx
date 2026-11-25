@@ -25,6 +25,7 @@ it("keeps all matching regular and preconfigured panels searchable beyond ten re
     })),
   );
   panels.push({ ...panels[0]!, type: "unrelated", title: "Unrelated" });
+  panels.push({ ...panels[0]!, type: "legacy", title: "Matching Legacy", legacy: true });
   const onPanelSelect = jest.fn();
   render(
     <ThemeProvider isDark>

@@ -189,6 +189,7 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
   {
     title: t("userScripts"),
     type: "NodePlayground",
+    legacy: true,
     description: t("userScriptsDescription"),
     thumbnail: userScriptEditorThumbnail,
     module: async () => await import("./UserScriptEditor"),

@@ -35,6 +35,7 @@ import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
 import { Script } from "@foxglove/studio-base/panels/UserScriptEditor/script";
 import { getUserScriptProjectConfig } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/projectConfig";
+import type { UserScriptProjectFile } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/types";
 import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalConstants";
 import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActuallyBePartial";
 
@@ -52,6 +53,7 @@ type CodeEditor = monacoApi.editor.ICodeEditor;
 
 type Props = {
   script?: Script;
+  files?: readonly Pick<UserScriptProjectFile, "fileName" | "sourceCode">[];
   setScriptCode: (code: string) => void;
   autoFormatOnSave: boolean;
   rosLib: string;
@@ -94,7 +96,81 @@ const projectConfig = getUserScriptProjectConfig();
 // TypeScript suggestion diagnostic: "All imports in import declaration are unused."
 // This is noisy when users uncomment template imports before wiring them into their script.
 const ignoredTypeScriptDiagnosticCodes = [6192];
+// Language defaults and formatting providers belong to Monaco, and outlive the sidebar.
+let configuredMonaco: typeof monacoApi | undefined;
+const configureMonaco: BeforeMount = (monaco) => {
+  if (monaco === configuredMonaco) {
+    return;
+  }
+  for (const theme of themes) {
+    monaco.editor.defineTheme(theme.name, theme.theme);
+  }
+
+  // Set eager model sync to enable intellisense between the user code and utility files
+  monacoTypescriptContribution.typescriptDefaults.setEagerModelSync(true);
+  monacoTypescriptContribution.javascriptDefaults.setEagerModelSync(true);
+
+  monaco.languages.registerDocumentFormattingEditProvider("typescript", {
+    provideDocumentFormattingEdits: async (model: monacoApi.editor.ITextModel) => {
+      try {
+        return [
+          {
+            range: model.getFullModelRange(),
+            text: await getPrettifiedCode(model.getValue()),
+          },
+        ];
+      } catch (err: unknown) {
+        console.error(err);
+        return [];
+      }
+    },
+  });
+
+  const diagnosticOptions = { diagnosticCodesToIgnore: ignoredTypeScriptDiagnosticCodes };
+
+  monacoTypescriptContribution.typescriptDefaults.setDiagnosticsOptions(diagnosticOptions);
+
+  // Load declarations and additional utility files from project config
+
+  // This ensures the type defs we enforce in
+  // the 'compile' step match that of monaco. Adding the 'lib'
+  // this way (instead of specifying it in the compiler options)
+  // is a hack to overwrite the default type defs since the
+  // typescript language service does not expose such a method.
+  projectConfig.declarations.forEach((lib) => {
+    if (lib.fileName.startsWith("@foxglove/schemas")) {
+      monacoTypescriptContribution.typescriptDefaults.addExtraLib(
+        lib.sourceCode,
+        `file:///node_modules/${lib.fileName}`,
+      );
+    } else {
+      monacoTypescriptContribution.typescriptDefaults.addExtraLib(
+        lib.sourceCode,
+        `file:///node_modules/@types/${lib.fileName}`,
+      );
+    }
+  });
+  monacoTypescriptContribution.typescriptDefaults.setCompilerOptions({
+    ...monacoTypescriptContribution.typescriptDefaults.getCompilerOptions(),
+    // User script files are backed by Monaco virtual file:// models, not a real Node package
+    // tree. Bundler resolution keeps extensionless local imports working while paths maps the
+    // virtual @foxglove/schemas package root to its generated index file.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    module: ModuleKind.ESNext as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    moduleResolution: ModuleResolutionKind.Bundler as any,
+    allowImportingTsExtensions: true,
+    baseUrl: "file:///",
+    paths: {
+      "@foxglove/schemas": ["node_modules/@foxglove/schemas/index.ts"],
+      "@foxglove/schemas/*": ["node_modules/@foxglove/schemas/*.ts"],
+    },
+  });
+  configuredMonaco = monaco;
+};
+
 const Editor = ({
+  files = projectConfig.utilityFiles,
   autoFormatOnSave,
   script,
   setScriptCode,
@@ -107,6 +183,24 @@ const Editor = ({
   const editorRef = React.useRef<CodeEditor>(ReactNull);
   const autoFormatOnSaveRef = React.useRef(autoFormatOnSave);
   autoFormatOnSaveRef.current = autoFormatOnSave;
+
+  useEffect(() => {
+    const models = files.map(({ fileName, sourceCode }) => {
+      const uri = monacoApi.Uri.parse(`file://${DEFAULT_STUDIO_SCRIPT_PREFIX}${fileName}`);
+      const model =
+        monacoApi.editor.getModel(uri) ??
+        monacoApi.editor.createModel(sourceCode, "typescript", uri);
+      if (model.getValue() !== sourceCode) {
+        model.setValue(sourceCode);
+      }
+      return model;
+    });
+    return () => {
+      for (const model of models) {
+        model.dispose();
+      }
+    };
+  }, [files]);
 
   const editorTheme = useTheme().palette.mode === "dark" ? "vs-studio-dark" : "vs-studio-light";
 
@@ -213,7 +307,7 @@ const Editor = ({
     if (editorRef.current) {
       synchronizeScript(editorRef.current);
     }
-  }, [synchronizeScript]);
+  }, [synchronizeScript, files]);
 
   const options = React.useMemo<monacoApi.editor.IStandaloneEditorConstructionOptions>(() => {
     return {
@@ -231,76 +325,7 @@ const Editor = ({
         return;
       }
 
-      for (const theme of themes) {
-        monaco.editor.defineTheme(theme.name, theme.theme);
-      }
-
-      // Set eager model sync to enable intellisense between the user code and utility files
-      monacoTypescriptContribution.typescriptDefaults.setEagerModelSync(true);
-      monacoTypescriptContribution.javascriptDefaults.setEagerModelSync(true);
-
-      monaco.languages.registerDocumentFormattingEditProvider("typescript", {
-        provideDocumentFormattingEdits: async (model: monacoApi.editor.ITextModel) => {
-          try {
-            return [
-              {
-                range: model.getFullModelRange(),
-                text: await getPrettifiedCode(model.getValue()),
-              },
-            ];
-          } catch (err: unknown) {
-            console.error(err);
-            return [];
-          }
-        },
-      });
-
-      const diagnosticOptions = { diagnosticCodesToIgnore: ignoredTypeScriptDiagnosticCodes };
-
-      monacoTypescriptContribution.typescriptDefaults.setDiagnosticsOptions(diagnosticOptions);
-
-      // Load declarations and additional utility files from project config
-
-      // This ensures the type defs we enforce in
-      // the 'compile' step match that of monaco. Adding the 'lib'
-      // this way (instead of specifying it in the compiler options)
-      // is a hack to overwrite the default type defs since the
-      // typescript language service does not expose such a method.
-      projectConfig.declarations.forEach((lib) => {
-        if (lib.fileName.startsWith("@foxglove/schemas")) {
-          monacoTypescriptContribution.typescriptDefaults.addExtraLib(
-            lib.sourceCode,
-            `file:///node_modules/${lib.fileName}`,
-          );
-        } else {
-          monacoTypescriptContribution.typescriptDefaults.addExtraLib(
-            lib.sourceCode,
-            `file:///node_modules/@types/${lib.fileName}`,
-          );
-        }
-      });
-      monacoTypescriptContribution.typescriptDefaults.setCompilerOptions({
-        ...monacoTypescriptContribution.typescriptDefaults.getCompilerOptions(),
-        // User script files are backed by Monaco virtual file:// models, not a real Node package
-        // tree. Bundler resolution keeps extensionless local imports working while paths maps the
-        // virtual @foxglove/schemas package root to its generated index file.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        module: ModuleKind.ESNext as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        moduleResolution: ModuleResolutionKind.Bundler as any,
-        baseUrl: "file:///",
-        paths: {
-          "@foxglove/schemas": ["node_modules/@foxglove/schemas/index.ts"],
-          "@foxglove/schemas/*": ["node_modules/@foxglove/schemas/*.ts"],
-        },
-      });
-      projectConfig.utilityFiles.forEach((sourceFile) => {
-        const filePath = monacoApi.Uri.parse(`file://${sourceFile.filePath}`);
-        const model =
-          monaco.editor.getModel(filePath) ??
-          monaco.editor.createModel(sourceFile.sourceCode, "typescript", filePath);
-        model.updateOptions({ tabSize: 2 });
-      });
+      configureMonaco(monaco);
 
       // For nodes, the name becomes the filePath.
       // For the editor to resolve relative imports of the utilities (i.e. ./types), we need the
@@ -325,7 +350,9 @@ const Editor = ({
       if (autoFormatOnSaveRef.current) {
         await editorRef.current?.getAction("editor.action.formatDocument")?.run();
       }
-      save(model.getValue());
+      if (editorRef.current?.getModel() === model) {
+        save(model.getValue());
+      }
     }
   }, [save, script]);
 

@@ -78,6 +78,9 @@ export type WorkspaceActions = {
       setSize: (size: undefined | number) => void;
     };
     right: {
+      updateUserScriptEditor: (
+        config: NonNullable<WorkspaceContextStore["sidebars"]["right"]["userScriptEditor"]>,
+      ) => void;
       selectItem: (item: undefined | RightSidebarItemKey) => void;
       setOpen: Dispatch<SetStateAction<boolean>>;
       setSize: (size: undefined | number) => void;
@@ -283,6 +286,14 @@ export function useWorkspaceActions(): WorkspaceActions {
           },
         },
         right: {
+          updateUserScriptEditor: (config) => {
+            set((draft) => {
+              draft.sidebars.right.userScriptEditor = {
+                ...draft.sidebars.right.userScriptEditor,
+                ...config,
+              };
+            });
+          },
           selectItem: (selectedRightSidebarItem: undefined | RightSidebarItemKey) => {
             set((draft) => {
               draft.sidebars.right.item = selectedRightSidebarItem;

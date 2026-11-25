@@ -7,6 +7,9 @@
 import { TypeOptions } from "i18next";
 
 export const userScriptEditor: Partial<TypeOptions["resources"]["userScriptEditor"]> = {
+  selectScript: "选择脚本…",
+  openInSidebar: "在右侧栏打开用户脚本",
+  openLayout: "请先打开布局，再编辑用户脚本。",
   autoFormatOnSave: "保存时自动格式化",
   welcomeDescription:
     "欢迎使用用户脚本！<br/>可以先阅读<link>文档</link>，或者直接创建一个新的脚本。",
@@ -17,6 +20,9 @@ export const userScriptEditor: Partial<TypeOptions["resources"]["userScriptEdito
   scriptsTabTooltip: "脚本（{{count}}）",
   utilitiesTabTooltip: "工具",
   templatesTabTooltip: "模板",
+  rotationSetting: "当前脚本",
+  switchToStandardRotation: "将 rotate() 切换为右手旋转",
+  switchToLegacyRotation: "将 rotate() 切换为旧版旋转",
   scriptsHeader: "脚本",
   untitledScript: "未命名脚本",
   rename: "重命名",
@@ -28,7 +34,14 @@ export const userScriptEditor: Partial<TypeOptions["resources"]["userScriptEdito
   utilitiesSubheader:
     '可使用以下语法在脚本中导入任意模块：<pre>import { ... } from "./pointClouds.ts".</pre>',
   alertsTab: "警报",
+  timingTab: "耗时",
+  noTimings: "当前数据源暂无已编译脚本。",
+  timingSummary:
+    "{{calls}} 次调用 · 平均 {{mean}} 毫秒 · 最长 {{max}} 毫秒 · 编译 {{compile}} 毫秒",
   logsTab: "日志",
+  confirmDeleteScript: "删除脚本「{{name}}」？",
+  cancel: "取消",
+  copyLogs: "复制全部日志",
   clearLogs: "清空日志",
   saveShortcutHint: "Ctrl/Cmd + S",
   saved: "已保存",
