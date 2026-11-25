@@ -18,7 +18,7 @@ import {
   createSegmentationMaskOverlay,
   createSegmentationPanelBridge,
   type SegmentationPanelBridge,
-} from "@foxglove/studio-base/semanticSegmentation/imageSource";
+} from "@foxglove/studio-base/segmentation/imageSource";
 
 import type { RendererConfig } from "./IRenderer";
 import { Renderer } from "./Renderer";
@@ -432,7 +432,7 @@ describe("onRender awaited presentation", () => {
   });
 });
 
-describe("spatial annotation bridge", () => {
+describe("segmentation bridge", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBeforeRenderer = undefined;

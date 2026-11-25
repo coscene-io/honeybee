@@ -95,7 +95,7 @@ import { PanelStateContextProvider } from "@foxglove/studio-base/providers/Panel
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 // The composition root: the one place that mounts the segmentation feature. It plugs into the
 // shared chrome through WorkspaceSlots.
-import { SegmentationWorkspaceExtension } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspaceExtension";
+import { SegmentationWorkspaceExtension } from "@foxglove/studio-base/segmentation/components/SegmentationWorkspaceExtension";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import {
   logPlaybackPerformanceMetric,

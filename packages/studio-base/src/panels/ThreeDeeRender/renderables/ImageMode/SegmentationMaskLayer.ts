@@ -11,13 +11,13 @@ import Logger from "@foxglove/log";
 import type {
   SegmentationMaskStyle,
   SegmentationPanelBridge,
-} from "@foxglove/studio-base/semanticSegmentation/imageSource";
-import type { MaskPlaneCache } from "@foxglove/studio-base/semanticSegmentation/maskOverlay/maskPlaneCache";
+} from "@foxglove/studio-base/segmentation/imageSource";
+import type { MaskPlaneCache } from "@foxglove/studio-base/segmentation/maskOverlay/maskPlaneCache";
 import {
   MAX_MASK_SLOTS,
   planeBytes,
   type MaskPlanes,
-} from "@foxglove/studio-base/semanticSegmentation/maskOverlay/maskPlanes";
+} from "@foxglove/studio-base/segmentation/maskOverlay/maskPlanes";
 
 import type { ImageRenderable } from "../Images/ImageRenderable";
 
