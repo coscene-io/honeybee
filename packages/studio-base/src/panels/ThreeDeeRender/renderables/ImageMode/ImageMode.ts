@@ -89,9 +89,9 @@ import {
   type RemoteVideoFrameReference,
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import {
-  segmentationMaskOverlay,
   type SegmentationImage,
   type SegmentationImageMetadata,
+  type SegmentationPanelBridge,
 } from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import { cachedNativeImageView } from "@foxglove/studio-base/semanticSegmentation/nativeImageTransform";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
@@ -141,7 +141,8 @@ export class ImageMode
   readonly #annotations: ImageAnnotations;
   /** Built on the first frame a mask source is installed; Image panels without one never pay for it. */
   #segmentationMasks: SegmentationMaskLayer | undefined;
-  readonly #unsubscribeMaskOverlay: () => void;
+  #segmentationBridge: SegmentationPanelBridge | undefined;
+  #unsubscribeMaskOverlay: (() => void) | undefined;
 
   #imageWork: Promise<ImageSetImageResult> | undefined;
   protected imageRenderable: ImageRenderable | undefined;
@@ -209,12 +210,6 @@ export class ImageMode
       },
     });
     this.add(this.#annotations);
-    // Only redraws so the next frame can build the layer; once built, the layer subscribes itself.
-    this.#unsubscribeMaskOverlay = segmentationMaskOverlay.subscribe(() => {
-      if (this.#segmentationMasks == undefined) {
-        renderer.queueAnimationFrame();
-      }
-    });
 
     renderer.input.on("mousedown", (mouseDownCursorCoords) => {
       this.#camera.getPanOffset(this.#dragStartPanOffset);
@@ -371,7 +366,7 @@ export class ImageMode
     this.renderer.off("configApplied", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
     this.#annotations.dispose();
-    this.#unsubscribeMaskOverlay();
+    this.#unsubscribeMaskOverlay?.();
     this.#segmentationMasks?.dispose();
     this.#segmentationMasks = undefined;
     this.imageRenderable?.dispose();
@@ -386,8 +381,14 @@ export class ImageMode
     super.startFrame(currentTime, renderFrameId, fixedFrameId);
     // The image committed its candidate on the renderer's startFrame event, before this runs, so
     // the overlay binds to the exact frame drawn by this gl.render.
-    if (this.#segmentationMasks == undefined && segmentationMaskOverlay.get() != undefined) {
+    const bridge = this.#segmentationBridge;
+    if (
+      bridge != undefined &&
+      this.#segmentationMasks == undefined &&
+      bridge.maskOverlay.get() != undefined
+    ) {
       this.#segmentationMasks = new SegmentationMaskLayer(
+        bridge,
         // Read lazily: test renderers have no GL context.
         () => this.renderer.gl.capabilities.maxTextureSize,
         () => {
@@ -396,6 +397,28 @@ export class ImageMode
       );
     }
     this.#segmentationMasks?.update(this.imageRenderable);
+  }
+
+  /**
+   * Connects this panel to the spatial annotation editor: masks it publishes are drawn over the
+   * image. Without a bridge (the default) no segmentation code runs.
+   */
+  public setSegmentationBridge(bridge: SegmentationPanelBridge | undefined): void {
+    if (bridge === this.#segmentationBridge) {
+      return;
+    }
+    this.#unsubscribeMaskOverlay?.();
+    this.#unsubscribeMaskOverlay = undefined;
+    this.#segmentationMasks?.dispose();
+    this.#segmentationMasks = undefined;
+    this.#segmentationBridge = bridge;
+    // Only redraws so the next frame can build the layer; once built, the layer subscribes itself.
+    this.#unsubscribeMaskOverlay = bridge?.maskOverlay.subscribe(() => {
+      if (this.#segmentationMasks == undefined) {
+        this.renderer.queueAnimationFrame();
+      }
+    });
+    this.renderer.queueAnimationFrame();
   }
 
   public override handleSeek(): void {

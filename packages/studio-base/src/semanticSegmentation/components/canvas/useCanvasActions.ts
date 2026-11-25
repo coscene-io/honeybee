@@ -12,8 +12,6 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
-
 import { useStableActions } from "../useStableCallback";
 import type { ContextMenuActions } from "./CanvasContextMenu";
 import type { NoticeActions } from "./CanvasNotices";
@@ -154,7 +152,7 @@ function toolsActions(c: CanvasContext): ToolsActions {
     },
     setOpacity: ui.setOpacity,
     openShortcuts: () => {
-      openKeyboardShortcuts();
+      c.openShortcuts();
     },
     refocusAfterClick: (event) => {
       if (
@@ -264,7 +262,7 @@ function menuActions(c: CanvasContext): ContextMenuActions & DialogActions {
       close();
     },
     menuShortcuts: () => {
-      openKeyboardShortcuts();
+      c.openShortcuts();
       close();
     },
     closeConversion: () => {

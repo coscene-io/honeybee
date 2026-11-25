@@ -7,8 +7,6 @@
 
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
-
 import { cancelGesture, enterEditMode, finishDrawing, run, switchTool } from "./canvasActions";
 import { brushAfterKey, panKeyDelta, toScreen } from "./canvasMath";
 import type { CanvasContext } from "./canvasUi";
@@ -132,7 +130,7 @@ const viewKey: KeyHandler = (c, event) => {
   const { zoom, screenScale } = c.ui;
   const key = event.key.toLowerCase();
   if (event.key === "?") {
-    openKeyboardShortcuts();
+    c.openShortcuts();
   } else if (event.key === "+" || event.key === "=") {
     zoomAt(c, zoom * 1.25);
   } else if (event.key === "-") {

@@ -8,10 +8,11 @@
 import { Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
-import { useStore } from "zustand";
+
+import { useOpenKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { annotationViewportProps } from "../annotationInput";
-import { segmentationSession } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { CanvasContextMenu } from "./canvas/CanvasContextMenu";
 import { CanvasToolsPanel } from "./canvas/CanvasToolsPanel";
 import { CanvasViewport } from "./canvas/CanvasViewport";
@@ -47,7 +48,9 @@ export function SegmentationCanvas(props: SegmentationCanvasProps): React.JSX.El
   const { t } = useTranslation("segmentation");
   const state = useCanvasState(store);
   const ui = useCanvasUi(props.viewportRef);
-  const strokeFrameId = useStore(segmentationSession, (session) => session.strokeFrameId);
+  const host = useSegmentationHost();
+  const openShortcuts = useOpenKeyboardShortcuts();
+  const strokeFrameId = useSegmentationSession((session) => session.strokeFrameId);
   const d = deriveCanvas({
     state,
     shownFrameId: props.frameId,
@@ -58,7 +61,16 @@ export function SegmentationCanvas(props: SegmentationCanvasProps): React.JSX.El
     selectedVertices: ui.selectedVertices,
     strokeFrameId,
   });
-  const c: CanvasContext = { store, props: { ...props, disabled, active }, state, ui, d, t };
+  const c: CanvasContext = {
+    store,
+    host,
+    openShortcuts,
+    props: { ...props, disabled, active },
+    state,
+    ui,
+    d,
+    t,
+  };
   useCanvasEffects(c);
   const actions = useCanvasActions(c);
   const menuTarget = ui.contextMenu?.target;

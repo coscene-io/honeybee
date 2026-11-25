@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
 
 import { fixture } from "./fixtures";
@@ -15,13 +15,15 @@ import {
   SpatialReferenceValue,
 } from "../../components/ActiveMomentReference";
 import { parseSpatialReference } from "../../components/MomentReferencePicker";
-import { segmentationSession } from "../../runtime";
+import { render, testHost, installSegmentationTestHost } from "../../testing/host";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
 
+installSegmentationTestHost();
+
 afterEach(() => {
   cleanup();
-  segmentationSession.setState({ runtime: undefined, open: false, sourceReady: true });
+  testHost().session.setState({ runtime: undefined, open: false, sourceReady: true });
 });
 
 function ReferenceField({ recordId }: { recordId: string }): React.JSX.Element {
@@ -54,7 +56,7 @@ it.each(["class", "instance"] as const)(
     const runtime = createMockSegmentationRuntime(document);
     setMockControls(runtime.service, { delayMs: 0 });
     await runtime.initialize();
-    segmentationSession.setState({ runtime, sourceReady: true });
+    testHost().session.setState({ runtime, sourceReady: true });
     render(
       <>
         <ReferenceField recordId="record-1" />
@@ -119,7 +121,7 @@ it("cancelling the reference picker leaves a scalar attribute value editable", a
   const runtime = createMockSegmentationRuntime(fixture());
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
-  segmentationSession.setState({ runtime, sourceReady: true });
+  testHost().session.setState({ runtime, sourceReady: true });
   const onChange = jest.fn();
   render(<ActiveMomentReference recordId="record-1" value="12.5" onChange={onChange} />);
   fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
@@ -142,7 +144,7 @@ it("does not replace record A's reference with a target from record B", async ()
     setMockControls(runtime.service, { delayMs: 0 });
     await runtime.initialize();
   }
-  segmentationSession.setState({ runtime: a, sourceReady: true });
+  testHost().session.setState({ runtime: a, sourceReady: true });
   const onChange = jest.fn();
   const scopedA = "spatial://record-1/instance/instance-1";
   const view = render(
@@ -156,7 +158,7 @@ it("does not replace record A's reference with a target from record B", async ()
   expect(onChange).toHaveBeenCalledWith(scopedA);
   onChange.mockClear();
   act(() => {
-    segmentationSession.setState({ runtime: b });
+    testHost().session.setState({ runtime: b });
   });
   view.rerender(<ActiveMomentReference recordId="record-1" value={scopedA} onChange={onChange} />);
   const button = screen.getByRole<HTMLButtonElement>("button", {

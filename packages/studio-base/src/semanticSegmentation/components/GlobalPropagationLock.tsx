@@ -14,7 +14,7 @@ import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
-import { segmentationSession } from "../runtime";
+import { useSegmentationSession } from "../segmentationHostContext";
 import type { SemanticSegmentationStore } from "../types";
 
 const useStyles = makeStyles()((theme) => ({
@@ -157,6 +157,6 @@ function ActiveLock({
 
 /** Protects the real player, source controls, sidebar and portal menus during a live stream. */
 export function GlobalPropagationLock(): React.JSX.Element | undefined {
-  const runtime = useStore(segmentationSession, (state) => state.runtime);
+  const runtime = useSegmentationSession((state) => state.runtime);
   return runtime ? <ActiveLock store={runtime.store} /> : undefined;
 }

@@ -6,12 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
 
 import { MomentMetadataValue } from "@foxglove/studio-base/components/Events/MomentMetadataValue";
 import { registerWorkspaceSlot } from "@foxglove/studio-base/context/WorkspaceSlots";
 
 import { SpatialReferenceValue } from "./ActiveMomentReference";
+import { installSegmentationTestHost, render, testSlots } from "../testing/host";
+
+installSegmentationTestHost();
 
 describe("MomentMetadataValue", () => {
   it("highlights the list filter in plain values", () => {
@@ -25,10 +28,14 @@ describe("MomentMetadataValue", () => {
   it("lets a registered renderer show its values, keeping the highlight", () => {
     let unregister = () => {};
     act(() => {
-      unregister = registerWorkspaceSlot("momentValueRenderers", "test", ({ value, highlight }) =>
-        value.startsWith("spatial://") ? (
-          <SpatialReferenceValue value={value} highlight={highlight} />
-        ) : undefined,
+      unregister = registerWorkspaceSlot(
+        testSlots(),
+        "momentValueRenderers",
+        "test",
+        ({ value, highlight }) =>
+          value.startsWith("spatial://") ? (
+            <SpatialReferenceValue value={value} highlight={highlight} />
+          ) : undefined,
       );
     });
     try {

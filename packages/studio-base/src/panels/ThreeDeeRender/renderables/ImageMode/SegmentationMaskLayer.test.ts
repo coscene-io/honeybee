@@ -8,9 +8,10 @@
 import * as THREE from "three";
 
 import {
-  segmentationMaskOverlay,
+  createSegmentationMaskOverlay,
   type SegmentationMaskGeometry,
   type SegmentationMaskOverlaySource,
+  type SegmentationPanelBridge,
 } from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import { MaskPlaneCache } from "@foxglove/studio-base/semanticSegmentation/maskOverlay/maskPlaneCache";
 import maskFixture from "@foxglove/studio-base/semanticSegmentation/testing/fixtures/masks.json";
@@ -19,9 +20,7 @@ import { SegmentationMaskLayer } from "./SegmentationMaskLayer";
 import type { ImageRenderable } from "../Images/ImageRenderable";
 
 let mockCache: MaskPlaneCache;
-jest.mock("@foxglove/studio-base/semanticSegmentation/maskOverlay/sharedMaskPlanes", () => ({
-  sharedMaskPlaneCache: () => mockCache,
-}));
+let bridge: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">;
 
 const STYLE = { colors: [[1, 0, 0] as const], visible: [true], selected: [false], opacity: 0.4 };
 
@@ -73,14 +72,18 @@ describe("SegmentationMaskLayer", () => {
   beforeEach(() => {
     idle = jest.fn();
     mockCache = new MaskPlaneCache(undefined, undefined, idle);
+    bridge = {
+      maskOverlay: createSegmentationMaskOverlay(),
+      maskPlanes: { get: () => mockCache, dispose: () => {} },
+    };
   });
   afterEach(() => {
-    segmentationMaskOverlay.set(undefined);
+    bridge.maskOverlay.set(undefined);
     mockCache.dispose();
   });
 
   it("draws nothing and takes no prefetch share without a mask source", () => {
-    const layer = new SegmentationMaskLayer(() => 4096, jest.fn());
+    const layer = new SegmentationMaskLayer(bridge, () => 4096, jest.fn());
     const image = renderable(10n);
     layer.update(image);
     expect(overlayOf(image)).toBeUndefined();
@@ -89,9 +92,9 @@ describe("SegmentationMaskLayer", () => {
   });
 
   it("shows masks for exactly the displayed log time, never a neighbouring frame", async () => {
-    segmentationMaskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
+    bridge.maskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
     const onChange = jest.fn();
-    const layer = new SegmentationMaskLayer(() => 4096, onChange);
+    const layer = new SegmentationMaskLayer(bridge, () => 4096, onChange);
     const image = renderable(10n);
 
     layer.update(image);
@@ -111,9 +114,9 @@ describe("SegmentationMaskLayer", () => {
   });
 
   it("refuses masks larger than the GPU texture limit", async () => {
-    segmentationMaskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
+    bridge.maskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    const layer = new SegmentationMaskLayer(() => 512, jest.fn());
+    const layer = new SegmentationMaskLayer(bridge, () => 512, jest.fn());
     const image = renderable(10n);
     layer.update(image);
     await built();
@@ -125,8 +128,8 @@ describe("SegmentationMaskLayer", () => {
   });
 
   it("detaches and releases the shared cache on dispose", async () => {
-    segmentationMaskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
-    const layer = new SegmentationMaskLayer(() => 4096, jest.fn());
+    bridge.maskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
+    const layer = new SegmentationMaskLayer(bridge, () => 4096, jest.fn());
     const image = renderable(10n);
     layer.update(image);
     await built();

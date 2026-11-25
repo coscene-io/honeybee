@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ThemeProvider } from "@mui/material/styles";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { createMuiTheme } from "@foxglove/theme";
 
@@ -16,10 +16,12 @@ import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkben
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialSidebar } from "../../components/SpatialSidebar";
 import { SpatialTree } from "../../components/SpatialTree";
-import { segmentationSession } from "../../runtime";
+import { render, testHost, installSegmentationTestHost } from "../../testing/host";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
+
+installSegmentationTestHost();
 
 function visibleRow(id: string): HTMLElement {
   return row(id).querySelector<HTMLElement>(":scope > * > [data-tree-row]")!;
@@ -278,7 +280,7 @@ describe("structure drag acceptance", () => {
     setMockControls(service, { delayMs: 0 });
     await runtime.initialize();
     const submit = jest.spyOn(service, "submit");
-    segmentationSession.setState({ runtime, open: true, sourceReady: true });
+    testHost().session.setState({ runtime, open: true, sourceReady: true });
     render(
       <>
         <SpatialSidebar />
@@ -319,7 +321,7 @@ describe("structure drag acceptance", () => {
     }
     act(() => {
       runtime.dispose();
-      segmentationSession.setState({ runtime: undefined, open: false });
+      testHost().session.setState({ runtime: undefined, open: false });
     });
   });
 

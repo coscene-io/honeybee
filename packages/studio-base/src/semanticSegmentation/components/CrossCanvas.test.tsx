@@ -7,14 +7,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 
-import { segmentationSession } from "../runtime";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
+
+installSegmentationTestHost();
 
 async function storeWithSeed() {
   const document = createSeedDocument();
@@ -28,7 +30,7 @@ async function storeWithSeed() {
 }
 
 afterEach(() => {
-  segmentationSession.setState({
+  testHost().session.setState({
     open: false,
     panelId: undefined,
     surfaces: {},
@@ -40,7 +42,7 @@ afterEach(() => {
 
 it("lists polygons from every open camera in the same instance tree", async () => {
   const store = await storeWithSeed();
-  segmentationSession.setState({
+  testHost().session.setState({
     open: true,
     surfaces: {
       left: { frameId: "frame-0", sourceReady: true },
@@ -55,7 +57,7 @@ it("lists polygons from every open camera in the same instance tree", async () =
 
 it("uses current preview frames outside editing and clears unknown images instead of showing the old edit frame", async () => {
   const store = await storeWithSeed();
-  segmentationSession.setState({
+  testHost().session.setState({
     open: false,
     previewFrames: { front: "frame-0", side: "side-0" },
   });
@@ -63,7 +65,7 @@ it("uses current preview frames outside editing and clears unknown images instea
   expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
   expect(screen.getAllByText("1 visible cameras · 1 polygons")).toHaveLength(3);
   act(() => {
-    segmentationSession.setState({ previewFrames: { front: undefined, side: undefined } });
+    testHost().session.setState({ previewFrames: { front: undefined, side: undefined } });
   });
   expect(screen.queryByRole("treeitem", { name: /Polygon 1/ })).toBeNull();
   expect(screen.getByText("Person 1")).toBeDefined();
@@ -74,7 +76,7 @@ it("lets the first vertex choose either canvas, then keeps the stroke there", as
   const store = await storeWithSeed();
   store.getState().startDrawing("instance-1");
   const staged = store.getState().stagedOperations;
-  segmentationSession.setState({
+  testHost().session.setState({
     open: true,
     panelId: "left",
     surfaces: {
@@ -105,14 +107,14 @@ it("lets the first vertex choose either canvas, then keeps the stroke there", as
   expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "side-0" });
   expect(store.getState().stagedOperations).toEqual(staged);
   expect(store.getState().currentFrameId).toBe("side-0");
-  expect(segmentationSession.getState().strokeFrameId).toBe("side-0");
+  expect(testHost().session.getState().strokeFrameId).toBe("side-0");
   store.getState().dispose();
 });
 
 it("does not leave the canvas after the first vertex is placed", async () => {
   const store = await storeWithSeed();
   store.getState().startDrawing("instance-1");
-  segmentationSession.setState({
+  testHost().session.setState({
     open: true,
     panelId: "left",
     strokeFrameId: "frame-0",

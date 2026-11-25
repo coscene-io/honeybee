@@ -7,15 +7,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ThemeProvider } from "@mui/material/styles";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 
 import { createMuiTheme } from "@foxglove/theme";
 
-import { segmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
-import { sourceFrameLoaders } from "../sourceFrames";
 import type { SegmentationDocument, SegmentationFrame } from "../types";
 import { CameraFrameStrip } from "./CameraFrameStrip";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
+
+installSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 const BASE = 1_774_926_583_567_900_570n;
@@ -50,16 +51,16 @@ function documentWith(frames: SegmentationFrame[], annotated: string[]): Segment
 describe("CameraFrameStrip", () => {
   afterEach(() => {
     cleanup();
-    sourceFrameLoaders.clear();
-    segmentationSession.setState({ seek: undefined });
+    testHost().sourceFrames.clear();
+    testHost().session.setState({ seek: undefined });
   });
 
   it("seeks the clock to a cell's exact log time and marks unread frames", () => {
     const frames = headFrames(60);
     const seek = jest.fn();
-    segmentationSession.setState({ seek });
+    testHost().session.setState({ seek });
     const readUpTo = BigInt(frames[35]!.logTimeNs);
-    sourceFrameLoaders.set("head", {
+    testHost().sourceFrames.set("head", {
       videoId: "head",
       ensureRange: async () => {},
       ensureFollowing: async () => {},
@@ -71,6 +72,7 @@ describe("CameraFrameStrip", () => {
         <CameraFrameStrip
           document={documentWith(frames, [frames[30]!.id, frames[33]!.id])}
           instanceId="instance-1"
+          sourceFrames={testHost().sourceFrames}
           frameId={frames[30]!.id}
           camera="front"
           color="#f00"
@@ -96,6 +98,7 @@ describe("CameraFrameStrip", () => {
         <CameraFrameStrip
           document={documentWith(frames, [])}
           instanceId="instance-1"
+          sourceFrames={testHost().sourceFrames}
           frameId={frames[5]!.id}
           camera="front"
           color="#f00"

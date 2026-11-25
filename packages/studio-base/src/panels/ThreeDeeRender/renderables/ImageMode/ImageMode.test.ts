@@ -27,7 +27,10 @@ import {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageRenderable";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import { createPlaybackInteractionStateStore } from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
-import { segmentationMaskOverlay } from "@foxglove/studio-base/semanticSegmentation/imageSource";
+import {
+  createSegmentationMaskOverlay,
+  createSegmentationPanelBridge,
+} from "@foxglove/studio-base/semanticSegmentation/imageSource";
 
 import { ImageMode } from "./ImageMode";
 import {
@@ -538,17 +541,28 @@ describe("ImageMode compressed video seek replay", () => {
     context.mockRestore();
   });
 
-  it("builds no mask layer until a mask source is installed", () => {
+  it("builds no mask layer without a bridge, or until the bridge has a mask source", () => {
     const layer = jest.mocked(SegmentationMaskLayer);
     layer.mockClear();
     const renderer = makeRenderer();
     const imageMode = new TestImageMode(renderer);
+    const bridge = createSegmentationPanelBridge({
+      maskOverlay: createSegmentationMaskOverlay(),
+      maskPlanes: { get: () => ({}) as never, dispose: () => {} },
+    });
+    // A source with no bridge to carry it: this panel is not connected to the editor.
+    bridge.maskOverlay.set({ frame: () => undefined, upcoming: () => [] });
+    imageMode.startFrame(0n, "", "");
+    expect(layer).not.toHaveBeenCalled();
+    bridge.maskOverlay.set(undefined);
+
+    imageMode.setSegmentationBridge(bridge);
     imageMode.startFrame(0n, "", "");
     expect(layer).not.toHaveBeenCalled();
 
     const queued = jest.mocked(renderer.queueAnimationFrame);
     queued.mockClear();
-    segmentationMaskOverlay.set({ frame: () => undefined, upcoming: () => [] });
+    bridge.maskOverlay.set({ frame: () => undefined, upcoming: () => [] });
     // The redraw lets a paused panel pick the masks up on its next frame.
     expect(queued).toHaveBeenCalled();
     imageMode.startFrame(0n, "", "");
@@ -558,7 +572,6 @@ describe("ImageMode compressed video seek replay", () => {
     imageMode.dispose();
     const instance = layer.mock.results[0]!.value as { dispose: jest.Mock };
     expect(instance.dispose).toHaveBeenCalled();
-    segmentationMaskOverlay.set(undefined);
   });
 
   it("retains the displayed video when synchronization changes while paused", async () => {

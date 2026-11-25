@@ -7,23 +7,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ThemeProvider } from "@mui/material/styles";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { CoreDataContext } from "@foxglove/studio-base/context/CoreDataContext";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import { createMuiTheme } from "@foxglove/theme";
 
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
-import { segmentationSession } from "../runtime";
-import {
-  registerSegmentationCanvas,
-  segmentationChrome,
-  type SegmentationCanvasEntry,
-} from "../segmentationChrome";
+import { registerSegmentationCanvas, type SegmentationCanvasEntry } from "../segmentationChrome";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
 import { createCoreDataSourceStore } from "../testing/coreDataSource";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
+
+installSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 
@@ -59,8 +57,8 @@ beforeEach(() => {
 
 afterEach(() => {
   window.cosConfig = undefined;
-  segmentationChrome.setState({ canvases: [] });
-  segmentationSession.setState({
+  testHost().chrome.setState({ canvases: [] });
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,
@@ -75,7 +73,7 @@ it("stays hidden until an image panel can enter annotation", () => {
 
 it("opens and maximizes the only canvas from the app bar", () => {
   const only = canvas("panel-1", "/camera/head_rgbd/h264");
-  const unregister = registerSegmentationCanvas(only);
+  const unregister = registerSegmentationCanvas(testHost().chrome, only);
   renderBar();
   fireEvent.click(screen.getByTitle("Edit spatial annotation"));
   fireEvent.click(screen.getByRole("button", { name: "Maximize and edit spatial annotation" }));
@@ -90,7 +88,7 @@ it("opens and maximizes the only canvas from the app bar", () => {
 
 it("hides the entry for a source without a cloud record", () => {
   core = createCoreDataSourceStore({ dataSourceId: "file" });
-  const unregister = registerSegmentationCanvas(canvas("panel-1", "/camera"));
+  const unregister = registerSegmentationCanvas(testHost().chrome, canvas("panel-1", "/camera"));
   renderBar();
   expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();
   expect(screen.queryByTitle("Edit spatial annotation")).toBeNull();
@@ -101,7 +99,7 @@ it("hides the entry for a source without a cloud record", () => {
 
 it("hides the entry while the rollout flag is off, even on a cloud record", () => {
   window.cosConfig = undefined;
-  const unregister = registerSegmentationCanvas(canvas("panel-1", "/camera"));
+  const unregister = registerSegmentationCanvas(testHost().chrome, canvas("panel-1", "/camera"));
   renderBar();
   expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();
   act(() => {
@@ -112,8 +110,8 @@ it("hides the entry while the rollout flag is off, even on a cloud record", () =
 it("enters annotation on one click when several image panels are open", () => {
   const head = canvas("head", "/camera/head_rgbd/h264");
   const torso = canvas("torso", "/camera/torso_rgbd/h264");
-  registerSegmentationCanvas(head);
-  registerSegmentationCanvas(torso);
+  registerSegmentationCanvas(testHost().chrome, head);
+  registerSegmentationCanvas(testHost().chrome, torso);
   renderBar();
   expect(screen.queryByRole("button", { name: "Maximize and edit spatial annotation" })).toBeNull();
   fireEvent.click(screen.getByTitle("Edit spatial annotation"));
@@ -128,8 +126,8 @@ it("shows the record actions and closes the space from the app bar", async () =>
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
   const other = canvas("torso", "/camera/torso");
-  registerSegmentationCanvas(other);
-  segmentationSession.setState({
+  registerSegmentationCanvas(testHost().chrome, other);
+  testHost().session.setState({
     runtime,
     open: true,
     panelId: "head",
@@ -144,6 +142,6 @@ it("shows the record actions and closes the space from the app bar", async () =>
   expect(within(bar).getByRole("button", { name: "Submit" })).toBeTruthy();
   expect(within(bar).queryByRole("button", { name: "切换画布" })).toBeNull();
   fireEvent.click(within(bar).getByRole("button", { name: "End annotation" }));
-  expect(segmentationSession.getState().open).toBe(false);
+  expect(testHost().session.getState().open).toBe(false);
   runtime.dispose();
 });

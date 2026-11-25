@@ -8,9 +8,9 @@
 import * as THREE from "three";
 
 import Logger from "@foxglove/log";
-import {
-  segmentationMaskOverlay,
-  type SegmentationMaskStyle,
+import type {
+  SegmentationMaskStyle,
+  SegmentationPanelBridge,
 } from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import type { MaskPlaneCache } from "@foxglove/studio-base/semanticSegmentation/maskOverlay/maskPlaneCache";
 import {
@@ -18,7 +18,6 @@ import {
   planeBytes,
   type MaskPlanes,
 } from "@foxglove/studio-base/semanticSegmentation/maskOverlay/maskPlanes";
-import { sharedMaskPlaneCache } from "@foxglove/studio-base/semanticSegmentation/maskOverlay/sharedMaskPlanes";
 
 import type { ImageRenderable } from "../Images/ImageRenderable";
 
@@ -191,10 +190,11 @@ export class SegmentationMaskLayer {
   readonly #unsubscribe: (() => void)[];
 
   public constructor(
+    private readonly bridge: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">,
     private readonly maxTextureSize: () => number,
     onChange: () => void,
   ) {
-    this.#cache = sharedMaskPlaneCache();
+    this.#cache = bridge.maskPlanes.get();
     this.#dummy = new THREE.DataTexture(
       new Uint8Array(1),
       1,
@@ -226,7 +226,7 @@ export class SegmentationMaskLayer {
       side: THREE.DoubleSide,
     });
     this.#unsubscribe = [
-      segmentationMaskOverlay.subscribe(onChange),
+      bridge.maskOverlay.subscribe(onChange),
       this.#cache.onReady(onChange),
       this.#cache.addConsumer(this),
     ];
@@ -241,7 +241,7 @@ export class SegmentationMaskLayer {
   }
 
   #resolve(renderable: ImageRenderable | undefined): boolean {
-    const source = segmentationMaskOverlay.get();
+    const source = this.bridge.maskOverlay.get();
     const imageMesh = renderable?.userData.mesh;
     const displayed = renderable?.userData.displayedFrameState;
     if (!source || !renderable || !imageMesh || !displayed || !renderable.visible) {

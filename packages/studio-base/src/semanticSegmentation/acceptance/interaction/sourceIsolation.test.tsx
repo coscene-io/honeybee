@@ -7,18 +7,25 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 
 import { deferred } from "./fixtures";
 import { SegmentationImageEntry } from "../../components/SegmentationImageEntry";
-import { segmentationImageSources, type SegmentationImage } from "../../imageSource";
-import { segmentationSession } from "../../runtime";
+import type { SegmentationImage } from "../../imageSource";
 import { enterAnnotation, recordEntryActions } from "../../testing/entryActions";
+import {
+  render,
+  testHost,
+  createTestBridge,
+  installSegmentationTestHost,
+} from "../../testing/host";
 import { setMockControls } from "../../testing/mockService";
 import { focusedImageUrl } from "../../testing/session";
+
+installSegmentationTestHost();
 
 const selectItem = jest.fn();
 const maximize = jest.fn();
@@ -96,12 +103,14 @@ function fixture() {
     receiveTime: fromNanoSec(0n),
     decodedIdentity: {},
   };
+  const bridge = createTestBridge();
   const view = (topic = "/camera") => (
     <div ref={containerRef}>
       <canvas width={8} height={4} />
       <SegmentationImageEntry
         onActionsChange={recordEntryActions}
         containerRef={containerRef}
+        bridge={bridge}
         topic={topic}
         panelId="panel-1"
         onMaximize={maximize}
@@ -111,7 +120,7 @@ function fixture() {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   const capture = jest.fn(() => image);
-  segmentationImageSources.set(canvas, capture);
+  bridge.publish({ image: capture });
   return {
     ...result,
     view,
@@ -140,11 +149,11 @@ async function open(mode: "inline" | "maximize" = "inline") {
   });
   await waitFor(
     () => {
-      expect(segmentationSession.getState().open).toBe(true);
+      expect(testHost().session.getState().open).toBe(true);
     },
     { timeout: 3000 },
   );
-  return segmentationSession.getState().runtime!;
+  return testHost().session.getState().runtime!;
 }
 beforeEach(() => {
   mockUserId = "fixture-user";
@@ -153,7 +162,7 @@ beforeEach(() => {
   pipeline.playerState.activeData.endTime = fromNanoSec(1_000_000_000n);
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
   pipeline.playerState.activeData.lastSeekTime = 0;
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,
@@ -190,13 +199,13 @@ it("isolates real source B after late annotation and upload completions from A",
   expect(bVideo).not.toBe(oldWindow.videoId);
   const bDocument = b.store.getState().document;
   const bFrame = b.store.getState().currentFrameId;
-  const bImage = focusedImageUrl();
+  const bImage = focusedImageUrl(testHost().session);
   await act(async () => {
     readGate.resolve(oldWindow);
     await oldRead;
   });
-  expect(segmentationSession.getState().runtime).toBe(b);
-  expect(focusedImageUrl()).toBe(bImage);
+  expect(testHost().session.getState().runtime).toBe(b);
+  expect(focusedImageUrl(testHost().session)).toBe(bImage);
   expect(b.store.getState().document).toEqual(bDocument);
   expect(b.store.getState().currentFrameId).toBe(bFrame);
   expect(a.store.getState().document!.classes.some((item) => item.id === draft)).toBe(true);

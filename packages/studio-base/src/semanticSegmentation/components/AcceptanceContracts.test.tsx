@@ -6,10 +6,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { segmentationSession } from "../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../service";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
@@ -18,8 +17,11 @@ import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
+
+installSegmentationTestHost();
 
 const pipeline = {
   playerState: { activeData: { startTime: { sec: 100, nsec: 0 } } },
@@ -50,8 +52,8 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
-  segmentationSession.getState().runtime?.dispose();
-  segmentationSession.setState({
+  testHost().session.getState().runtime?.dispose();
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     sourceReady: true,
@@ -231,14 +233,14 @@ it("keeps the form record A reference when the runtime switches to B before or d
   const b = await fixture(document);
   const value = "spatial://record-1/instance/instance-1";
   const change = jest.fn();
-  segmentationSession.setState({ runtime: a, sourceReady: true });
+  testHost().session.setState({ runtime: a, sourceReady: true });
   render(<ActiveMomentReference recordId="record-1" value={value} onChange={change} />);
   fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
   fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
     target: { value: "instance/instance-2" },
   });
   act(() => {
-    segmentationSession.setState({ runtime: b });
+    testHost().session.setState({ runtime: b });
   });
   expect(
     screen.getByRole("button", { name: "Reference a spatial class or instance" }),
