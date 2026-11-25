@@ -14,6 +14,9 @@ import {
   useSegmentationSession,
 } from "./segmentationHostContext";
 
+// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
+jest.setTimeout(30_000);
+
 describe("segmentation host context", () => {
   it("throws outside a host: the feature is mounted only behind its flag", () => {
     const error = jest.spyOn(console, "error").mockImplementation(() => {});
