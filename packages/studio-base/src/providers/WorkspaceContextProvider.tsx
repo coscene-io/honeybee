@@ -49,6 +49,9 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
         initialTab: undefined,
         open: false,
       },
+      keyboardShortcuts: {
+        open: false,
+      },
     },
     featureTours: {
       active: undefined,

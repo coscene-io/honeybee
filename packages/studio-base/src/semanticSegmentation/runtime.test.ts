@@ -297,6 +297,26 @@ describe("runtime registry", () => {
     await flush();
   });
 
+  it("tells subscribers when unsaved work appears, is saved, or goes away", async () => {
+    const { runtime } = tracked();
+    const seen: boolean[] = [];
+    const unsubscribe = host.registry.subscribe(() => {
+      const unsaved = host.registry.hasUnsavedWork();
+      if (seen.at(-1) !== unsaved) {
+        seen.push(unsaved);
+      }
+    });
+    host.registry.acquire("record-k", "panel-1", () => runtime);
+    await runtime.initialize();
+    runtime.store.getState().addClass("Unsaved");
+    runtime.store.getState().submit();
+    await runtime.store.getState().waitForSubmissions();
+    runtime.store.getState().addClass("Unsaved again");
+    host.dispose();
+    expect(seen).toEqual([false, true, false, true, false]);
+    unsubscribe();
+  });
+
   it("shares one runtime between two panels and creates it once", () => {
     const { runtime } = tracked();
     const create = jest.fn(() => runtime);

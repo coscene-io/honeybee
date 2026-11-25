@@ -15,28 +15,26 @@ import {
   createWorkspaceSlotsStore,
   registerWorkspaceSlot,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 
 import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
-import {
-  KeyboardShortcutsDialogProvider,
-  createKeyboardShortcutsDialogStore,
-} from "./keyboardShortcutsDialogStore";
 
 describe("KeyboardShortcutsDialog", () => {
   let slots = createWorkspaceSlotsStore();
-  let dialogStore = createKeyboardShortcutsDialogStore();
+  let initiallyOpen = false;
   const Providers = ({ children }: { children: React.ReactNode }) => (
-    <WorkspaceSlotsProvider store={slots}>
-      <KeyboardShortcutsDialogProvider store={dialogStore}>
-        {children}
-      </KeyboardShortcutsDialogProvider>
-    </WorkspaceSlotsProvider>
+    <WorkspaceContextProvider
+      disablePersistence
+      initialState={{ dialogs: { keyboardShortcuts: { open: initiallyOpen } } }}
+    >
+      <WorkspaceSlotsProvider store={slots}>{children}</WorkspaceSlotsProvider>
+    </WorkspaceContextProvider>
   );
 
   beforeEach(async () => {
     slots = createWorkspaceSlotsStore();
-    dialogStore = createKeyboardShortcutsDialogStore();
+    initiallyOpen = false;
     await i18n.changeLanguage("en");
   });
 
@@ -55,10 +53,8 @@ describe("KeyboardShortcutsDialog", () => {
   });
 
   it("opens when called from outside the timeline and closes on Escape", async () => {
+    initiallyOpen = true;
     render(<KeyboardShortcutsDialog />, { wrapper: Providers });
-    act(() => {
-      dialogStore.setState({ open: true });
-    });
     const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => {
@@ -67,10 +63,8 @@ describe("KeyboardShortcutsDialog", () => {
   });
 
   it("adds a column registered through WorkspaceSlots and drops it on unregister", () => {
+    initiallyOpen = true;
     render(<KeyboardShortcutsDialog />, { wrapper: Providers });
-    act(() => {
-      dialogStore.setState({ open: true });
-    });
     expect(screen.queryByText("Feature column")).toBeNull();
     let unregister = () => {};
     act(() => {
