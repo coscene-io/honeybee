@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Alert, Box, Stack, Typography } from "@mui/material";
+import { useSyncExternalStore } from "react";
 import { makeStyles } from "tss-react/mui";
 import type { StoreApi } from "zustand";
 
@@ -70,6 +71,8 @@ export function SpatialTree({
   const rowActions = useRowActions(deps);
   const toolbarActions = useToolbarActions(deps);
   const menuActions = useMenuActions(deps);
+  // Whether a camera strip has anything to show depends on what the frame loaders have read.
+  useSyncExternalStore(env.host.sourceFrames.subscribe, env.host.sourceFrames.version);
   const rows = flatTreeRows({
     document,
     sourceFrames: env.host.sourceFrames,

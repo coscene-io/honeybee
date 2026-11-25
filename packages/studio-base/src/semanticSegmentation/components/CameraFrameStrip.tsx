@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Box, Stack, Typography } from "@mui/material";
-import { memo, useEffect } from "react";
+import { memo, useEffect, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -119,6 +119,8 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
   const { classes, theme } = useStyles();
   const { t } = useTranslation("segmentation");
   const seek = useSegmentationSession((session) => session.seek);
+  // A read window or a newly bound loader changes which cells are known.
+  const loaderVersion = useSyncExternalStore(sourceFrames.subscribe, sourceFrames.version);
   const current = frameIndexOf(document).frameById.get(frameId);
   const videoId = current?.videoId;
   const centerNs = current?.logTimeNs;
@@ -129,7 +131,7 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
     }
     const center = BigInt(centerNs);
     void loader.ensureRange(center - PRELOAD_NS, center + PRELOAD_NS).catch(() => undefined);
-  }, [videoId, centerNs, sourceFrames]);
+  }, [videoId, centerNs, sourceFrames, loaderVersion]);
   const cells = cameraStripCells(document, instanceId, frameId, sourceFrames);
   // A camera where this instance never appears nearby would only add noise.
   if (!cells.some((cell) => cell.state === "annotated")) {

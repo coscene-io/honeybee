@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ThemeProvider } from "@mui/material/styles";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 
 import { createMuiTheme } from "@foxglove/theme";
 
@@ -51,7 +51,6 @@ function documentWith(frames: SegmentationFrame[], annotated: string[]): Segment
 describe("CameraFrameStrip", () => {
   afterEach(() => {
     cleanup();
-    testHost().sourceFrames.clear();
     testHost().session.setState({ seek: undefined });
   });
 
@@ -60,11 +59,12 @@ describe("CameraFrameStrip", () => {
     const seek = jest.fn();
     testHost().session.setState({ seek });
     const readUpTo = BigInt(frames[35]!.logTimeNs);
-    testHost().sourceFrames.set("head", {
+    testHost().sourceFrames.register({
       videoId: "head",
       ensureRange: async () => {},
       ensureFollowing: async () => {},
       isLoaded: (_from, to) => to <= readUpTo,
+      subscribe: () => () => {},
       dispose: () => {},
     });
     render(
@@ -107,5 +107,44 @@ describe("CameraFrameStrip", () => {
       </ThemeProvider>,
     );
     expect(screen.queryByRole("group")).toBeNull();
+  });
+
+  it("marks cells as read when a loader finishes a window that adds no frames", () => {
+    const frames = headFrames(10);
+    let readUpTo = BigInt(frames[5]!.logTimeNs);
+    let finishRead = () => {};
+    testHost().sourceFrames.register({
+      videoId: "head",
+      ensureRange: async () => {},
+      ensureFollowing: async () => {},
+      isLoaded: (_from, to) => to <= readUpTo,
+      subscribe: (listener) => {
+        finishRead = listener;
+        return () => {};
+      },
+      dispose: () => {},
+    });
+    render(
+      <ThemeProvider theme={theme}>
+        <CameraFrameStrip
+          document={documentWith(frames, [frames[5]!.id])}
+          instanceId="instance-1"
+          sourceFrames={testHost().sourceFrames}
+          frameId={frames[5]!.id}
+          camera="front"
+          color="#f00"
+          disabled={false}
+        />
+      </ThemeProvider>,
+    );
+    const cells = screen
+      .getByRole("group", { name: "front, 20 frames on each side" })
+      .querySelectorAll("button");
+    expect(cells[22]!.dataset.state).toBe("unloaded");
+    act(() => {
+      readUpTo = BigInt(frames[9]!.logTimeNs);
+      finishRead();
+    });
+    expect(cells[22]!.dataset.state).toBe("empty");
   });
 });
