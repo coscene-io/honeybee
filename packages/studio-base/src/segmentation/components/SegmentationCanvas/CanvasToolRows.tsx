@@ -48,7 +48,7 @@ export type ToolRowActions = {
   convertToMask: () => void;
 };
 
-/** Polygon / SAM selector while drawing a new shape. */
+/** Quick (SAM) / polygon selector while drawing a new shape; quick comes first. */
 export const CreationToolRow = memo(function CreationToolRow({
   tool,
   actions,
@@ -69,8 +69,8 @@ export const CreationToolRow = memo(function CreationToolRow({
     >
       {(
         [
-          ["polygon", t("polygon"), "P"],
           ["quick", t("quickSam"), "Q"],
+          ["polygon", t("polygon"), "P"],
         ] as const
       ).map(([value, label, key]) => (
         <Button
