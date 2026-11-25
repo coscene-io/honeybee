@@ -46,6 +46,7 @@ import PlaybackControls, {
   RealtimeVizPlaybackControls,
 } from "@foxglove/studio-base/components/PlaybackControls";
 import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
+import { KeyboardShortcutsDialogProvider } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 import { PerformanceSidebar } from "@foxglove/studio-base/components/PlaybackDiagnostics/PerformanceSidebar";
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
@@ -77,7 +78,10 @@ import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
-import { useWorkspaceSlotValues } from "@foxglove/studio-base/context/WorkspaceSlots";
+import {
+  WorkspaceSlotsProvider,
+  useWorkspaceSlotValues,
+} from "@foxglove/studio-base/context/WorkspaceSlots";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
@@ -597,7 +601,11 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
       workspaceStoreCreator={workspaceStoreCreator}
       disablePersistence={props.disablePersistence}
     >
-      <WorkspaceContent {...props} />
+      <WorkspaceSlotsProvider>
+        <KeyboardShortcutsDialogProvider>
+          <WorkspaceContent {...props} />
+        </KeyboardShortcutsDialogProvider>
+      </WorkspaceSlotsProvider>
     </WorkspaceContextProvider>
   );
 }

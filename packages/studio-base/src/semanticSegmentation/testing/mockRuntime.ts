@@ -5,13 +5,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createSegmentationRuntime, type SegmentationRuntime } from "../runtime";
+import {
+  createSegmentationRuntime,
+  type SegmentationRuntime,
+  type SegmentationRuntimeOptions,
+} from "../runtime";
 import type { SegmentationDocument } from "../types";
 import { createMockSemanticSegmentationService } from "./mockService";
 
 /** A runtime over the in-memory mock service, with the mock's default latency. Tests only. */
 export function createMockSegmentationRuntime(
   document?: SegmentationDocument,
+  options?: SegmentationRuntimeOptions,
 ): SegmentationRuntime {
   return createSegmentationRuntime(
     createMockSemanticSegmentationService({
@@ -19,5 +24,6 @@ export function createMockSegmentationRuntime(
       controls: { delayMs: 500, streamDelayMs: 350 },
     }),
     document,
+    options,
   );
 }
