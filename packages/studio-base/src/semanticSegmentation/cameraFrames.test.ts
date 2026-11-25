@@ -203,19 +203,19 @@ describe("segmentationPlaybackStep", () => {
   beforeEach(() => {
     ensured.length = 0;
     for (const videoId of ["head", "stereo"]) {
-      testHost().sourceFrames.set(videoId, {
+      testHost().sourceFrames.register({
         videoId,
         ensureRange: async () => {},
         ensureFollowing: async (from: bigint, count: number) => {
           ensured.push([videoId, from, count]);
         },
         isLoaded: () => true,
+        subscribe: () => () => {},
         dispose: () => {},
       } satisfies SourceFrameLoader);
     }
   });
   afterEach(() => {
-    testHost().sourceFrames.clear();
     testHost().session.setState({
       open: false,
       runtime: undefined,
@@ -333,7 +333,7 @@ describe("segmentationPlaybackStep", () => {
   describe("a step whose frames are still being read", () => {
     let release: (error?: Error) => void = () => {};
     beforeEach(() => {
-      testHost().sourceFrames.set("head", {
+      testHost().sourceFrames.register({
         videoId: "head",
         ensureRange: async () => {},
         ensureFollowing: async () => {
@@ -348,6 +348,7 @@ describe("segmentationPlaybackStep", () => {
           });
         },
         isLoaded: () => true,
+        subscribe: () => () => {},
         dispose: () => {},
       } satisfies SourceFrameLoader);
     });
