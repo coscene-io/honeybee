@@ -22,10 +22,10 @@ import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
-import type { PropagationRequest, SegmentationFrame, SemanticSegmentationStore } from "../types";
-import type { CanvasPropagationScope } from "./propagationSeeds";
 import { segmentationErrorText } from "../errors";
+import type { CanvasPropagationScope } from "../propagationSeeds";
 import { useSegmentationHost } from "../segmentationHostContext";
+import type { PropagationRequest, SegmentationFrame, SemanticSegmentationStore } from "../types";
 
 /**
  * How far one click propagates. The API needs an end time (there is no open-ended stream) and

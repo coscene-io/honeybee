@@ -12,10 +12,10 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { createMuiTheme } from "@foxglove/theme";
 
 import { confirm, geometry, polygons, row, setup, structureDocument } from "./fixture";
-import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkbench";
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "../../components/SegmentationTree/SpatialTree";
+import { SemanticSegmentationWorkbench } from "../../components/SemanticSegmentationWorkbench";
 import { SpatialSidebar } from "../../components/SpatialSidebar";
-import { SpatialTree } from "../../components/SpatialTree";
 import { render, testHost, installSegmentationTestHost } from "../../testing/host";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";

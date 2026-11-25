@@ -17,7 +17,7 @@ import { createSeedDocument, setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
-import { buildCanvasPropagationScope } from "./propagationSeeds";
+import { buildCanvasPropagationScope } from "../propagationSeeds";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 

@@ -9,12 +9,12 @@ import { Keyboard20Regular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
-
-import { useOpenKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 
 export function ShortcutsHelpButton({ showLabel }: { showLabel?: boolean }): React.JSX.Element {
   const { t } = useTranslation("general");
-  const openKeyboardShortcuts = useOpenKeyboardShortcuts();
+  const { dialogActions } = useWorkspaceActions();
+  const openKeyboardShortcuts = dialogActions.keyboardShortcuts.open;
 
   return (
     <HoverableIconButton

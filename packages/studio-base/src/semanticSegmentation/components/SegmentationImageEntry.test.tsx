@@ -12,14 +12,22 @@ import { createRef } from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { reloadWithSearch } from "@foxglove/studio-base/util/reloadWithSearch";
 
-import { annotationProfileNavigation } from "../annotationProfile";
-import type { SegmentationImage } from "../imageSource";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
-import { render, testHost, createTestBridge, installSegmentationTestHost } from "../testing/host";
+import {
+  render,
+  testHost,
+  createTestBridge,
+  installSegmentationTestHost,
+  testSources,
+  type TestImage,
+} from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
+
+jest.mock("@foxglove/studio-base/util/reloadWithSearch", () => ({ reloadWithSearch: jest.fn() }));
 
 installSegmentationTestHost();
 
@@ -57,8 +65,10 @@ jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
     selector({ user: mockUserId ? { userId: mockUserId } : undefined }),
 }));
 // Every fixture source counts as a cloud record; sessions use the in-memory mock service in place of the live one.
-jest.mock("@foxglove/studio-base/util/coscene/annotation", () => ({
+jest.mock("@foxglove/studio-base/semanticSegmentation/recordName", () => ({
   isAnnotationRecordName: () => true,
+}));
+jest.mock("@foxglove/studio-base/semanticSegmentation/liveService", () => ({
   createLiveSemanticSegmentationService: ({ document }: { document: unknown }) =>
     jest
       .requireActual<
@@ -80,7 +90,10 @@ jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
     }),
 }));
 jest.mock("@foxglove/studio-base/context/Workspace/useWorkspaceActions", () => ({
-  useWorkspaceActions: () => ({ sidebarActions: { left: { selectItem } } }),
+  useWorkspaceActions: () => ({
+    dialogActions: { keyboardShortcuts: { open: jest.fn() } },
+    sidebarActions: { left: { selectItem } },
+  }),
 }));
 
 let sequence = 0;
@@ -93,7 +106,7 @@ function fixture(frames: "recorded" | "none" = "recorded") {
     const time = fromNanoSec(ns);
     return { topic: "/camera", receiveTime: time, message: { timestamp: time } };
   }) as never;
-  let image: SegmentationImage = {
+  let image: TestImage = {
     imageUrl: "data:image/png;base64,first",
     topic: "/camera",
     timestamp: fromNanoSec(0n),
@@ -117,13 +130,13 @@ function fixture(frames: "recorded" | "none" = "recorded") {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   const capture = jest.fn(() => image);
-  bridge.publish({ image: capture });
+  bridge.publish(testSources({ image: capture }));
   return {
     ...result,
     view,
     canvas,
     capture,
-    setImage: (time: bigint, changes?: Partial<SegmentationImage>) => {
+    setImage: (time: bigint, changes?: Partial<TestImage>) => {
       image = {
         ...image,
         imageUrl: `data:image/png;base64,${time}`,
@@ -135,7 +148,7 @@ function fixture(frames: "recorded" | "none" = "recorded") {
     },
     event: () => {
       act(() => {
-        canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+        bridge.notifyFrame();
       });
     },
   };
@@ -248,12 +261,12 @@ it("ignores initialization completing after a source switch", async () => {
 
 describe("annotation quality", () => {
   const parameters = () => pipeline.playerState.urlState.parameters as Record<string, string>;
-  let reload: jest.SpyInstance;
+  const reload = jest.mocked(reloadWithSearch);
   const originalFetch = globalThis.fetch;
   let manifests = 0;
 
   beforeEach(() => {
-    reload = jest.spyOn(annotationProfileNavigation, "reload").mockImplementation(() => {});
+    reload.mockClear();
     globalThis.fetch = jest.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -267,7 +280,6 @@ describe("annotation quality", () => {
     parameters().manifestUrl = `https://manifest.example/${++manifests}.json`;
   });
   afterEach(() => {
-    reload.mockRestore();
     globalThis.fetch = originalFetch;
     delete parameters().shardMode;
     delete parameters().manifestUrl;
@@ -281,7 +293,7 @@ describe("annotation quality", () => {
       enterAnnotation();
     });
     await waitFor(() => {
-      expect(reload).toHaveBeenCalledWith("ds.profile=720p15");
+      expect(reload.mock.lastCall?.[0].toString()).toBe("ds.profile=720p15");
     });
     expect(testHost().session.getState().open).toBe(false);
   });

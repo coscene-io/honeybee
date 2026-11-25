@@ -9,9 +9,9 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { deferred, fixture } from "./fixtures";
-import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkbench";
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
-import { SpatialTree } from "../../components/SpatialTree";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "../../components/SegmentationTree/SpatialTree";
+import { SemanticSegmentationWorkbench } from "../../components/SemanticSegmentationWorkbench";
 import { polygonsOf } from "../../maskGeometry";
 import { openWorkflowPanel } from "../../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../../service";

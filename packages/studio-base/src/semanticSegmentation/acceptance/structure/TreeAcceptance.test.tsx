@@ -18,8 +18,8 @@ import {
   setup,
   structureDocument,
 } from "./fixture";
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
-import { SpatialTree } from "../../components/SpatialTree";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "../../components/SegmentationTree/SpatialTree";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";

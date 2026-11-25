@@ -1410,8 +1410,8 @@ export class ImageMode
 
   /**
    * Capture pixels and their displayed message together; pending decodes never relabel old pixels.
-   * `imageUrl` is a PNG of the decoded frame, encoded on first read and then kept for that frame:
-   * callers that need only identity, size or projection never pay for the encode.
+   * `encodeImageUrl()` makes a PNG of the decoded frame on its first call and keeps it for that
+   * frame: callers that need only identity, size or projection never pay for the encode.
    */
   public captureSegmentationImage(): SegmentationImage | undefined {
     const metadata = this.captureSegmentationImageMetadata();
@@ -1422,13 +1422,13 @@ export class ImageMode
     const previous = this.#segmentationCapture;
     if (previous?.image.decodedIdentity === image) {
       if (!nativeViewsEqual(previous.image.nativeView, metadata.nativeView)) {
-        previous.image = lazySegmentationImage(metadata, previous.encode);
+        previous.image = { ...metadata, encodeImageUrl: previous.encode };
       }
       return previous.image;
     }
     this.#segmentationBlockedImage = undefined;
     const encode = memoizedEncode(image);
-    this.#segmentationCapture = { image: lazySegmentationImage(metadata, encode), encode };
+    this.#segmentationCapture = { image: { ...metadata, encodeImageUrl: encode }, encode };
     return this.#segmentationCapture.image;
   }
 
@@ -1592,13 +1592,4 @@ function memoizedEncode(
     }
     return (url = canvas.toDataURL("image/png"));
   };
-}
-
-function lazySegmentationImage(
-  metadata: SegmentationImageMetadata,
-  encode: () => string,
-): SegmentationImage {
-  const image = { ...metadata } as SegmentationImage;
-  Object.defineProperty(image, "imageUrl", { enumerable: true, get: encode });
-  return image;
 }

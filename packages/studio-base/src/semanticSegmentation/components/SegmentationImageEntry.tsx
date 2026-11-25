@@ -22,10 +22,6 @@ import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConso
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import {
-  createLiveSemanticSegmentationService,
-  isAnnotationRecordName,
-} from "@foxglove/studio-base/util/coscene/annotation";
 
 import {
   ANNOTATION_WINDOW_SEC,
@@ -35,13 +31,15 @@ import {
 } from "../annotationFrames";
 import { ensureAnnotationProfile, needsAnnotationProfileCheck } from "../annotationProfile";
 import { cameraStepTarget } from "../cameraFrames";
+import { SegmentationError } from "../errors";
 import {
   imageFrameIdentity,
   segmentationSourceKey,
-  type SegmentationImage,
   type SegmentationImageMetadata,
   type SegmentationPanelBridge,
 } from "../imageSource";
+import { createLiveSemanticSegmentationService } from "../liveService";
+import { isAnnotationRecordName } from "../recordName";
 import {
   activateSegmentationRuntime,
   createSegmentationRuntime,
@@ -59,7 +57,6 @@ import {
 } from "../sourceFrames";
 import type { SegmentationDocument } from "../types";
 import { AnnotationPreview } from "./AnnotationPreview";
-import { SegmentationError } from "../errors";
 
 export type SegmentationImageEntryActions = {
   enterInline: () => void;
@@ -78,24 +75,30 @@ function receivedFrameStamps(
   messages: readonly {
     topic: string;
     message: unknown;
-    receiveTime: SegmentationImage["receiveTime"];
+    receiveTime: SegmentationImageMetadata["receiveTime"];
   }[],
   topic: string,
 ): Map<
   string,
-  { timestamp: SegmentationImage["timestamp"]; receiveTime: SegmentationImage["receiveTime"] }
+  {
+    timestamp: SegmentationImageMetadata["timestamp"];
+    receiveTime: SegmentationImageMetadata["receiveTime"];
+  }
 > {
   const stamps = new Map<
     string,
-    { timestamp: SegmentationImage["timestamp"]; receiveTime: SegmentationImage["receiveTime"] }
+    {
+      timestamp: SegmentationImageMetadata["timestamp"];
+      receiveTime: SegmentationImageMetadata["receiveTime"];
+    }
   >();
   for (const message of messages) {
     if (message.topic !== topic) {
       continue;
     }
     const value = message.message as {
-      timestamp?: SegmentationImage["timestamp"];
-      header?: { stamp: SegmentationImage["timestamp"] };
+      timestamp?: SegmentationImageMetadata["timestamp"];
+      header?: { stamp: SegmentationImageMetadata["timestamp"] };
     };
     const stamp = {
       timestamp: value.header?.stamp ?? value.timestamp ?? message.receiveTime,
@@ -113,7 +116,7 @@ function sourceDocument(source: {
   videoId: string;
   topic: string;
   /** The topic's decoded source size, never the panel canvas size: masks decode against it. */
-  image?: Pick<SegmentationImage, "imageWidth" | "imageHeight">;
+  image?: Pick<SegmentationImageMetadata, "imageWidth" | "imageHeight">;
   durationSec: number;
   sizeBytes: number;
   frames: SegmentationDocument["frames"];
@@ -140,13 +143,6 @@ function sourceDocument(source: {
     annotations: {},
     annotationSummaries: {},
   };
-}
-
-function withImageUrl(
-  metadata: SegmentationImageMetadata | undefined,
-  imageUrl: string | undefined,
-): SegmentationImage | undefined {
-  return metadata ? { ...metadata, imageUrl: imageUrl ?? "" } : undefined;
 }
 
 function propagationLocksContext(status: string): boolean {
@@ -317,30 +313,19 @@ export function SegmentationImageEntry({
   const previousSeek = useRef(lastSeekTime);
   const latestKey = useRef(bindingKey);
   latestKey.current = bindingKey;
-  const rawCapture = useCallback(() => {
-    const canvas = containerRef.current?.querySelector("canvas");
-    if (!canvas || canvas.width === 0 || canvas.height === 0) {
-      return undefined;
-    }
-    return bridge.sources()?.image();
-  }, [bridge, containerRef]);
+  const rawCapture = useCallback(() => bridge.sources()?.image(), [bridge]);
   const capture = useCallback(() => {
     const image = rawCapture();
     return image?.decodedIdentity === blockedImage.current ? undefined : image;
   }, [rawCapture]);
   /**
    * Identity, size and projection of the displayed frame without its pixels. Render, the preview
-   * and entry use this; only an open editing session reads `imageUrl` (a PNG encode).
+   * and entry use this; only an open editing session encodes the frame as a PNG.
    */
   const captureMetadata = useCallback((): SegmentationImageMetadata | undefined => {
-    const canvas = containerRef.current?.querySelector("canvas");
-    if (!canvas || canvas.width === 0 || canvas.height === 0) {
-      return undefined;
-    }
-    const sources = bridge.sources();
-    const image = (sources?.imageMetadata ?? sources?.image)?.();
+    const image = bridge.sources()?.imageMetadata();
     return image?.decodedIdentity === blockedImage.current ? undefined : image;
-  }, [bridge, containerRef]);
+  }, [bridge]);
 
   const previewCanStart = cachedBlocks > 0 || captureMetadata() != undefined;
   useEffect(() => {
@@ -364,14 +349,11 @@ export function SegmentationImageEntry({
     const image = captureMetadata();
     const retryOnFrame = () => {
       // Seeking runs this before the panel decoded its frame. Retry once one is displayed.
-      const canvas = containerRef.current?.querySelector("canvas");
-      const retry = () => {
+      const unsubscribe = bridge.subscribeFrames(() => {
+        unsubscribe();
         setPreviewRetry((count) => count + 1);
-      };
-      canvas?.addEventListener("segmentation-frame", retry, { once: true });
-      return () => {
-        canvas?.removeEventListener("segmentation-frame", retry);
-      };
+      });
+      return unsubscribe;
     };
     if (!data) {
       return retryOnFrame();
@@ -403,24 +385,23 @@ export function SegmentationImageEntry({
         const sessionKey = JSON.stringify([userKey, stableRecordId, backendKey])!;
         const startNs = toNanoSec(data.startTime);
         const durationSec = Number(toNanoSec(data.endTime) - startNs) / 1e9;
-        const stamps = new Map<string, SegmentationImage>();
+        const stamps = new Map<string, SegmentationImageMetadata>();
         for (const message of cached) {
           const value = message.message as {
-            timestamp?: SegmentationImage["timestamp"];
-            header?: { stamp: SegmentationImage["timestamp"] };
+            timestamp?: SegmentationImageMetadata["timestamp"];
+            header?: { stamp: SegmentationImageMetadata["timestamp"] };
           };
           const timestamp = value.header?.stamp ?? value.timestamp ?? message.receiveTime;
-          const stamp: SegmentationImage = {
+          const stamp: SegmentationImageMetadata = {
             topic,
             timestamp,
             receiveTime: message.receiveTime,
-            imageUrl: "",
             decodedIdentity: message,
           };
           stamps.set(imageFrameIdentity(stamp), stamp);
         }
         if (image) {
-          stamps.set(imageFrameIdentity(image), { ...image, imageUrl: "" });
+          stamps.set(imageFrameIdentity(image), image);
         }
         // The message cache rarely holds compressed video, so list this window's frames from the
         // source (message times only), as an annotation session does. Without them, a camera whose
@@ -439,10 +420,9 @@ export function SegmentationImageEntry({
               listing.signal,
             );
             for (const item of listed) {
-              const stamp: SegmentationImage = {
+              const stamp: SegmentationImageMetadata = {
                 topic,
                 ...item,
-                imageUrl: "",
                 decodedIdentity: item,
               };
               const key = imageFrameIdentity(stamp);
@@ -523,7 +503,7 @@ export function SegmentationImageEntry({
     annotatable,
     previewCanStart,
     captureMetadata,
-    containerRef,
+    bridge,
     dataAssetName,
     getPipeline,
     mediaIdentity,
@@ -660,8 +640,8 @@ export function SegmentationImageEntry({
     // Playing never makes the source editable, so no frame is encoded then; the last paused
     // frame's pixels stay published until playback stops and this runs again.
     const previousUrl = session.surfaces[panelId]?.imageUrl;
-    const image: SegmentationImage | undefined =
-      data?.isPlaying === true ? withImageUrl(captureMetadata(), previousUrl) : capture();
+    const captured = data?.isPlaying === true ? undefined : capture();
+    const image = data?.isPlaying === true ? captureMetadata() : captured;
     if (!image || !data || image.topic !== topic) {
       publish({ sourceReady: false });
       return;
@@ -683,7 +663,7 @@ export function SegmentationImageEntry({
     // Zoom and pan render the same decoded image again. Rebuild the source table only when the
     // image or a frame source (player cache, tick messages, the panel's decoder cache) changed.
     const blocks = getPipeline().playerState.progress.messageCache?.blocks;
-    const canvasFrames = bridge.sources()?.cachedFrames?.() ?? [];
+    const canvasFrames = bridge.sources()?.cachedFrames() ?? [];
     const sources = {
       image: image.decodedIdentity,
       bindingKey: binding.key,
@@ -793,9 +773,10 @@ export function SegmentationImageEntry({
     const currentMatches = binding.runtime.store.getState().currentFrameId === frame.id;
     lastSyncedImage.current = image.decodedIdentity;
     const previous = session.surfaces[panelId]?.decodedFrame;
+    const imageUrl = captured?.encodeImageUrl() ?? previousUrl ?? "";
     const decodedFrame =
       previous?.decodedIdentity === image.decodedIdentity &&
-      previous.imageUrl === image.imageUrl &&
+      previous.imageUrl === imageUrl &&
       previous.nativeView === image.nativeView &&
       previous.frameId === frame.id &&
       previous.seekTime === data.lastSeekTime &&
@@ -812,15 +793,14 @@ export function SegmentationImageEntry({
             bindingGeneration: generation.current,
             seekTime: data.lastSeekTime,
             decodedIdentity: image.decodedIdentity,
-            imageUrl: image.imageUrl,
+            imageUrl,
             nativeView: image.nativeView,
-            nativeCanvas: containerRef.current?.querySelector("canvas") ?? undefined,
             viewControls: bridge.sources()?.viewControls,
             presentation: session.presentation,
           };
     publish({
       frameId: frame.id,
-      imageUrl: data.isPlaying ? undefined : image.imageUrl,
+      imageUrl: data.isPlaying ? undefined : imageUrl,
       decodedFrame,
       sourceReady: data.isPlaying
         ? false
@@ -828,7 +808,7 @@ export function SegmentationImageEntry({
           binding.runtime.store.getState().isFrameReady(frame.id) &&
           !binding.runtime.store.getState().loading,
     });
-  }, [bridge, capture, captureMetadata, containerRef, getPipeline, host, panelId, topic]);
+  }, [bridge, capture, captureMetadata, getPipeline, host, panelId, topic]);
 
   useEffect(
     () =>
@@ -853,7 +833,6 @@ export function SegmentationImageEntry({
     [sessionRuntime, sync],
   );
   useEffect(() => {
-    const container = containerRef.current;
     const onFrame = () => {
       try {
         sync();
@@ -862,11 +841,8 @@ export function SegmentationImageEntry({
         host.session.setState({ sourceReady: false });
       }
     };
-    container?.addEventListener("segmentation-frame", onFrame);
-    return () => {
-      container?.removeEventListener("segmentation-frame", onFrame);
-    };
-  }, [containerRef, host, sync]);
+    return bridge.subscribeFrames(onFrame);
+  }, [bridge, host, sync]);
   // `isPlaying` too: a fixed step plays until its target and then only stops, without moving
   // the clock again. The readiness computed while playing must be recomputed then.
   useLayoutEffect(() => {
@@ -924,8 +900,8 @@ export function SegmentationImageEntry({
         const stamps = new Map<
           string,
           {
-            timestamp: SegmentationImage["timestamp"];
-            receiveTime: SegmentationImage["receiveTime"];
+            timestamp: SegmentationImageMetadata["timestamp"];
+            receiveTime: SegmentationImageMetadata["receiveTime"];
           }
         >();
         // Cache metadata is bounded by the player's cache; no frame/pixel synthesis or media copies.
@@ -935,7 +911,7 @@ export function SegmentationImageEntry({
               (block) => block?.messagesByTopic[imageTopic] ?? [],
             ) ?? []),
             ...data.messages,
-            ...(bridge.sources()?.cachedFrames?.() ?? []),
+            ...(bridge.sources()?.cachedFrames() ?? []),
           ],
           imageTopic,
         )) {

@@ -58,6 +58,9 @@ export type WorkspaceContextStore = {
       initialTab: undefined | AppSettingsTab;
       open: boolean;
     };
+    keyboardShortcuts: {
+      open: boolean;
+    };
   };
   featureTours: {
     active: undefined | string;
@@ -95,6 +98,7 @@ export type WorkspaceInitialState = import("ts-essentials").DeepPartial<
   dialogs?: {
     dataSource?: Partial<WorkspaceContextStore["dialogs"]["dataSource"]>;
     preferences?: Partial<WorkspaceContextStore["dialogs"]["preferences"]>;
+    keyboardShortcuts?: Partial<WorkspaceContextStore["dialogs"]["keyboardShortcuts"]>;
   };
 };
 

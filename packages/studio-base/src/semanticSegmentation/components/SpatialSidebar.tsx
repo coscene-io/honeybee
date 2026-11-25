@@ -12,7 +12,7 @@ import type { StoreApi } from "zustand";
 
 import { useSegmentationSession } from "../segmentationHostContext";
 import type { SemanticSegmentationStore } from "../types";
-import { SpatialTree } from "./SpatialTree";
+import { SpatialTree } from "./SegmentationTree/SpatialTree";
 
 function BoundTree({
   store,

@@ -14,10 +14,10 @@ import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/Playba
 
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
-import { SegmentationCanvas } from "./SegmentationCanvas";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
-import { render, installSegmentationTestHost, testShortcutsDialog } from "../testing/host";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { openViewTools } from "../testing/viewTools";
@@ -526,8 +526,8 @@ describe("Studio keyboard shortcuts dialog", () => {
     render(<KeyboardShortcutsDialog />);
     fireEvent.click(within(openViewTools()).getByRole("button", { name: "Keyboard shortcuts" }));
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    act(() => {
-      testShortcutsDialog().setState({ open: false });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Keyboard shortcuts" }), {
+      key: "Escape",
     });
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();

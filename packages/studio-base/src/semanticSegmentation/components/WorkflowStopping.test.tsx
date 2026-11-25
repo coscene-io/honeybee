@@ -9,9 +9,9 @@
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
-import { SpatialSidebar } from "./SpatialSidebar";
-import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
+import { SemanticSegmentationWorkbench } from "./SemanticSegmentationWorkbench";
+import { SpatialSidebar } from "./SpatialSidebar";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
