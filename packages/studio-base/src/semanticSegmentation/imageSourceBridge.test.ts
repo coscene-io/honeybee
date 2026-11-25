@@ -1,3 +1,4 @@
+/** @jest-environment jsdom */
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
@@ -14,7 +15,14 @@ import {
 const sources = (): SegmentationRendererSources => ({
   imageMetadata: () => undefined,
   image: () => undefined,
-  viewControls: { reset: jest.fn(), zoom: jest.fn(), panBy: jest.fn() },
+  viewControls: {
+    reset: jest.fn(),
+    zoom: jest.fn(),
+    panBy: jest.fn(),
+    wheel: jest.fn(),
+    mouseDown: jest.fn(),
+  },
+  bounds: () => new DOMRect(),
   cachedFrames: () => [],
 });
 

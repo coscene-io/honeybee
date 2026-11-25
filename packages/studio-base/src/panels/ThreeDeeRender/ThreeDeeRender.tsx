@@ -963,10 +963,13 @@ export function ThreeDeeRender(props: {
     if (!canvas || !renderer || interfaceMode !== "image" || !segmentation) {
       return;
     }
+    // Nothing is displayed on a canvas that has no size yet.
+    const sized = () => canvas.width > 0 && canvas.height > 0;
     const unpublish = segmentation.publish({
       cachedFrames: () => renderer.cachedSegmentationFrames(),
-      imageMetadata: () => renderer.captureSegmentationImageMetadata(),
-      image: () => renderer.captureSegmentationImage(),
+      imageMetadata: () => (sized() ? renderer.captureSegmentationImageMetadata() : undefined),
+      image: () => (sized() ? renderer.captureSegmentationImage() : undefined),
+      bounds: () => canvas.getBoundingClientRect(),
       viewControls: {
         reset: () => {
           renderer.resetView();
@@ -977,6 +980,13 @@ export function ThreeDeeRender(props: {
         },
         panBy: (dx, dy) => {
           renderer.panImageViewBy(dx, dy);
+        },
+        // The renderer's own input handling reads these from its canvas.
+        wheel: (event) => {
+          canvas.dispatchEvent(new WheelEvent("wheel", event));
+        },
+        mouseDown: (event) => {
+          canvas.dispatchEvent(new MouseEvent("mousedown", event));
         },
       },
     });

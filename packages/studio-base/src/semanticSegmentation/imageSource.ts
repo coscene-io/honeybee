@@ -44,6 +44,10 @@ export type SegmentationViewControls = {
   reset: () => void;
   zoom: (ratio: number, clientX: number, clientY: number) => void;
   panBy: (dx: number, dy: number) => void;
+  /** Hands the renderer a wheel gesture made on the canvas laid over it. */
+  wheel: (event: WheelEvent) => void;
+  /** Hands the renderer a mouse press made on the canvas laid over it, so it can pan with it. */
+  mouseDown: (event: MouseEvent) => void;
 };
 
 /** What the Image renderer, which lives in its own React root, shares with the editor. */
@@ -53,6 +57,8 @@ export type SegmentationRendererSources = {
   /** The displayed image; its PNG is encoded only when asked for. */
   image: SegmentationImageSource;
   viewControls: SegmentationViewControls;
+  /** Where the renderer draws, in client coordinates. */
+  bounds: () => DOMRectReadOnly;
   /** Frames the panel's decoder cache still holds. */
   cachedFrames: () => MessageEvent[];
 };

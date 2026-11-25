@@ -471,4 +471,24 @@ describe("spatial annotation bridge", () => {
     renderer.emit("endFrame", 0n, renderer);
     expect(onFrame).toHaveBeenCalledTimes(1);
   });
+
+  it("hands gestures made over the image to the renderer's canvas", () => {
+    const bridge = newBridge();
+    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: bridge });
+    const canvas = view.container.querySelector("canvas")!;
+    const seen: [string, number][] = [];
+    for (const type of ["wheel", "mousedown"]) {
+      canvas.addEventListener(type, (event) => {
+        seen.push([event.type, (event as MouseEvent).clientX]);
+      });
+    }
+    const controls = bridge.sources()!.viewControls;
+    controls.wheel(new WheelEvent("wheel", { clientX: 3 }));
+    controls.mouseDown(new MouseEvent("mousedown", { clientX: 4 }));
+    expect(seen).toEqual([
+      ["wheel", 3],
+      ["mousedown", 4],
+    ]);
+    view.unmount();
+  });
 });
