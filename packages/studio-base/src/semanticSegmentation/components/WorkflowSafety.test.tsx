@@ -80,7 +80,9 @@ it("shows exact frame/instance/type staging and confirms local-only reset while 
   expect(runtime.store.getState().stagedOperations).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Clear staged" }));
   fireEvent.click(screen.getByRole("button", { name: "Clear unsubmitted changes only" }));
-  expect(runtime.store.getState().stagedOperations).toHaveLength(0);
+  await waitFor(() => {
+    expect(runtime.store.getState().stagedOperations).toHaveLength(0);
+  });
   expect(JSON.stringify(runtime.store.getState().submissionQueue[0]?.operations)).toBe(queued);
   expect(screen.getByRole("button", { name: "Submit" }).className).toContain(
     "MuiButton-colorPrimary",

@@ -241,7 +241,9 @@ describe("leaving the page", () => {
     const runtime = createMockSegmentationRuntime(createSeedDocument());
     host.registry.acquire("record-unload", "panel-unload", () => runtime);
     await runtime.initialize();
-    runtime.store.getState().addClass("Unsaved");
+    act(() => {
+      runtime.store.getState().addClass("Unsaved");
+    });
     return runtime;
   }
 
@@ -251,7 +253,9 @@ describe("leaving the page", () => {
     expect(unload()).toBe(false);
     const runtime = await withUnsavedWork(host);
     expect(unload()).toBe(true);
-    runtime.store.getState().undo();
+    act(() => {
+      runtime.store.getState().undo();
+    });
     expect(unload()).toBe(false);
   });
 
@@ -261,6 +265,22 @@ describe("leaving the page", () => {
     const host = await registered();
     await withUnsavedWork(host);
     expect(unload()).toBe(false);
+  });
+
+  it("listens only while there is unsaved work", async () => {
+    const add = jest.spyOn(window, "addEventListener");
+    const listening = () => {
+      const types: string[] = add.mock.calls.map(([type]) => type);
+      return types.filter((type) => type === "beforeunload").length;
+    };
+    renderExtension();
+    const host = await registered();
+    expect(listening()).toBe(0);
+    await act(async () => {
+      await withUnsavedWork(host);
+    });
+    expect(listening()).toBe(1);
+    add.mockRestore();
   });
 
   it("stops asking once the extension is gone", async () => {

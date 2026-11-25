@@ -6,9 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { render as renderUi, type RenderOptions } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 import { createStore } from "zustand";
 
+import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
+import { useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import {
   WorkspaceContext,
   type WorkspaceContextStore,
@@ -17,7 +19,9 @@ import {
   WorkspaceSlotsProvider,
   createWorkspaceSlotsStore,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
+import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import { makeWorkspaceContextInitialState } from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import {
   createSegmentationPanelBridge,
@@ -35,6 +39,7 @@ const createWorkspaceStore = () =>
   createStore<WorkspaceContextStore>(makeWorkspaceContextInitialState);
 /** One workspace per test, so separately rendered trees see the same dialogs. */
 let workspace = createWorkspaceStore();
+let appConfiguration = makeMockAppConfiguration();
 
 /**
  * Gives every test of the calling file a fresh host (created before it, disposed after it). Call
@@ -52,6 +57,7 @@ export function installSegmentationTestHost(): void {
     current = createSegmentationHost();
     slots = createWorkspaceSlotsStore();
     workspace = createWorkspaceStore();
+    appConfiguration = makeMockAppConfiguration();
   });
   afterAll(() => {
     current?.dispose();
@@ -72,14 +78,31 @@ export function testSlots(): typeof slots {
   return slots;
 }
 
+/** Renders the open dialogs, as the app root does. */
+function Dialogs(): React.JSX.Element {
+  const dialogs = useDialogs((store) => store.dialogs);
+  return (
+    <>
+      {[...dialogs].map(([key, dialog]) => (
+        <Fragment key={key}>{dialog}</Fragment>
+      ))}
+    </>
+  );
+}
+
 /** Provides the running test's host to what is rendered inside. */
 export function TestHostProvider({ children }: { children?: ReactNode }): React.JSX.Element {
   return (
     <WorkspaceSlotsProvider store={slots}>
       <WorkspaceContext.Provider value={workspace}>
-        <SegmentationHostContext.Provider value={testHost()}>
-          {children}
-        </SegmentationHostContext.Provider>
+        <AppConfigurationContext.Provider value={appConfiguration}>
+          <DialogsProvider>
+            <SegmentationHostContext.Provider value={testHost()}>
+              {children}
+            </SegmentationHostContext.Provider>
+            <Dialogs />
+          </DialogsProvider>
+        </AppConfigurationContext.Provider>
       </WorkspaceContext.Provider>
     </WorkspaceSlotsProvider>
   );

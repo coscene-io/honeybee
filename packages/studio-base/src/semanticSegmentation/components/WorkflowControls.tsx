@@ -19,15 +19,16 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+
 import type { SemanticSegmentationStore, SubmissionBatch } from "../types";
 import { OperationList, OperationScope } from "./OperationScope";
-import { WorkflowConfirmation } from "./WorkflowConfirmation";
 
 const statusKeys = {
   queued: "batchQueued",
@@ -111,13 +112,40 @@ export function SubmissionControls({
   const stagedOperations = useStore(store, (state) => state.stagedOperations);
   const canRedo = useStore(store, (state) => state.canRedo);
   const [message, setMessage] = useState("");
-  const [confirmReset, setConfirmReset] = useState(false);
+  const confirm = useConfirm();
   const [showStaged, setShowStaged] = useState(false);
-  useEffect(() => {
-    setConfirmReset(false);
-  }, [store, document?.record.id]);
   const staged = stagedOperations.length;
   const dirty = staged > 0;
+  const clearStaged = async () => {
+    const recordId = store.getState().document?.record.id;
+    const answer = await confirm({
+      title: t("confirmClearStaged"),
+      prompt: (
+        <>
+          <Typography variant="body2" gutterBottom>
+            {t("clearStagedCount", { count: staged })}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("clearStagedHint")}
+          </Typography>
+        </>
+      ),
+      ok: t("clearUnsubmittedOnly"),
+      cancel: t("cancel"),
+      variant: "danger",
+    });
+    // The dialog is outside the editor: the record or the lock may have changed meanwhile.
+    const state = store.getState();
+    const status = state.propagation.status;
+    if (
+      answer === "ok" &&
+      state.document?.record.id === recordId &&
+      status !== "running" &&
+      status !== "stopping"
+    ) {
+      state.revertStaging();
+    }
+  };
   return (
     <div className={classes.submission}>
       <TextField
@@ -210,33 +238,12 @@ export function SubmissionControls({
           color="error"
           disabled={disabled || !dirty}
           onClick={() => {
-            setConfirmReset(true);
+            void clearStaged();
           }}
         >
           {t("clearStaged")}
         </Button>
       </div>
-      {confirmReset && (
-        <WorkflowConfirmation
-          title={t("confirmClearStaged")}
-          confirmLabel={t("clearUnsubmittedOnly")}
-          disabled={disabled}
-          onCancel={() => {
-            setConfirmReset(false);
-          }}
-          onConfirm={() => {
-            setConfirmReset(false);
-            store.getState().revertStaging();
-          }}
-        >
-          <Typography variant="body2" gutterBottom>
-            {t("clearStagedCount", { count: staged })}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {t("clearStagedHint")}
-          </Typography>
-        </WorkflowConfirmation>
-      )}
     </div>
   );
 }

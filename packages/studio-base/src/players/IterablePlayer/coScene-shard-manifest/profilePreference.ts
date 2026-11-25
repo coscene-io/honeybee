@@ -53,6 +53,37 @@ export function manifestProfileOptions(profiles: readonly ManifestProfile[]): Sh
     .map(profileToOption);
 }
 
+/** The profiles a shard manifest offers; undefined when it cannot be read. */
+export async function loadManifestProfiles(
+  manifestUrl: string,
+): Promise<ManifestProfile[] | undefined> {
+  try {
+    const response = await fetch(manifestUrl);
+    if (!response.ok) {
+      return undefined;
+    }
+    const manifest = (await response.json()) as { profiles?: ManifestProfile[] };
+    return manifest.profiles ?? [];
+  } catch {
+    return undefined;
+  }
+}
+
+/** The page query that selects a profile: the default profile has no `ds.profile`. */
+export function profileSearchParams(
+  search: string,
+  profile: string,
+  defaultProfile: string,
+): URLSearchParams {
+  const next = new URLSearchParams(search);
+  if (profile !== "" && profile !== defaultProfile) {
+    next.set("ds.profile", profile);
+  } else {
+    next.delete("ds.profile");
+  }
+  return next;
+}
+
 export function findMatchingShardProfilePreference(
   options: readonly ShardProfileOption[],
   preference: ShardProfilePreference | undefined,

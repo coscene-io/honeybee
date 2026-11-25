@@ -17,16 +17,16 @@ import {
 import {
   findMatchingShardProfilePreference,
   isDefaultVideoProfile,
+  loadManifestProfiles,
   loadShardProfilePreference,
+  profileSearchParams,
   profileHeight,
   profileToOption,
   RAW_PROFILE,
   saveShardProfilePreference,
 } from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
-import type {
-  ManifestProfile,
-  ShardProfileOption,
-} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import type { ShardProfileOption } from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import { reloadWithSearch } from "@foxglove/studio-base/util/reloadWithSearch";
 import {
   MANIFEST_URL_PARAM,
   SHARD_MODE_MANIFEST,
@@ -34,10 +34,6 @@ import {
   SHARD_MODE_RAW,
 } from "@foxglove/studio-base/util/shardManifestUrlParams";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
-
-interface MinimalManifest {
-  profiles?: ManifestProfile[];
-}
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
@@ -87,25 +83,18 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     }
     let cancelled = false;
     void (async () => {
-      try {
-        const resp = await fetch(manifestUrl);
-        if (!resp.ok) {
-          return;
-        }
-        const json = (await resp.json()) as MinimalManifest;
-        const profiles = (json.profiles ?? [])
-          .filter((p) => p.id !== "" && p.id !== "full" && p.id !== RAW_PROFILE)
-          .sort((a, b) => profileHeight(a) - profileHeight(b));
-        const fromManifest = profiles.map(profileToOption);
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (cancelled || fromManifest.length === 0) {
-          return;
-        }
-        setProfileOptions(fromManifest);
-        setDefaultProfile(profiles.find(isDefaultVideoProfile)?.id ?? fromManifest[0]?.value ?? "");
-      } catch {
-        // Network error / parse error — silently keep the default-only list.
+      const manifest = await loadManifestProfiles(manifestUrl);
+      const profiles = (manifest ?? [])
+        .filter((p) => p.id !== "" && p.id !== "full" && p.id !== RAW_PROFILE)
+        .sort((a, b) => profileHeight(a) - profileHeight(b));
+      const fromManifest = profiles.map(profileToOption);
+      // A manifest that cannot be read keeps the default-only list.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (cancelled || fromManifest.length === 0) {
+        return;
       }
+      setProfileOptions(fromManifest);
+      setDefaultProfile(profiles.find(isDefaultVideoProfile)?.id ?? fromManifest[0]?.value ?? "");
     })();
     return () => {
       cancelled = true;
@@ -146,13 +135,9 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     ) {
       return;
     }
-    const next = new URLSearchParams(window.location.search);
-    if (savedOption.value === defaultProfile) {
-      next.delete("ds.profile");
-    } else {
-      next.set("ds.profile", savedOption.value);
-    }
-    window.location.search = next.toString();
+    reloadWithSearch(
+      profileSearchParams(window.location.search, savedOption.value, defaultProfile),
+    );
   }, [currentProfile, defaultProfile, options, selectorVisible]);
 
   const onChange = useCallback(
@@ -161,13 +146,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
       if (selectedOption != undefined) {
         saveShardProfilePreference(selectedOption);
       }
-      const next = new URLSearchParams(window.location.search);
-      if (value !== "" && value !== defaultProfile) {
-        next.set("ds.profile", value);
-      } else {
-        next.delete("ds.profile");
-      }
-      window.location.search = next.toString();
+      reloadWithSearch(profileSearchParams(window.location.search, value, defaultProfile));
     },
     [defaultProfile, options],
   );

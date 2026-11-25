@@ -10,6 +10,9 @@ import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { StoreApi } from "zustand";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+
 import type { CanvasDerived } from "./canvasDerive";
 import type { CanvasState } from "./canvasState";
 import type {
@@ -27,26 +30,15 @@ import type { QuickPoint } from "../../quickSegment";
 import type { SegmentationHost } from "../../segmentationHostContext";
 import type { MaskConversionLoss, SemanticSegmentationStore } from "../../types";
 
-const HELP_KEY = "coStudio.semanticSegmentation.drawingHelp";
-
 /** Dismissing the drawing help is remembered; it is a one-line hint, not a per-drawing banner. */
 function useDrawingHelp(): [boolean, (value: "shown" | "hidden") => void] {
-  const [show, setShow] = useState(() => {
-    try {
-      return globalThis.localStorage.getItem(HELP_KEY) !== "hidden";
-    } catch {
-      return true;
-    }
-  });
+  const [stored, setStored] = useAppConfigurationValue<boolean>(
+    AppSetting.SEGMENTATION_DRAWING_HELP,
+  );
   const set = (value: "shown" | "hidden") => {
-    setShow(value === "shown");
-    try {
-      globalThis.localStorage.setItem(HELP_KEY, value);
-    } catch {
-      // Storage may be disabled; the choice still applies to this canvas.
-    }
+    void setStored(value === "shown");
   };
-  return [show, set];
+  return [stored ?? true, set];
 }
 
 /** Zoom, pan and the other view-only state of the canvas. */

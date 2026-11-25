@@ -12,8 +12,8 @@ import { createRef } from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { reloadWithSearch } from "@foxglove/studio-base/util/reloadWithSearch";
 
-import { annotationProfileNavigation } from "../annotationProfile";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
 import {
@@ -26,6 +26,8 @@ import {
 } from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
+
+jest.mock("@foxglove/studio-base/util/reloadWithSearch", () => ({ reloadWithSearch: jest.fn() }));
 
 installSegmentationTestHost();
 
@@ -259,12 +261,12 @@ it("ignores initialization completing after a source switch", async () => {
 
 describe("annotation quality", () => {
   const parameters = () => pipeline.playerState.urlState.parameters as Record<string, string>;
-  let reload: jest.SpyInstance;
+  const reload = jest.mocked(reloadWithSearch);
   const originalFetch = globalThis.fetch;
   let manifests = 0;
 
   beforeEach(() => {
-    reload = jest.spyOn(annotationProfileNavigation, "reload").mockImplementation(() => {});
+    reload.mockClear();
     globalThis.fetch = jest.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -278,7 +280,6 @@ describe("annotation quality", () => {
     parameters().manifestUrl = `https://manifest.example/${++manifests}.json`;
   });
   afterEach(() => {
-    reload.mockRestore();
     globalThis.fetch = originalFetch;
     delete parameters().shardMode;
     delete parameters().manifestUrl;
@@ -292,7 +293,7 @@ describe("annotation quality", () => {
       enterAnnotation();
     });
     await waitFor(() => {
-      expect(reload).toHaveBeenCalledWith("ds.profile=720p15");
+      expect(reload.mock.lastCall?.[0].toString()).toBe("ds.profile=720p15");
     });
     expect(testHost().session.getState().open).toBe(false);
   });
