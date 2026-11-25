@@ -13,6 +13,7 @@ import { createSharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import { createSegmentationRegistry, createSegmentationSession } from "./runtime";
 import { createSegmentationChrome } from "./segmentationChrome";
 import type { SegmentationHost } from "./segmentationHostContext";
+import { createSourceFrameLoaders } from "./sourceFrames";
 
 /** A new, empty host: its own session and runtime registry, shared by nothing else. */
 export function createSegmentationHost(): SegmentationHost {
@@ -31,7 +32,7 @@ export function createSegmentationHost(): SegmentationHost {
     registry,
     chrome: createSegmentationChrome(),
     cameraStep: createCameraStepState(),
-    sourceFrames: new Map(),
+    sourceFrames: createSourceFrameLoaders(),
     maskOverlay,
     maskOverlayControls,
     maskPlanes,
