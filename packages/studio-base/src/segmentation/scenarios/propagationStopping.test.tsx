@@ -1,0 +1,89 @@
+/** @jest-environment jsdom */
+
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+
+import { GlobalPropagationLock } from "../components/GlobalPropagationLock";
+import { SegmentationSidebar } from "../components/SegmentationSidebar";
+import { SegmentationWorkbench } from "../components/SegmentationWorkbench";
+import { CurrentFramePropagationForm } from "./fixtures/canvas";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
+import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { setMockControls } from "../testing/mockService";
+
+installSegmentationTestHost();
+
+afterEach(() => {
+  cleanup();
+  testHost().session.setState({ runtime: undefined, open: false });
+  document.body.removeAttribute("tabindex");
+});
+
+it("keeps actual editor/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
+  let cancels = 0;
+  const runtime = createMockSegmentationRuntime(undefined, undefined, (service) => {
+    const originalCancel = service.cancelPropagation?.bind(service);
+    if (!originalCancel) {
+      throw new Error("Mock fixture must support cancellation acknowledgement");
+    }
+    service.cancelPropagation = async (context) => {
+      cancels++;
+      return await originalCancel(context);
+    };
+  });
+  setMockControls(runtime.service, {
+    delayMs: 0,
+    streamDelayMs: 1000,
+    cancelDelayMs: 60,
+    failCancelNext: true,
+  });
+  await runtime.initialize();
+  runtime.store.getState().setFocus({ type: "instance", id: "instance-1" });
+  testHost().session.setState({ runtime, open: true });
+  const { container } = render(
+    <>
+      <button type="button">Native timeline seek</button>
+      <SegmentationSidebar />
+      <SegmentationWorkbench runtime={runtime} />
+      <CurrentFramePropagationForm store={runtime.store} />
+      <GlobalPropagationLock />
+    </>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start propagation" }));
+  const lock = await screen.findByRole("dialog", { name: "Live propagation lock" });
+  fireEvent.click(within(lock).getByRole("button", { name: "Stop propagation" }));
+  expect(runtime.store.getState().propagation.status).toBe("stopping");
+  expect(within(lock).getByRole("button", { name: "Stopping…" })).toHaveProperty("disabled", true);
+  expect(container.inert).toBe(true);
+  expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", true);
+  act(() => {
+    runtime.store.getState().stopPropagation();
+  });
+  await waitFor(() => {
+    expect(cancels).toBe(1);
+  });
+  document.body.tabIndex = -1;
+  document.body.focus();
+  expect(document.activeElement).toBe(document.body);
+  const retry = await within(lock).findByRole("button", { name: "Retry stop" });
+  await waitFor(() => {
+    expect(document.activeElement).toBe(retry);
+  });
+  expect(container.inert).toBe(true);
+  fireEvent.keyDown(retry, { key: "Enter" });
+  await waitFor(() => {
+    expect(cancels).toBe(2);
+  });
+  await waitFor(() => {
+    expect(runtime.store.getState().propagation.status).toBe("cancelled");
+  });
+  expect(container.inert).not.toBe(true);
+  expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", false);
+  runtime.dispose();
+});

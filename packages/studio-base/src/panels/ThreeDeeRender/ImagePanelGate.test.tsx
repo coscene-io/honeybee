@@ -8,8 +8,8 @@
 
 import { render, screen } from "@testing-library/react";
 
-import { createSegmentationHost } from "@foxglove/studio-base/semanticSegmentation/segmentationHost";
-import { SegmentationHostContext } from "@foxglove/studio-base/semanticSegmentation/segmentationHostContext";
+import { createSegmentationHost } from "@foxglove/studio-base/segmentation/segmentationHost";
+import { SegmentationHostContext } from "@foxglove/studio-base/segmentation/segmentationHostContext";
 
 import { ImagePanel } from "./index";
 
@@ -44,19 +44,18 @@ jest.mock("@foxglove/studio-base/context/AppContext", () => ({
 jest.mock("@foxglove/studio-base/components/ForwardAnalyticsContextProvider", () => ({
   useForwardAnalytics: () => ({}),
 }));
-jest.mock("@foxglove/studio-base/semanticSegmentation/featureFlag", () => ({
-  useSemanticSegmentationEnabled: () => mockEnabled,
+jest.mock("@foxglove/studio-base/segmentation/featureFlag", () => ({
+  useSegmentationEnabled: () => mockEnabled,
 }));
-jest.mock("@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry", () => ({
+jest.mock("@foxglove/studio-base/segmentation/components/SegmentationImageEntry", () => ({
   SegmentationImageEntry: () => <div data-testid="segmentation-entry" />,
 }));
-jest.mock("@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace", () => ({
-  SegmentationWorkspace: () => <div data-testid="segmentation-workspace" />,
+jest.mock("@foxglove/studio-base/segmentation/components/SegmentationPanelOverlay", () => ({
+  SegmentationPanelOverlay: () => <div data-testid="segmentation-workspace" />,
 }));
-jest.mock(
-  "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton",
-  () => ({ SegmentationPropagateButton: () => <div data-testid="segmentation-propagate" /> }),
-);
+jest.mock("@foxglove/studio-base/segmentation/components/SegmentationPropagateButton", () => ({
+  SegmentationPropagateButton: () => <div data-testid="segmentation-propagate" />,
+}));
 
 const Image = ImagePanel as unknown as (props: {
   config: Record<string, unknown>;
