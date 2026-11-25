@@ -46,7 +46,6 @@ import PlaybackControls, {
   RealtimeVizPlaybackControls,
 } from "@foxglove/studio-base/components/PlaybackControls";
 import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
-import { KeyboardShortcutsDialogProvider } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 import { PerformanceSidebar } from "@foxglove/studio-base/components/PlaybackDiagnostics/PerformanceSidebar";
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
@@ -588,6 +587,9 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
         initialTab: undefined,
         open: false,
       },
+      keyboardShortcuts: {
+        open: false,
+      },
     },
   };
 
@@ -598,9 +600,7 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
       disablePersistence={props.disablePersistence}
     >
       <WorkspaceSlotsProvider>
-        <KeyboardShortcutsDialogProvider>
-          <WorkspaceContent {...props} />
-        </KeyboardShortcutsDialogProvider>
+        <WorkspaceContent {...props} />
       </WorkspaceSlotsProvider>
     </WorkspaceContextProvider>
   );
