@@ -9,7 +9,7 @@ export const appBar = {
   useAnotherAccount: "Use another account",
   sessionChanged:
     "Your session has changed. Continue to reopen this visualization with the current session.",
-  checkingOrganization: "Checking access…",
+  openingVisualization: "Opening visualization…",
   organizationChanged: "Your organization has changed",
   switchOrganizationTitle: "Switch organizations to continue",
   linkOrganization: "Link organization: {{organization}}",
