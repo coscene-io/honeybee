@@ -8,6 +8,9 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { StoreApi } from "zustand";
 
+import type { CanvasContext, CanvasUi } from "./canvasUi";
+import { hasPolygonArea, screenToNormalized } from "../../editorGeometry";
+import type { EditorPoint } from "../../editorGeometry";
 import { segmentationErrorText } from "../../errors";
 import { maskContains } from "../../maskCodec";
 import {
@@ -19,10 +22,7 @@ import {
 } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 import type { CreationTool, SemanticSegmentationStore } from "../../types";
-import { hasPolygonArea, screenToNormalized } from "../editorGeometry";
-import type { EditorPoint } from "../editorGeometry";
 import { beginPolygonEdit, findPolygonOwner, focusContains } from "../polygonEdit";
-import type { CanvasContext, CanvasUi } from "./canvasUi";
 
 /** Runs a store command; a failure becomes the canvas' error banner instead of an exception. */
 export function run(c: CanvasContext, action: () => void): void {

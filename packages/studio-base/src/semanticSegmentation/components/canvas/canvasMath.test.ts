@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { AffineMatrix } from "../editorGeometry";
 import {
   brushAfterKey,
   clampDelta,
@@ -27,6 +26,7 @@ import {
   verticesInRect,
 } from "./canvasMath";
 import type { Drag, EditableVertex } from "./canvasTypes";
+import type { AffineMatrix } from "../../editorGeometry";
 
 const identity: AffineMatrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 const square = [

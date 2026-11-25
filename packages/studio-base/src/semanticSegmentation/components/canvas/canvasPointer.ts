@@ -7,7 +7,6 @@
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 
-import { clampUnit, screenToNormalized } from "../editorGeometry";
 import {
   cancelGesture,
   claimShownFrame,
@@ -23,6 +22,7 @@ import type { CanvasContext } from "./canvasUi";
 import { addQuickPoint } from "./quickMask";
 import { contextTarget, hitTarget, insertVertex, selectInRect } from "./vertexEditing";
 import { nativePanOnly, panelView } from "./viewControls";
+import { clampUnit, screenToNormalized } from "../../editorGeometry";
 
 type PointerEvent = ReactPointerEvent<SVGSVGElement>;
 
@@ -48,9 +48,7 @@ export function handleViewportMouseDownCapture(
   event: ReactMouseEvent<HTMLElement>,
 ): void {
   if (nativePanOnly(c, event)) {
-    c.props.decodedFrame?.nativeCanvas?.dispatchEvent(
-      new MouseEvent("mousedown", event.nativeEvent),
-    );
+    c.props.decodedFrame?.viewControls?.mouseDown(event.nativeEvent);
     event.stopPropagation();
   }
 }

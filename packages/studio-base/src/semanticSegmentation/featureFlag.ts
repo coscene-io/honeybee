@@ -7,7 +7,6 @@
 
 import { useCoreData, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
 import { useOptionalFeatureIsOnWithConfig } from "@foxglove/studio-base/providers/GrowthBookProvider";
-import { isAnnotationRecordName } from "@foxglove/studio-base/util/coscene/annotationRecordName";
 
 /**
  * Rollout flag for spatial annotation (semantic segmentation). Default off: with it off no Image
@@ -15,6 +14,8 @@ import { isAnnotationRecordName } from "@foxglove/studio-base/util/coscene/annot
  * entry and the 空间 sidebar tab stay hidden. Turn it on per environment only where the
  * AnnotationService backend is deployed.
  */
+import { isAnnotationRecordName } from "./recordName";
+
 export const SEMANTIC_SEGMENTATION_FEATURE_FLAG = "honeybee_semantic_segmentation";
 
 const selectRecordName = (state: CoreDataStore) => state.record.value?.name;

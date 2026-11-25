@@ -12,15 +12,12 @@ import { useContext } from "react";
 import { createStore, type StoreApi } from "zustand";
 
 import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
-import {
-  KeyboardShortcutsDialogProvider,
-  createKeyboardShortcutsDialogStore,
-} from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 import { CoreDataContext, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   WorkspaceSlotsProvider,
   createWorkspaceSlotsStore,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
@@ -40,7 +37,8 @@ const mockedBrowserSession = jest.mocked(getBrowserSession);
 const RECORD = CLOUD_RECORD;
 let core: StoreApi<CoreDataStore>;
 let slots = createWorkspaceSlotsStore();
-let shortcuts = createKeyboardShortcutsDialogStore();
+/** Whether the next render starts with the keyboard shortcuts dialog open. */
+let shortcutsOpen = false;
 /** What the extension's children see in context: the host it created, once it has. */
 let seenHost: SegmentationHost | undefined;
 
@@ -68,12 +66,15 @@ function tree(extra?: React.ReactNode): React.JSX.Element {
   return (
     <CoreDataContext.Provider value={core}>
       <WorkspaceSlotsProvider store={slots}>
-        <KeyboardShortcutsDialogProvider store={shortcuts}>
+        <WorkspaceContextProvider
+          disablePersistence
+          initialState={{ dialogs: { keyboardShortcuts: { open: shortcutsOpen } } }}
+        >
           <SegmentationWorkspaceExtension>
             <Child />
             {extra}
           </SegmentationWorkspaceExtension>
-        </KeyboardShortcutsDialogProvider>
+        </WorkspaceContextProvider>
       </WorkspaceSlotsProvider>
     </CoreDataContext.Provider>
   );
@@ -102,7 +103,7 @@ const setUserAgent = (value: string) => {
 beforeEach(async () => {
   core = createCoreDataSourceStore();
   slots = createWorkspaceSlotsStore();
-  shortcuts = createKeyboardShortcutsDialogStore();
+  shortcutsOpen = false;
   seenHost = undefined;
   flag("on");
   await i18n.changeLanguage("en");
@@ -273,11 +274,11 @@ describe("leaving the page", () => {
 
 describe("Spatial annotation shortcuts column", () => {
   const openDialog = async (opts: { annotating: boolean }) => {
+    shortcutsOpen = true;
     renderExtension(<KeyboardShortcutsDialog />);
     const host = await registered();
     act(() => {
       host.session.setState({ open: opts.annotating });
-      shortcuts.setState({ open: true });
     });
   };
 

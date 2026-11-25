@@ -22,10 +22,10 @@ import type {
   SegmentationCanvasProps,
   VertexRef,
 } from "./canvasTypes";
+import type { EditorPoint } from "../../editorGeometry";
 import type { QuickPoint } from "../../quickSegment";
 import type { SegmentationHost } from "../../segmentationHostContext";
 import type { MaskConversionLoss, SemanticSegmentationStore } from "../../types";
-import type { EditorPoint } from "../editorGeometry";
 
 const HELP_KEY = "coStudio.semanticSegmentation.drawingHelp";
 

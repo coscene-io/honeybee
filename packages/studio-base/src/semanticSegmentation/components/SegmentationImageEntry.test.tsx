@@ -14,10 +14,16 @@ import { fromNanoSec } from "@foxglove/rostime";
 import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import { annotationProfileNavigation } from "../annotationProfile";
-import type { SegmentationImage } from "../imageSource";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
-import { render, testHost, createTestBridge, installSegmentationTestHost } from "../testing/host";
+import {
+  render,
+  testHost,
+  createTestBridge,
+  installSegmentationTestHost,
+  testSources,
+  type TestImage,
+} from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
 
@@ -57,8 +63,10 @@ jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
     selector({ user: mockUserId ? { userId: mockUserId } : undefined }),
 }));
 // Every fixture source counts as a cloud record; sessions use the in-memory mock service in place of the live one.
-jest.mock("@foxglove/studio-base/util/coscene/annotation", () => ({
+jest.mock("@foxglove/studio-base/semanticSegmentation/recordName", () => ({
   isAnnotationRecordName: () => true,
+}));
+jest.mock("@foxglove/studio-base/semanticSegmentation/liveService", () => ({
   createLiveSemanticSegmentationService: ({ document }: { document: unknown }) =>
     jest
       .requireActual<
@@ -80,7 +88,10 @@ jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
     }),
 }));
 jest.mock("@foxglove/studio-base/context/Workspace/useWorkspaceActions", () => ({
-  useWorkspaceActions: () => ({ sidebarActions: { left: { selectItem } } }),
+  useWorkspaceActions: () => ({
+    dialogActions: { keyboardShortcuts: { open: jest.fn() } },
+    sidebarActions: { left: { selectItem } },
+  }),
 }));
 
 let sequence = 0;
@@ -93,7 +104,7 @@ function fixture(frames: "recorded" | "none" = "recorded") {
     const time = fromNanoSec(ns);
     return { topic: "/camera", receiveTime: time, message: { timestamp: time } };
   }) as never;
-  let image: SegmentationImage = {
+  let image: TestImage = {
     imageUrl: "data:image/png;base64,first",
     topic: "/camera",
     timestamp: fromNanoSec(0n),
@@ -117,13 +128,13 @@ function fixture(frames: "recorded" | "none" = "recorded") {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   const capture = jest.fn(() => image);
-  bridge.publish({ image: capture });
+  bridge.publish(testSources({ image: capture }));
   return {
     ...result,
     view,
     canvas,
     capture,
-    setImage: (time: bigint, changes?: Partial<SegmentationImage>) => {
+    setImage: (time: bigint, changes?: Partial<TestImage>) => {
       image = {
         ...image,
         imageUrl: `data:image/png;base64,${time}`,
@@ -135,7 +146,7 @@ function fixture(frames: "recorded" | "none" = "recorded") {
     },
     event: () => {
       act(() => {
-        canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+        bridge.notifyFrame();
       });
     },
   };

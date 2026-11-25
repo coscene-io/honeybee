@@ -8,9 +8,9 @@
 import type { RefObject } from "react";
 import type { StoreApi } from "zustand";
 
+import type { EditorPoint } from "../../editorGeometry";
 import type { DecodedSegmentationFrame } from "../../runtime";
 import type { SegmentationMask, SemanticSegmentationStore } from "../../types";
-import type { EditorPoint } from "../editorGeometry";
 
 export type SegmentationCanvasProps = {
   /** False on canvases that do not hold the edit: they show no errors or drawing help. */

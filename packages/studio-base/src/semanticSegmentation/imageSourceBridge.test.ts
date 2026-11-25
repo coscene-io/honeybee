@@ -1,3 +1,4 @@
+/** @jest-environment jsdom */
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
@@ -14,7 +15,14 @@ import {
 const sources = (): SegmentationRendererSources => ({
   imageMetadata: () => undefined,
   image: () => undefined,
-  viewControls: { reset: jest.fn(), zoom: jest.fn(), panBy: jest.fn() },
+  viewControls: {
+    reset: jest.fn(),
+    zoom: jest.fn(),
+    panBy: jest.fn(),
+    wheel: jest.fn(),
+    mouseDown: jest.fn(),
+  },
+  bounds: () => new DOMRect(),
   cachedFrames: () => [],
 });
 
@@ -64,6 +72,21 @@ describe("segmentation panel bridge", () => {
     bridge.publish(second);
     withdrawFirst();
     expect(bridge.sources()).toBe(second);
+  });
+
+  it("tells subscribers about each drawn frame until they unsubscribe", () => {
+    const bridge = createSegmentationPanelBridge(shared());
+    const once = jest.fn();
+    const unsubscribeOnce = bridge.subscribeFrames(() => {
+      once();
+      unsubscribeOnce();
+    });
+    const every = jest.fn();
+    bridge.subscribeFrames(every);
+    bridge.notifyFrame();
+    bridge.notifyFrame();
+    expect(once).toHaveBeenCalledTimes(1);
+    expect(every).toHaveBeenCalledTimes(2);
   });
 
   it("gives each panel its own sources but the host's overlay", () => {

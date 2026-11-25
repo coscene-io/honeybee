@@ -12,8 +12,8 @@ import type { PlayerURLState } from "@foxglove/studio-base/players/types";
 import type { SharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import type { NativeImageView } from "./nativeImageTransform";
 
-export type SegmentationImage = Readonly<{
-  imageUrl: string;
+/** Frame identity and projection of a displayed image. */
+export type SegmentationImageMetadata = Readonly<{
   nativeView?: NativeImageView;
   /** Decoded size of the displayed source frame; masks of this topic decode at this size. */
   imageWidth?: number;
@@ -25,7 +25,15 @@ export type SegmentationImage = Readonly<{
   decodedIdentity: object;
 }>;
 
-export type SegmentationImageMetadata = Omit<SegmentationImage, "imageUrl">;
+export type SegmentationImage = SegmentationImageMetadata &
+  Readonly<{
+    /**
+     * A PNG data URL of the displayed pixels. Encoding is synchronous and costly: it happens on the
+     * first call for a decoded frame and the result is kept for that frame.
+     */
+    encodeImageUrl: () => string;
+  }>;
+
 export type SegmentationImageSource = () => SegmentationImage | undefined;
 
 /**
@@ -36,17 +44,23 @@ export type SegmentationViewControls = {
   reset: () => void;
   zoom: (ratio: number, clientX: number, clientY: number) => void;
   panBy: (dx: number, dy: number) => void;
+  /** Hands the renderer a wheel gesture made on the canvas laid over it. */
+  wheel: (event: WheelEvent) => void;
+  /** Hands the renderer a mouse press made on the canvas laid over it, so it can pan with it. */
+  mouseDown: (event: MouseEvent) => void;
 };
 
 /** What the Image renderer, which lives in its own React root, shares with the editor. */
 export type SegmentationRendererSources = {
-  /** The displayed image with its PNG, encoded on first read. */
-  image: SegmentationImageSource;
   /** Frame identity and projection of the displayed image, without a PNG copy of its pixels. */
-  imageMetadata?: () => SegmentationImageMetadata | undefined;
-  viewControls?: SegmentationViewControls;
+  imageMetadata: () => SegmentationImageMetadata | undefined;
+  /** The displayed image; its PNG is encoded only when asked for. */
+  image: SegmentationImageSource;
+  viewControls: SegmentationViewControls;
+  /** Where the renderer draws, in client coordinates. */
+  bounds: () => DOMRectReadOnly;
   /** Frames the panel's decoder cache still holds. */
-  cachedFrames?: () => MessageEvent[];
+  cachedFrames: () => MessageEvent[];
 };
 
 export function imageFrameIdentity(
@@ -174,12 +188,17 @@ export type SegmentationPanelBridge = {
   publish: (sources: SegmentationRendererSources) => () => void;
   /** Editor side: what the renderer currently offers. */
   sources: () => SegmentationRendererSources | undefined;
+  /** Editor side: calls `listener` after each frame the renderer draws. */
+  subscribeFrames: (listener: () => void) => () => void;
+  /** Renderer side: a frame was drawn. */
+  notifyFrame: () => void;
 };
 
 export function createSegmentationPanelBridge(
   shared: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">,
 ): SegmentationPanelBridge {
   let current: SegmentationRendererSources | undefined;
+  const frameListeners = new Set<() => void>();
   return {
     ...shared,
     publish(sources) {
@@ -191,5 +210,17 @@ export function createSegmentationPanelBridge(
       };
     },
     sources: () => current,
+    subscribeFrames(listener) {
+      frameListeners.add(listener);
+      return () => {
+        frameListeners.delete(listener);
+      };
+    },
+    notifyFrame() {
+      // A listener may subscribe again while it runs; it then waits for the next frame.
+      for (const listener of [...frameListeners]) {
+        listener();
+      }
+    },
   };
 }

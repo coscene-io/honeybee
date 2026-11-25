@@ -26,7 +26,6 @@ import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SegmentationImageEntry } from "../../components/SegmentationImageEntry";
 import { SpatialSidebar } from "../../components/SpatialSidebar";
-import type { SegmentationImage } from "../../imageSource";
 import { polygonsOf } from "../../maskGeometry";
 import { enterAnnotation, recordEntryActions } from "../../testing/entryActions";
 import {
@@ -34,6 +33,8 @@ import {
   testHost,
   createTestBridge,
   installSegmentationTestHost,
+  testSources,
+  type TestImage,
 } from "../../testing/host";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import { focusedImageUrl } from "../../testing/session";
@@ -70,8 +71,10 @@ jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
     selector({ user: mockUserId ? { userId: mockUserId } : undefined }),
 }));
 // Every fixture source counts as a cloud record; sessions use the in-memory mock service in place of the live one.
-jest.mock("@foxglove/studio-base/util/coscene/annotation", () => ({
+jest.mock("@foxglove/studio-base/semanticSegmentation/recordName", () => ({
   isAnnotationRecordName: () => true,
+}));
+jest.mock("@foxglove/studio-base/semanticSegmentation/liveService", () => ({
   createLiveSemanticSegmentationService: ({ document }: { document: unknown }) =>
     jest
       .requireActual<
@@ -149,7 +152,7 @@ function fixture() {
     })),
   };
   pipeline.playerState.urlState.parameters.url = source.sourceId;
-  let image: SegmentationImage = {
+  let image: TestImage = {
     imageUrl: "data:image/png;base64,first",
     topic: "/camera",
     timestamp: fromNanoSec(0n),
@@ -179,13 +182,13 @@ function fixture() {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   const capture = jest.fn(() => image);
-  bridge.publish({ image: capture });
+  bridge.publish(testSources({ image: capture }));
   return {
     ...result,
     view,
     canvas,
     capture,
-    setImage: (time: bigint, changes?: Partial<SegmentationImage>) => {
+    setImage: (time: bigint, changes?: Partial<TestImage>) => {
       image = {
         ...image,
         imageUrl: `data:image/png;base64,${time}`,
@@ -197,7 +200,7 @@ function fixture() {
     },
     event: () => {
       act(() => {
-        canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+        bridge.notifyFrame();
       });
     },
   };

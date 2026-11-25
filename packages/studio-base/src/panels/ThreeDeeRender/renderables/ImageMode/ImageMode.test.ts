@@ -486,12 +486,14 @@ describe("ImageMode compressed video seek replay", () => {
     });
     expect(encode).not.toHaveBeenCalled();
     expect(imageMode.captureSegmentationImage()).toMatchObject({
-      imageUrl: "data:image/png;base64,original-decoded-frame",
       timestamp: { sec: 0, nsec: 0 },
       receiveTime: { sec: 0, nsec: 0 },
       topic: "/camera",
       decodedIdentity: pixels,
     });
+    expect(imageMode.captureSegmentationImage()!.encodeImageUrl()).toBe(
+      "data:image/png;base64,original-decoded-frame",
+    );
     // A newer requested message must not relabel the old displayed pixels.
     renderable.userData.image = makeVideoMessage(900n, "delta").message;
     expect(imageMode.captureSegmentationImage()?.timestamp).toEqual({ sec: 0, nsec: 0 });
@@ -503,12 +505,15 @@ describe("ImageMode compressed video seek replay", () => {
       image: makeVideoMessage(900n, "key").message,
       receiveTime: 900n,
     };
-    expect(imageMode.captureSegmentationImage()?.timestamp).toEqual({ sec: 0, nsec: 900 });
-    expect(encode).toHaveBeenCalledWith("image/png");
+    const next = imageMode.captureSegmentationImage()!;
+    expect(next.timestamp).toEqual({ sec: 0, nsec: 900 });
+    next.encodeImageUrl();
+    expect(encode).toHaveBeenLastCalledWith("image/png");
+    expect(encode).toHaveBeenCalledTimes(2);
     imageMode.dispose();
   });
 
-  it("encodes the PNG only when the editor reads imageUrl, once per decoded frame", async () => {
+  it("encodes the PNG only when the editor asks for it, once per decoded frame", async () => {
     const imageMode = new TestImageMode(makeRenderer());
     void compressedVideoSubscription(imageMode).processQueue?.(
       [makeVideoMessage(0n, "key")],
@@ -533,8 +538,8 @@ describe("ImageMode compressed video seek replay", () => {
     const again = imageMode.captureSegmentationImage()!;
     expect(again).toBe(first);
     expect(encode).not.toHaveBeenCalled();
-    expect(first.imageUrl).toBe("data:image/png;base64,frame");
-    expect(again.imageUrl).toBe("data:image/png;base64,frame");
+    expect(first.encodeImageUrl()).toBe("data:image/png;base64,frame");
+    expect(again.encodeImageUrl()).toBe("data:image/png;base64,frame");
     expect(encode).toHaveBeenCalledTimes(1);
     imageMode.dispose();
     encode.mockRestore();

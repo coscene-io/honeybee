@@ -5,15 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { markStrokeFrame, pointOf } from "./canvasActions";
+import type { QuickResult } from "./canvasTypes";
+import type { CanvasContext } from "./canvasUi";
+import { clampUnit } from "../../editorGeometry";
 import { segmentationErrorText } from "../../errors";
 import { bitmapOfRuns } from "../../maskCodec";
 import { runsOfMask } from "../../maskGeometry";
 import type { QuickPoint } from "../../quickSegment";
 import type { SegmentationMask } from "../../types";
-import { clampUnit } from "../editorGeometry";
-import { markStrokeFrame, pointOf } from "./canvasActions";
-import type { QuickResult } from "./canvasTypes";
-import type { CanvasContext } from "./canvasUi";
 
 /** The mask drawn as a translucent PNG data URL, with its bounding bitmap. */
 export function quickPreview(mask: SegmentationMask, score: number): QuickResult {

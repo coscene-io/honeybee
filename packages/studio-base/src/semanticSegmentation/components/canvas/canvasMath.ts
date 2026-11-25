@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { AffineMatrix, EditorPoint } from "../editorGeometry";
-import { clampUnit, nearestPolygonEdge, translatePolygon } from "../editorGeometry";
 import type {
   Brush,
   Drag,
@@ -16,6 +14,8 @@ import type {
   VertexGroup,
   VertexRef,
 } from "./canvasTypes";
+import type { AffineMatrix, EditorPoint } from "../../editorGeometry";
+import { clampUnit, nearestPolygonEdge, translatePolygon } from "../../editorGeometry";
 
 /** Moves the given vertices by (dx, dy), clamped to the image. */
 export function moveVertices(

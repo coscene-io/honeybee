@@ -9,8 +9,8 @@ import { memo } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { EditorPoint } from "../editorGeometry";
 import type { HoverTarget, VertexRef } from "./canvasTypes";
+import type { EditorPoint } from "../../editorGeometry";
 
 export type VertexActions = {
   startShape: (

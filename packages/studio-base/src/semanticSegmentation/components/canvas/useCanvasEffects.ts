@@ -215,7 +215,7 @@ function useWheelForwarding(c: CanvasContext): void {
       }
       event.preventDefault();
       event.stopPropagation();
-      decodedFrame?.nativeCanvas?.dispatchEvent(new WheelEvent("wheel", event));
+      decodedFrame?.viewControls?.wheel(event);
     };
     element?.addEventListener("wheel", wheel, { passive: false });
     return () => {

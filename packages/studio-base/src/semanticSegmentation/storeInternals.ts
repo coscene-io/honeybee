@@ -5,20 +5,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { segmentationErrorText } from "./errors";
 import type { SemanticSegmentationService } from "./service";
 import type { SegmentationDocument, SemanticSegmentationStore } from "./types";
-
-/** An error as the text the store publishes: localized when it carries a code. */
-export function message(error: unknown): string {
-  return segmentationErrorText(error);
-}
 
 /**
  * What the store shares with the parts split out of it (the submission queue and propagation).
  * One instance per store; every accessor reads the store's current state.
  */
-export type StoreContext = {
+export type StoreInternals = {
   service: SemanticSegmentationService;
   get: () => SemanticSegmentationStore;
   set: (partial: Partial<SemanticSegmentationStore>) => void;

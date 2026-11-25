@@ -9,7 +9,7 @@ import { Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { useOpenKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 
 import { annotationViewportProps } from "../annotationInput";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
@@ -49,7 +49,7 @@ export function SegmentationCanvas(props: SegmentationCanvasProps): React.JSX.El
   const state = useCanvasState(store);
   const ui = useCanvasUi(props.viewportRef);
   const host = useSegmentationHost();
-  const openShortcuts = useOpenKeyboardShortcuts();
+  const openShortcuts = useWorkspaceActions().dialogActions.keyboardShortcuts.open;
   const strokeFrameId = useSegmentationSession((session) => session.strokeFrameId);
   const d = deriveCanvas({
     state,

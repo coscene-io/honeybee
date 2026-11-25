@@ -7,8 +7,6 @@
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 
-import { polygonsOf } from "../../maskGeometry";
-import type { EditorPoint } from "../editorGeometry";
 import { claimShownFrame, pointOf, run } from "./canvasActions";
 import {
   clampDelta,
@@ -25,6 +23,8 @@ import {
 } from "./canvasMath";
 import type { HoverTarget, PolygonTarget, Preview, VertexGroup, VertexRef } from "./canvasTypes";
 import type { CanvasContext } from "./canvasUi";
+import type { EditorPoint } from "../../editorGeometry";
+import { polygonsOf } from "../../maskGeometry";
 
 type PointerLike = { clientX: number; clientY: number };
 

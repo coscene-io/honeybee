@@ -8,6 +8,11 @@
 import { memo } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
+import { VertexHandles } from "./VertexHandles";
+import type { VertexActions } from "./VertexHandles";
+import type { HoverTarget, Preview, VertexRef } from "./canvasTypes";
+import { polygonPath } from "../../editorGeometry";
+import type { EditorPoint } from "../../editorGeometry";
 import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 import type {
@@ -16,12 +21,7 @@ import type {
   SegmentationPolygon,
   SemanticSegmentationStore,
 } from "../../types";
-import { polygonPath } from "../editorGeometry";
-import type { EditorPoint } from "../editorGeometry";
 import { focusContains } from "../polygonEdit";
-import { VertexHandles } from "./VertexHandles";
-import type { VertexActions } from "./VertexHandles";
-import type { HoverTarget, Preview, VertexRef } from "./canvasTypes";
 
 export type ShapeActions = VertexActions & {
   doubleClickPolygon: (event: ReactMouseEvent<SVGElement>, polygonId: string) => void;

@@ -7,24 +7,34 @@
 
 import { render as renderUi, type RenderOptions } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
+import { createStore } from "zustand";
 
 import {
-  KeyboardShortcutsDialogProvider,
-  createKeyboardShortcutsDialogStore,
-} from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
+  WorkspaceContext,
+  type WorkspaceContextStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import {
   WorkspaceSlotsProvider,
   createWorkspaceSlotsStore,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
+import { makeWorkspaceContextInitialState } from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 
-import { createSegmentationPanelBridge, type SegmentationPanelBridge } from "../imageSource";
+import {
+  createSegmentationPanelBridge,
+  type SegmentationImageMetadata,
+  type SegmentationPanelBridge,
+  type SegmentationRendererSources,
+} from "../imageSource";
 import { createSegmentationHost } from "../segmentationHost";
 import { SegmentationHostContext, type SegmentationHost } from "../segmentationHostContext";
 
 let registered = false;
 let current: SegmentationHost | undefined;
 let slots = createWorkspaceSlotsStore();
-let shortcuts = createKeyboardShortcutsDialogStore();
+const createWorkspaceStore = () =>
+  createStore<WorkspaceContextStore>(makeWorkspaceContextInitialState);
+/** One workspace per test, so separately rendered trees see the same dialogs. */
+let workspace = createWorkspaceStore();
 
 /**
  * Gives every test of the calling file a fresh host (created before it, disposed after it). Call
@@ -41,7 +51,7 @@ export function installSegmentationTestHost(): void {
     current?.dispose();
     current = createSegmentationHost();
     slots = createWorkspaceSlotsStore();
-    shortcuts = createKeyboardShortcutsDialogStore();
+    workspace = createWorkspaceStore();
   });
   afterAll(() => {
     current?.dispose();
@@ -62,20 +72,15 @@ export function testSlots(): typeof slots {
   return slots;
 }
 
-/** The shortcuts dialog store of the running test (set `{ open: true }` to open it). Tests only. */
-export function testShortcutsDialog(): typeof shortcuts {
-  return shortcuts;
-}
-
 /** Provides the running test's host to what is rendered inside. */
 export function TestHostProvider({ children }: { children?: ReactNode }): React.JSX.Element {
   return (
     <WorkspaceSlotsProvider store={slots}>
-      <KeyboardShortcutsDialogProvider store={shortcuts}>
+      <WorkspaceContext.Provider value={workspace}>
         <SegmentationHostContext.Provider value={testHost()}>
           {children}
         </SegmentationHostContext.Provider>
-      </KeyboardShortcutsDialogProvider>
+      </WorkspaceContext.Provider>
     </WorkspaceSlotsProvider>
   );
 }
@@ -95,4 +100,33 @@ export function createTestBridge(): SegmentationPanelBridge {
     maskOverlay: host.maskOverlay,
     maskPlanes: host.maskPlanes,
   });
+}
+
+/** A displayed frame as tests describe it: the renderer would encode `imageUrl` on demand. */
+export type TestImage = SegmentationImageMetadata & { imageUrl: string };
+
+/** Renderer sources for a test bridge: only what the test supplies does anything. */
+export function testSources({
+  image,
+  ...rest
+}: Partial<Omit<SegmentationRendererSources, "image">> & {
+  image: () => TestImage | undefined;
+}): SegmentationRendererSources {
+  return {
+    image: () => {
+      const shown = image();
+      return shown && { ...shown, encodeImageUrl: () => shown.imageUrl };
+    },
+    imageMetadata: image,
+    bounds: () => document.createElement("canvas").getBoundingClientRect(),
+    cachedFrames: () => [],
+    viewControls: {
+      reset: () => {},
+      zoom: () => {},
+      panBy: () => {},
+      wheel: () => {},
+      mouseDown: () => {},
+    },
+    ...rest,
+  };
 }

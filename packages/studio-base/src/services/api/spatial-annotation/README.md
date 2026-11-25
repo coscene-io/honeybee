@@ -33,6 +33,11 @@ buf generate --template buf.gen.annotation.yaml \
 
 Copy `gen-out/coscene` here unchanged; do not hand-edit descriptor payloads.
 
+The official `es-v2/buf.gen.webes.yaml` template (used for `moment-custom-field`) is not used
+here: it emits JavaScript, declaration files and a `package.json` for a publishable package. This
+snapshot is only compiled with the app and is deleted once the SDK ships, so one TypeScript file
+per proto is enough.
+
 Everything imports the protocol from `services/api/spatial-annotation` (`index.ts`), never
 from `generated/` directly. To switch to the published SDK once a release contains PR #866:
 

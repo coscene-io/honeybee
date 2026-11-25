@@ -7,9 +7,9 @@
 
 import { memo } from "react";
 
-import type { QuickPoint } from "../../quickSegment";
-import type { EditorPoint } from "../editorGeometry";
 import type { Brush, QuickResult } from "./canvasTypes";
+import type { EditorPoint } from "../../editorGeometry";
+import type { QuickPoint } from "../../quickSegment";
 
 type Scale = { width: number; height: number; screenScale: number };
 
