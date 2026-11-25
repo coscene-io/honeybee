@@ -14,6 +14,9 @@ import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
 
+// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
+jest.setTimeout(30_000);
+
 installSegmentationTestHost();
 
 jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
