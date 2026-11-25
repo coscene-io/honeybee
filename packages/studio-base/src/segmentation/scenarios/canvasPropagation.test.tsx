@@ -85,68 +85,72 @@ afterEach(() => {
   });
 });
 
-it("lists every instance with a polygon on the frame and ignores tree selection", async () => {
-  const document = createSeedDocument();
-  seed(document);
-  const scope = buildCanvasPropagationScope(document, "frame-0");
-  expect(scope?.videoId).toBe(document.frames.find((frame) => frame.id === "frame-0")!.videoId);
-  expect(scope?.seeds.map((item) => [item.instanceId, polygonsOf(item).map((p) => p.id)])).toEqual([
-    ["instance-1", ["P", "Q"]],
-    ["instance-2", ["R"]],
-  ]);
-  expect(buildCanvasPropagationScope(document, "missing")).toBeUndefined();
-});
-
-it("renders no propagate button without an open session", async () => {
-  await setup({ open: false });
-  expect(screen.queryByRole("button", { name: "Propagate" })).toBeNull();
-});
-
-it("disables the button when the frame has no seeded instance", async () => {
-  await setup({ seeded: false });
-  expect(screen.getByRole("button", { name: "Propagate" })).toHaveProperty("disabled", true);
-});
-
-it("sends one request with every seeded instance of the canvas's video", async () => {
-  const runtime = await setup();
-  const online = jest.spyOn(runtime.service, "propagate");
-  fireEvent.click(screen.getByRole("button", { name: "Propagate" }));
-  expect(screen.getByText("2 instances · 3 polygons")).toBeTruthy();
-  fireEvent.click(screen.getByRole("radio", { name: "1 s" }));
-  await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Start propagation" })).toHaveProperty(
-      "disabled",
-      false,
-    );
+describe("canvas propagation", () => {
+  it("lists every instance with a polygon on the frame and ignores tree selection", async () => {
+    const document = createSeedDocument();
+    seed(document);
+    const scope = buildCanvasPropagationScope(document, "frame-0");
+    expect(scope?.videoId).toBe(document.frames.find((frame) => frame.id === "frame-0")!.videoId);
+    expect(
+      scope?.seeds.map((item) => [item.instanceId, polygonsOf(item).map((p) => p.id)]),
+    ).toEqual([
+      ["instance-1", ["P", "Q"]],
+      ["instance-2", ["R"]],
+    ]);
+    expect(buildCanvasPropagationScope(document, "missing")).toBeUndefined();
   });
-  fireEvent.click(screen.getByRole("button", { name: "Start propagation" }));
-  await waitFor(() => {
-    expect(online).toHaveBeenCalledTimes(1);
-  });
-  expect(online.mock.calls[0]![0].seeds?.map((seed) => seed.instanceId)).toEqual([
-    "instance-1",
-    "instance-2",
-  ]);
-  await waitFor(() => {
-    expect(runtime.store.getState().propagation.status).not.toBe("running");
-  });
-});
 
-it("describes the source frame by its number, not its internal id", async () => {
-  await setup();
-  fireEvent.click(screen.getByRole("button", { name: "Propagate" }));
-  const range = screen.getByLabelText("Effective propagation range");
-  expect(range.textContent).toContain("Source frame 1");
-  expect(range.textContent).not.toContain("frame-0");
-});
+  it("renders no propagate button without an open session", async () => {
+    await setup({ open: false });
+    expect(screen.queryByRole("button", { name: "Propagate" })).toBeNull();
+  });
 
-it("the app bar no longer offers Propagate", async () => {
-  const runtime = await setup();
-  cleanup();
-  render(<SegmentationActionMenu />);
-  expect(screen.queryByRole("button", { name: /^Propagate/ })).toBeNull();
-  expect(screen.getByRole("button", { name: /^Submit/ })).toBeTruthy();
-  act(() => {
-    runtime.dispose();
+  it("disables the button when the frame has no seeded instance", async () => {
+    await setup({ seeded: false });
+    expect(screen.getByRole("button", { name: "Propagate" })).toHaveProperty("disabled", true);
+  });
+
+  it("sends one request with every seeded instance of the canvas's video", async () => {
+    const runtime = await setup();
+    const online = jest.spyOn(runtime.service, "propagate");
+    fireEvent.click(screen.getByRole("button", { name: "Propagate" }));
+    expect(screen.getByText("2 instances · 3 polygons")).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "1 s" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start propagation" })).toHaveProperty(
+        "disabled",
+        false,
+      );
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start propagation" }));
+    await waitFor(() => {
+      expect(online).toHaveBeenCalledTimes(1);
+    });
+    expect(online.mock.calls[0]![0].seeds?.map((seed) => seed.instanceId)).toEqual([
+      "instance-1",
+      "instance-2",
+    ]);
+    await waitFor(() => {
+      expect(runtime.store.getState().propagation.status).not.toBe("running");
+    });
+  });
+
+  it("describes the source frame by its number, not its internal id", async () => {
+    await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Propagate" }));
+    const range = screen.getByLabelText("Effective propagation range");
+    expect(range.textContent).toContain("Source frame 1");
+    expect(range.textContent).not.toContain("frame-0");
+  });
+
+  it("the app bar no longer offers Propagate", async () => {
+    const runtime = await setup();
+    cleanup();
+    render(<SegmentationActionMenu />);
+    expect(screen.queryByRole("button", { name: /^Propagate/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Submit/ })).toBeTruthy();
+    act(() => {
+      runtime.dispose();
+    });
   });
 });

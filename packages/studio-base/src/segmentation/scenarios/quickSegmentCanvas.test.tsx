@@ -102,143 +102,145 @@ afterEach(() => {
   window.localStorage.removeItem("coStudio.semanticSegmentation.creationTool");
 });
 
-it("clicks positive and negative points, then Enter saves one mask observation", async () => {
-  const document = fixture();
-  const width = document.videos[0]!.width!;
-  const height = document.videos[0]!.height!;
-  const { store } = await quickEditor(document);
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  let instanceId = "";
-  act(() => {
-    instanceId = store.getState().addInstance(document.classes[0]!.id, "fresh");
-    store.getState().startDrawing(instanceId, "quick");
+describe("quick segment canvas", () => {
+  it("clicks positive and negative points, then Enter saves one mask observation", async () => {
+    const document = fixture();
+    const width = document.videos[0]!.width!;
+    const height = document.videos[0]!.height!;
+    const { store } = await quickEditor(document);
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    let instanceId = "";
+    act(() => {
+      instanceId = store.getState().addInstance(document.classes[0]!.id, "fresh");
+      store.getState().startDrawing(instanceId, "quick");
+    });
+
+    pointer(canvas, "pointerdown", 200, 100);
+    // Right click without dragging is a negative point.
+    fireEvent(
+      canvas,
+      new MouseEvent("pointerdown", { clientX: 250, clientY: 120, button: 2, bubbles: true }),
+    );
+    fireEvent(
+      canvas,
+      new MouseEvent("pointerup", { clientX: 250, clientY: 120, button: 2, bubbles: true }),
+    );
+    // Shift+click is a negative point too; Backspace removes it again.
+    fireEvent(
+      canvas,
+      new MouseEvent("pointerdown", {
+        clientX: 260,
+        clientY: 130,
+        button: 0,
+        shiftKey: true,
+        bubbles: true,
+      }),
+    );
+    await waitFor(() => {
+      expect(requests).toHaveLength(3);
+    });
+    fireEvent.keyDown(canvas, { key: "Backspace" });
+    await waitFor(() => {
+      expect(requests).toHaveLength(4);
+    });
+
+    expect(requests[0]!.topic).toBe("/camera/front");
+    expect(requests[0]!.record).toBe(RECORD);
+    // The server keeps no session: every click uploads the displayed frame with all its points.
+    expect(requests.every((request) => request.imageBytes > 0)).toBe(true);
+    expect(requests[3]!.points.map((p) => [Math.round(p.x), Math.round(p.y), p.negative])).toEqual([
+      [200, 100, false],
+      [250, 120, true],
+    ]);
+    expect(canvas.querySelectorAll('[data-quick-point="negative"]')).toHaveLength(1);
+
+    fireEvent.keyDown(canvas, { key: "Enter" });
+    await waitFor(() => {
+      expect(store.getState().drawing).toBeUndefined();
+    });
+    const saved = store.getState().document!.annotations[frameInstanceKey("frame-0", instanceId)]!;
+    expect(saved.kind).toBe("mask");
+    expect(maskOf(saved)).toMatchObject({
+      width,
+      height,
+      counts: rect(960, 540, 100, 300, 50, 150),
+      source: "quick",
+    });
+    // A fresh instance gets the mask as is: no representation change to report.
+    expect(screen.queryByTestId("geometry-notice")).toBeNull();
   });
 
-  pointer(canvas, "pointerdown", 200, 100);
-  // Right click without dragging is a negative point.
-  fireEvent(
-    canvas,
-    new MouseEvent("pointerdown", { clientX: 250, clientY: 120, button: 2, bubbles: true }),
-  );
-  fireEvent(
-    canvas,
-    new MouseEvent("pointerup", { clientX: 250, clientY: 120, button: 2, bubbles: true }),
-  );
-  // Shift+click is a negative point too; Backspace removes it again.
-  fireEvent(
-    canvas,
-    new MouseEvent("pointerdown", {
-      clientX: 260,
-      clientY: 130,
-      button: 0,
-      shiftKey: true,
-      bubbles: true,
-    }),
-  );
-  await waitFor(() => {
-    expect(requests).toHaveLength(3);
-  });
-  fireEvent.keyDown(canvas, { key: "Backspace" });
-  await waitFor(() => {
-    expect(requests).toHaveLength(4);
+  it("merges the clicked mask with the instance's existing polygons on that frame", async () => {
+    const { store } = await quickEditor(fixture());
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    const key = frameInstanceKey("frame-0", "instance-1");
+    expect(polygonsOf(store.getState().document!.annotations[key]).length).toBeGreaterThan(0);
+    act(() => {
+      store.getState().startDrawing("instance-1", "quick");
+    });
+    pointer(canvas, "pointerdown", 200, 100);
+    await waitFor(() => {
+      expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
+    });
+    fireEvent.keyDown(canvas, { key: "Enter" });
+    await waitFor(() => {
+      expect(store.getState().drawing).toBeUndefined();
+    });
+    const merged = store.getState().document!.annotations[key]!;
+    expect(merged.kind).toBe("mask");
+    expect(maskOf(merged)?.counts).not.toBe(rect(960, 540, 100, 300, 50, 150));
+    // The polygons were rasterized into the mask; the user is told so.
+    expect(screen.getByTestId("geometry-notice").textContent).toContain("rasterized");
   });
 
-  expect(requests[0]!.topic).toBe("/camera/front");
-  expect(requests[0]!.record).toBe(RECORD);
-  // The server keeps no session: every click uploads the displayed frame with all its points.
-  expect(requests.every((request) => request.imageBytes > 0)).toBe(true);
-  expect(requests[3]!.points.map((p) => [Math.round(p.x), Math.round(p.y), p.negative])).toEqual([
-    [200, 100, false],
-    [250, 120, true],
-  ]);
-  expect(canvas.querySelectorAll('[data-quick-point="negative"]')).toHaveLength(1);
+  it("P and Q switch the creation tool during a drawing and discard the other tool's draft", async () => {
+    const { store } = await editor(fixture());
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    act(() => {
+      store.getState().startDrawing("instance-empty", "polygon");
+    });
+    pointer(canvas, "pointerdown", 100, 100);
+    pointer(canvas, "pointerdown", 200, 100);
+    expect(canvas.querySelector("polyline")!.getAttribute("points")).not.toBe("");
+    fireEvent.keyDown(canvas, { key: "q" });
+    expect(store.getState().creationTool).toBe("quick");
+    expect(store.getState().drawing?.instanceId).toBe("instance-empty");
+    expect(canvas.querySelector("polyline")).toBeNull();
+    expect(screen.getByRole("radio", { name: /Quick/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: /Polygon/ }));
+    expect(store.getState().creationTool).toBe("polygon");
+    expect(requests).toHaveLength(0);
+  });
 
-  fireEvent.keyDown(canvas, { key: "Enter" });
-  await waitFor(() => {
-    expect(store.getState().drawing).toBeUndefined();
-  });
-  const saved = store.getState().document!.annotations[frameInstanceKey("frame-0", instanceId)]!;
-  expect(saved.kind).toBe("mask");
-  expect(maskOf(saved)).toMatchObject({
-    width,
-    height,
-    counts: rect(960, 540, 100, 300, 50, 150),
-    source: "quick",
-  });
-  // A fresh instance gets the mask as is: no representation change to report.
-  expect(screen.queryByTestId("geometry-notice")).toBeNull();
-});
-
-it("merges the clicked mask with the instance's existing polygons on that frame", async () => {
-  const { store } = await quickEditor(fixture());
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  const key = frameInstanceKey("frame-0", "instance-1");
-  expect(polygonsOf(store.getState().document!.annotations[key]).length).toBeGreaterThan(0);
-  act(() => {
-    store.getState().startDrawing("instance-1", "quick");
-  });
-  pointer(canvas, "pointerdown", 200, 100);
-  await waitFor(() => {
+  it("keeps the previous mask when the next click selects no foreground", async () => {
+    const { store, service } = await quickEditor();
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    act(() => {
+      store.getState().startDrawing("instance-1", "quick");
+    });
+    pointer(canvas, "pointerdown", 200, 100);
+    await waitFor(() => {
+      expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
+    });
+    service.segmentFrame = async () => await Promise.resolve({ mask: undefined, score: 0 });
+    pointer(canvas, "pointerdown", 400, 300);
+    await waitFor(() => {
+      expect(screen.getByText(/select nothing/)).not.toBeNull();
+    });
     expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
   });
-  fireEvent.keyDown(canvas, { key: "Enter" });
-  await waitFor(() => {
-    expect(store.getState().drawing).toBeUndefined();
-  });
-  const merged = store.getState().document!.annotations[key]!;
-  expect(merged.kind).toBe("mask");
-  expect(maskOf(merged)?.counts).not.toBe(rect(960, 540, 100, 300, 50, 150));
-  // The polygons were rasterized into the mask; the user is told so.
-  expect(screen.getByTestId("geometry-notice").textContent).toContain("rasterized");
-});
 
-it("P and Q switch the creation tool during a drawing and discard the other tool's draft", async () => {
-  const { store } = await editor(fixture());
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  act(() => {
-    store.getState().startDrawing("instance-empty", "polygon");
+  it("explains that quick annotation needs a cloud record when the service cannot segment", async () => {
+    // The mock service stands in for sources without an AnnotationService (local files).
+    const { store } = await editor(fixture());
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    act(() => {
+      store.getState().startDrawing("instance-1", "quick");
+    });
+    pointer(canvas, "pointerdown", 200, 100);
+    await waitFor(() => {
+      expect(screen.getByText(/Quick annotation needs an open cloud record/)).not.toBeNull();
+    });
+    expect(requests).toHaveLength(0);
   });
-  pointer(canvas, "pointerdown", 100, 100);
-  pointer(canvas, "pointerdown", 200, 100);
-  expect(canvas.querySelector("polyline")!.getAttribute("points")).not.toBe("");
-  fireEvent.keyDown(canvas, { key: "q" });
-  expect(store.getState().creationTool).toBe("quick");
-  expect(store.getState().drawing?.instanceId).toBe("instance-empty");
-  expect(canvas.querySelector("polyline")).toBeNull();
-  expect(screen.getByRole("radio", { name: /Quick/ }).getAttribute("aria-checked")).toBe("true");
-  fireEvent.click(screen.getByRole("radio", { name: /Polygon/ }));
-  expect(store.getState().creationTool).toBe("polygon");
-  expect(requests).toHaveLength(0);
-});
-
-it("keeps the previous mask when the next click selects no foreground", async () => {
-  const { store, service } = await quickEditor();
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  act(() => {
-    store.getState().startDrawing("instance-1", "quick");
-  });
-  pointer(canvas, "pointerdown", 200, 100);
-  await waitFor(() => {
-    expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
-  });
-  service.segmentFrame = async () => await Promise.resolve({ mask: undefined, score: 0 });
-  pointer(canvas, "pointerdown", 400, 300);
-  await waitFor(() => {
-    expect(screen.getByText(/select nothing/)).not.toBeNull();
-  });
-  expect(canvas.querySelector('[data-testid="quick-annotation"] image')).not.toBeNull();
-});
-
-it("explains that quick annotation needs a cloud record when the service cannot segment", async () => {
-  // The mock service stands in for sources without an AnnotationService (local files).
-  const { store } = await editor(fixture());
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  act(() => {
-    store.getState().startDrawing("instance-1", "quick");
-  });
-  pointer(canvas, "pointerdown", 200, 100);
-  await waitFor(() => {
-    expect(screen.getByText(/Quick annotation needs an open cloud record/)).not.toBeNull();
-  });
-  expect(requests).toHaveLength(0);
 });

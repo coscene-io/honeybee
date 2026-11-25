@@ -25,19 +25,21 @@ afterEach(async () => {
   });
 });
 
-it("shows the operation type in the active language", async () => {
-  await act(async () => {
-    await i18n.changeLanguage("en");
+describe("OperationScope", () => {
+  it("shows the operation type in the active language", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    render(<OperationScope operation={operation} />);
+    expect(screen.getByText("Type: Create class")).toBeTruthy();
   });
-  render(<OperationScope operation={operation} />);
-  expect(screen.getByText("Type: Create class")).toBeTruthy();
-});
 
-it("shows the operation type in Chinese, not the English label", async () => {
-  await act(async () => {
-    await i18n.changeLanguage("zh");
+  it("shows the operation type in Chinese, not the English label", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh");
+    });
+    render(<OperationScope operation={operation} />);
+    expect(screen.getByText("类型：新建类别")).toBeTruthy();
+    expect(screen.queryByText(/Create class/)).toBeNull();
   });
-  render(<OperationScope operation={operation} />);
-  expect(screen.getByText("类型：新建类别")).toBeTruthy();
-  expect(screen.queryByText(/Create class/)).toBeNull();
 });

@@ -7,25 +7,27 @@
 
 import { segmentationSourceKey } from "./imageSource";
 
-it("uses stable URL parameters across reload, while isolating changed sources and file identities", () => {
-  const a = {
-    playerId: "a",
-    urlState: { sourceId: "remote-mp4", parameters: { url: "a.mp4", topic: "/front" } },
-  };
-  expect(segmentationSourceKey(a)).toBe(
-    segmentationSourceKey({
-      ...a,
-      playerId: "b",
-      urlState: { sourceId: "remote-mp4", parameters: { topic: "/front", url: "a.mp4" } },
-    }),
-  );
-  expect(segmentationSourceKey(a)).not.toBe(
-    segmentationSourceKey({
-      ...a,
-      urlState: { sourceId: "remote-mp4", parameters: { url: "b.mp4" } },
-    }),
-  );
-  expect(segmentationSourceKey({ playerId: "a", filename: "local.mp4", sizeBytes: "10" })).toBe(
-    segmentationSourceKey({ playerId: "b", filename: "local.mp4", sizeBytes: "10" }),
-  );
+describe("imageSource", () => {
+  it("uses stable URL parameters across reload, while isolating changed sources and file identities", () => {
+    const a = {
+      playerId: "a",
+      urlState: { sourceId: "remote-mp4", parameters: { url: "a.mp4", topic: "/front" } },
+    };
+    expect(segmentationSourceKey(a)).toBe(
+      segmentationSourceKey({
+        ...a,
+        playerId: "b",
+        urlState: { sourceId: "remote-mp4", parameters: { topic: "/front", url: "a.mp4" } },
+      }),
+    );
+    expect(segmentationSourceKey(a)).not.toBe(
+      segmentationSourceKey({
+        ...a,
+        urlState: { sourceId: "remote-mp4", parameters: { url: "b.mp4" } },
+      }),
+    );
+    expect(segmentationSourceKey({ playerId: "a", filename: "local.mp4", sizeBytes: "10" })).toBe(
+      segmentationSourceKey({ playerId: "b", filename: "local.mp4", sizeBytes: "10" }),
+    );
+  });
 });
