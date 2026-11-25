@@ -16,11 +16,11 @@ Drawing is a session: the store records only `drawing = { instanceId, frameId }`
 
 | Tool             | Keys                       | Result                                                                                                   |
 | ---------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Polygon          | P                          | Click each vertex, Enter finishes                                                                        |
 | Quick annotation | Q                          | Positive and negative SAM points, Enter saves a mask                                                     |
+| Polygon          | P                          | Click each vertex, Enter finishes                                                                        |
 | Brush / eraser   | B / E, `[` `]` change size | Edits a mask observation (or an instance with no observation on the frame); each stroke is one undo step |
 
-The "+" of an instance in the tree starts drawing with the current tool. Pressing P or Q while drawing switches tools and drops the other tool's draft. Polygons can still be drawn when quick annotation is unavailable.
+The "+" of an instance in the tree starts drawing with the current tool; the tool switcher lists quick annotation first. Pressing P or Q while drawing switches tools and drops the other tool's draft. Polygons can still be drawn when quick annotation is unavailable.
 
 ## Merging and converting
 
