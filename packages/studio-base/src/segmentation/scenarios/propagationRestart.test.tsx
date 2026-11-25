@@ -12,6 +12,9 @@ import { polygonsOf } from "../maskGeometry";
 import { cloneSegmentation } from "../service";
 import { deferred, polygon, setup, triangle } from "./fixtures/canvas";
 
+// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
+jest.setTimeout(30_000);
+
 describe("propagation restart", () => {
   it("restart uses corrected stopped-frame seed and fresh job without durable writes", async () => {
     const { store, service } = await setup();
