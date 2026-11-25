@@ -17,8 +17,8 @@ import {
 
 import { MOD, SHORTCUTS, ShortcutKeys } from "./keyboardShortcuts";
 import {
-  closeKeyboardShortcuts,
-  useKeyboardShortcutsDialogStore,
+  useCloseKeyboardShortcuts,
+  useKeyboardShortcutsDialogOpen,
 } from "./keyboardShortcutsDialogStore";
 
 const useStyles = makeStyles()((theme) => ({
@@ -61,12 +61,13 @@ const useStyles = makeStyles()((theme) => ({
 
 /**
  * The one keyboard shortcuts dialog; the Workspace mounts it once and anything opens it with
- * `openKeyboardShortcuts()`. Features add a column through WorkspaceSlots `shortcutColumns`.
+ * `useOpenKeyboardShortcuts()`. Features add a column through WorkspaceSlots `shortcutColumns`.
  */
 export function KeyboardShortcutsDialog(): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("general");
-  const open = useKeyboardShortcutsDialogStore((state) => state.open);
+  const open = useKeyboardShortcutsDialogOpen();
+  const closeKeyboardShortcuts = useCloseKeyboardShortcuts();
   const extraColumns = useWorkspaceSlotValues("shortcutColumns");
 
   // Rows reference the shared SHORTCUTS definitions so the dialog stays in sync with the per-control
