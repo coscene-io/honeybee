@@ -8,7 +8,13 @@
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
-import { createSourceFrameLoader, readStamps, SOURCE_FRAME_WINDOW_NS } from "./sourceFrames";
+import {
+  createSourceFrameLoader,
+  createSourceFrameLoaders,
+  readStamps,
+  SOURCE_FRAME_WINDOW_NS,
+  type SourceFrameLoader,
+} from "./sourceFrames";
 import type { SegmentationFrame } from "./types";
 
 const START = 1_700_000_000_000_000_000n;
@@ -162,4 +168,60 @@ it("clears a failed window's retry timer when disposed", async () => {
   } finally {
     jest.useRealTimers();
   }
+});
+
+describe("source frame loader registry", () => {
+  function loaderOf(videoId: string, times: bigint[]) {
+    const registered: SegmentationFrame[] = [];
+    return createSourceFrameLoader({
+      subscribeMessageRange: fakeSource(times).subscribe,
+      topic: TOPIC,
+      videoId,
+      startNs: START,
+      endNs: START + 3n * SOURCE_FRAME_WINDOW_NS,
+      register: (frames) => {
+        registered.push(...frames);
+      },
+      knownLogTimes: () => registered.map((frame) => BigInt(frame.logTimeNs)),
+    });
+  }
+
+  it("tells subscribers when a loader is bound, reads a window or is unbound", async () => {
+    const loaders = createSourceFrameLoaders();
+    const listener = jest.fn();
+    const unsubscribe = loaders.subscribe(listener);
+    const loader = loaderOf("head", []);
+    const unbind = loaders.register(loader);
+    expect(loaders.get("head")).toBe(loader);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // A window without a single frame changes `isLoaded` too.
+    await loader.ensureRange(START, START);
+    expect(loader.isLoaded(START, START)).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(loaders.version()).toBe(2);
+
+    unbind();
+    expect(loaders.get("head")).toBeUndefined();
+    expect(listener).toHaveBeenCalledTimes(3);
+    unsubscribe();
+    loaders.register(loader);
+    expect(listener).toHaveBeenCalledTimes(3);
+    loader.dispose();
+  });
+
+  it("ignores a replaced loader's unbind and its later reads", async () => {
+    const loaders = createSourceFrameLoaders();
+    const first: SourceFrameLoader = loaderOf("head", cameraTimes(3));
+    const second = loaderOf("head", cameraTimes(3));
+    const unbindFirst = loaders.register(first);
+    loaders.register(second);
+    const version = loaders.version();
+    unbindFirst();
+    await first.ensureRange(START, START);
+    expect(loaders.get("head")).toBe(second);
+    expect(loaders.version()).toBe(version);
+    first.dispose();
+    second.dispose();
+  });
 });

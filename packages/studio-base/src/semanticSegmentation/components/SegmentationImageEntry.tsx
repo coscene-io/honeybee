@@ -69,6 +69,8 @@ type Binding = {
   videoId: string;
   /** Lists this camera's frames from the data source. Absent when the player cannot list ranges. */
   frames?: SourceFrameLoader;
+  /** Removes `frames` from the host's registry. */
+  unbindFrames?: () => void;
 };
 
 function receivedFrameStamps(
@@ -522,12 +524,8 @@ export function SegmentationImageEntry({
     ++generation.current;
     const binding = active.current;
     active.current = undefined;
-    if (binding?.frames) {
-      binding.frames.dispose();
-      if (host.sourceFrames.get(binding.videoId) === binding.frames) {
-        host.sourceFrames.delete(binding.videoId);
-      }
-    }
+    binding?.unbindFrames?.();
+    binding?.frames?.dispose();
     const ownsSession =
       binding != undefined &&
       host.session.getState().runtime === binding.runtime &&
@@ -971,16 +969,15 @@ export function SegmentationImageEntry({
                   .map((item) => BigInt(item.logTimeNs)),
             })
           : undefined;
+      active.current?.unbindFrames?.();
       active.current?.frames?.dispose();
       active.current = {
         runtime,
         key: keyAtStart,
         videoId,
         frames,
+        unbindFrames: frames && host.sourceFrames.register(frames),
       };
-      if (frames) {
-        host.sourceFrames.set(videoId, frames);
-      }
       activateSegmentationRuntime(host.session, runtime);
       const joining = host.session.getState().open && host.session.getState().runtime === runtime;
       host.session.setState({

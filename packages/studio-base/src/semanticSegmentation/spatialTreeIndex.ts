@@ -126,6 +126,9 @@ export function instancesByClass(
 type StripCacheEntry = {
   frames: readonly SegmentationFrame[];
   length: number;
+  /** Which cells are loaded depends on the host's loaders. */
+  sourceFrames: SourceFrameLoaders;
+  version: number;
   cells: Map<string, CameraStripCell[]>;
 };
 
@@ -134,7 +137,7 @@ const stripCaches = new WeakMap<SegmentationDocument["annotationSummaries"], Str
 
 /**
  * One camera's ±20 cells for an instance around the frame it shows, from the frame index.
- * Cached until the summaries or the frame list change, as the strip's own memo was.
+ * Cached until the summaries, the frame list or what the frame loaders have read change.
  */
 export function cameraStripCells(
   document: Pick<SegmentationDocument, "frames" | "videos" | "annotationSummaries">,
@@ -143,8 +146,20 @@ export function cameraStripCells(
   sourceFrames: SourceFrameLoaders,
 ): CameraStripCell[] {
   let entry = stripCaches.get(document.annotationSummaries);
-  if (entry?.frames !== document.frames || entry.length !== document.frames.length) {
-    entry = { frames: document.frames, length: document.frames.length, cells: new Map() };
+  const version = sourceFrames.version();
+  if (
+    entry?.frames !== document.frames ||
+    entry.length !== document.frames.length ||
+    entry.sourceFrames !== sourceFrames ||
+    entry.version !== version
+  ) {
+    entry = {
+      frames: document.frames,
+      length: document.frames.length,
+      sourceFrames,
+      version,
+      cells: new Map(),
+    };
     stripCaches.set(document.annotationSummaries, entry);
   }
   const key = `${instanceId}\u0000${frameId}`;
