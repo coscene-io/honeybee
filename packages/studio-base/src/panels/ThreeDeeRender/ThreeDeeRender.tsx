@@ -31,7 +31,7 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
-import { type SegmentationPanelBridge } from "@foxglove/studio-base/semanticSegmentation/imageSource";
+import { type SegmentationPanelBridge } from "@foxglove/studio-base/segmentation/imageSource";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
@@ -152,7 +152,7 @@ export function ThreeDeeRender(props: {
   /** Allow for injection or overriding of default extensions by custom extensions */
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
   /**
-   * Connects this panel to the spatial annotation editor (its image, camera and the masks drawn
+   * Connects this panel to the segmentation editor (its image, camera and the masks drawn
    * over it). Only present when the feature flag is on and a cloud record is open.
    */
   segmentation?: SegmentationPanelBridge;
