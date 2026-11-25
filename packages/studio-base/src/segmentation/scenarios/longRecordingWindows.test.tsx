@@ -19,10 +19,10 @@ import { render, installSegmentationTestHost, testHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
+import { allowSlowRunner } from "../testing/slowRunner";
 import type { FrameInstance } from "../types";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 installSegmentationTestHost();
 
@@ -57,13 +57,7 @@ describe("long recording windows", () => {
     expect(runtime.store.getState().document!.record.id).toBe("record-1");
     expect(runtime.store.getState().loading).toBe(true);
     expect(
-      await screen.findByTitle(
-        /Waiting for the current video frame and annotation data/,
-        undefined,
-        {
-          timeout: 2000,
-        },
-      ),
+      await screen.findByTitle(/Waiting for the current video frame and annotation data/),
     ).toBeDefined();
     // A real drawer control reacts while the geometry promise remains unresolved.
     act(() => {

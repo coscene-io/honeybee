@@ -11,9 +11,9 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
 import { editor, fixture, pointer, polygon } from "./fixtures/canvas";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 function paths(instanceId: string) {
   return screen

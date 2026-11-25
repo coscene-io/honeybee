@@ -11,9 +11,9 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import { polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
 import { editor, fixture, pointer, polygon, triangle, draftVertexCount } from "./fixtures/canvas";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 function frameImage(width: number, height: number) {
   return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="gray" /></svg>`)}`;

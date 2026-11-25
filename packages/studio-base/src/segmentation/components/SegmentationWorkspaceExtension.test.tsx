@@ -27,9 +27,9 @@ import { SegmentationWorkspaceExtension } from "./SegmentationWorkspaceExtension
 import { CLOUD_RECORD, createCoreDataSourceStore } from "../testing/coreDataSource";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument } from "../testing/mockService";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 jest.mock("@foxglove/studio-base/util/browserSession", () => ({
   ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
