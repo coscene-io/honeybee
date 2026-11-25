@@ -26,9 +26,9 @@ import {
 } from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedSurface } from "../testing/session";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 installSegmentationTestHost();
 
@@ -155,12 +155,9 @@ async function fixture(options: { withoutCancel?: boolean } = {}) {
   act(() => {
     enterSegmentation();
   });
-  await waitFor(
-    () => {
-      expect(testHost().session.getState().open).toBe(true);
-    },
-    { timeout: 3000 },
-  );
+  await waitFor(() => {
+    expect(testHost().session.getState().open).toBe(true);
+  });
   const runtime = testHost().session.getState().runtime!;
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0, cancelDelayMs: 400 });
   let instanceId = "";
