@@ -31,6 +31,12 @@ afterEach(() => {
 describe("propagation stopping", () => {
   it("keeps actual editor/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
     let cancels = 0;
+    // The first (failing) acknowledgement waits until focus has been moved away, so the lock's
+    // focus restore is observed whatever the runner's speed.
+    let releaseFirstCancel = () => {};
+    const firstCancelHeld = new Promise<void>((resolve) => {
+      releaseFirstCancel = resolve;
+    });
     const runtime = createMockSegmentationRuntime(undefined, undefined, (service) => {
       const originalCancel = service.cancelPropagation?.bind(service);
       if (!originalCancel) {
@@ -38,6 +44,9 @@ describe("propagation stopping", () => {
       }
       service.cancelPropagation = async (context) => {
         cancels++;
+        if (cancels === 1) {
+          await firstCancelHeld;
+        }
         return await originalCancel(context);
       };
     });
@@ -78,6 +87,7 @@ describe("propagation stopping", () => {
     document.body.tabIndex = -1;
     document.body.focus();
     expect(document.activeElement).toBe(document.body);
+    releaseFirstCancel();
     const retry = await within(lock).findByRole("button", { name: "Retry stop" });
     await waitFor(() => {
       expect(document.activeElement).toBe(retry);
