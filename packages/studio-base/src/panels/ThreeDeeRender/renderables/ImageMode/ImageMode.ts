@@ -92,8 +92,8 @@ import {
   type SegmentationImage,
   type SegmentationImageMetadata,
   type SegmentationPanelBridge,
-} from "@foxglove/studio-base/semanticSegmentation/imageSource";
-import { cachedNativeImageView } from "@foxglove/studio-base/semanticSegmentation/nativeImageTransform";
+} from "@foxglove/studio-base/segmentation/imageSource";
+import { cachedNativeImageView } from "@foxglove/studio-base/segmentation/nativeImageTransform";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadFiles } from "@foxglove/studio-base/util/download";
 
@@ -400,7 +400,7 @@ export class ImageMode
   }
 
   /**
-   * Connects this panel to the spatial annotation editor: masks it publishes are drawn over the
+   * Connects this panel to the segmentation editor: masks it publishes are drawn over the
    * image. Without a bridge (the default) no segmentation code runs.
    */
   public setSegmentationBridge(bridge: SegmentationPanelBridge | undefined): void {
