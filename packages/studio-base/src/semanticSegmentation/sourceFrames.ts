@@ -55,11 +55,59 @@ export type SourceFrameLoader = {
    * frames there. Times outside the recording count as read: there is nothing more to list.
    */
   isLoaded: (fromNs: bigint, toNs: bigint) => boolean;
+  /** Calls `listener` after another window has been read; returns the unsubscribe. */
+  subscribe: (listener: () => void) => () => void;
   dispose: () => void;
 };
 
 /** The loader of each video bound to an open annotation session (`SegmentationHost.sourceFrames`). */
-export type SourceFrameLoaders = Map<string, SourceFrameLoader>;
+export type SourceFrameLoaders = {
+  get: (videoId: string) => SourceFrameLoader | undefined;
+  /**
+   * Binds the loader to its video, replacing any other. The returned function unbinds it, and does
+   * nothing once another loader has taken its place.
+   */
+  register: (loader: SourceFrameLoader) => () => void;
+  /** Changes whenever `get`, or a bound loader's `isLoaded`, may answer differently. */
+  version: () => number;
+  /** Calls `listener` after each change of `version`; returns the unsubscribe. */
+  subscribe: (listener: () => void) => () => void;
+};
+
+export function createSourceFrameLoaders(): SourceFrameLoaders {
+  const bound = new Map<string, { loader: SourceFrameLoader; unwatch: () => void }>();
+  const listeners = new Set<() => void>();
+  let version = 0;
+  const changed = () => {
+    version++;
+    for (const listener of listeners) {
+      listener();
+    }
+  };
+  return {
+    get: (videoId) => bound.get(videoId)?.loader,
+    register(loader) {
+      bound.get(loader.videoId)?.unwatch();
+      const entry = { loader, unwatch: loader.subscribe(changed) };
+      bound.set(loader.videoId, entry);
+      changed();
+      return () => {
+        if (bound.get(loader.videoId) === entry) {
+          entry.unwatch();
+          bound.delete(loader.videoId);
+          changed();
+        }
+      };
+    },
+    version: () => version,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
 
 export function createSourceFrameLoader({
   subscribeMessageRange,
@@ -83,6 +131,7 @@ export function createSourceFrameLoader({
   const retryTimers = new Set<ReturnType<typeof setTimeout>>();
   const windows = new Map<bigint, Promise<void>>();
   const loaded = new Set<bigint>();
+  const listeners = new Set<() => void>();
   const lastWindow = endNs > startNs ? (endNs - startNs) / SOURCE_FRAME_WINDOW_NS : 0n;
   const loadWindow = async (index: bigint): Promise<void> => {
     if (index < 0n || index > lastWindow) {
@@ -107,10 +156,13 @@ export function createSourceFrameLoader({
       }
       // Marked before registering, so views that re-render on the new frames see the window as read.
       loaded.add(index);
-      if (stamps.length === 0) {
-        return;
+      if (stamps.length > 0) {
+        register(framesFromStamps(videoId, startNs, stamps));
       }
-      register(framesFromStamps(videoId, startNs, stamps));
+      // Also for an empty window: it is now known to hold no frames.
+      for (const listener of listeners) {
+        listener();
+      }
     });
     windows.set(index, pending);
     try {
@@ -164,7 +216,14 @@ export function createSourceFrameLoader({
       }
       return true;
     },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     dispose: () => {
+      listeners.clear();
       abort.abort();
       for (const timer of retryTimers) {
         clearTimeout(timer);
