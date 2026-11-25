@@ -197,6 +197,13 @@ describe("quick segment canvas", () => {
     act(() => {
       store.getState().startDrawing("instance-empty", "polygon");
     });
+    // Quick comes first in the tool switcher, polygon second.
+    expect(
+      screen
+        .getAllByRole("radio")
+        .filter((radio) => radio.hasAttribute("data-creation-tool"))
+        .map((radio) => radio.getAttribute("data-creation-tool")),
+    ).toEqual(["quick", "polygon"]);
     pointer(canvas, "pointerdown", 100, 100);
     pointer(canvas, "pointerdown", 200, 100);
     expect(canvas.querySelector("polyline")!.getAttribute("points")).not.toBe("");
