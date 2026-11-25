@@ -308,18 +308,20 @@ describe("mask geometry caches", () => {
 
   // Wall-clock check, skipped by default like StateTransitionsCoordinator.perfprobe.test.ts:
   //   PERF_PROBE=1 yarn test maskGeometry.test.ts
-  const probeIt = process.env.PERF_PROBE === "1" ? it : it.skip;
-  probeIt.each([
-    ["a noisy edge", () => noisyMask(1920, 1080)],
-    ["a toothed edge", () => combMask(1920, 1080)],
-  ])("converts a 1080p mask with %s in interactive time", (_name, make) => {
-    const mask = make();
-    const started = performance.now();
-    const polygons = maskToEditorPolygons(mask, "/camera");
-    const elapsed = performance.now() - started;
-    expect(polygons.length).toBeGreaterThan(0);
-    // The toothed mask took ~1.9 s with the all-pairs simplicity check and ~0.3 s with the grid.
-    expect(elapsed).toBeLessThan(1500);
+  const probeDescribe = process.env.PERF_PROBE === "1" ? describe : describe.skip;
+  probeDescribe("wall-clock probe", () => {
+    it.each([
+      ["a noisy edge", () => noisyMask(1920, 1080)],
+      ["a toothed edge", () => combMask(1920, 1080)],
+    ])("converts a 1080p mask with %s in interactive time", (_name, make) => {
+      const mask = make();
+      const started = performance.now();
+      const polygons = maskToEditorPolygons(mask, "/camera");
+      const elapsed = performance.now() - started;
+      expect(polygons.length).toBeGreaterThan(0);
+      // The toothed mask took ~1.9 s with the all-pairs simplicity check and ~0.3 s with the grid.
+      expect(elapsed).toBeLessThan(1500);
+    });
   });
 });
 
