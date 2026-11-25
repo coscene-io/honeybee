@@ -6,11 +6,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { maskContains, maskRunsFromCounts } from "../maskCodec";
-import { segmentationSession } from "../runtime";
+import { createSegmentationHost } from "../segmentationHost";
 import { frameInstanceKey } from "../service";
 import { MaskPlaneCache } from "./maskPlaneCache";
 import { buildMaskPlanes, planeBytes, planeFormat } from "./maskPlanes";
-import { createMaskOverlaySource, maskOverlayControls } from "./overlaySource";
+import { createSegmentationMaskOverlay } from "../imageSource";
+import { createSegmentationSession } from "../runtime";
+import {
+  createMaskOverlayControls,
+  createMaskOverlaySource,
+  installMaskOverlaySource,
+} from "./overlaySource";
 import maskFixture from "../testing/fixtures/masks.json";
 import { DEFAULT_MOCK_MASK_PROFILE, synthesizeMockMask } from "../testing/mockMasks";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
@@ -282,9 +288,14 @@ describe("mask plane cache budget and failures", () => {
 });
 
 describe("mask overlay source", () => {
+  let host = createSegmentationHost();
+  const overlaySource = () =>
+    createMaskOverlaySource({ session: host.session, controls: host.maskOverlayControls });
+  beforeEach(() => {
+    host = createSegmentationHost();
+  });
   afterEach(() => {
-    segmentationSession.setState({ previewRuntime: undefined, runtime: undefined, open: false });
-    maskOverlayControls.setState({ opacity: 0.35, peekOriginal: false });
+    host.dispose();
   });
 
   it("binds masks to exact topic + log time, keeps geometry ids across style changes", async () => {
@@ -300,8 +311,8 @@ describe("mask overlay source", () => {
     };
     const runtime = createMockSegmentationRuntime(document);
     runtime.store.setState({ document });
-    segmentationSession.setState({ previewRuntime: runtime, open: false });
-    const source = createMaskOverlaySource();
+    host.session.setState({ previewRuntime: runtime, open: false });
+    const source = overlaySource();
     const topic = video.topic!;
     const shown = source.frame(topic, frame.logTimeNs);
     expect(shown?.geometry).toMatchObject({
@@ -314,14 +325,14 @@ describe("mask overlay source", () => {
     // One nanosecond off is a different frame: nothing, never a neighbour.
     expect(source.frame(topic, (BigInt(frame.logTimeNs) + 1n).toString())).toBeUndefined();
 
-    segmentationSession.setState({ runtime, open: true });
+    host.session.setState({ runtime, open: true });
     runtime.store.setState({ viewMode: "instance", focus: undefined });
     const hidden = source.frame(topic, frame.logTimeNs);
     expect(hidden?.geometry.id).toBe(shown?.geometry.id);
     expect(hidden?.style.visible).toEqual([false]);
     runtime.store.setState({ viewMode: "all", focus: { type: "instance", id: "instance-side" } });
     expect(source.frame(topic, frame.logTimeNs)?.style.selected).toEqual([true]);
-    maskOverlayControls.setState({ peekOriginal: true });
+    host.maskOverlayControls.setState({ peekOriginal: true });
     expect(source.frame(topic, frame.logTimeNs)?.style.visible).toEqual([false]);
 
     // Playback registers frames every frame: a new frame list must keep built planes (same id)...
@@ -354,8 +365,8 @@ describe("mask overlay source", () => {
     const topic = document.videos.find((item) => item.id === "video-side")!.topic!;
     const runtime = createMockSegmentationRuntime(document);
     runtime.store.setState({ document });
-    segmentationSession.setState({ previewRuntime: runtime, open: false });
-    const source = createMaskOverlaySource();
+    host.session.setState({ previewRuntime: runtime, open: false });
+    const source = overlaySource();
     const at = (offset: bigint) => ({
       ...template,
       id: `late-${offset}`,
@@ -416,8 +427,8 @@ describe("mask overlay source", () => {
     };
     const runtime = createMockSegmentationRuntime(document);
     runtime.store.setState({ document });
-    segmentationSession.setState({ previewRuntime: runtime, open: false });
-    const source = createMaskOverlaySource();
+    host.session.setState({ previewRuntime: runtime, open: false });
+    const source = overlaySource();
     const at = frames[0]!.logTimeNs;
     const times = (horizonNs: bigint, minFrames = 8, maxFrames = 24) =>
       source.upcoming(topic, at, { minFrames, maxFrames, horizonNs }).map((item) => item.logTimeNs);
@@ -438,5 +449,37 @@ describe("mask overlay source", () => {
         .map((item) => item.logTimeNs),
     ).toEqual([frames[1]!.logTimeNs, frames[2]!.logTimeNs]);
     runtime.dispose();
+  });
+});
+
+describe("installed mask overlay source", () => {
+  it("is published on the host's overlay, per host, and withdrawn on dispose", () => {
+    const first = createSegmentationHost();
+    const second = createSegmentationHost();
+    expect(first.maskOverlay.get()).toBeDefined();
+    expect(second.maskOverlay.get()).toBeDefined();
+    expect(first.maskOverlay.get()).not.toBe(second.maskOverlay.get());
+    const changed = jest.fn();
+    first.maskOverlay.subscribe(changed);
+    first.maskOverlayControls.setState({ opacity: 0.2 });
+    expect(changed).toHaveBeenCalled();
+    first.dispose();
+    expect(first.maskOverlay.get()).toBeUndefined();
+    expect(second.maskOverlay.get()).toBeDefined();
+    second.dispose();
+  });
+
+  it("stops watching the session once uninstalled", () => {
+    const session = createSegmentationSession();
+    const controls = createMaskOverlayControls();
+    const overlay = createSegmentationMaskOverlay();
+    const uninstall = installMaskOverlaySource({ session, overlay, controls });
+    const changed = jest.fn();
+    overlay.subscribe(changed);
+    uninstall();
+    changed.mockClear();
+    session.setState({ open: true });
+    controls.setState({ opacity: 0.1 });
+    expect(changed).not.toHaveBeenCalled();
   });
 });

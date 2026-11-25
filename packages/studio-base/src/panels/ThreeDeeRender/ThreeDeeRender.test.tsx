@@ -15,8 +15,9 @@ import { Immutable, MessageEvent, RenderState } from "@foxglove/studio";
 import { pauseFrameForPromises } from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
 import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import {
-  segmentationImageMetadataSources,
-  segmentationImageSources,
+  createSegmentationMaskOverlay,
+  createSegmentationPanelBridge,
+  type SegmentationPanelBridge,
 } from "@foxglove/studio-base/semanticSegmentation/imageSource";
 
 import type { RendererConfig } from "./IRenderer";
@@ -109,6 +110,7 @@ jest.mock("./Renderer", () => ({
     const instance = Object.assign(new EventEmitter(), {
       config,
       schemaSubscriptions: new Map(),
+      sceneExtensions: new Map(),
       topicSubscriptions: new Map(),
       settings: { tree: () => mockSettingsTree, handleAction: jest.fn() },
       measurementTool: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
@@ -154,7 +156,7 @@ jest.mock("./Renderer", () => ({
 
 function mountPanel(
   beforeRenderer?: (context: BuiltinPanelExtensionContext) => void,
-  options: { interfaceMode?: "3d" | "image"; segmentation?: boolean } = {},
+  options: { interfaceMode?: "3d" | "image"; segmentation?: SegmentationPanelBridge } = {},
 ) {
   const context = {
     initialState: {},
@@ -449,30 +451,32 @@ describe("spatial annotation bridge", () => {
   it("exposes nothing and dispatches no per-frame event when annotation is off", () => {
     const { view } = mountPanel(undefined, { interfaceMode: "image" });
     const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
-    const { canvas, count } = frameEvents(view);
+    const { count } = frameEvents(view);
 
     act(() => {
       renderer.emit("endFrame", 0n, renderer);
     });
 
     expect(count()).toBe(0);
-    expect(segmentationImageSources.has(canvas)).toBe(false);
-    expect(segmentationImageMetadataSources.has(canvas)).toBe(false);
     view.unmount();
   });
 
   it("bridges the image to the editor only when annotation is on", () => {
-    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: true });
+    const bridge = createSegmentationPanelBridge({
+      maskOverlay: createSegmentationMaskOverlay(),
+      maskPlanes: { get: () => ({}) as never, dispose: () => {} },
+    });
+    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: bridge });
     const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
-    const { canvas, count } = frameEvents(view);
+    const { count } = frameEvents(view);
 
     act(() => {
       renderer.emit("endFrame", 0n, renderer);
     });
 
     expect(count()).toBe(1);
-    expect(segmentationImageSources.has(canvas)).toBe(true);
+    expect(bridge.sources()?.image).toBeDefined();
     view.unmount();
-    expect(segmentationImageSources.has(canvas)).toBe(false);
+    expect(bridge.sources()).toBeUndefined();
   });
 });
