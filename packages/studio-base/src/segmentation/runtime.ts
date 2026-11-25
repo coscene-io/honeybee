@@ -9,28 +9,21 @@ import { createStore } from "zustand/vanilla";
 import type { StoreApi } from "zustand/vanilla";
 
 import { SegmentationError } from "./errors";
-import type { LiveSemanticSegmentationService } from "./liveService";
+import type { LiveSegmentationService } from "./liveService";
 import type { NativeImageView } from "./nativeImageTransform";
-import {
-  mergeSourceMetadata,
-  sourceMetadataChanges,
-  type SemanticSegmentationService,
-} from "./service";
-import { createSemanticSegmentationStore, type SemanticSegmentationStoreOptions } from "./store";
+import { mergeSourceMetadata, sourceMetadataChanges, type SegmentationService } from "./service";
+import { createSegmentationStore, type SegmentationStoreOptions } from "./store";
 import type { SegmentationDocument, SubmitRequest } from "./types";
 
 export type SegmentationRuntime = {
-  store: ReturnType<typeof createSemanticSegmentationStore>;
-  service: SemanticSegmentationService;
+  store: ReturnType<typeof createSegmentationStore>;
+  service: SegmentationService;
   initialize: () => Promise<void>;
   registerSource: (source: Pick<SegmentationDocument, "videos" | "frames">) => void;
   dispose: () => void;
 };
 
-export type SegmentationRuntimeOptions = Pick<
-  SemanticSegmentationStoreOptions,
-  "creationToolSetting"
-> & {
+export type SegmentationRuntimeOptions = Pick<SegmentationStoreOptions, "creationToolSetting"> & {
   /** Moves the player clock to an exact log time (the session's mounted image panels). */
   seek?: (logTimeNs: bigint) => void;
 };
@@ -38,7 +31,7 @@ export type SegmentationRuntimeOptions = Pick<
 /** One runtime is shared by the canvas, Space sidebar and workflows. */
 export function createSegmentationRuntime(
   /** The live AnnotationService adapter; tests pass the in-memory mock. Never modified. */
-  service: SemanticSegmentationService,
+  service: SegmentationService,
   /** Source metadata (record, videos, frames) known when the session opens. */
   document?: SegmentationDocument,
   options: SegmentationRuntimeOptions = {},
@@ -48,7 +41,7 @@ export function createSegmentationRuntime(
     ? { videos: document.videos, frames: document.frames }
     : undefined;
   // The live service also knows, from ListTimelineRanges, which unloaded frames have geometry.
-  const timelineSummaries = (service as Partial<LiveSemanticSegmentationService>).timelineSummaries;
+  const timelineSummaries = (service as Partial<LiveSegmentationService>).timelineSummaries;
   let projected:
     | {
         summaries: SegmentationDocument["annotationSummaries"];
@@ -84,7 +77,7 @@ export function createSegmentationRuntime(
   // required methods are forwarded to `service` when they are called. Optional members (flags and
   // methods a service may not offer) are taken as the service has them now: the runtime is created
   // once the service is complete.
-  const storeService: SemanticSegmentationService = {
+  const storeService: SegmentationService = {
     supportsPropagationContext: service.supportsPropagationContext,
     supportsMultiInstanceSeeds: service.supportsMultiInstanceSeeds,
     supportsInstanceMerge: service.supportsInstanceMerge,
@@ -112,7 +105,7 @@ export function createSegmentationRuntime(
     },
   };
   const { seek: _seek, ...storeOptions } = options;
-  const store = createSemanticSegmentationStore(storeService, {
+  const store = createSegmentationStore(storeService, {
     ...storeOptions,
     projectDocument: project,
   });
@@ -124,7 +117,7 @@ export function createSegmentationRuntime(
     }
   };
   // Timeline presence that arrives later (a camera registered after the read) re-runs the overlay.
-  const detachTimeline = (service as Partial<LiveSemanticSegmentationService>).subscribeTimeline?.(
+  const detachTimeline = (service as Partial<LiveSegmentationService>).subscribeTimeline?.(
     reproject,
   );
   // While propagating, the store moves its current frame to each result; move the player too,
@@ -286,7 +279,7 @@ export function openWorkflowPanel(session: SegmentationSession, target?: string)
   }));
 }
 
-/** Leaves spatial annotation: every canvas closes; staged edits stay in the runtime. */
+/** Leaves segmentation: every canvas closes; staged edits stay in the runtime. */
 export function endSegmentationSession(session: SegmentationSession): void {
   session.setState({ open: false, sourceReady: false });
 }

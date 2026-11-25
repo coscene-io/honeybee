@@ -7,7 +7,6 @@
 
 import * as _ from "lodash-es";
 
-import { ANNOTATION_WINDOW_SEC } from "./annotationFrames";
 import { SegmentationError } from "./errors";
 import {
   mergeObservations,
@@ -18,6 +17,7 @@ import {
 } from "./maskGeometry";
 import { normalizedPolygonProblem } from "./normalizedPolygon";
 import type { QuickSegmentRequest, QuickSegmentResult } from "./quickSegment";
+import { SEGMENTATION_WINDOW_SEC } from "./segmentationWindow";
 import {
   FrameWindow,
   ObservationGeometry,
@@ -63,7 +63,7 @@ export function propagationTargets(
 }
 
 /** Replace this boundary with a production adapter; the workbench has no transport dependency. */
-export interface SemanticSegmentationService {
+export interface SegmentationService {
   /** Append real source metadata without changing annotation identity. */
   updateSourceMetadata?(metadata: Pick<SegmentationDocument, "videos" | "frames">): void;
   loadDocument(signal?: AbortSignal): Promise<SegmentationDocument>;
@@ -380,9 +380,9 @@ export function validateFrameWindow(startSec: number, endSec: number): void {
     !Number.isFinite(endSec) ||
     startSec < 0 ||
     endSec < startSec ||
-    endSec - startSec > ANNOTATION_WINDOW_SEC
+    endSec - startSec > SEGMENTATION_WINDOW_SEC
   ) {
-    throw new SegmentationError("errorWindowSpan", { max: ANNOTATION_WINDOW_SEC });
+    throw new SegmentationError("errorWindowSpan", { max: SEGMENTATION_WINDOW_SEC });
   }
 }
 

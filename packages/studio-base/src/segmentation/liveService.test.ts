@@ -27,7 +27,7 @@ import {
   truncateToMicros,
   windowBoundaryMicros,
 } from "./frameTime";
-import { createLiveAnnotationService, createLiveSemanticSegmentationService } from "./liveService";
+import { createSegmentationServiceForClient, createLiveSegmentationService } from "./liveService";
 import { encodeCounts } from "./maskCodec";
 import { maskOf, polygonsOf } from "./maskGeometry";
 import { frameInstanceKey } from "./service";
@@ -216,7 +216,7 @@ function setup(document = sourceDocument()) {
       },
     });
   });
-  const service = createLiveAnnotationService({
+  const service = createSegmentationServiceForClient({
     client: createClient(AnnotationService, transport),
     recordName: R,
     startNs: START_NS,
@@ -1149,10 +1149,10 @@ const emptyDocument: SegmentationDocument = {
 };
 const recordName = "warehouses/w/projects/p/records/r";
 
-describe("createLiveSemanticSegmentationService", () => {
+describe("createLiveSegmentationService", () => {
   it("takes its client from the console API, which carries the desktop session", () => {
     const rpcClient = jest.fn().mockReturnValue({});
-    const service = createLiveSemanticSegmentationService({
+    const service = createLiveSegmentationService({
       consoleApi: { rpcClient },
       recordName,
       startNs: 0n,
@@ -1164,7 +1164,7 @@ describe("createLiveSemanticSegmentationService", () => {
 
   it("creates nothing without a console API or a cloud record", () => {
     expect(
-      createLiveSemanticSegmentationService({
+      createLiveSegmentationService({
         consoleApi: undefined,
         recordName,
         startNs: 0n,
@@ -1173,7 +1173,7 @@ describe("createLiveSemanticSegmentationService", () => {
     ).toBeUndefined();
     const rpcClient = jest.fn();
     expect(
-      createLiveSemanticSegmentationService({
+      createLiveSegmentationService({
         consoleApi: { rpcClient },
         recordName: "local.mcap",
         startNs: 0n,

@@ -13,7 +13,7 @@ import { createSegmentationHost } from "./segmentationHost";
 import { frameInstanceKey } from "./service";
 import { createMockSegmentationRuntime } from "./testing/mockRuntime";
 import {
-  createMockSemanticSegmentationService,
+  createMockSegmentationService,
   createSeedDocument,
   setMockControls,
 } from "./testing/mockService";
@@ -137,7 +137,7 @@ it.each(["forward", "backward"] as const)(
 
 it("wraps the service without changing it, and publishes each change once, projected", async () => {
   const document = createSeedDocument();
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     document,
     controls: { delayMs: 0, streamDelayMs: 0 },
   });
@@ -188,7 +188,7 @@ it("remembers the creation tool through the injected setting", async () => {
   });
   const document = createSeedDocument();
   const runtime = createSegmentationRuntime(
-    createMockSemanticSegmentationService({ document, controls: { delayMs: 0, streamDelayMs: 0 } }),
+    createMockSegmentationService({ document, controls: { delayMs: 0, streamDelayMs: 0 } }),
     document,
     { creationToolSetting: { get: () => stored, set } },
   );
@@ -213,7 +213,7 @@ describe("runtime registry", () => {
   function tracked() {
     const document = createSeedDocument();
     const runtime = createSegmentationRuntime(
-      createMockSemanticSegmentationService({
+      createMockSegmentationService({
         document,
         controls: { delayMs: 0, streamDelayMs: 0 },
       }),
@@ -371,7 +371,7 @@ describe("runtime registry", () => {
 
 it("forwards the service's methods to the store", async () => {
   const document = createSeedDocument();
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     document,
     controls: { delayMs: 0, streamDelayMs: 0 },
   });

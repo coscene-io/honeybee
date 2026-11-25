@@ -5,12 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createSemanticSegmentationStore } from "./store";
+import { createSegmentationStore } from "./store";
 import { createMockSegmentationRuntime } from "./testing/mockRuntime";
-import { createMockSemanticSegmentationService, setMockControls } from "./testing/mockService";
+import { createMockSegmentationService, setMockControls } from "./testing/mockService";
 import type { FrameWindow } from "./types";
 
-async function settleRead(store: ReturnType<typeof createSemanticSegmentationStore>) {
+async function settleRead(store: ReturnType<typeof createSegmentationStore>) {
   for (let index = 0; index < 50 && store.getState().loading; index++) {
     await new Promise((resolve) => setTimeout(resolve, 1));
   }
@@ -18,8 +18,8 @@ async function settleRead(store: ReturnType<typeof createSemanticSegmentationSto
 }
 
 it("retries the exact failed range without resetting queued submissions or drafts", async () => {
-  const service = createMockSemanticSegmentationService({ controls: { delayMs: 0 } });
-  const store = createSemanticSegmentationStore(service);
+  const service = createMockSegmentationService({ controls: { delayMs: 0 } });
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   const originalSubmit = service.submit.bind(service);
   let acknowledge!: () => void;
@@ -59,8 +59,8 @@ it("retries the exact failed range without resetting queued submissions or draft
 });
 
 it("ignores a retry response after a newer frame-window generation has won", async () => {
-  const service = createMockSemanticSegmentationService({ controls: { delayMs: 0 } });
-  const store = createSemanticSegmentationStore(service);
+  const service = createMockSegmentationService({ controls: { delayMs: 0 } });
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   service.setControls({ failNext: true });
   store.getState().setCurrentFrame("frame-55");

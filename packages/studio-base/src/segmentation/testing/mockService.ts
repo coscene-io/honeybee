@@ -20,7 +20,7 @@ import {
   patchAnnotationKeys,
   propagationTargets,
   resolvePropagationSeeds,
-  SemanticSegmentationService,
+  SegmentationService,
   validateFrameWindow,
   validatePropagationCapabilities,
 } from "../service";
@@ -186,7 +186,7 @@ async function delay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-export type MockSemanticSegmentationService = SemanticSegmentationService & {
+export type MockSegmentationService = SegmentationService & {
   controls: MockControls;
   setControls: (controls: Partial<MockControls>) => void;
   reset: () => void;
@@ -194,20 +194,20 @@ export type MockSemanticSegmentationService = SemanticSegmentationService & {
 
 /** Tests tune the local mock behind a runtime; any other service is a test setup error. */
 export function setMockControls(
-  service: SemanticSegmentationService,
+  service: SegmentationService,
   controls: Partial<MockControls>,
 ): void {
   if (!("setControls" in service)) {
     throw new Error("Not the local mock annotation service");
   }
-  (service as MockSemanticSegmentationService).setControls(controls);
+  (service as MockSegmentationService).setControls(controls);
 }
 
 /**
  * In-memory annotation service for tests and fixtures. Saves keep current state in memory and,
  * when `storage` is given, in that storage.
  */
-export function createMockSemanticSegmentationService(
+export function createMockSegmentationService(
   options: {
     document?: SegmentationDocument;
     controls?: Partial<MockControls>;
@@ -224,7 +224,7 @@ export function createMockSemanticSegmentationService(
      */
     mockMasks?: MockMaskProfile;
   } = {},
-): MockSemanticSegmentationService {
+): MockSegmentationService {
   const seed = cloneSegmentation(options.document ?? createSeedDocument());
   const controls: MockControls = {
     delayMs: 60,
@@ -354,7 +354,7 @@ export function createMockSemanticSegmentationService(
       throw new Error("Simulated service failure");
     }
   }
-  const service: MockSemanticSegmentationService = {
+  const service: MockSegmentationService = {
     controls,
     setControls: (next) => {
       Object.assign(controls, next);

@@ -11,7 +11,6 @@ import { createStore, StoreApi } from "zustand";
 
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
 
-import { ANNOTATION_WINDOW_SEC, annotationWindow } from "./annotationFrames";
 import {
   SegmentationError,
   type OperationLabelKey,
@@ -30,12 +29,13 @@ import {
 } from "./maskGeometry";
 import { normalizedPolygonProblem, type NormalizedPolygonProblem } from "./normalizedPolygon";
 import { createPropagationRunner } from "./propagationRunner";
+import { SEGMENTATION_WINDOW_SEC, segmentationWindow } from "./segmentationWindow";
 import {
   applySegmentationPatch,
   applySegmentationPatches,
   cloneSegmentation,
   frameInstanceKey,
-  SemanticSegmentationService,
+  SegmentationService,
   validateFrameWindow,
 } from "./service";
 import type { StoreInternals } from "./storeInternals";
@@ -47,7 +47,7 @@ import {
   SegmentationDocument,
   SegmentationPatch,
   SegmentationNodeRef,
-  SemanticSegmentationStore,
+  SegmentationStore,
   StagedOperation,
 } from "./types";
 
@@ -69,7 +69,7 @@ function validateCompletePolygon(points: NormalizedPoint[]) {
 }
 
 /** Where the store keeps what outlives it. Every field is optional; tests pass none. */
-export type SemanticSegmentationStoreOptions = {
+export type SegmentationStoreOptions = {
   /**
    * Applied to every document the store publishes, inside the same update, so subscribers never
    * see an unprojected document. Must return its input when there is nothing to change.
@@ -84,7 +84,7 @@ export type SemanticSegmentationStoreOptions = {
   };
 };
 
-function initialCreationTool(setting: SemanticSegmentationStoreOptions["creationToolSetting"]) {
+function initialCreationTool(setting: SegmentationStoreOptions["creationToolSetting"]) {
   try {
     return setting?.get() === "quick" ? "quick" : "polygon";
   } catch {
@@ -118,10 +118,10 @@ export function filterSegmentationSelection(
 }
 
 /** One independent vanilla Zustand store per record. React consumers use useStore(store, selector). */
-export function createSemanticSegmentationStore(
-  service: SemanticSegmentationService,
-  options: SemanticSegmentationStoreOptions = {},
-): StoreApi<SemanticSegmentationStore> {
+export function createSegmentationStore(
+  service: SegmentationService,
+  options: SegmentationStoreOptions = {},
+): StoreApi<SegmentationStore> {
   let base: SegmentationDocument | undefined;
   let windowController: AbortController | undefined;
   /** Background playback reads, keyed by window. Aborted when the store is disposed. */
@@ -150,9 +150,9 @@ export function createSemanticSegmentationStore(
   let transaction: { id: string; labelKey: OperationLabelKey } | undefined;
   // Each entry is one immutable command (possibly several grouped operations).
   let redoStack: StagedOperation[][] = [];
-  const store = createStore<SemanticSegmentationStore>((rawSet, get) => {
+  const store = createStore<SegmentationStore>((rawSet, get) => {
     const project = options.projectDocument;
-    function set(partial: Partial<SemanticSegmentationStore>): void {
+    function set(partial: Partial<SegmentationStore>): void {
       rawSet(
         project && partial.document ? { ...partial, document: project(partial.document) } : partial,
       );
@@ -579,10 +579,10 @@ export function createSemanticSegmentationStore(
           });
           rebuild();
           if (first && !loadedFrames.has(first.id)) {
-            const { startSec, endSec } = annotationWindow(
+            const { startSec, endSec } = segmentationWindow(
               first.timestampSec,
               loaded.videos.find((video) => video.id === first.videoId)?.durationSec ??
-                ANNOTATION_WINDOW_SEC,
+                SEGMENTATION_WINDOW_SEC,
             );
             await get().loadFrameWindow(first.videoId, startSec, endSec);
           }
@@ -617,7 +617,7 @@ export function createSemanticSegmentationStore(
         const duration = document().videos.find((video) => video.id === frame.videoId)!.durationSec;
         const { startSec, endSec } = sameRange
           ? failure
-          : annotationWindow(frame.timestampSec, duration);
+          : segmentationWindow(frame.timestampSec, duration);
         await get().loadFrameWindow(frame.videoId, startSec, endSec);
       },
       async prefetchFrameWindow(videoId, startSec, endSec) {
@@ -747,7 +747,7 @@ export function createSemanticSegmentationStore(
           const duration = document().videos.find(
             (video) => video.id === frame.videoId,
           )!.durationSec;
-          const { startSec, endSec } = annotationWindow(frame.timestampSec, duration);
+          const { startSec, endSec } = segmentationWindow(frame.timestampSec, duration);
           void get().loadFrameWindow(frame.videoId, startSec, endSec);
         }
       },

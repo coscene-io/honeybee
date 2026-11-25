@@ -5,11 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { polygonsOf } from "./maskGeometry";
-import { cloneSegmentation, frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService } from "./testing/mockService";
-import { NormalizedPoint, SegmentationDocument } from "./types";
+import { polygonsOf } from "../maskGeometry";
+import { cloneSegmentation, frameInstanceKey } from "../service";
+import { createSegmentationStore } from "../store";
+import { createMockSegmentationService } from "../testing/mockService";
+import { NormalizedPoint, SegmentationDocument } from "../types";
 
 const triangle: NormalizedPoint[] = [
   { x: 0.12345, y: 0.2 },
@@ -19,10 +19,10 @@ const triangle: NormalizedPoint[] = [
 const key = frameInstanceKey("frame-0", "instance-1");
 
 async function setup() {
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     controls: { delayMs: 0, streamDelayMs: 0 },
   });
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   return { service, store };
 }

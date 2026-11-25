@@ -8,7 +8,7 @@ Regenerate them only after changing the shapes in the script. It needs Python 3.
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install numpy pycocotools opencv-python-headless
-python packages/studio-base/src/semanticSegmentation/testing/fixtures/generate.py
+python packages/studio-base/src/segmentation/testing/fixtures/generate.py
 ```
 
 - `masks.json`: shapes drawn on a 1280x720 frame, their COCO compressed RLE from pycocotools, and

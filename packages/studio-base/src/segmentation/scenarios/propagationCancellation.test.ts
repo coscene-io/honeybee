@@ -5,14 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService } from "./testing/mockService";
-import type {
-  PropagationCancellation,
-  PropagationContext,
-  SemanticSegmentationStore,
-} from "./types";
+import { frameInstanceKey } from "../service";
+import { createSegmentationStore } from "../store";
+import { createMockSegmentationService } from "../testing/mockService";
+import type { PropagationCancellation, PropagationContext, SegmentationStore } from "../types";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -22,8 +18,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 async function until(
-  store: ReturnType<typeof createSemanticSegmentationStore>,
-  predicate: (state: SemanticSegmentationStore) => boolean,
+  store: ReturnType<typeof createSegmentationStore>,
+  predicate: (state: SegmentationStore) => boolean,
 ): Promise<void> {
   if (predicate(store.getState())) {
     await Promise.resolve();
@@ -39,10 +35,10 @@ async function until(
   });
 }
 async function fixture() {
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     controls: { delayMs: 0, cancelDelayMs: 0 },
   });
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   const gate = deferred<void>();
   const accepted = deferred<void>();

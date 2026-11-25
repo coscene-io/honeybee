@@ -9,16 +9,16 @@
  * Geometry and frame lists are read in windows of this many seconds from the recording start (the
  * service caps ListFrames at ten seconds). The preview must not treat a neighbor window as loaded.
  */
-export const ANNOTATION_WINDOW_SEC = 10;
+export const SEGMENTATION_WINDOW_SEC = 10;
 
 /** The window that contains this offset, clipped to the recording. */
-export function annotationWindow(
+export function segmentationWindow(
   offsetSec: number,
   durationSec: number,
 ): { startSec: number; endSec: number } {
   const startSec =
-    Math.floor(Math.max(0, offsetSec) / ANNOTATION_WINDOW_SEC) * ANNOTATION_WINDOW_SEC;
-  return { startSec, endSec: Math.min(startSec + ANNOTATION_WINDOW_SEC, durationSec) };
+    Math.floor(Math.max(0, offsetSec) / SEGMENTATION_WINDOW_SEC) * SEGMENTATION_WINDOW_SEC;
+  return { startSec, endSec: Math.min(startSec + SEGMENTATION_WINDOW_SEC, durationSec) };
 }
 
 /** Start of the 10s geometry window that contains this offset. */
@@ -26,7 +26,7 @@ export function previewWindowStartSec(offsetSec: number): number | undefined {
   if (!Number.isFinite(offsetSec)) {
     return undefined;
   }
-  return annotationWindow(offsetSec, Number.POSITIVE_INFINITY).startSec;
+  return segmentationWindow(offsetSec, Number.POSITIVE_INFINITY).startSec;
 }
 
 /**
@@ -39,7 +39,7 @@ export function previewWindowNeedsLoad<Frame extends { timestampSec: number }>(
   windowStartSec: number,
   durationSec: number,
 ): boolean {
-  const end = Math.min(windowStartSec + ANNOTATION_WINDOW_SEC, durationSec);
+  const end = Math.min(windowStartSec + SEGMENTATION_WINDOW_SEC, durationSec);
   const inWindow = frames.filter(
     (frame) => frame.timestampSec >= windowStartSec && frame.timestampSec <= end,
   );

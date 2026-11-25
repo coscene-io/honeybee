@@ -5,16 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { polygonsOf } from "./maskGeometry";
-import { applySegmentationPatches, cloneSegmentation, frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService, createSeedDocument } from "./testing/mockService";
+import { polygonsOf } from "../maskGeometry";
+import { applySegmentationPatches, cloneSegmentation, frameInstanceKey } from "../service";
+import { createSegmentationStore } from "../store";
+import { createMockSegmentationService, createSeedDocument } from "../testing/mockService";
 import type {
   PropagationCancellation,
   PropagationResult,
   SegmentationDocument,
   SegmentationPatch,
-} from "./types";
+} from "../types";
 
 /** One source frame plus the requested target frames, using synthetic local images only. */
 function createSubmissionFixture(targetFrames = 1000): SegmentationDocument {
@@ -84,11 +84,11 @@ async function fixture(mode: "initial" | "preloaded" = "initial") {
     };
     document.annotationSummaries[key(index, "instance-2")] = { polygonCount: 1, pointCount: 3 };
   }
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     document,
     controls: { delayMs: 0, streamDelayMs: 0 },
   });
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   if (mode === "preloaded") {
     // Remove incidental window-transport timers so the consumer must yield by itself.

@@ -19,7 +19,6 @@ import {
 } from "@foxglove/studio-base/services/api/spatial-annotation";
 import { expectingCodes } from "@foxglove/studio-base/util/coscene/rpcContext";
 
-import { ANNOTATION_WINDOW_SEC } from "./annotationFrames";
 import {
   AnnotationRpcError,
   SegmentationError,
@@ -38,7 +37,8 @@ import { inferMaskFrameSize, maskCountsCoverage, maskRunsFromCounts } from "./ma
 import { maskObservation, observationHasGeometry, polygonObservation } from "./maskGeometry";
 import { describeViolation, toContractPolygon } from "./polygonContract";
 import { quickSegment } from "./quickSegment";
-import { isAnnotationRecordName } from "./recordName";
+import { isSegmentationRecordName } from "./recordName";
+import { SEGMENTATION_WINDOW_SEC } from "./segmentationWindow";
 import {
   applySegmentationPatches,
   cloneSegmentation,
@@ -46,7 +46,7 @@ import {
   mergeSourceMetadata,
   patchAnnotationKeys,
   resolvePropagationSeeds,
-  type SemanticSegmentationService,
+  type SegmentationService,
   validateFrameWindow,
 } from "./service";
 import type {
@@ -70,7 +70,7 @@ type WireFrameInit = MessageInitShape<typeof FrameSchema>;
 type WireFrameSnapshotInit = MessageInitShape<typeof FrameSnapshotSchema>;
 
 /** ListFrames rejects windows longer than this; longer local windows are read in pieces. */
-const MAX_WINDOW_MICROS = BigInt(ANNOTATION_WINDOW_SEC) * 1_000_000n;
+const MAX_WINDOW_MICROS = BigInt(SEGMENTATION_WINDOW_SEC) * 1_000_000n;
 const PAGE_SIZE = 1000;
 /** 1000 pages of 1000: far beyond any record; only a misbehaving server reaches it. */
 const MAX_PAGES = 1000;
@@ -101,7 +101,7 @@ export type LiveServiceDiagnostics = {
   lastSave?: { frames: number; at: number };
 };
 
-export type LiveSemanticSegmentationService = SemanticSegmentationService & {
+export type LiveSegmentationService = SegmentationService & {
   readonly backend: "live";
   readonly recordName: string;
   /** Presence from ListTimelineRanges for registered frames whose geometry is not loaded. */
@@ -198,7 +198,7 @@ function throwIfAborted(signal?: AbortSignal): void {
  * checks. Saves from other tabs or users simply overwrite the frames they send (see
  * docs/segmentation-api-integration.md).
  */
-export function createLiveAnnotationService(options: {
+export function createSegmentationServiceForClient(options: {
   client: AnnotationClient;
   /** `warehouses/{w}/projects/{p}/records/{r}` */
   recordName: string;
@@ -207,7 +207,7 @@ export function createLiveAnnotationService(options: {
   /** Source metadata (record id, videos, frames) known when the session opens. */
   document: SegmentationDocument;
   models?: string[];
-}): LiveSemanticSegmentationService {
+}): LiveSegmentationService {
   const { client, recordName, startNs } = options;
   const models = options.models ?? LIVE_PROPAGATION_MODELS;
   let doc: SegmentationDocument = {
@@ -867,7 +867,7 @@ export function createLiveAnnotationService(options: {
     };
   }
 
-  const service: LiveSemanticSegmentationService = {
+  const service: LiveSegmentationService = {
     backend: "live",
     recordName,
     timelineSummaries: () => summaries,
@@ -1282,17 +1282,17 @@ async function withRpcErrors<T>(pending: Promise<T>): Promise<T> {
  * console API's gRPC-Web client (`ConsoleApi.rpcClient`), so auth, base URL and the desktop
  * session match every other record RPC. Propagation is a server stream on it.
  */
-export function createLiveSemanticSegmentationService(args: {
+export function createLiveSegmentationService(args: {
   /** Undefined outside the console API provider: there is then no authenticated client. */
   consoleApi: Pick<ConsoleApi, "rpcClient"> | undefined;
   recordName: string | undefined;
   startNs: bigint;
   document: SegmentationDocument;
-}): LiveSemanticSegmentationService | undefined {
-  if (!isAnnotationRecordName(args.recordName) || !args.consoleApi) {
+}): LiveSegmentationService | undefined {
+  if (!isSegmentationRecordName(args.recordName) || !args.consoleApi) {
     return undefined;
   }
-  return createLiveAnnotationService({
+  return createSegmentationServiceForClient({
     client: args.consoleApi.rpcClient(AnnotationService),
     recordName: args.recordName,
     startNs: args.startNs,

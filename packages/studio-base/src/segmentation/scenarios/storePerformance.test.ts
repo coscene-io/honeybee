@@ -5,10 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService } from "./testing/mockService";
-import type { NormalizedPoint } from "./types";
+import { frameInstanceKey } from "../service";
+import { createSegmentationStore } from "../store";
+import { createMockSegmentationService } from "../testing/mockService";
+import type { NormalizedPoint } from "../types";
 
 const triangle: NormalizedPoint[] = [
   { x: 0.12345, y: 0.2 },
@@ -22,11 +22,11 @@ const triangle: NormalizedPoint[] = [
  * or re-summarized for them.
  */
 async function loadedStore() {
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     controls: { delayMs: 0, streamDelayMs: 0 },
     mockMasks: { seed: 7, instances: 3, cameras: 1 },
   });
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   for (const [start, end] of [
     [0, 10],

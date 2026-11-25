@@ -219,7 +219,7 @@ export type MaskConversionLoss = {
   droppedComponents: number;
   polygonCount: number;
 };
-export type SemanticSegmentationStore = {
+export type SegmentationStore = {
   document: SegmentationDocument | undefined;
   currentFrameId: string | undefined;
   viewMode: "original" | "instance" | "all";
@@ -241,7 +241,7 @@ export type SemanticSegmentationStore = {
   isFrameReady: (frameId: string) => boolean;
   retryCurrentFrameWindow: () => Promise<void>;
   error: string | undefined;
-  /** The service accepts instance merges (`SemanticSegmentationService.supportsInstanceMerge`). */
+  /** The service accepts instance merges (`SegmentationService.supportsInstanceMerge`). */
   supportsInstanceMerge: boolean;
   propagationCapabilities?: PropagationCapabilities;
   propagationCapabilitiesError?: string;

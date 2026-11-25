@@ -10,32 +10,32 @@ import {
   isInputOwnerSurfaceTarget,
 } from "@foxglove/studio-base/components/inputOwnership";
 
-const ANNOTATION_VIEWPORT_ATTRIBUTE = "data-segmentation-input";
-const ANNOTATION_VIEWPORT_SELECTOR = `[${ANNOTATION_VIEWPORT_ATTRIBUTE}="canvas"]`;
+const SEGMENTATION_VIEWPORT_ATTRIBUTE = "data-segmentation-input";
+const SEGMENTATION_VIEWPORT_SELECTOR = `[${SEGMENTATION_VIEWPORT_ATTRIBUTE}="canvas"]`;
 
 /**
  * Props for the annotation viewport. It owns keyboard and context-menu input; ←/→ still reach
  * global shortcuts (stepping camera frames) unless the canvas consumed them.
  */
-export const annotationViewportProps = {
-  [ANNOTATION_VIEWPORT_ATTRIBUTE]: "canvas",
+export const segmentationViewportProps = {
+  [SEGMENTATION_VIEWPORT_ATTRIBUTE]: "canvas",
   ...inputOwnerProps(["ArrowLeft", "ArrowRight"]),
 } as const;
 
 /** Props for popups the viewport opens (menus), which own every key. */
-export const annotationPopupProps = {
-  [ANNOTATION_VIEWPORT_ATTRIBUTE]: "canvas",
+export const segmentationPopupProps = {
+  [SEGMENTATION_VIEWPORT_ATTRIBUTE]: "canvas",
   ...inputOwnerProps(),
 } as const;
 
 /** Includes native controls inside the viewport, for input-routing guards. */
 // eslint-disable-next-line no-restricted-syntax -- DOM Event.target is nullable.
-export function isAnnotationViewportTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest(ANNOTATION_VIEWPORT_SELECTOR) != undefined;
+export function isSegmentationViewportTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(SEGMENTATION_VIEWPORT_SELECTOR) != undefined;
 }
 
 /** Whether annotation shortcuts own this target, leaving native controls their normal semantics. */
 // eslint-disable-next-line no-restricted-syntax -- DOM Event.target is nullable.
-export function isAnnotationCanvasTarget(target: EventTarget | null): boolean {
-  return isAnnotationViewportTarget(target) && isInputOwnerSurfaceTarget(target);
+export function isSegmentationCanvasTarget(target: EventTarget | null): boolean {
+  return isSegmentationViewportTarget(target) && isInputOwnerSurfaceTarget(target);
 }

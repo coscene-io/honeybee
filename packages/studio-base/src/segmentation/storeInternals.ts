@@ -5,17 +5,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { SemanticSegmentationService } from "./service";
-import type { SegmentationDocument, SemanticSegmentationStore } from "./types";
+import type { SegmentationService } from "./service";
+import type { SegmentationDocument, SegmentationStore } from "./types";
 
 /**
  * What the store shares with the parts split out of it (the submission queue and propagation).
  * One instance per store; every accessor reads the store's current state.
  */
 export type StoreInternals = {
-  service: SemanticSegmentationService;
-  get: () => SemanticSegmentationStore;
-  set: (partial: Partial<SemanticSegmentationStore>) => void;
+  service: SegmentationService;
+  get: () => SegmentationStore;
+  set: (partial: Partial<SegmentationStore>) => void;
   subscribe: (listener: () => void) => () => void;
   isDisposed: () => boolean;
   /** The authoritative server state: the last document read, saves and loaded windows. */
@@ -34,7 +34,7 @@ export type StoreInternals = {
   /** Publish base + queued + staged operations as the document. */
   rebuild: () => void;
   /** Selection, focus and drawing that survive `document`. */
-  prunedRefs: (document: SegmentationDocument) => Partial<SemanticSegmentationStore>;
+  prunedRefs: (document: SegmentationDocument) => Partial<SegmentationStore>;
   clearRedo: () => void;
   assertEditable: () => void;
   /** The published document; throws before initialize. */

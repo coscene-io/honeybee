@@ -8,6 +8,6 @@
 const RECORD_NAME = /^warehouses\/[^/]+\/projects\/[^/]+\/records\/[^/]+$/;
 
 /** True for a cloud record the annotation service can address. */
-export function isAnnotationRecordName(recordName: string | undefined): recordName is string {
+export function isSegmentationRecordName(recordName: string | undefined): recordName is string {
   return recordName != undefined && RECORD_NAME.test(recordName);
 }

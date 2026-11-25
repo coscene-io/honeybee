@@ -7,8 +7,8 @@
 
 import { polygonsOf } from "./maskGeometry";
 import { frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService } from "./testing/mockService";
+import { createSegmentationStore } from "./store";
+import { createMockSegmentationService } from "./testing/mockService";
 import type { NormalizedPoint, SubmitRequest } from "./types";
 
 const triangle: NormalizedPoint[] = [
@@ -20,7 +20,7 @@ const moved = triangle.map((point) => ({ x: point.x + 0.05, y: point.y }));
 const key = frameInstanceKey("frame-0", "instance-1");
 
 async function setup() {
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     controls: { delayMs: 0, streamDelayMs: 0 },
   });
   const sent: SubmitRequest[] = [];
@@ -29,7 +29,7 @@ async function setup() {
     sent.push(request);
     return await submit(request);
   };
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   return { service, store, sent };
 }

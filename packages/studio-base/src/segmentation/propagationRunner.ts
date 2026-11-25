@@ -8,10 +8,10 @@
 import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
-import { annotationWindow } from "./annotationFrames";
 import { SegmentationError, segmentationText, segmentationErrorText } from "./errors";
 import { mergeFrameWindow } from "./frameWindows";
 import { maskObservation, maskOf, polygonObservation, polygonsOf } from "./maskGeometry";
+import { segmentationWindow } from "./segmentationWindow";
 import {
   applySegmentationPatch,
   cloneSegmentation,
@@ -24,7 +24,7 @@ import type { StoreInternals } from "./storeInternals";
 import type {
   FrameInstance,
   PropagationContext,
-  SemanticSegmentationStore,
+  SegmentationStore,
   StagedOperation,
 } from "./types";
 
@@ -33,7 +33,7 @@ import type {
  * moves playback along with them, and stops on request or when the context changes.
  */
 export function createPropagationRunner(shared: StoreInternals): Pick<
-  SemanticSegmentationStore,
+  SegmentationStore,
   "startPropagation" | "stopPropagation"
 > & {
   /** After the store is disposed: cancel a running run on the server, abort its stream. */
@@ -222,7 +222,7 @@ export function createPropagationRunner(shared: StoreInternals): Pick<
               const duration = initial.videos.find(
                 (video) => video.id === context.videoId,
               )!.durationSec;
-              const { startSec, endSec } = annotationWindow(frame.timestampSec, duration);
+              const { startSec, endSec } = segmentationWindow(frame.timestampSec, duration);
               const readStart = shared.saveSeq();
               try {
                 const geometryWindow = await service.loadFrameWindow(

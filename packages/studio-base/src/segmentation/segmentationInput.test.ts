@@ -7,14 +7,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  annotationViewportProps,
-  isAnnotationCanvasTarget,
-  isAnnotationViewportTarget,
-} from "./annotationInput";
+  segmentationViewportProps,
+  isSegmentationCanvasTarget,
+  isSegmentationViewportTarget,
+} from "./segmentationInput";
 
 function viewportWith(markup: string): HTMLDivElement {
   const viewport = document.createElement("div");
-  for (const [name, value] of Object.entries(annotationViewportProps)) {
+  for (const [name, value] of Object.entries(segmentationViewportProps)) {
     viewport.setAttribute(name, value);
   }
   viewport.innerHTML = markup;
@@ -30,8 +30,8 @@ describe("annotation input ownership", () => {
   ])("owns annotation surfaces and SVG vertices: %s", (markup) => {
     const viewport = viewportWith(markup);
 
-    expect(isAnnotationCanvasTarget(viewport)).toBe(true);
-    expect(isAnnotationCanvasTarget(viewport.querySelector("[data-target]"))).toBe(true);
+    expect(isSegmentationCanvasTarget(viewport)).toBe(true);
+    expect(isSegmentationCanvasTarget(viewport.querySelector("[data-target]"))).toBe(true);
   });
 
   it.each([
@@ -50,8 +50,8 @@ describe("annotation input ownership", () => {
     const viewport = viewportWith(markup);
     const target = viewport.querySelector("[data-target]");
 
-    expect(isAnnotationCanvasTarget(target)).toBe(false);
-    expect(isAnnotationViewportTarget(target)).toBe(true);
+    expect(isSegmentationCanvasTarget(target)).toBe(false);
+    expect(isSegmentationViewportTarget(target)).toBe(true);
   });
 
   it("does not claim unrelated targets or markers", () => {
@@ -64,8 +64,8 @@ describe("annotation input ownership", () => {
       new EventTarget(),
       outside.querySelector("span"),
     ]) {
-      expect(isAnnotationCanvasTarget(target)).toBe(false);
-      expect(isAnnotationViewportTarget(target)).toBe(false);
+      expect(isSegmentationCanvasTarget(target)).toBe(false);
+      expect(isSegmentationViewportTarget(target)).toBe(false);
     }
   });
 });

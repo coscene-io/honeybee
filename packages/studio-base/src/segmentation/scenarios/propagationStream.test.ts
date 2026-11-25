@@ -5,11 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { polygonsOf } from "./maskGeometry";
-import { cloneSegmentation, frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService, createSeedDocument } from "./testing/mockService";
-import type { FrameInstance, PropagationContext, PropagationRequest } from "./types";
+import { polygonsOf } from "../maskGeometry";
+import { cloneSegmentation, frameInstanceKey } from "../service";
+import { createSegmentationStore } from "../store";
+import { createMockSegmentationService, createSeedDocument } from "../testing/mockService";
+import type { FrameInstance, PropagationContext, PropagationRequest } from "../types";
 
 async function fixture(options: { emptyUnselected?: boolean } = {}) {
   const document = createSeedDocument();
@@ -25,11 +25,11 @@ async function fixture(options: { emptyUnselected?: boolean } = {}) {
     id: "unselected-Q",
     ...(options.emptyUnselected === true ? { points: [] } : {}),
   });
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     document,
     controls: { delayMs: 0, streamDelayMs: 0 },
   });
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   store.getState().setCurrentFrame("frame-5");
   return { service, store };
@@ -60,9 +60,7 @@ function result(
 function request(): PropagationRequest {
   return { fromFrameId: "frame-5", instanceId: "instance-1", endTimeNs: "1700000001400000000" };
 }
-async function acknowledgedStop(
-  store: ReturnType<typeof createSemanticSegmentationStore>,
-): Promise<void> {
+async function acknowledgedStop(store: ReturnType<typeof createSegmentationStore>): Promise<void> {
   if (store.getState().propagation.status === "cancelled") {
     await Promise.resolve();
     return;

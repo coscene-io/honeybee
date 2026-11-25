@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { SegmentationError, segmentationErrorText } from "./errors";
 import { cloneSegmentation, patchAnnotationKeys } from "./service";
 import type { StoreInternals } from "./storeInternals";
-import type { SemanticSegmentationStore, SubmissionBatch } from "./types";
+import type { SegmentationStore, SubmissionBatch } from "./types";
 
 /** Acknowledged batches listed for feedback. */
 const KEPT_SUCCEEDED_BATCHES = 5;
@@ -23,7 +23,7 @@ const KEPT_SUCCEEDED_BATCHES = 5;
 export function createSubmissionQueue(
   context: StoreInternals,
 ): Pick<
-  SemanticSegmentationStore,
+  SegmentationStore,
   "submit" | "waitForSubmissions" | "retrySubmission" | "discardSubmission"
 > {
   const { service, get, set, isDisposed, rebuild, assertEditable } = context;

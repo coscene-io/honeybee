@@ -10,8 +10,8 @@ import { lineColors } from "@foxglove/studio-base/util/plotColors";
 import { countsFromRuns, runsFromIntervals } from "./maskCodec";
 import { maskArea, maskOf, polygonsOf, runsOfPolygons } from "./maskGeometry";
 import { frameInstanceKey } from "./service";
-import { createSemanticSegmentationStore } from "./store";
-import { createMockSemanticSegmentationService } from "./testing/mockService";
+import { createSegmentationStore } from "./store";
+import { createMockSegmentationService } from "./testing/mockService";
 import { NormalizedPoint } from "./types";
 
 /** Mock propagation moves points right/down by 10px per frame on a 960x540 frame. */
@@ -34,20 +34,20 @@ function deferred() {
 }
 
 async function setup() {
-  const service = createMockSemanticSegmentationService({
+  const service = createMockSegmentationService({
     controls: { delayMs: 0, streamDelayMs: 0 },
   });
-  const store = createSemanticSegmentationStore(service);
+  const store = createSegmentationStore(service);
   await store.getState().initialize();
   return { service, store };
 }
 
 describe("loaded frame geometry", () => {
   async function limited(maxLoadedFrames: number) {
-    const service = createMockSemanticSegmentationService({
+    const service = createMockSegmentationService({
       controls: { delayMs: 0, streamDelayMs: 0 },
     });
-    const store = createSemanticSegmentationStore(service, { maxLoadedFrames });
+    const store = createSegmentationStore(service, { maxLoadedFrames });
     await store.getState().initialize();
     return store;
   }
@@ -82,7 +82,7 @@ describe("loaded frame geometry", () => {
   });
 });
 
-describe("semantic segmentation state", () => {
+describe("segmentation state", () => {
   it("creates stable empty tree nodes, preserves float coordinates and undoes local changes", async () => {
     const { store } = await setup();
     const classId = store.getState().addClass("  Tool  ");
@@ -417,8 +417,8 @@ describe("semantic segmentation state", () => {
   });
 
   it("prevents late initialization from changing a disposed store", async () => {
-    const service = createMockSemanticSegmentationService({ controls: { delayMs: 0 } });
-    const store = createSemanticSegmentationStore(service);
+    const service = createMockSegmentationService({ controls: { delayMs: 0 } });
+    const store = createSegmentationStore(service);
     const initializing = store.getState().initialize();
     store.getState().dispose();
     await initializing;

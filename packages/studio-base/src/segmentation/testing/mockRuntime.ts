@@ -11,7 +11,7 @@ import {
   type SegmentationRuntimeOptions,
 } from "../runtime";
 import type { SegmentationDocument } from "../types";
-import { createMockSemanticSegmentationService } from "./mockService";
+import { createMockSegmentationService } from "./mockService";
 
 /** A runtime over the in-memory mock service, with the mock's default latency. Tests only. */
 export function createMockSegmentationRuntime(
@@ -19,7 +19,7 @@ export function createMockSegmentationRuntime(
   options?: SegmentationRuntimeOptions,
 ): SegmentationRuntime {
   return createSegmentationRuntime(
-    createMockSemanticSegmentationService({
+    createMockSegmentationService({
       document,
       controls: { delayMs: 500, streamDelayMs: 350 },
     }),

@@ -13,7 +13,7 @@ import {
   synthesizeMockMask,
   validateMockMaskProfile,
 } from "./mockMasks";
-import { createMockSemanticSegmentationService, createSeedDocument } from "./mockService";
+import { createMockSegmentationService, createSeedDocument } from "./mockService";
 import { frameInstanceKey } from "../service";
 
 const profile = { ...DEFAULT_MOCK_MASK_PROFILE, instances: 2 };
@@ -48,7 +48,7 @@ describe("MOCK masks", () => {
 
 describe("mock service with MOCK masks", () => {
   function service(storage?: Map<string, string>) {
-    return createMockSemanticSegmentationService({
+    return createMockSegmentationService({
       document: createSeedDocument(),
       controls: { delayMs: 0, streamDelayMs: 0 },
       mockMasks: profile,
