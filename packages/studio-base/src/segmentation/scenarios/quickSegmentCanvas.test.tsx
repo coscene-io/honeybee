@@ -64,7 +64,6 @@ async function quickEditor(document = fixture()) {
 
 beforeEach(() => {
   requests = [];
-  window.localStorage.removeItem("coStudio.semanticSegmentation.creationTool");
   // jsdom has no 2D canvas; the preview image is cosmetic.
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
@@ -99,7 +98,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  window.localStorage.removeItem("coStudio.semanticSegmentation.creationTool");
 });
 
 describe("quick segment canvas", () => {

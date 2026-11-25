@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
@@ -280,9 +280,7 @@ describe("native stream presentation", () => {
     expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(shown);
     expect(f.container.querySelector("svg image")).toBeNull();
     expect(
-      f.container
-        .querySelector('[data-testid="segmentation-native-overlay"]')
-        ?.getAttribute("data-log-time-ns"),
+      screen.queryByTestId("segmentation-native-overlay")?.getAttribute("data-log-time-ns"),
     ).toBe("400000000");
     expect(f.runtime.store.getState().stagedOperations.length).toBeGreaterThan(3);
   });
@@ -371,7 +369,7 @@ describe("native stream presentation", () => {
     expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[5]!.id);
     f.decode(4);
     expect(testHost().session.getState().sourceReady).toBe(false);
-    expect(f.container.querySelector('[data-testid="instance-union-fill"]')).toBeNull();
+    expect(screen.queryByTestId("instance-union-fill")).toBeNull();
     expect(pipeline.seekPlayback).not.toHaveBeenCalled();
   });
 
@@ -381,7 +379,7 @@ describe("native stream presentation", () => {
     f.rerender(f.view());
     await flush();
     expect(testHost().session.getState().open).toBe(false);
-    expect(f.container.querySelector('[data-testid="segmentation-native-overlay"]')).toBeNull();
+    expect(screen.queryByTestId("segmentation-native-overlay")).toBeNull();
     expect(pipeline.seekPlayback).not.toHaveBeenCalled();
   });
 
@@ -401,7 +399,7 @@ describe("native stream presentation", () => {
     });
     await flush();
     const radius = () =>
-      Number(document.querySelector('[data-testid="vertex-handle-visible"]')?.getAttribute("r"));
+      Number(screen.queryAllByTestId("vertex-handle-visible")[0]?.getAttribute("r"));
     expect(radius()).toBe(4.5);
     f.decode(4, {
       nativeView: {
