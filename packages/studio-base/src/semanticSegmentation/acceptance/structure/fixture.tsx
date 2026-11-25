@@ -8,8 +8,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { RenderResult } from "@testing-library/react";
 
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
-import { SpatialTree } from "../../components/SpatialTree";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "../../components/SegmentationTree/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
@@ -32,7 +32,26 @@ type StructureSetup = RenderResult & {
 
 const stores = new Set<ReturnType<typeof createSemanticSegmentationStore>>();
 
+// jsdom has no layout, so the windowed tree assumes a short viewport. Give it a tall one: these
+// tests read every row of their small documents.
+let bounds: jest.SpyInstance | undefined;
+beforeEach(() => {
+  const original = Reflect.get<Element, "getBoundingClientRect">(
+    Element.prototype,
+    "getBoundingClientRect",
+  );
+  bounds = jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: Element,
+  ) {
+    if (this.parentElement?.getAttribute("role") !== "tree") {
+      return original.call(this);
+    }
+    return { width: 300, height: 10_000 } as DOMRect;
+  });
+});
+
 afterEach(() => {
+  bounds?.mockRestore();
   for (const store of stores) {
     store.getState().dispose();
   }

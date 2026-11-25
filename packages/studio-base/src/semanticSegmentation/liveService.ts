@@ -8,9 +8,10 @@
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { Code, ConnectError, type Client } from "@connectrpc/connect";
 
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import {
   PropagateAnnotationRequest_PropagateAnnotation_Direction as PropagationDirection,
-  type AnnotationService,
+  AnnotationService,
   type Frame as WireFrame,
   type FrameSchema,
   type FrameSnapshotSchema,
@@ -37,6 +38,7 @@ import { inferMaskFrameSize, maskCountsCoverage, maskRunsFromCounts } from "./ma
 import { maskObservation, observationHasGeometry, polygonObservation } from "./maskGeometry";
 import { describeViolation, toContractPolygon } from "./polygonContract";
 import { quickSegment } from "./quickSegment";
+import { isAnnotationRecordName } from "./recordName";
 import {
   applySegmentationPatches,
   cloneSegmentation,
@@ -1270,4 +1272,30 @@ async function withRpcErrors<T>(pending: Promise<T>): Promise<T> {
   } catch (error) {
     throw toRpcError(error);
   }
+}
+
+/**
+ * The live service for a cloud record; undefined for sources it cannot address (local files).
+ *
+ * The protocol comes from `services/api/spatial-annotation` (a local snapshot of cosceneapis
+ * PR #866; its README names the commit and how to switch to the published SDK). Transport is the
+ * console API's gRPC-Web client (`ConsoleApi.rpcClient`), so auth, base URL and the desktop
+ * session match every other record RPC. Propagation is a server stream on it.
+ */
+export function createLiveSemanticSegmentationService(args: {
+  /** Undefined outside the console API provider: there is then no authenticated client. */
+  consoleApi: Pick<ConsoleApi, "rpcClient"> | undefined;
+  recordName: string | undefined;
+  startNs: bigint;
+  document: SegmentationDocument;
+}): LiveSemanticSegmentationService | undefined {
+  if (!isAnnotationRecordName(args.recordName) || !args.consoleApi) {
+    return undefined;
+  }
+  return createLiveAnnotationService({
+    client: args.consoleApi.rpcClient(AnnotationService),
+    recordName: args.recordName,
+    startNs: args.startNs,
+    document: args.document,
+  });
 }

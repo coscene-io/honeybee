@@ -26,7 +26,7 @@ import type {
 import shapeFixture from "./fixtures/masks.json";
 
 export const MOCK_MASK_CLASS_ID = "mock-mask-class";
-const MOCK_MASK_CLASS_NAME = "MOCK · 合成 mask（非推理结果）";
+const MOCK_MASK_CLASS_NAME = "MOCK · synthetic mask (not an inference result)";
 
 export type MockMaskProfile = {
   seed: number;

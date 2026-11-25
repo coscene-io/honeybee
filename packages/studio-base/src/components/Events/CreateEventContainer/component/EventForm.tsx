@@ -77,14 +77,18 @@ const useStyles = makeStyles()((theme, _params) => ({
 interface EventFormProps {
   form: UseFormReturn<CreateEventForm>;
   /** Record that is actually open. A reference is not written for any other record. */
-  recordId?: string;
+  recordName?: string;
   onMetaDataKeyDown?: (keyboardEvent: React.KeyboardEvent) => void;
 }
 
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
-export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps): React.ReactNode {
+export function EventForm({
+  form,
+  onMetaDataKeyDown,
+  recordName,
+}: EventFormProps): React.ReactNode {
   const { classes } = useStyles();
   const { t } = useTranslation("event");
   const { formatTime } = usePlaybackTimeFormat();
@@ -435,7 +439,7 @@ export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps)
                                 {valueAdornments.map(([adornmentId, Adornment]) => (
                                   <Adornment
                                     key={adornmentId}
-                                    recordId={recordId}
+                                    recordName={recordName}
                                     value={valueField.value}
                                     onChange={(value) => {
                                       valueField.onChange(value);

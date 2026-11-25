@@ -27,7 +27,7 @@ import {
   truncateToMicros,
   windowBoundaryMicros,
 } from "./frameTime";
-import { createLiveAnnotationService } from "./liveService";
+import { createLiveAnnotationService, createLiveSemanticSegmentationService } from "./liveService";
 import { encodeCounts } from "./maskCodec";
 import { maskOf, polygonsOf } from "./maskGeometry";
 import { frameInstanceKey } from "./service";
@@ -1135,5 +1135,51 @@ describe("live annotation service", () => {
       yield { event: { case: "ready", value: {} } };
     };
     await expect(run()).rejects.toMatchObject({ code: "errorPropagationDisconnectedAfter" });
+  });
+});
+
+const emptyDocument: SegmentationDocument = {
+  record: { id: "r", name: "r" },
+  videos: [],
+  frames: [],
+  classes: [],
+  instances: [],
+  annotations: {},
+  annotationSummaries: {},
+};
+const recordName = "warehouses/w/projects/p/records/r";
+
+describe("createLiveSemanticSegmentationService", () => {
+  it("takes its client from the console API, which carries the desktop session", () => {
+    const rpcClient = jest.fn().mockReturnValue({});
+    const service = createLiveSemanticSegmentationService({
+      consoleApi: { rpcClient },
+      recordName,
+      startNs: 0n,
+      document: emptyDocument,
+    });
+    expect(service?.backend).toBe("live");
+    expect(rpcClient).toHaveBeenCalledWith(AnnotationService);
+  });
+
+  it("creates nothing without a console API or a cloud record", () => {
+    expect(
+      createLiveSemanticSegmentationService({
+        consoleApi: undefined,
+        recordName,
+        startNs: 0n,
+        document: emptyDocument,
+      }),
+    ).toBeUndefined();
+    const rpcClient = jest.fn();
+    expect(
+      createLiveSemanticSegmentationService({
+        consoleApi: { rpcClient },
+        recordName: "local.mcap",
+        startNs: 0n,
+        document: emptyDocument,
+      }),
+    ).toBeUndefined();
+    expect(rpcClient).not.toHaveBeenCalled();
   });
 });

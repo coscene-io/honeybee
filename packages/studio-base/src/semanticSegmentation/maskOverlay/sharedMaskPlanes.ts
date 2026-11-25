@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { MaskPlaneCache } from "./maskPlaneCache";
-import { createMaskPlaneWorker } from "./maskPlaneWorker";
 
 export type SharedMaskPlanes = {
   /** The shared cache, created on first use. */
@@ -16,23 +15,16 @@ export type SharedMaskPlanes = {
 };
 
 /**
- * One Worker and one byte-bounded CPU cache shared by every Image panel of a host. When the last
- * panel unregisters, the worker is terminated and the planes are dropped; the next panel starts
- * afresh.
+ * One Worker and one byte-bounded CPU cache shared by every Image panel of a host. The host owns
+ * them: they live until it is disposed.
  */
 export function createSharedMaskPlanes(): SharedMaskPlanes {
   let shared: MaskPlaneCache | undefined;
   return {
     get() {
-      if (shared == undefined) {
-        const cache: MaskPlaneCache = new MaskPlaneCache(createMaskPlaneWorker, undefined, () => {
-          cache.dispose();
-          if (shared === cache) {
-            shared = undefined;
-          }
-        });
-        shared = cache;
-      }
+      shared ??= new MaskPlaneCache(
+        () => new Worker(new URL("./maskPlanes.worker", import.meta.url)),
+      );
       return shared;
     },
     dispose() {

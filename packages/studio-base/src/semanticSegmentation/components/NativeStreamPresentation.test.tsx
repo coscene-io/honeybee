@@ -11,13 +11,19 @@ import { createRef } from "react";
 
 import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
 
-import type { SegmentationImage } from "../imageSource";
 import { type SegmentationRuntime } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
-import { render, testHost, createTestBridge, installSegmentationTestHost } from "../testing/host";
+import {
+  render,
+  testHost,
+  createTestBridge,
+  installSegmentationTestHost,
+  testSources,
+  type TestImage,
+} from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedSurface } from "../testing/session";
 
@@ -58,8 +64,10 @@ jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
     selector({ user: mockUserId ? { userId: mockUserId } : undefined }),
 }));
 // The fixture source counts as a cloud record; sessions use the in-memory mock service in place of the live one.
-jest.mock("@foxglove/studio-base/util/coscene/annotation", () => ({
+jest.mock("@foxglove/studio-base/semanticSegmentation/recordName", () => ({
   isAnnotationRecordName: () => true,
+}));
+jest.mock("@foxglove/studio-base/semanticSegmentation/liveService", () => ({
   createLiveSemanticSegmentationService: ({ document }: { document: unknown }) => {
     const service = jest
       .requireActual<
@@ -81,7 +89,10 @@ jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
     selector({ record: { value: undefined } }),
 }));
 jest.mock("@foxglove/studio-base/context/Workspace/useWorkspaceActions", () => ({
-  useWorkspaceActions: () => ({ sidebarActions: { left: { selectItem: jest.fn() } } }),
+  useWorkspaceActions: () => ({
+    dialogActions: { keyboardShortcuts: { open: jest.fn() } },
+    sidebarActions: { left: { selectItem: jest.fn() } },
+  }),
 }));
 
 const realSetTimeout = setTimeout;
@@ -107,7 +118,7 @@ async function fixture(options: { withoutCancel?: boolean } = {}) {
     const time = fromNanoSec(BigInt(index) * 100_000_000n);
     return { topic: "/camera", receiveTime: time, message: { timestamp: time } };
   }) as never;
-  let image: SegmentationImage = {
+  let image: TestImage = {
     imageUrl: "data:image/png;base64,seed5",
     topic: "/camera",
     timestamp: fromNanoSec(400_000_000n),
@@ -137,8 +148,7 @@ async function fixture(options: { withoutCancel?: boolean } = {}) {
     </div>
   );
   const result = render(view());
-  const canvas = containerRef.current!.querySelector("canvas")!;
-  bridge.publish({ image: () => image });
+  bridge.publish(testSources({ image: () => image }));
   act(() => {
     enterAnnotation();
   });
@@ -180,7 +190,7 @@ async function fixture(options: { withoutCancel?: boolean } = {}) {
     frames,
     view,
     start,
-    decode(index: number, changes?: Partial<SegmentationImage>) {
+    decode(index: number, changes?: Partial<TestImage>) {
       image = {
         ...image,
         imageUrl: `data:image/png;base64,frame${index + 1}`,
@@ -190,12 +200,12 @@ async function fixture(options: { withoutCancel?: boolean } = {}) {
         ...changes,
       };
       act(() => {
-        canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+        bridge.notifyFrame();
       });
     },
     event() {
       act(() => {
-        canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+        bridge.notifyFrame();
       });
     },
   };

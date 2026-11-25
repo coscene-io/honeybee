@@ -10,6 +10,7 @@ import { createSegmentationHost } from "../segmentationHost";
 import { frameInstanceKey } from "../service";
 import { MaskPlaneCache } from "./maskPlaneCache";
 import { buildMaskPlanes, planeBytes, planeFormat } from "./maskPlanes";
+import { createSharedMaskPlanes } from "./sharedMaskPlanes";
 import { createSegmentationMaskOverlay } from "../imageSource";
 import { createSegmentationSession } from "../runtime";
 import {
@@ -221,7 +222,7 @@ describe("mask plane cache budget and failures", () => {
 
   it("retries a failed build after a delay, but not a permanent failure", async () => {
     let now = 0;
-    const cache = new MaskPlaneCache(undefined, 96 * 1024 * 1024, undefined, () => now);
+    const cache = new MaskPlaneCache(undefined, 96 * 1024 * 1024, () => now);
     const bad = geometryOf(1, ["not RLE \u0000"]);
     cache.get(bad);
     await settle(cache);
@@ -247,7 +248,8 @@ describe("mask plane cache budget and failures", () => {
     const worker = {
       postMessage: jest.fn(),
       terminate: jest.fn(),
-      onmessage: undefined as unknown,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
       onerror: undefined as unknown,
       onmessageerror: undefined as ((event: MessageEvent) => void) | undefined,
     };
@@ -275,15 +277,17 @@ describe("mask plane cache budget and failures", () => {
     }
   });
 
-  it("disposes itself when the last panel leaves", () => {
-    const idle = jest.fn();
-    const cache = new MaskPlaneCache(undefined, undefined, idle);
-    const first = cache.addConsumer({});
-    const second = cache.addConsumer({});
-    first();
-    expect(idle).not.toHaveBeenCalled();
-    second();
-    expect(idle).toHaveBeenCalledTimes(1);
+  it("keeps its planes while panels come and go; the host disposes them", () => {
+    const planes = createSharedMaskPlanes();
+    const cache = planes.get();
+    const dispose = jest.spyOn(cache, "dispose");
+    cache.addConsumer({})();
+    expect(planes.get()).toBe(cache);
+    expect(dispose).not.toHaveBeenCalled();
+    planes.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(planes.get()).not.toBe(cache);
+    planes.dispose();
   });
 });
 

@@ -64,6 +64,9 @@ export function migrateV0WorkspaceState(
         initialTab: undefined,
         open: false,
       },
+      keyboardShortcuts: {
+        open: false,
+      },
     },
     featureTours: {
       active: undefined,

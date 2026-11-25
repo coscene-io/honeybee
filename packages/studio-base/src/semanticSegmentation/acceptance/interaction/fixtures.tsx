@@ -10,10 +10,10 @@ import { useStore } from "zustand";
 import type { StoreApi } from "zustand/vanilla";
 
 import { PropagationForm } from "../../components/PropagationForm";
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
-import { SpatialTree } from "../../components/SpatialTree";
-import { buildCanvasPropagationScope } from "../../components/propagationSeeds";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "../../components/SegmentationTree/SpatialTree";
 import { polygonsOf, summarizeObservation } from "../../maskGeometry";
+import { buildCanvasPropagationScope } from "../../propagationSeeds";
 import type { DecodedSegmentationFrame } from "../../runtime";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";

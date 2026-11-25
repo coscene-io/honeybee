@@ -24,7 +24,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("segmentation i18n", () => {
-  // Every source file of the feature, including the canvas/, spatialTree/ and maskOverlay/
+  // Every source file of the feature, including the SegmentationCanvas/, SegmentationTree/ and maskOverlay/
   // folders. Errors thrown by the store, service and adapter carry codes (errors.ts), not copy.
   const uiFiles = sourceFiles(path.join(__dirname, ".."));
 

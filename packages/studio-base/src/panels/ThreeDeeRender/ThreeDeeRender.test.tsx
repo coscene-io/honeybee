@@ -104,6 +104,7 @@ jest.mock("@foxglove/studio-base/context/AnalyticsContext", () => ({
   useAnalytics: () => undefined,
 }));
 jest.mock("notistack", () => ({ useSnackbar: () => mockSnackbar }));
+const mockSetSegmentationBridge = jest.fn();
 jest.mock("./Renderer", () => ({
   Renderer: jest.fn(({ config }: { config: RendererConfig }) => {
     mockBeforeRenderer?.();
@@ -148,6 +149,7 @@ jest.mock("./Renderer", () => ({
       queueAnimationFrame: mockQueueRAF,
       animationFrame: mockDraw,
       processMessageEvents: mockEnqueue,
+      setSegmentationBridge: mockSetSegmentationBridge,
       dispose: mockDispose,
     });
     return instance;
@@ -436,47 +438,57 @@ describe("spatial annotation bridge", () => {
     mockBeforeRenderer = undefined;
   });
 
-  function frameEvents(view: ReturnType<typeof render>): {
-    canvas: HTMLCanvasElement;
-    count: () => number;
-  } {
-    const canvas = view.container.querySelector("canvas")!;
-    let count = 0;
-    view.container.addEventListener("segmentation-frame", () => {
-      count++;
-    });
-    return { canvas, count: () => count };
-  }
-
-  it("exposes nothing and dispatches no per-frame event when annotation is off", () => {
-    const { view } = mountPanel(undefined, { interfaceMode: "image" });
-    const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
-    const { count } = frameEvents(view);
-
-    act(() => {
-      renderer.emit("endFrame", 0n, renderer);
-    });
-
-    expect(count()).toBe(0);
-    view.unmount();
-  });
-
-  it("bridges the image to the editor only when annotation is on", () => {
-    const bridge = createSegmentationPanelBridge({
+  const lastRenderer = () => jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
+  const newBridge = () =>
+    createSegmentationPanelBridge({
       maskOverlay: createSegmentationMaskOverlay(),
       maskPlanes: { get: () => ({}) as never, dispose: () => {} },
     });
+
+  it("never connects the renderer when annotation is off", () => {
+    const { view } = mountPanel(undefined, { interfaceMode: "image" });
+    expect(mockSetSegmentationBridge).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("bridges the image and its frames to the editor only while mounted", () => {
+    const bridge = newBridge();
+    const onFrame = jest.fn();
+    bridge.subscribeFrames(onFrame);
     const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: bridge });
-    const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
-    const { count } = frameEvents(view);
+    const renderer = lastRenderer();
+    expect(mockSetSegmentationBridge).toHaveBeenLastCalledWith(bridge);
 
     act(() => {
       renderer.emit("endFrame", 0n, renderer);
     });
 
-    expect(count()).toBe(1);
+    expect(onFrame).toHaveBeenCalledTimes(1);
     expect(bridge.sources()?.image).toBeDefined();
     view.unmount();
     expect(bridge.sources()).toBeUndefined();
+    expect(mockSetSegmentationBridge).toHaveBeenLastCalledWith(undefined);
+    renderer.emit("endFrame", 0n, renderer);
+    expect(onFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands gestures made over the image to the renderer's canvas", () => {
+    const bridge = newBridge();
+    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: bridge });
+    const canvas = view.container.querySelector("canvas")!;
+    const seen: [string, number][] = [];
+    for (const type of ["wheel", "mousedown"]) {
+      canvas.addEventListener(type, (event) => {
+        seen.push([event.type, (event as MouseEvent).clientX]);
+      });
+    }
+    const controls = bridge.sources()!.viewControls;
+    controls.wheel(new WheelEvent("wheel", { clientX: 3 }));
+    controls.mouseDown(new MouseEvent("mousedown", { clientX: 4 }));
+    expect(seen).toEqual([
+      ["wheel", 3],
+      ["mousedown", 4],
+    ]);
+    view.unmount();
   });
 });

@@ -9,7 +9,7 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 
 import { createSemanticSegmentationStore } from "../store";
-import { SegmentationCanvas } from "./SegmentationCanvas";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
 import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";

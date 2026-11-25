@@ -5,6 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as Comlink from "@coscene-io/comlink";
+
+import { ComlinkWrap } from "@foxglove/den/worker";
 import Logger from "@foxglove/log";
 
 import type { SegmentationMaskGeometry } from "../imageSource";
@@ -43,6 +46,8 @@ export type MaskPlaneStats = {
   cachedBytes: number;
 };
 
+type MaskPlaneService = (typeof import("./maskPlanes.worker"))["service"];
+type Builder = { remote: Comlink.Remote<MaskPlaneService>; dispose: () => void };
 type Pending = { geometry: SegmentationMaskGeometry };
 type Failure = { message: string; attempts: number; at: number; permanent: boolean };
 
@@ -63,7 +68,7 @@ export class MaskPlaneCache {
   readonly #evictedIds = new Set<number>();
   readonly #consumers = new Map<object, MaskPlaneConsumerState>();
   #bytes = 0;
-  #worker: Worker | undefined;
+  #builder: Builder | undefined;
   #workerFailed = false;
   public readonly stats: MaskPlaneStats = {
     built: 0,
@@ -82,8 +87,6 @@ export class MaskPlaneCache {
   public constructor(
     private readonly createWorker: (() => Worker) | undefined,
     private readonly budgetBytes = MASK_PLANE_CACHE_BYTES,
-    /** Called when the last consumer unregisters (the shared cache then disposes itself). */
-    private readonly onIdle?: () => void,
     private readonly now: () => number = () => performance.now(),
   ) {}
 
@@ -91,9 +94,7 @@ export class MaskPlaneCache {
   public addConsumer(consumer: object): () => void {
     this.#consumers.set(consumer, { active: false });
     return () => {
-      if (this.#consumers.delete(consumer) && this.#consumers.size === 0) {
-        this.onIdle?.();
-      }
+      this.#consumers.delete(consumer);
     };
   }
 
@@ -170,21 +171,10 @@ export class MaskPlaneCache {
       return;
     }
     this.#pending.set(geometry.id, { geometry });
-    const worker = this.#ensureWorker();
-    if (worker) {
-      try {
-        worker.postMessage({
-          id: geometry.id,
-          width: geometry.width,
-          height: geometry.height,
-          counts: [...geometry.counts],
-        });
-        return;
-      } catch (error) {
-        this.#abandonWorker("post failed", error);
-        // #abandonWorker re-requested everything pending, this geometry included.
-        return;
-      }
+    const builder = this.#ensureBuilder();
+    if (builder) {
+      void this.#buildInWorker(builder, geometry);
+      return;
     }
     // No Worker (tests, or a browser that refused it): build after the current task, still
     // outside the render frame that asked.
@@ -201,8 +191,8 @@ export class MaskPlaneCache {
   }
 
   public dispose(): void {
-    this.#worker?.terminate();
-    this.#worker = undefined;
+    this.#builder?.dispose();
+    this.#builder = undefined;
     this.#entries.clear();
     this.#pending.clear();
     this.#errors.clear();
@@ -229,22 +219,39 @@ export class MaskPlaneCache {
     return true;
   }
 
-  #ensureWorker(): Worker | undefined {
-    if (this.#worker || this.#workerFailed || !this.createWorker || typeof Worker === "undefined") {
-      return this.#worker;
+  async #buildInWorker(builder: Builder, geometry: SegmentationMaskGeometry): Promise<void> {
+    const { id, width, height, counts } = geometry;
+    try {
+      const planes = await builder.remote.buildMaskPlanes(width, height, [...counts]);
+      // A reply from a worker that has been abandoned or disposed is void.
+      if (this.#builder === builder) {
+        this.#store(id, planes);
+      }
+    } catch (error) {
+      if (this.#builder !== builder) {
+        return;
+      }
+      if (error instanceof DOMException) {
+        // The request could not be posted; abandoning re-requests everything pending.
+        this.#abandonWorker("post failed", error);
+        return;
+      }
+      this.#fail(id, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  #ensureBuilder(): Builder | undefined {
+    if (
+      this.#builder ||
+      this.#workerFailed ||
+      !this.createWorker ||
+      typeof Worker === "undefined"
+    ) {
+      return this.#builder;
     }
     try {
       const worker = this.createWorker();
-      worker.onmessage = (
-        event: MessageEvent<{ id: number; planes?: MaskPlanes; error?: string }>,
-      ) => {
-        const { id, planes, error } = event.data;
-        if (planes) {
-          this.#store(id, planes);
-        } else {
-          this.#fail(id, error ?? "Mask plane worker failed");
-        }
-      };
+      const builder = ComlinkWrap<MaskPlaneService>(worker);
       worker.onerror = (event) => {
         event.preventDefault();
         this.#abandonWorker("error", event.message);
@@ -254,20 +261,20 @@ export class MaskPlaneCache {
       worker.onmessageerror = () => {
         this.#abandonWorker("message could not be deserialized");
       };
-      this.#worker = worker;
+      this.#builder = builder;
     } catch (error) {
       this.#workerFailed = true;
       log.warn("Mask plane worker unavailable; building masks on the main thread", error);
     }
-    return this.#worker;
+    return this.#builder;
   }
 
   /** Stop using the worker and rebuild whatever was in flight on the main thread. */
   #abandonWorker(reason: string, detail?: unknown): void {
     log.warn(`Mask plane worker ${reason}; building masks on the main thread`, detail);
     this.#workerFailed = true;
-    this.#worker?.terminate();
-    this.#worker = undefined;
+    this.#builder?.dispose();
+    this.#builder = undefined;
     const pending = [...this.#pending.values()];
     this.#pending.clear();
     for (const item of pending) {

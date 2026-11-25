@@ -16,7 +16,7 @@ import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/Too
 import type { SegmentationRuntime, SegmentationSurface } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { PropagationForm } from "./PropagationForm";
-import { buildCanvasPropagationScope } from "./propagationSeeds";
+import { buildCanvasPropagationScope } from "../propagationSeeds";
 
 /**
  * Propagation for one image panel. The service takes every instance of one canvas in a single

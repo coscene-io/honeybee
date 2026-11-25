@@ -5,23 +5,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { buildMaskPlanes } from "./maskPlanes";
+import * as Comlink from "@coscene-io/comlink";
 
-type Request = { id: number; width: number; height: number; counts: string[] };
+import { buildMaskPlanes, type MaskPlanes } from "./maskPlanes";
 
 // RLE decode + bit-plane fill stays off the main thread; planes are transferred, never copied.
-(globalThis as unknown as Worker).onmessage = (event: MessageEvent<Request>) => {
-  const { id, width, height, counts } = event.data;
-  try {
+export const service = {
+  buildMaskPlanes(width: number, height: number, counts: readonly string[]): MaskPlanes {
     const planes = buildMaskPlanes(width, height, counts);
-    (globalThis as unknown as Worker).postMessage(
-      { id, planes },
+    return Comlink.transfer(
+      planes,
       planes.planes.map((plane) => plane.buffer),
     );
-  } catch (error) {
-    (globalThis as unknown as Worker).postMessage({
-      id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+  },
 };
+Comlink.expose(service);

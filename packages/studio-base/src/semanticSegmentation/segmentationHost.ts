@@ -7,6 +7,7 @@
 
 import { createCameraStepState } from "./cameraFrames";
 import { createSegmentationMaskOverlay } from "./imageSource";
+import { clearMaskGeometryCaches } from "./maskGeometry";
 import { createMaskOverlayControls, installMaskOverlaySource } from "./maskOverlay/overlaySource";
 import { createSharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import { createSegmentationRegistry, createSegmentationSession } from "./runtime";
@@ -38,6 +39,7 @@ export function createSegmentationHost(): SegmentationHost {
       uninstallOverlay();
       registry.dispose();
       maskPlanes.dispose();
+      clearMaskGeometryCaches();
     },
   };
 }

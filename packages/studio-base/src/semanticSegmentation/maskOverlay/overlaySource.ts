@@ -15,6 +15,7 @@ import {
   type SegmentationMaskStyle,
 } from "../imageSource";
 import { clearMaskGeometryCaches, maskOf } from "../maskGeometry";
+import { OVERLAY_COLORS } from "../overlayColors";
 import type { SegmentationRuntime, SegmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
 import type { SegmentationDocument, SegmentationFrame, SemanticSegmentationStore } from "../types";
@@ -58,10 +59,8 @@ function firstAfter(times: readonly bigint[], time: bigint): number {
 }
 
 function hexColor(hex: string | undefined): [number, number, number] {
-  const match = /^#?([0-9a-f]{6})$/i.exec(hex ?? "");
-  if (!match) {
-    return [0, 0x89 / 255, 0x7b / 255];
-  }
+  const match =
+    /^#?([0-9a-f]{6})$/i.exec(hex ?? "") ?? /^#([0-9a-f]{6})$/i.exec(OVERLAY_COLORS.unclassified)!;
   const value = parseInt(match[1]!, 16);
   return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
 }

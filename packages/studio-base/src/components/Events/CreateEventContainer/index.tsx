@@ -402,7 +402,7 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
 
         <EventForm
           form={eventForm}
-          recordId={openRecordName}
+          recordName={openRecordName}
           onMetaDataKeyDown={onMetaDataKeyDown}
         />
 

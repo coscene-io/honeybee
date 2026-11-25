@@ -7,7 +7,9 @@
 
 import {
   isDefaultVideoProfile,
+  loadManifestProfiles,
   profileHeight,
+  profileSearchParams,
   profileToOption,
   RAW_PROFILE,
   saveShardProfilePreference,
@@ -16,6 +18,7 @@ import type {
   ManifestProfile,
   ShardProfileOption,
 } from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import { reloadWithSearch } from "@foxglove/studio-base/util/reloadWithSearch";
 import {
   MANIFEST_URL_PARAM,
   SHARD_MODE_MANIFEST,
@@ -124,43 +127,6 @@ export function takeProfileSwitchNotice(): ProfileSwitchNotice | undefined {
   }
 }
 
-/** Reloads the page on another profile. Swappable in tests, where jsdom cannot navigate. */
-export const annotationProfileNavigation = {
-  reload(search: string): void {
-    window.location.search = search;
-  },
-};
-
-const manifestProfiles = new Map<string, Promise<ManifestProfile[] | undefined>>();
-
-/** The profiles a shard manifest offers; undefined when it cannot be read. Cached per URL. */
-export async function loadManifestProfiles(
-  manifestUrl: string,
-): Promise<ManifestProfile[] | undefined> {
-  let pending = manifestProfiles.get(manifestUrl);
-  if (!pending) {
-    pending = (async () => {
-      try {
-        const response = await fetch(manifestUrl);
-        if (!response.ok) {
-          return undefined;
-        }
-        const json = (await response.json()) as { profiles?: ManifestProfile[] };
-        return json.profiles ?? [];
-      } catch {
-        return undefined;
-      }
-    })();
-    manifestProfiles.set(manifestUrl, pending);
-    void pending.then((profiles) => {
-      if (profiles == undefined) {
-        manifestProfiles.delete(manifestUrl);
-      }
-    });
-  }
-  return await pending;
-}
-
 /** Whether a session start has to look at the profile first (a shard manifest source). */
 export function needsAnnotationProfileCheck(
   urlState: { parameters?: Record<string, string | undefined> } | undefined,
@@ -199,12 +165,8 @@ export async function ensureAnnotationProfile(
   const lowest = profiles
     .filter(isVideoProfile)
     .sort((a, b) => profileHeight(a) - profileHeight(b))[0];
-  const next = new URLSearchParams(window.location.search);
-  if (decision.option.value === lowest?.id) {
-    next.delete("ds.profile");
-  } else {
-    next.set("ds.profile", decision.option.value);
-  }
-  annotationProfileNavigation.reload(next.toString());
+  reloadWithSearch(
+    profileSearchParams(window.location.search, decision.option.value, lowest?.id ?? ""),
+  );
   return "reloading";
 }

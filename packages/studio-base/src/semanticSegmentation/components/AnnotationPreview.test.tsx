@@ -10,9 +10,15 @@ import { act } from "@testing-library/react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 
-import type { SegmentationImage } from "../imageSource";
 import { AnnotationPreview } from "./AnnotationPreview";
-import { createTestBridge, render, testHost, installSegmentationTestHost } from "../testing/host";
+import {
+  createTestBridge,
+  render,
+  testHost,
+  installSegmentationTestHost,
+  testSources,
+  type TestImage,
+} from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
 
@@ -43,7 +49,7 @@ it("uses exact displayed log time and native transform for preview and read-only
   const result = render(
     <AnnotationPreview topic={topic} containerRef={containerRef} bridge={bridge} />,
   );
-  let image: SegmentationImage | undefined = {
+  let image: TestImage | undefined = {
     topic,
     imageUrl: "data:image/png;base64,test",
     decodedIdentity: {},
@@ -58,9 +64,9 @@ it("uses exact displayed log time and native transform for preview and read-only
     },
   };
   const capturePixels = jest.fn(() => image);
-  bridge.publish({ image: capturePixels, imageMetadata: () => image });
+  bridge.publish(testSources({ image: capturePixels, imageMetadata: () => image }));
   act(() => {
-    canvas.dispatchEvent(new Event("segmentation-frame"));
+    bridge.notifyFrame();
   });
   // The playhead is 150ms later, but the native renderer still displays frame0.
   expect(result.container.querySelector("svg")?.getAttribute("data-log-time-ns")).toBe(
@@ -72,7 +78,7 @@ it("uses exact displayed log time and native transform for preview and read-only
   expect(testHost().session.getState().previewFrames[topic]).toBe("frame-0");
   image = undefined; // Native seek invalidates the image identity before the next decode.
   act(() => {
-    canvas.dispatchEvent(new Event("segmentation-frame"));
+    bridge.notifyFrame();
   });
   expect(result.container.querySelector("svg")).toBeNull();
   expect(testHost().session.getState().previewFrames[topic]).toBeUndefined();

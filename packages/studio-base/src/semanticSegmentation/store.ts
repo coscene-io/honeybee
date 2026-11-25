@@ -12,7 +12,12 @@ import { createStore, StoreApi } from "zustand";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
 
 import { ANNOTATION_WINDOW_SEC, annotationWindow } from "./annotationFrames";
-import { SegmentationError, type OperationLabelKey, type SegmentationErrorCode } from "./errors";
+import {
+  SegmentationError,
+  type OperationLabelKey,
+  type SegmentationErrorCode,
+  segmentationErrorText,
+} from "./errors";
 import { evictFrames, frameOfKey, mergeFrameWindow } from "./frameWindows";
 import {
   maskObservation,
@@ -33,7 +38,7 @@ import {
   SemanticSegmentationService,
   validateFrameWindow,
 } from "./service";
-import { message, type StoreContext } from "./storeContext";
+import type { StoreInternals } from "./storeInternals";
 import { createSubmissionQueue } from "./submissionQueue";
 import {
   CreationTool,
@@ -448,7 +453,7 @@ export function createSemanticSegmentationStore(
         throw new SegmentationError("errorDisposed");
       }
     }
-    const context: StoreContext = {
+    const context: StoreInternals = {
       service,
       get,
       set,
@@ -520,7 +525,7 @@ export function createSemanticSegmentationStore(
           }
         } catch (error) {
           if (!isDisposed() && epoch === capabilityEpoch) {
-            set({ propagationCapabilitiesError: message(error) });
+            set({ propagationCapabilitiesError: segmentationErrorText(error) });
           }
         } finally {
           if (!isDisposed() && epoch === capabilityEpoch) {
@@ -583,7 +588,7 @@ export function createSemanticSegmentationStore(
           }
         } catch (error) {
           if (!isDisposed() && epoch === loadEpoch) {
-            set({ error: message(error) });
+            set({ error: segmentationErrorText(error) });
           }
         } finally {
           if (!isDisposed() && epoch === loadEpoch) {
@@ -712,8 +717,13 @@ export function createSemanticSegmentationStore(
         } catch (error) {
           if (!isDisposed() && !controller.signal.aborted) {
             set({
-              error: message(error),
-              frameWindowError: { videoId, startSec, endSec, message: message(error) },
+              error: segmentationErrorText(error),
+              frameWindowError: {
+                videoId,
+                startSec,
+                endSec,
+                message: segmentationErrorText(error),
+              },
             });
           }
         } finally {
