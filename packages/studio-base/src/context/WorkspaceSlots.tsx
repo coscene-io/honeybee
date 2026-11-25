@@ -63,7 +63,7 @@ export type MomentValueRenderer = (props: {
 /** An end adornment for a moment metadata value field. */
 export type MomentValueAdornment = React.ComponentType<{
   /** The record that is actually open; undefined when none is. */
-  recordId?: string;
+  recordName?: string;
   value: string;
   onChange: (value: string) => void;
 }>;

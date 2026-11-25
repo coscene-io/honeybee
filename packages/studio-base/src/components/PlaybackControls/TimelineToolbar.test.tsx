@@ -11,6 +11,7 @@ import i18n from "i18next";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
@@ -18,7 +19,6 @@ import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import SeekStepControls from "./SeekStepControls";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { TimelineToolbar } from "./TimelineToolbar";
-import { KeyboardShortcutsDialogProvider } from "./keyboardShortcutsDialogStore";
 
 let mockWidth = 1200;
 let mockHeight: number | undefined = 40;
@@ -41,7 +41,7 @@ function ToolbarFixture({
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
-      <KeyboardShortcutsDialogProvider>
+      <WorkspaceContextProvider disablePersistence>
         {realHelp === true && <KeyboardShortcutsDialog />}
         <TimelineToolbar
           onHeightChange={onHeightChange}
@@ -70,7 +70,7 @@ function ToolbarFixture({
             )
           }
         />
-      </KeyboardShortcutsDialogProvider>
+      </WorkspaceContextProvider>
     </ThemeProvider>
   );
 }

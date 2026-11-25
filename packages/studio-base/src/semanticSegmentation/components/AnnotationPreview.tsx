@@ -18,11 +18,12 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 
+import { polygonPath } from "../editorGeometry";
 import type { SegmentationImageMetadata, SegmentationPanelBridge } from "../imageSource";
 import { polygonsOf } from "../maskGeometry";
+import { OVERLAY_COLORS } from "../overlayColors";
 import type { SegmentationRuntime } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
-import { polygonPath } from "./editorGeometry";
 
 const useStyles = makeStyles()((theme) => ({
   preview: { position: "absolute", zIndex: 4, pointerEvents: "none" },
@@ -60,14 +61,13 @@ function PreviewPolygons({
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    const canvas = container?.querySelector("canvas");
-    if (!container || !(canvas instanceof HTMLCanvasElement)) {
+    if (!container) {
       setCaptured(undefined);
       return;
     }
     const sync = () => {
       const sources = bridge.sources();
-      const image = (sources?.imageMetadata ?? sources?.image)?.();
+      const image = sources?.imageMetadata();
       const data = getPipeline().playerState.activeData;
       const next =
         image?.topic === topic &&
@@ -85,8 +85,11 @@ function PreviewPolygons({
           ? previous
           : next,
       );
+      if (!sources) {
+        return;
+      }
       const parent = container.getBoundingClientRect();
-      const rect = canvas.getBoundingClientRect();
+      const rect = sources.bounds();
       const left = rect.left - parent.left;
       const top = rect.top - parent.top;
       setBox((previous) =>
@@ -99,10 +102,7 @@ function PreviewPolygons({
       );
     };
     sync();
-    canvas.addEventListener("segmentation-frame", sync);
-    return () => {
-      canvas.removeEventListener("segmentation-frame", sync);
-    };
+    return bridge.subscribeFrames(sync);
   }, [bridge, containerRef, currentTime, getPipeline, topic]);
 
   const video = document?.videos.find((item) => item.topic === topic);
@@ -145,8 +145,8 @@ function PreviewPolygons({
           <path
             key={polygon.id}
             d={polygonPath(polygon.points, view.imageWidth, view.imageHeight)}
-            fill="rgba(85, 184, 222, 0.28)"
-            stroke="#55b8de"
+            fill={OVERLAY_COLORS.previewFill}
+            stroke={OVERLAY_COLORS.previewStroke}
             strokeWidth={2}
           />
         ))}

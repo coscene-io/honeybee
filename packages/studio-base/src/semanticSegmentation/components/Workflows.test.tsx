@@ -10,7 +10,7 @@
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 
-import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
+import { SemanticSegmentationWorkbench } from "./SemanticSegmentationWorkbench";
 import { openWorkflowPanel } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import {
@@ -26,10 +26,10 @@ import { setMockControls } from "../testing/mockService";
 
 installSegmentationTestHost();
 
-jest.mock("./SegmentationCanvas", () => ({
+jest.mock("./SegmentationCanvas/SegmentationCanvas", () => ({
   SegmentationCanvas: () => <div>Canvas</div>,
 }));
-jest.mock("./SpatialTree", () => ({ SpatialTree: () => <div>Space tree</div> }));
+jest.mock("./SegmentationTree/SpatialTree", () => ({ SpatialTree: () => <div>Space tree</div> }));
 
 async function initializedRuntime() {
   const runtime = createMockSegmentationRuntime();

@@ -14,8 +14,8 @@ import { createSemanticSegmentationStore } from "../store";
 import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { NormalizedPoint, SegmentationDocument } from "../types";
-import { SegmentationCanvas } from "./SegmentationCanvas";
-import { SpatialTree } from "./SpatialTree";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "./SegmentationTree/SpatialTree";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
 installSegmentationTestHost();

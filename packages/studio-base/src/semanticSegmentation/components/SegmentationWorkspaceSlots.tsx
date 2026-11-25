@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -36,7 +36,7 @@ const renderMomentValue: MomentValueRenderer = ({ value, highlight }) =>
   ) : undefined;
 
 /**
- * The slot registrations of the segmentation editor (app bar entry, 空间 tab, camera step
+ * The slot registrations of the segmentation editor (app bar entry, "Space" tab, camera step
  * override, shortcut column) and the propagation lock. Loaded on demand by
  * `SegmentationWorkspaceExtension` once the rollout flag is on.
  */
@@ -110,23 +110,22 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
   }, [enqueueSnackbar, t]);
 
   // Staged and unsent edits live only in memory: ask before the page goes away with them.
+  const unsaved = useSyncExternalStore(host.registry.subscribe, host.registry.hasUnsavedWork);
   useEffect(() => {
     // Electron has no browser recovery flow; preventing unload there can block window close.
-    if (getBrowserSession() == undefined) {
+    if (!unsaved || getBrowserSession() == undefined) {
       return;
     }
-    const warn = (event: BeforeUnloadEvent) => {
-      if (host.registry.hasUnsavedWork()) {
-        event.preventDefault();
-        // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required by older supported browsers.
-        event.returnValue = "";
-      }
+    const confirmLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required by older supported browsers.
+      event.returnValue = "";
     };
-    window.addEventListener("beforeunload", warn);
+    window.addEventListener("beforeunload", confirmLeave);
     return () => {
-      window.removeEventListener("beforeunload", warn);
+      window.removeEventListener("beforeunload", confirmLeave);
     };
-  }, [host]);
+  }, [unsaved]);
 
   return <GlobalPropagationLock />;
 }

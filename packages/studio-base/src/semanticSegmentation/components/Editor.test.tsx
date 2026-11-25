@@ -16,8 +16,8 @@ import { createSemanticSegmentationStore } from "../store";
 import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
-import { SegmentationCanvas } from "./SegmentationCanvas";
-import { SpatialTree } from "./SpatialTree";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "./SegmentationTree/SpatialTree";
 import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { openViewTools } from "../testing/viewTools";
 
@@ -569,7 +569,7 @@ describe("segmentation editor", () => {
     const instanceRow = container.querySelector('[data-node-id="instance-1"]');
     const glyph = screen.getByTestId("instance-presence-instance-1");
     expect(glyph.textContent).toBe("●");
-    expect(glyph.style.color).toBe("rgb(46, 125, 50)");
+    expect(getComputedStyle(glyph).color).toBe("rgb(46, 125, 50)");
     const present = screen.getByRole("button", { name: "● Person 1" });
     expect(document.getElementById(present.getAttribute("aria-describedby")!)?.textContent).toBe(
       "Present in current frame",

@@ -14,7 +14,7 @@ export function recordEntryActions(actions: SegmentationImageEntryActions | unde
   current = actions;
 }
 
-/** Enters annotation as the toolbar's 编辑空间标注 entries do. Tests only. */
+/** Enters annotation as the "Edit spatial annotation" entries do. Tests only. */
 export function enterAnnotation(mode: "inline" | "maximize" = "inline"): void {
   if (!current) {
     throw new Error("No mounted SegmentationImageEntry offers entry actions");

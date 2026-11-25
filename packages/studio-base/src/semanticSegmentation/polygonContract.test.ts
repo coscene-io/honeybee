@@ -5,10 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { buildCanvasPropagationScope } from "./components/propagationSeeds";
 import { countsFromRuns, runsFromIntervals, type MaskRuns } from "./maskCodec";
 import { maskToEditorPolygons, runsOfMask, runsOfPolygons } from "./maskGeometry";
 import { polygonViolation, toContractPolygon } from "./polygonContract";
+import { buildCanvasPropagationScope } from "./propagationSeeds";
 import { frameInstanceKey } from "./service";
 
 const SIZE = 64;

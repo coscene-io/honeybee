@@ -5,13 +5,16 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
+import { reloadWithSearch } from "@foxglove/studio-base/util/reloadWithSearch";
+
 import {
-  annotationProfileNavigation,
   decideAnnotationProfile,
   ensureAnnotationProfile,
   rememberProfileSwitch,
   takeProfileSwitchNotice,
 } from "./annotationProfile";
+
+jest.mock("@foxglove/studio-base/util/reloadWithSearch", () => ({ reloadWithSearch: jest.fn() }));
 
 const profile = (id: string, h: number) => ({ id, modality: "video", params: { h } });
 const record = [profile("480p15", 480), profile("720p15", 720), profile("1080p15", 1080)];
@@ -64,7 +67,7 @@ describe("decideAnnotationProfile", () => {
 
 describe("ensureAnnotationProfile", () => {
   const original = globalThis.fetch;
-  let reload: jest.SpyInstance;
+  const reload = jest.mocked(reloadWithSearch);
   const manifest = (url: string) => {
     globalThis.fetch = jest.fn(async () => ({
       ok: true,
@@ -79,18 +82,17 @@ describe("ensureAnnotationProfile", () => {
   };
 
   beforeEach(() => {
-    reload = jest.spyOn(annotationProfileNavigation, "reload").mockImplementation(() => {});
+    reload.mockClear();
     window.sessionStorage.clear();
     window.localStorage.clear();
   });
   afterEach(() => {
-    reload.mockRestore();
     globalThis.fetch = original;
   });
 
   it("reloads on 720p, remembers the choice and the notice, and does not enter", async () => {
     await expect(ensureAnnotationProfile(manifest("https://m/1.json"))).resolves.toBe("reloading");
-    expect(reload).toHaveBeenCalledWith("ds.profile=720p15");
+    expect(reload.mock.lastCall?.[0].toString()).toBe("ds.profile=720p15");
     expect(JSON.parse(window.localStorage.getItem("studio.shardProfilePreference")!)).toMatchObject(
       {
         value: "720p15",

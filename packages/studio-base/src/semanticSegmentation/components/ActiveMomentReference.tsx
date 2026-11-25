@@ -23,12 +23,12 @@ import {
 export function ActiveMomentReference({
   value,
   onChange,
-  recordId,
+  recordName,
 }: {
   value: string;
   onChange: (value: string) => void;
   /** Record belonging to the actual Moment form, independent of the global annotation session. */
-  recordId?: string;
+  recordName?: string;
 }): React.JSX.Element | undefined {
   const runtime = useSegmentationSession((state) => state.runtime);
   const sourceReady = useSegmentationSession((state) => state.sourceReady);
@@ -37,7 +37,7 @@ export function ActiveMomentReference({
       store={runtime.store}
       value={value}
       onChange={onChange}
-      recordId={recordId}
+      recordName={recordName}
       sourceReady={sourceReady}
     />
   ) : undefined;
@@ -47,18 +47,18 @@ function ScopedMomentReference({
   store,
   value,
   onChange,
-  recordId,
+  recordName,
   sourceReady,
 }: {
   store: StoreApi<SemanticSegmentationStore>;
   value: string;
   onChange: (value: string) => void;
-  recordId?: string;
+  recordName?: string;
   sourceReady: boolean;
 }): React.JSX.Element {
   const host = useSegmentationHost();
   const activeRecordId = useStore(store, (state) => state.document?.record.id);
-  const sameRecord = recordId != undefined && activeRecordId === recordId;
+  const sameRecord = recordName != undefined && activeRecordId === recordName;
   return (
     <MomentReferencePicker
       store={store}
@@ -67,11 +67,11 @@ function ScopedMomentReference({
       onChange={(next) => {
         const session = host.session.getState();
         if (
-          recordId != undefined &&
+          recordName != undefined &&
           session.runtime?.store === store &&
           session.sourceReady &&
-          store.getState().document?.record.id === recordId &&
-          parseSpatialReference(next)?.recordId === recordId
+          store.getState().document?.record.id === recordName &&
+          parseSpatialReference(next)?.recordId === recordName
         ) {
           onChange(next);
         }

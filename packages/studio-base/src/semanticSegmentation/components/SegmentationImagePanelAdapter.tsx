@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 
@@ -29,6 +30,11 @@ type Props = {
   }) => ReactNode;
 };
 
+const useStyles = makeStyles()({
+  // The editor's overlay and alerts are positioned against the panel.
+  container: { position: "relative", width: "100%", height: "100%" },
+});
+
 /**
  * An Image panel with the annotation editor: the panel, its propagate button, the editor entry and
  * the workspace overlays. Loaded on demand by the Image panel once the rollout flag is on and a
@@ -38,6 +44,7 @@ export function SegmentationImagePanelAdapter({
   imageTopic,
   renderPanel,
 }: Props): React.JSX.Element {
+  const { classes } = useStyles();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const panel = usePanelContext();
   const host = useSegmentationHost();
@@ -80,7 +87,7 @@ export function SegmentationImagePanelAdapter({
   );
 
   return (
-    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div ref={containerRef} className={classes.container}>
       {renderPanel({ additionalToolbarIcons: propagateIcon, segmentation: bridge })}
       <SegmentationImageEntry
         containerRef={containerRef}

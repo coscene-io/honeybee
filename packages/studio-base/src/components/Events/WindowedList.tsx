@@ -20,6 +20,19 @@ import { VariableSizeList, type ListChildComponentProps } from "react-window";
 
 export type WindowedItem = { key: string; estimatedSize: number; content: React.ReactNode };
 export type WindowedScrollRequest = { key: string };
+/** Where a vertical list is scrolled to. */
+export type WindowedView = {
+  startIndex: number;
+  scrollOffset: number;
+  /** Top of a row: measured sizes where a row has been shown, estimates elsewhere. */
+  offsetOf: (index: number) => number;
+};
+/** Group headers that stay at the top of a vertical list while their group is scrolled. */
+export type WindowedStickyRows = {
+  /** Indices of the rows to draw over the top of the list, outermost first. */
+  select: (view: WindowedView) => readonly number[];
+  className?: string;
+};
 type RowData = {
   items: WindowedItem[];
   horizontal: boolean;
@@ -27,6 +40,8 @@ type RowData = {
   pin: (index: number) => void;
   reveal: (index: number) => void;
   styles: Map<string, React.CSSProperties>;
+  /** Rows drawn in the sticky layer instead of their own slot. */
+  sticky: readonly number[];
 };
 const PinnedContext = createContext<{ data: RowData; index: number | undefined } | undefined>(
   undefined,
@@ -157,7 +172,12 @@ const Row = memo(function Row({
       }}
     >
       <div ref={ref} style={data.horizontal ? { height: "100%" } : undefined}>
-        {item.content}
+        {data.sticky.includes(index) ? (
+          // Shown in the sticky layer; the empty slot keeps the list's geometry.
+          <div style={{ height: style.height }} />
+        ) : (
+          item.content
+        )}
       </div>
     </div>
   );
@@ -207,11 +227,13 @@ export function WindowedList({
   horizontal = false,
   scrollRequest,
   resetKey,
+  stickyRows,
 }: {
   items: WindowedItem[];
   horizontal?: boolean;
   scrollRequest?: WindowedScrollRequest;
   resetKey?: unknown;
+  stickyRows?: WindowedStickyRows;
 }): React.JSX.Element {
   const root = useRef<HTMLDivElement>(ReactNull);
   const outer = useRef<HTMLDivElement>(ReactNull);
@@ -220,6 +242,19 @@ export function WindowedList({
   const styles = useRef(new Map<string, React.CSSProperties>());
   const scrollOffset = useRef(0);
   const visibleStart = useRef(0);
+  // Only a list with sticky rows renders again as it scrolls.
+  const [position, setPosition] = useState({ startIndex: 0, scrollOffset: 0 });
+  const hasStickyRows = stickyRows != undefined;
+  const follow = (change: Partial<{ startIndex: number; scrollOffset: number }>) => {
+    if (hasStickyRows) {
+      setPosition((old) => {
+        const next = { ...old, ...change };
+        return next.startIndex === old.startIndex && next.scrollOffset === old.scrollOffset
+          ? old
+          : next;
+      });
+    }
+  };
   const scrollTarget = useRef(scrollRequest);
   const previousScrollRequest = useRef(scrollRequest);
   const [scrollbarHeight, setScrollbarHeight] = useState(0);
@@ -347,9 +382,27 @@ export function WindowedList({
     scrollTarget.current = undefined;
     list.current?.scrollToItem(index, "smart");
   }, []);
+  let sticky: readonly number[] = [];
+  if (stickyRows != undefined) {
+    const offsets = [0];
+    for (const item of items) {
+      offsets.push(offsets.at(-1)! + (sizes.current.get(item.key) ?? item.estimatedSize));
+    }
+    sticky = stickyRows.select({ ...position, offsetOf: (index) => offsets[index]! });
+  }
+  // Stable while the same rows are sticky, so scrolling does not re-render every row.
+  const stickyKey = sticky.join();
   const data = useMemo<RowData>(
-    () => ({ items, horizontal, measure, pin, reveal, styles: styles.current }),
-    [items, horizontal, measure, pin, reveal],
+    () => ({
+      items,
+      horizontal,
+      measure,
+      pin,
+      reveal,
+      styles: styles.current,
+      sticky: stickyKey === "" ? [] : stickyKey.split(",").map(Number),
+    }),
+    [items, horizontal, measure, pin, reveal, stickyKey],
   );
   const pinned = useMemo(
     () => ({ data, index: pinnedKey == undefined ? undefined : indices.get(pinnedKey) }),
@@ -376,8 +429,26 @@ export function WindowedList({
         minWidth: 0,
         width: "100%",
         height: horizontal ? horizontalHeight : "100%",
+        position: hasStickyRows ? "relative" : undefined,
       }}
     >
+      {sticky.length > 0 && (
+        <div
+          style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 3 }}
+          // The layer covers the list: hand the wheel on so it keeps scrolling.
+          onWheel={(event) => {
+            if (outer.current) {
+              outer.current.scrollTop += event.deltaY;
+            }
+          }}
+        >
+          {sticky.map((index) => (
+            <div key={items[index]!.key} className={stickyRows?.className}>
+              {items[index]!.content}
+            </div>
+          ))}
+        </div>
+      )}
       <PinnedContext.Provider value={pinned}>
         <VariableSizeList<RowData>
           ref={list}
@@ -396,9 +467,11 @@ export function WindowedList({
               scrollTarget.current = undefined;
             }
             scrollOffset.current = state.scrollOffset;
+            follow({ scrollOffset: state.scrollOffset });
           }}
           onItemsRendered={(state) => {
             visibleStart.current = state.visibleStartIndex;
+            follow({ startIndex: state.visibleStartIndex });
           }}
         >
           {Row}

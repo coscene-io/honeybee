@@ -26,13 +26,13 @@ afterEach(() => {
   testHost().session.setState({ runtime: undefined, open: false, sourceReady: true });
 });
 
-function ReferenceField({ recordId }: { recordId: string }): React.JSX.Element {
+function ReferenceField({ recordName }: { recordName: string }): React.JSX.Element {
   const [value, setValue] = useState("");
   return (
     <label>
       Attribute Value
       <input aria-label="stored attribute" value={value} readOnly />
-      <ActiveMomentReference recordId={recordId} value={value} onChange={setValue} />
+      <ActiveMomentReference recordName={recordName} value={value} onChange={setValue} />
     </label>
   );
 }
@@ -59,7 +59,7 @@ it.each(["class", "instance"] as const)(
     testHost().session.setState({ runtime, sourceReady: true });
     render(
       <>
-        <ReferenceField recordId="record-1" />
+        <ReferenceField recordName="record-1" />
         <SpatialReferenceValue value="" />
       </>,
     );
@@ -123,7 +123,7 @@ it("cancelling the reference picker leaves a scalar attribute value editable", a
   await runtime.initialize();
   testHost().session.setState({ runtime, sourceReady: true });
   const onChange = jest.fn();
-  render(<ActiveMomentReference recordId="record-1" value="12.5" onChange={onChange} />);
+  render(<ActiveMomentReference recordName="record-1" value="12.5" onChange={onChange} />);
   fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
   fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
     target: { value: "instance/instance-1" },
@@ -148,7 +148,7 @@ it("does not replace record A's reference with a target from record B", async ()
   const onChange = jest.fn();
   const scopedA = "spatial://record-1/instance/instance-1";
   const view = render(
-    <ActiveMomentReference recordId="record-1" value={scopedA} onChange={onChange} />,
+    <ActiveMomentReference recordName="record-1" value={scopedA} onChange={onChange} />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
   fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
@@ -160,7 +160,9 @@ it("does not replace record A's reference with a target from record B", async ()
   act(() => {
     testHost().session.setState({ runtime: b });
   });
-  view.rerender(<ActiveMomentReference recordId="record-1" value={scopedA} onChange={onChange} />);
+  view.rerender(
+    <ActiveMomentReference recordName="record-1" value={scopedA} onChange={onChange} />,
+  );
   const button = screen.getByRole<HTMLButtonElement>("button", {
     name: "Reference a spatial class or instance",
   });
