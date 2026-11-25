@@ -21,6 +21,9 @@ import { setMockControls } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import type { FrameInstance } from "../types";
 
+// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
+jest.setTimeout(30_000);
+
 installSegmentationTestHost();
 
 describe("long recording windows", () => {

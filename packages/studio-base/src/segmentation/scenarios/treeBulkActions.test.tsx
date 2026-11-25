@@ -10,6 +10,9 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { confirm, destination, geometry, polygons, row, setup } from "./fixtures/tree";
 
+// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
+jest.setTimeout(30_000);
+
 function checkbox(id: string): HTMLInputElement {
   return within(
     row(id).querySelector<HTMLElement>(":scope > * > [data-tree-row]")!,
