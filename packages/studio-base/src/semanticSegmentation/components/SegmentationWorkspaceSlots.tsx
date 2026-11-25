@@ -15,6 +15,7 @@ import {
   type PlaybackStepOverride,
   type ShortcutColumn,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 import { takeProfileSwitchNotice } from "../annotationProfile";
 import { segmentationPlaybackStep, useSegmentationStepLabel } from "../cameraFrames";
@@ -101,6 +102,10 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
 
   // Staged and unsent edits live only in memory: ask before the page goes away with them.
   useEffect(() => {
+    // Electron has no browser recovery flow; preventing unload there can block window close.
+    if (getBrowserSession() == undefined) {
+      return;
+    }
     const warn = (event: BeforeUnloadEvent) => {
       if (host.registry.hasUnsavedWork()) {
         event.preventDefault();

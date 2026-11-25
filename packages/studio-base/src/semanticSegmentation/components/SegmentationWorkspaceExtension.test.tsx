@@ -22,6 +22,8 @@ import {
   createWorkspaceSlotsStore,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
 
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
 import type { SegmentationRuntime } from "../runtime";
 import { SegmentationHostContext, type SegmentationHost } from "../segmentationHostContext";
@@ -29,6 +31,12 @@ import { SegmentationWorkspaceExtension } from "./SegmentationWorkspaceExtension
 import { CLOUD_RECORD, createCoreDataSourceStore } from "../testing/coreDataSource";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument } from "../testing/mockService";
+
+jest.mock("@foxglove/studio-base/util/browserSession", () => ({
+  ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
+  getBrowserSession: jest.fn(() => ({})),
+}));
+const mockedBrowserSession = jest.mocked(getBrowserSession);
 
 const RECORD = CLOUD_RECORD;
 let core: StoreApi<CoreDataStore>;
@@ -244,6 +252,14 @@ describe("leaving the page", () => {
     const runtime = await withUnsavedWork(host);
     expect(unload()).toBe(true);
     runtime.store.getState().undo();
+    expect(unload()).toBe(false);
+  });
+
+  it("never asks on the desktop app, which has no browser session", async () => {
+    mockedBrowserSession.mockReturnValueOnce(undefined);
+    renderExtension();
+    const host = await registered();
+    await withUnsavedWork(host);
     expect(unload()).toBe(false);
   });
 

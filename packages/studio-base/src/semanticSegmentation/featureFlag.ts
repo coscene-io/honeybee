@@ -5,10 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { JSONValue } from "@growthbook/growthbook-react";
-
 import { useCoreData, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
-import { useOptionalFeatureValueWithConfig } from "@foxglove/studio-base/providers/GrowthBookProvider";
+import { useOptionalFeatureIsOnWithConfig } from "@foxglove/studio-base/providers/GrowthBookProvider";
 import { isAnnotationRecordName } from "@foxglove/studio-base/util/coscene/annotationRecordName";
 
 /**
@@ -25,11 +23,9 @@ const selectDataSource = (state: CoreDataStore) => state.dataSource;
 /** The data source whose records live in the cloud and can carry annotations. */
 const CLOUD_DATA_SOURCE_ID = "coscene-data-platform";
 
-/** The flag alone, default off. Works without a GrowthBookProvider (stories, isolated tests). */
+/** The flag alone, default off. Works without a GrowthBookProvider (isolated tests). */
 export function useSemanticSegmentationFlag(): boolean {
-  return (
-    useOptionalFeatureValueWithConfig<JSONValue>(SEMANTIC_SEGMENTATION_FEATURE_FLAG, false) === true
-  );
+  return useOptionalFeatureIsOnWithConfig(SEMANTIC_SEGMENTATION_FEATURE_FLAG);
 }
 
 /**
