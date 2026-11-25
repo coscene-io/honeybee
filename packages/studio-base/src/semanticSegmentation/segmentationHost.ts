@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createSegmentationMaskOverlay } from "./imageSource";
+import { clearMaskGeometryCaches } from "./maskGeometry";
 import { createMaskOverlayControls, installMaskOverlaySource } from "./maskOverlay/overlaySource";
 import { createSharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import { createSegmentationRegistry, createSegmentationSession } from "./runtime";
@@ -34,6 +35,7 @@ export function createSegmentationHost(): SegmentationHost {
       uninstallOverlay();
       registry.dispose();
       maskPlanes.dispose();
+      clearMaskGeometryCaches();
     },
   };
 }

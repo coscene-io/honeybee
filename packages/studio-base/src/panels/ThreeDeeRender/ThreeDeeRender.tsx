@@ -57,7 +57,6 @@ import {
   makePoseMessage,
 } from "./publish";
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
-import { ImageMode } from "./renderables/ImageMode/ImageMode";
 import { PublishClickEventMap, PublishClickType } from "./renderables/PublishClickTool";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/PublishSettings";
 import { getTopicMessageFrequencies } from "./topicMessageFrequencies";
@@ -964,38 +963,31 @@ export function ThreeDeeRender(props: {
     if (!canvas || !renderer || interfaceMode !== "image" || !segmentation) {
       return;
     }
-    const imageMode = () => {
-      const extension = [...renderer.sceneExtensions.values()].find(
-        (item) => item instanceof ImageMode,
-      );
-      return extension instanceof ImageMode ? extension : undefined;
-    };
     const unpublish = segmentation.publish({
-      cachedFrames: () => imageMode()?.cachedSegmentationFrames() ?? [],
-      imageMetadata: () => imageMode()?.captureSegmentationImageMetadata(),
-      image: () => imageMode()?.captureSegmentationImage(),
+      cachedFrames: () => renderer.cachedSegmentationFrames(),
+      imageMetadata: () => renderer.captureSegmentationImageMetadata(),
+      image: () => renderer.captureSegmentationImage(),
       viewControls: {
         reset: () => {
-          imageMode()?.resetViewModifications();
-          renderer.queueAnimationFrame();
+          renderer.resetView();
         },
         zoom: (ratio, clientX, clientY) => {
           const rect = canvas.getBoundingClientRect();
-          imageMode()?.zoomViewAt(ratio, clientX - rect.left, clientY - rect.top);
+          renderer.zoomImageViewAt(ratio, clientX - rect.left, clientY - rect.top);
         },
         panBy: (dx, dy) => {
-          imageMode()?.panViewBy(dx, dy);
+          renderer.panImageViewBy(dx, dy);
         },
       },
     });
-    imageMode()?.setSegmentationBridge(segmentation);
+    renderer.setSegmentationBridge(segmentation);
     const onFrame = () => {
-      canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+      segmentation.notifyFrame();
     };
     renderer.on("endFrame", onFrame);
     return () => {
       unpublish();
-      imageMode()?.setSegmentationBridge(undefined);
+      renderer.setSegmentationBridge(undefined);
       renderer.off("endFrame", onFrame);
     };
   }, [canvas, renderer, interfaceMode, segmentation]);

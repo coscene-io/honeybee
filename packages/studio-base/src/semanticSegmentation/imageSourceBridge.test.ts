@@ -66,6 +66,21 @@ describe("segmentation panel bridge", () => {
     expect(bridge.sources()).toBe(second);
   });
 
+  it("tells subscribers about each drawn frame until they unsubscribe", () => {
+    const bridge = createSegmentationPanelBridge(shared());
+    const once = jest.fn();
+    const unsubscribeOnce = bridge.subscribeFrames(() => {
+      once();
+      unsubscribeOnce();
+    });
+    const every = jest.fn();
+    bridge.subscribeFrames(every);
+    bridge.notifyFrame();
+    bridge.notifyFrame();
+    expect(once).toHaveBeenCalledTimes(1);
+    expect(every).toHaveBeenCalledTimes(2);
+  });
+
   it("gives each panel its own sources but the host's overlay", () => {
     const common = shared();
     const a = createSegmentationPanelBridge(common);

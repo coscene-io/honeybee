@@ -68,10 +68,8 @@ function overlayOf(object: THREE.Object3D): THREE.Object3D | undefined {
 }
 
 describe("SegmentationMaskLayer", () => {
-  let idle: jest.Mock;
   beforeEach(() => {
-    idle = jest.fn();
-    mockCache = new MaskPlaneCache(undefined, undefined, idle);
+    mockCache = new MaskPlaneCache(undefined);
     bridge = {
       maskOverlay: createSegmentationMaskOverlay(),
       maskPlanes: { get: () => mockCache, dispose: () => {} },
@@ -127,8 +125,17 @@ describe("SegmentationMaskLayer", () => {
     layer.dispose();
   });
 
-  it("detaches and releases the shared cache on dispose", async () => {
+  it("detaches and leaves the shared cache on dispose", async () => {
     bridge.maskOverlay.set(source(new Map([["10", geometry(1, "10")]])));
+    const leave = jest.fn();
+    const addConsumer = mockCache.addConsumer.bind(mockCache);
+    jest.spyOn(mockCache, "addConsumer").mockImplementation((consumer) => {
+      const remove = addConsumer(consumer);
+      return () => {
+        leave();
+        remove();
+      };
+    });
     const layer = new SegmentationMaskLayer(bridge, () => 4096, jest.fn());
     const image = renderable(10n);
     layer.update(image);
@@ -137,6 +144,6 @@ describe("SegmentationMaskLayer", () => {
     expect(overlayOf(image)).toBeDefined();
     layer.dispose();
     expect(overlayOf(image)).toBeUndefined();
-    expect(idle).toHaveBeenCalledTimes(1);
+    expect(leave).toHaveBeenCalledTimes(1);
   });
 });
