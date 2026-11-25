@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createStore } from "zustand/vanilla";
+import type { StoreApi } from "zustand/vanilla";
 
 import { SegmentationError } from "./errors";
 import type { LiveSemanticSegmentationService } from "./liveService";
@@ -29,7 +30,10 @@ export type SegmentationRuntime = {
 export type SegmentationRuntimeOptions = Pick<
   SemanticSegmentationStoreOptions,
   "creationToolSetting"
->;
+> & {
+  /** Moves the player clock to an exact log time (the session's mounted image panels). */
+  seek?: (logTimeNs: bigint) => void;
+};
 
 /** One runtime is shared by the canvas, Space sidebar and workflows. */
 export function createSegmentationRuntime(
@@ -76,29 +80,40 @@ export function createSegmentationRuntime(
     }
     return { ...doc, ...metadata, annotationSummaries };
   };
-  // The store reads the service through this view, which adds the known source metadata.
-  // Everything else (including methods a test replaces later) resolves on `service` itself.
-  const storeService: SemanticSegmentationService = Object.assign(
-    Object.create(service) as SemanticSegmentationService,
-    {
-      loadDocument: async (signal?: AbortSignal) => {
-        const loaded = await service.loadDocument(signal);
-        if (!metadata) {
-          return loaded;
-        }
-        const merged = mergeSourceMetadata(loaded, metadata);
-        metadata = { videos: merged.videos, frames: merged.frames };
-        service.updateSourceMetadata?.(metadata);
-        return { ...merged, ...metadata };
-      },
-      submit: async (request: SubmitRequest) => {
-        const result = await service.submit(request);
-        return metadata ? { ...result, document: { ...result.document, ...metadata } } : result;
-      },
+  // The store reads the service through this view, which adds the known source metadata. The
+  // required methods are forwarded to `service` when they are called. Optional members (flags and
+  // methods a service may not offer) are taken as the service has them now: the runtime is created
+  // once the service is complete.
+  const storeService: SemanticSegmentationService = {
+    supportsPropagationContext: service.supportsPropagationContext,
+    supportsMultiInstanceSeeds: service.supportsMultiInstanceSeeds,
+    supportsInstanceMerge: service.supportsInstanceMerge,
+    updateSourceMetadata: service.updateSourceMetadata?.bind(service),
+    getPropagationCapabilities: service.getPropagationCapabilities?.bind(service),
+    cancelPropagation: service.cancelPropagation?.bind(service),
+    dispose: service.dispose?.bind(service),
+    segmentFrame: service.segmentFrame?.bind(service),
+    loadFrameWindow: async (videoId, startSec, endSec, signal) =>
+      await service.loadFrameWindow(videoId, startSec, endSec, signal),
+    propagate: (request, signal) => service.propagate(request, signal),
+    loadDocument: async (signal?: AbortSignal) => {
+      const loaded = await service.loadDocument(signal);
+      if (!metadata) {
+        return loaded;
+      }
+      const merged = mergeSourceMetadata(loaded, metadata);
+      metadata = { videos: merged.videos, frames: merged.frames };
+      service.updateSourceMetadata?.(metadata);
+      return { ...merged, ...metadata };
     },
-  );
+    submit: async (request: SubmitRequest) => {
+      const result = await service.submit(request);
+      return metadata ? { ...result, document: { ...result.document, ...metadata } } : result;
+    },
+  };
+  const { seek: _seek, ...storeOptions } = options;
   const store = createSemanticSegmentationStore(storeService, {
-    ...options,
+    ...storeOptions,
     projectDocument: project,
   });
   const reproject = () => {
@@ -123,7 +138,7 @@ export function createSegmentationRuntime(
     const state = store.getState();
     const frame = state.document?.frames.find((item) => item.id === state.currentFrameId);
     if (frame) {
-      segmentationSession.getState().seek?.(BigInt(frame.logTimeNs));
+      options.seek?.(BigInt(frame.logTimeNs));
     }
   };
   const detachFollow = store.subscribe((state, previous) => {
@@ -224,7 +239,7 @@ export type SegmentationSurface = {
   decodedFrame?: DecodedSegmentationFrame;
 };
 
-export const segmentationSession = createStore<{
+export type SegmentationSessionState = {
   runtime: SegmentationRuntime | undefined;
   /** Read-only annotations for the open recording. Editing still uses `runtime`. */
   previewRuntime: SegmentationRuntime | undefined;
@@ -245,32 +260,42 @@ export const segmentationSession = createStore<{
   workflow: { open: boolean; target?: string; nonce: number };
   /** Moves the player clock to an exact log time. Set by mounted image panels. */
   seek?: (logTimeNs: bigint) => void;
-}>(() => ({
-  runtime: undefined,
-  previewRuntime: undefined,
-  previewLoading: false,
-  previewFrames: {},
-  open: false,
-  panelId: undefined,
-  sourceReady: true,
-  surfaces: {},
-  workflow: { open: false, nonce: 0 },
-}));
+};
+
+export type SegmentationSession = StoreApi<SegmentationSessionState>;
+
+/** A fresh session: nothing open, no runtime. One per `SegmentationHost`. */
+export function createSegmentationSession(): SegmentationSession {
+  return createStore<SegmentationSessionState>(() => ({
+    runtime: undefined,
+    previewRuntime: undefined,
+    previewLoading: false,
+    previewFrames: {},
+    open: false,
+    panelId: undefined,
+    sourceReady: true,
+    surfaces: {},
+    workflow: { open: false, nonce: 0 },
+  }));
+}
 
 /** Opens the side workflow panel of the in-panel workbench, optionally scrolled to a section. */
-export function openWorkflowPanel(target?: string): void {
-  segmentationSession.setState((session) => ({
-    workflow: { open: true, target, nonce: session.workflow.nonce + 1 },
+export function openWorkflowPanel(session: SegmentationSession, target?: string): void {
+  session.setState((state) => ({
+    workflow: { open: true, target, nonce: state.workflow.nonce + 1 },
   }));
 }
 
 /** Leaves spatial annotation: every canvas closes; staged edits stay in the runtime. */
-export function endSegmentationSession(): void {
-  segmentationSession.setState({ open: false, sourceReady: false });
+export function endSegmentationSession(session: SegmentationSession): void {
+  session.setState({ open: false, sourceReady: false });
 }
 
-export function activateSegmentationRuntime(runtime: SegmentationRuntime): void {
-  segmentationSession.setState({ runtime });
+export function activateSegmentationRuntime(
+  session: SegmentationSession,
+  runtime: SegmentationRuntime,
+): void {
+  session.setState({ runtime });
 }
 
 /** Work the user would lose if the runtime went away: staged or unsaved edits, or a running run. */
@@ -290,90 +315,116 @@ type HeldRuntime = {
   /** Set while the runtime has no holder but unsaved work: collects it once that is saved. */
   awaitClean?: () => void;
 };
-const heldRuntimes = new Map<string, HeldRuntime>();
-const holderKeys = new Map<string, string>();
 
-function collectRuntime(key: string): void {
-  const held = heldRuntimes.get(key);
-  if (!held) {
-    return;
+/**
+ * The runtimes of a session, shared between image panels. A runtime is keyed by user, recording and
+ * backend; panels (holders) acquire and release it, and it is disposed once nobody holds it and it
+ * has no unsaved work. One registry per `SegmentationHost`.
+ */
+export type SegmentationRegistry = {
+  /**
+   * The shared runtime for `key`, created on first use. `holder` (an image panel) holds it until it
+   * releases it or acquires another key. A runtime nobody holds is disposed, once it has no unsaved
+   * work; until then a holder that comes back gets it again.
+   */
+  acquire: (
+    key: string,
+    holder: string,
+    create: () => SegmentationRuntime,
+  ) => { runtime: SegmentationRuntime; created: boolean };
+  /**
+   * Drop what `holder` holds. Collection waits a microtask, so a panel that remounts in the same
+   * commit (a layout change, StrictMode) keeps its runtime.
+   */
+  release: (holder: string) => void;
+  /**
+   * Whether any runtime holds work the user has not saved: staged edits, a batch that has not
+   * succeeded, or a running propagation. A page unload would lose it.
+   */
+  hasUnsavedWork: () => boolean;
+  /** Runtimes alive in the registry, for diagnostics and tests. */
+  heldCount: () => number;
+  /** Disposes every runtime, unsaved work included: the registry's owner is going away. */
+  dispose: () => void;
+};
+
+export function createSegmentationRegistry(session: SegmentationSession): SegmentationRegistry {
+  const heldRuntimes = new Map<string, HeldRuntime>();
+  const holderKeys = new Map<string, string>();
+
+  function collect(key: string): void {
+    const held = heldRuntimes.get(key);
+    if (!held) {
+      return;
+    }
+    if (held.holders.size > 0) {
+      held.awaitClean?.();
+      held.awaitClean = undefined;
+      return;
+    }
+    if (holdsUnsavedWork(held.runtime)) {
+      // Staged edits outlive their canvases (see endSegmentationSession); keep them until saved.
+      held.awaitClean ??= held.runtime.store.subscribe(() => {
+        if (!holdsUnsavedWork(held.runtime)) {
+          collect(key);
+        }
+      });
+      return;
+    }
+    discard(key, held);
   }
-  if (held.holders.size > 0) {
+
+  function discard(key: string, held: HeldRuntime): void {
     held.awaitClean?.();
     held.awaitClean = undefined;
-    return;
+    heldRuntimes.delete(key);
+    const current = session.getState();
+    if (current.runtime === held.runtime || current.previewRuntime === held.runtime) {
+      session.setState({
+        ...(current.runtime === held.runtime ? { runtime: undefined, open: false } : {}),
+        ...(current.previewRuntime === held.runtime ? { previewRuntime: undefined } : {}),
+      });
+    }
+    held.runtime.dispose();
   }
-  if (holdsUnsavedWork(held.runtime)) {
-    // Staged edits outlive their canvases (see endSegmentationSession); keep them until saved.
-    held.awaitClean ??= held.runtime.store.subscribe(() => {
-      if (!holdsUnsavedWork(held.runtime)) {
-        collectRuntime(key);
+
+  const release = (holder: string): void => {
+    const key = holderKeys.get(holder);
+    if (key == undefined) {
+      return;
+    }
+    holderKeys.delete(holder);
+    heldRuntimes.get(key)?.holders.delete(holder);
+    queueMicrotask(() => {
+      collect(key);
+    });
+  };
+
+  return {
+    acquire(key, holder, create) {
+      if (holderKeys.has(holder) && holderKeys.get(holder) !== key) {
+        release(holder);
       }
-    });
-    return;
-  }
-  held.awaitClean?.();
-  heldRuntimes.delete(key);
-  const session = segmentationSession.getState();
-  if (session.runtime === held.runtime || session.previewRuntime === held.runtime) {
-    segmentationSession.setState({
-      ...(session.runtime === held.runtime ? { runtime: undefined, open: false } : {}),
-      ...(session.previewRuntime === held.runtime ? { previewRuntime: undefined } : {}),
-    });
-  }
-  held.runtime.dispose();
-}
-
-/**
- * The shared runtime for `key` (user, recording and backend), created on first use. `holder`
- * (an image panel) holds it until it releases it or acquires another key. A runtime nobody holds
- * is disposed, once it has no unsaved work; until then a holder that comes back gets it again.
- */
-export function acquireSegmentationRuntime(
-  key: string,
-  holder: string,
-  create: () => SegmentationRuntime,
-): { runtime: SegmentationRuntime; created: boolean } {
-  if (holderKeys.has(holder) && holderKeys.get(holder) !== key) {
-    releaseSegmentationRuntime(holder);
-  }
-  let held = heldRuntimes.get(key);
-  const created = held == undefined;
-  if (!held) {
-    held = { runtime: create(), holders: new Set() };
-    heldRuntimes.set(key, held);
-  }
-  held.holders.add(holder);
-  holderKeys.set(holder, key);
-  collectRuntime(key);
-  return { runtime: held.runtime, created };
-}
-
-/**
- * Drop what `holder` holds. Collection waits a microtask, so a panel that remounts in the same
- * commit (a layout change, StrictMode) keeps its runtime.
- */
-export function releaseSegmentationRuntime(holder: string): void {
-  const key = holderKeys.get(holder);
-  if (key == undefined) {
-    return;
-  }
-  holderKeys.delete(holder);
-  heldRuntimes.get(key)?.holders.delete(holder);
-  queueMicrotask(() => {
-    collectRuntime(key);
-  });
-}
-
-/**
- * Whether any runtime in the registry holds work the user has not saved: staged edits, a batch
- * that has not succeeded, or a running propagation. A page unload would lose it.
- */
-export function hasUnsavedSegmentationWork(): boolean {
-  return [...heldRuntimes.values()].some((held) => holdsUnsavedWork(held.runtime));
-}
-
-/** Runtimes alive in the registry, for diagnostics and tests. */
-export function heldSegmentationRuntimeCount(): number {
-  return heldRuntimes.size;
+      let held = heldRuntimes.get(key);
+      const created = held == undefined;
+      if (!held) {
+        held = { runtime: create(), holders: new Set() };
+        heldRuntimes.set(key, held);
+      }
+      held.holders.add(holder);
+      holderKeys.set(holder, key);
+      collect(key);
+      return { runtime: held.runtime, created };
+    },
+    release,
+    hasUnsavedWork: () => [...heldRuntimes.values()].some((held) => holdsUnsavedWork(held.runtime)),
+    heldCount: () => heldRuntimes.size,
+    dispose() {
+      holderKeys.clear();
+      for (const [key, held] of [...heldRuntimes]) {
+        held.holders.clear();
+        discard(key, held);
+      }
+    },
+  };
 }

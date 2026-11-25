@@ -10,21 +10,34 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 
-import { registerWorkspaceSlot } from "@foxglove/studio-base/context/WorkspaceSlots";
+import {
+  WorkspaceSlotsProvider,
+  createWorkspaceSlotsStore,
+  registerWorkspaceSlot,
+} from "@foxglove/studio-base/context/WorkspaceSlots";
 
 import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
-import { closeKeyboardShortcuts, openKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
+import {
+  KeyboardShortcutsDialogProvider,
+  createKeyboardShortcutsDialogStore,
+} from "./keyboardShortcutsDialogStore";
 
 describe("KeyboardShortcutsDialog", () => {
-  beforeEach(async () => {
-    await i18n.changeLanguage("en");
-  });
+  let slots = createWorkspaceSlotsStore();
+  let dialogStore = createKeyboardShortcutsDialogStore();
+  const Providers = ({ children }: { children: React.ReactNode }) => (
+    <WorkspaceSlotsProvider store={slots}>
+      <KeyboardShortcutsDialogProvider store={dialogStore}>
+        {children}
+      </KeyboardShortcutsDialogProvider>
+    </WorkspaceSlotsProvider>
+  );
 
-  afterEach(() => {
-    act(() => {
-      closeKeyboardShortcuts();
-    });
+  beforeEach(async () => {
+    slots = createWorkspaceSlotsStore();
+    dialogStore = createKeyboardShortcutsDialogStore();
+    await i18n.changeLanguage("en");
   });
 
   it("opens one dialog no matter which trigger is used", () => {
@@ -34,6 +47,7 @@ describe("KeyboardShortcutsDialog", () => {
         <ShortcutsHelpButton showLabel />
         <KeyboardShortcutsDialog />
       </>,
+      { wrapper: Providers },
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Keyboard shortcuts" })[1]!);
@@ -41,9 +55,9 @@ describe("KeyboardShortcutsDialog", () => {
   });
 
   it("opens when called from outside the timeline and closes on Escape", async () => {
-    render(<KeyboardShortcutsDialog />);
+    render(<KeyboardShortcutsDialog />, { wrapper: Providers });
     act(() => {
-      openKeyboardShortcuts();
+      dialogStore.setState({ open: true });
     });
     const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
     fireEvent.keyDown(dialog, { key: "Escape" });
@@ -53,14 +67,14 @@ describe("KeyboardShortcutsDialog", () => {
   });
 
   it("adds a column registered through WorkspaceSlots and drops it on unregister", () => {
-    render(<KeyboardShortcutsDialog />);
+    render(<KeyboardShortcutsDialog />, { wrapper: Providers });
     act(() => {
-      openKeyboardShortcuts();
+      dialogStore.setState({ open: true });
     });
     expect(screen.queryByText("Feature column")).toBeNull();
     let unregister = () => {};
     act(() => {
-      unregister = registerWorkspaceSlot("shortcutColumns", "test", {
+      unregister = registerWorkspaceSlot(slots, "shortcutColumns", "test", {
         title: "Feature column",
         sections: [{ title: "Feature section", rows: [{ label: "Do it", keys: ["X"] }] }],
       });
