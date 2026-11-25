@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { WindowedView } from "@foxglove/studio-base/components/Events/WindowedList";
+
 import { polygonsOf } from "../../maskGeometry";
 import type { SegmentationSurface } from "../../runtime";
 import type { SegmentationDocument, SegmentationFrame, SegmentationNodeRef } from "../../types";
@@ -217,25 +219,22 @@ export function indentStyle(level: number, guideColor: string): React.CSSPropert
 type PinnableRow = { classRow: number; instanceRow?: number };
 
 /** The class and instance rows owning the first visible row, which stay pinned while scrolled. */
-export function pinnedRowsOf(
-  rows: readonly PinnableRow[],
-  virtual: { viewportHeight: number; scrollTop: number; start: number; offsets: Float64Array },
-): number[] {
+export function pinnedRowsOf(rows: readonly PinnableRow[], view: WindowedView): number[] {
   const pinned: number[] = [];
-  if (virtual.viewportHeight <= 0 || virtual.scrollTop <= 0 || rows.length === 0) {
+  const { scrollOffset, offsetOf } = view;
+  if (scrollOffset <= 0 || rows.length === 0) {
     return pinned;
   }
-  const { offsets, scrollTop } = virtual;
-  let firstVisible = Math.min(virtual.start, rows.length - 1);
-  while (firstVisible < rows.length - 1 && offsets[firstVisible + 1]! <= scrollTop) {
+  let firstVisible = Math.min(view.startIndex, rows.length - 1);
+  while (firstVisible < rows.length - 1 && offsetOf(firstVisible + 1) <= scrollOffset) {
     firstVisible++;
   }
   const owner = rows[firstVisible]!;
-  if (offsets[owner.classRow]! < scrollTop) {
+  if (offsetOf(owner.classRow) < scrollOffset) {
     pinned.push(owner.classRow);
   }
-  const classHeight = offsets[owner.classRow + 1]! - offsets[owner.classRow]!;
-  if (owner.instanceRow != undefined && offsets[owner.instanceRow]! < scrollTop + classHeight) {
+  const classHeight = offsetOf(owner.classRow + 1) - offsetOf(owner.classRow);
+  if (owner.instanceRow != undefined && offsetOf(owner.instanceRow) < scrollOffset + classHeight) {
     pinned.push(owner.instanceRow);
   }
   return pinned;

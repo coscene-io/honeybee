@@ -32,7 +32,23 @@ type StructureSetup = RenderResult & {
 
 const stores = new Set<ReturnType<typeof createSemanticSegmentationStore>>();
 
+// jsdom has no layout, so the windowed tree assumes a short viewport. Give it a tall one: these
+// tests read every row of their small documents.
+let bounds: jest.SpyInstance | undefined;
+beforeEach(() => {
+  const original = Reflect.get(Element.prototype, "getBoundingClientRect") as () => DOMRect;
+  bounds = jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: Element,
+  ) {
+    if (this.parentElement?.getAttribute("role") !== "tree") {
+      return original.call(this);
+    }
+    return { width: 300, height: 10_000 } as DOMRect;
+  });
+});
+
 afterEach(() => {
+  bounds?.mockRestore();
   for (const store of stores) {
     store.getState().dispose();
   }

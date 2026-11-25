@@ -635,3 +635,36 @@ it.each([false, true])(
     expect(screen.getByText("row-0:0")).toBeTruthy();
   },
 );
+
+it("draws sticky rows over the top of the list and leaves their slots empty", () => {
+  const items = Array.from({ length: 100 }, (_, index) => ({
+    key: `row-${index}`,
+    estimatedSize: 100,
+    content: <button>row-{index}</button>,
+  }));
+  const { container } = render(
+    <WindowedList
+      items={items}
+      stickyRows={{
+        // The first row of the group of ten that is at the top.
+        select: ({ scrollOffset, offsetOf }) => {
+          const first = Math.floor(scrollOffset / offsetOf(10)) * 10;
+          return scrollOffset > offsetOf(first) ? [first] : [];
+        },
+      }}
+    />,
+  );
+  expect(screen.getAllByText("row-0")).toHaveLength(1);
+  const viewport = container.firstElementChild!.firstElementChild as HTMLElement;
+  Object.defineProperties(viewport, {
+    clientHeight: { value: 600 },
+    scrollHeight: { value: 10000 },
+  });
+  fireEvent.scroll(viewport, { target: { scrollTop: 150 } });
+  // Row 0 is still in the render window, but its content is only in the sticky layer.
+  expect(screen.getAllByText("row-0")).toHaveLength(1);
+  expect(viewport.contains(screen.getByText("row-0"))).toBe(false);
+  fireEvent.scroll(viewport, { target: { scrollTop: 5050 } });
+  expect(screen.queryByText("row-0")).toBeNull();
+  expect(viewport.contains(screen.getByText("row-50"))).toBe(false);
+});

@@ -13,15 +13,15 @@ import type { SemanticSegmentationStore } from "../types";
 import { ClassCreationRow } from "./spatialTree/ClassCreationRow";
 import { TreeContextMenu } from "./spatialTree/TreeContextMenu";
 import { TreeDialogView } from "./spatialTree/TreeDialogView";
+import { TreeList } from "./spatialTree/TreeList";
 import { TreeToolbar } from "./spatialTree/TreeToolbar";
-import { VirtualTreeList } from "./spatialTree/VirtualTreeList";
+import { flatTreeRows } from "./spatialTree/flatTreeRows";
 import { confirmDialog } from "./spatialTree/treeCommands";
 import { canMergeNodes } from "./spatialTree/treeLogic";
 import { forwardCanvasShortcut } from "./spatialTree/treeShortcuts";
 import { useMenuActions, useRowActions, useToolbarActions } from "./spatialTree/useTreeActions";
 import { useClassCreation, useTreeDialog, useTreeDrag } from "./spatialTree/useTreeDialog";
 import { useInteractionReset, useStripPreload } from "./spatialTree/useTreeIndex";
-import { useTreeRows } from "./spatialTree/useTreeRows";
 import { useTreeShell } from "./spatialTree/useTreeShell";
 import { useStableCallback } from "./useStableCallback";
 
@@ -35,7 +35,7 @@ const useStyles = makeStyles()((theme) => ({
     flexDirection: "column",
     gap: theme.spacing(0.5),
   },
-  tree: { overflowY: "auto", flex: 1, minHeight: 80 },
+  tree: { display: "flex", flexDirection: "column", overflow: "hidden", flex: 1, minHeight: 80 },
 }));
 
 export type SpatialTreeProps = {
@@ -69,7 +69,7 @@ export function SpatialTree({
   const rowActions = useRowActions(deps);
   const toolbarActions = useToolbarActions(deps);
   const menuActions = useMenuActions(deps);
-  const rows = useTreeRows({
+  const rows = flatTreeRows({
     document,
     sourceFrames: env.host.sourceFrames,
     index: shell.index,
@@ -125,7 +125,7 @@ export function SpatialTree({
           {error}
         </Alert>
       )}
-      <Box ref={rows.treeRef} role="tree" aria-label={t("treeLabel")} className={classes.tree}>
+      <Box role="tree" aria-label={t("treeLabel")} className={classes.tree}>
         {!document ? (
           <Typography color="text.secondary">
             {state.loading ? t("loadingAnnotations") : t("noAnnotationRecordAvailable")}
@@ -133,11 +133,7 @@ export function SpatialTree({
         ) : document.classes.length === 0 ? (
           <Typography color="text.secondary">{t("noClasses")}</Typography>
         ) : (
-          <VirtualTreeList
-            rows={rows.flatRows}
-            virtual={rows.virtual}
-            pinnedRows={rows.pinnedRows}
-          />
+          <TreeList rows={rows} />
         )}
         {creation.creating && (
           <ClassCreationRow

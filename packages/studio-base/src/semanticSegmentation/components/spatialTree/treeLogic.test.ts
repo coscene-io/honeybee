@@ -206,12 +206,10 @@ describe("row layout", () => {
       { classRow: 0, instanceRow: 1 },
       { classRow: 0, instanceRow: 1 },
     ];
-    const offsets = Float64Array.from([0, 40, 80, 120, 160]);
-    const base = { viewportHeight: 100, start: 0, offsets };
-    expect(pinnedRowsOf(rows, { ...base, scrollTop: 0 })).toEqual([]);
-    expect(pinnedRowsOf(rows, { ...base, scrollTop: 100 })).toEqual([0, 1]);
-    expect(pinnedRowsOf(rows, { ...base, scrollTop: 100, viewportHeight: 0 })).toEqual([]);
-    expect(pinnedRowsOf([], { ...base, scrollTop: 100 })).toEqual([]);
+    const base = { startIndex: 0, offsetOf: (index: number) => 40 * index };
+    expect(pinnedRowsOf(rows, { ...base, scrollOffset: 0 })).toEqual([]);
+    expect(pinnedRowsOf(rows, { ...base, scrollOffset: 100 })).toEqual([0, 1]);
+    expect(pinnedRowsOf([], { ...base, scrollOffset: 100 })).toEqual([]);
   });
 
   it("describes presence around the current frame", () => {
