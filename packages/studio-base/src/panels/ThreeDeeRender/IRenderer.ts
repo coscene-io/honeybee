@@ -33,7 +33,7 @@ import type {
   SegmentationImage,
   SegmentationImageMetadata,
   SegmentationPanelBridge,
-} from "@foxglove/studio-base/semanticSegmentation/imageSource";
+} from "@foxglove/studio-base/segmentation/imageSource";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { LabelPool } from "@foxglove/three-text";

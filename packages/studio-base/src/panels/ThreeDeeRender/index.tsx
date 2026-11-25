@@ -34,9 +34,9 @@ import { mountPanel } from "@foxglove/studio-base/components/PanelExtensionAdapt
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
-import { useSemanticSegmentationEnabled } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
-import type { SegmentationPanelBridge } from "@foxglove/studio-base/semanticSegmentation/imageSource";
-import { SegmentationHostContext } from "@foxglove/studio-base/semanticSegmentation/segmentationHostContext";
+import { useSegmentationEnabled } from "@foxglove/studio-base/segmentation/featureFlag";
+import type { SegmentationPanelBridge } from "@foxglove/studio-base/segmentation/imageSource";
+import { SegmentationHostContext } from "@foxglove/studio-base/segmentation/segmentationHostContext";
 import {
   PlaybackDiagnosticsContext,
   type PanelDiagnostics,
@@ -55,7 +55,7 @@ type InitPanelArgs = {
   interfaceMode: InterfaceMode;
   testOptions: TestOptions;
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
-  /** Connects the image to the annotation editor (feature flag on and a cloud record open). */
+  /** Connects the image to the segmentation editor (feature flag on and a cloud record open). */
   segmentation?: SegmentationPanelBridge;
 };
 
@@ -164,9 +164,9 @@ function ImagePanelAdapter(props: Props) {
     () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
     [topicMessageFrequencies],
   );
-  // Spatial annotation is behind a rollout flag and needs a cloud record. Otherwise the Image
+  // Segmentation is behind a rollout flag and needs a cloud record. Otherwise the Image
   // panel is exactly the plain one: no editor, no per-frame events, no AnnotationService calls.
-  const segmentation = useSemanticSegmentationEnabled();
+  const segmentation = useSegmentationEnabled();
 
   if (!segmentation) {
     return (
@@ -184,7 +184,7 @@ function ImagePanelAdapter(props: Props) {
 // panels and the 3D panel never download it.
 const SegmentationImagePanelAdapter = lazy(async () => ({
   default: (
-    await import("@foxglove/studio-base/semanticSegmentation/components/SegmentationImagePanelAdapter")
+    await import("@foxglove/studio-base/segmentation/components/SegmentationImagePanelAdapter")
   ).SegmentationImagePanelAdapter,
 }));
 

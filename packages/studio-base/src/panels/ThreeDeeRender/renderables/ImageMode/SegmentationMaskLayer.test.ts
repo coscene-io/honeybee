@@ -12,9 +12,9 @@ import {
   type SegmentationMaskGeometry,
   type SegmentationMaskOverlaySource,
   type SegmentationPanelBridge,
-} from "@foxglove/studio-base/semanticSegmentation/imageSource";
-import { MaskPlaneCache } from "@foxglove/studio-base/semanticSegmentation/maskOverlay/maskPlaneCache";
-import maskFixture from "@foxglove/studio-base/semanticSegmentation/testing/fixtures/masks.json";
+} from "@foxglove/studio-base/segmentation/imageSource";
+import { MaskPlaneCache } from "@foxglove/studio-base/segmentation/maskOverlay/maskPlaneCache";
+import maskFixture from "@foxglove/studio-base/segmentation/testing/fixtures/masks.json";
 
 import { SegmentationMaskLayer } from "./SegmentationMaskLayer";
 import type { ImageRenderable } from "../Images/ImageRenderable";

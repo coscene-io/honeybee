@@ -30,7 +30,7 @@ import { createPlaybackInteractionStateStore } from "@foxglove/studio-base/provi
 import {
   createSegmentationMaskOverlay,
   createSegmentationPanelBridge,
-} from "@foxglove/studio-base/semanticSegmentation/imageSource";
+} from "@foxglove/studio-base/segmentation/imageSource";
 
 import { ImageMode } from "./ImageMode";
 import {

@@ -496,7 +496,7 @@ class CoSceneConsoleApi {
   }
 
   /**
-   * A client for a service this class has no wrapper for (the spatial-annotation editor's
+   * A client for a service this class has no wrapper for (the segmentation editor's
    * AnnotationService), bound to this API's desktop session like every other call here.
    */
   public rpcClient<T extends DescService>(service: T): ReturnType<typeof getPromiseClient<T>> {

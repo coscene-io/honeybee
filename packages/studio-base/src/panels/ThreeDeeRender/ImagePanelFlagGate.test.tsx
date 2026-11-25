@@ -9,10 +9,10 @@
 import { render, screen } from "@testing-library/react";
 
 import { CoreDataContext } from "@foxglove/studio-base/context/CoreDataContext";
-import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
-import { createSegmentationHost } from "@foxglove/studio-base/semanticSegmentation/segmentationHost";
-import { SegmentationHostContext } from "@foxglove/studio-base/semanticSegmentation/segmentationHostContext";
-import { createCoreDataSourceStore } from "@foxglove/studio-base/semanticSegmentation/testing/coreDataSource";
+import { SEGMENTATION_FEATURE_FLAG } from "@foxglove/studio-base/segmentation/featureFlag";
+import { createSegmentationHost } from "@foxglove/studio-base/segmentation/segmentationHost";
+import { SegmentationHostContext } from "@foxglove/studio-base/segmentation/segmentationHostContext";
+import { createCoreDataSourceStore } from "@foxglove/studio-base/segmentation/testing/coreDataSource";
 
 import { ImagePanel } from "./index";
 
@@ -46,16 +46,15 @@ jest.mock("@foxglove/studio-base/context/AppContext", () => ({
 jest.mock("@foxglove/studio-base/components/ForwardAnalyticsContextProvider", () => ({
   useForwardAnalytics: () => ({}),
 }));
-jest.mock("@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry", () => ({
+jest.mock("@foxglove/studio-base/segmentation/components/SegmentationImageEntry", () => ({
   SegmentationImageEntry: () => <div data-testid="segmentation-entry" />,
 }));
-jest.mock("@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace", () => ({
-  SegmentationWorkspace: () => <div data-testid="segmentation-workspace" />,
+jest.mock("@foxglove/studio-base/segmentation/components/SegmentationPanelOverlay", () => ({
+  SegmentationPanelOverlay: () => <div data-testid="segmentation-workspace" />,
 }));
-jest.mock(
-  "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton",
-  () => ({ SegmentationPropagateButton: () => <div data-testid="segmentation-propagate" /> }),
-);
+jest.mock("@foxglove/studio-base/segmentation/components/SegmentationPropagateButton", () => ({
+  SegmentationPropagateButton: () => <div data-testid="segmentation-propagate" />,
+}));
 
 const Image = ImagePanel as unknown as (props: {
   config: Record<string, unknown>;
@@ -92,7 +91,7 @@ describe("Image panel on a cloud record, real rollout gate", () => {
 
   it("mounts the editor (loaded on demand) once the flag is on", async () => {
     window.cosConfig = {
-      FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
+      FEATURE_FLAG_GROWTHBOOK: { [SEGMENTATION_FEATURE_FLAG]: true },
     } as typeof window.cosConfig;
     renderOnSource();
     expect(await screen.findByTestId("segmentation-entry")).toBeTruthy();
@@ -101,7 +100,7 @@ describe("Image panel on a cloud record, real rollout gate", () => {
 
   it("stays the plain Image panel on a local file even with the flag on and a stale record", () => {
     window.cosConfig = {
-      FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
+      FEATURE_FLAG_GROWTHBOOK: { [SEGMENTATION_FEATURE_FLAG]: true },
     } as typeof window.cosConfig;
     renderOnSource({
       recordName: "warehouses/w/projects/p/records/r",

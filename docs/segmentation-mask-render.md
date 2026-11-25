@@ -45,7 +45,7 @@ Integer textures are read only with `texelFetch` (they cannot be filtered linear
 
 - Verified in Chromium on macOS (Apple Silicon, ANGLE Metal): `texelFetch` on R8UI/R16UI/R32UI, five cameras playing and paused, and recovery by three.js after a lost context (triggered only in a micro benchmark).
 - Not verified: Windows, Linux (especially software rendering without a GPU), Safari, Firefox; a lost WebGL context on the product page; real data with a 4K source or more than 64 instances.
-- The sidebar instance tree (`SpatialTree`, `CameraFrameStrip`, `AnnotationPreview`) is split with narrow selectors and memo and is no longer a known bottleneck; it has not been measured again on a real long recording with many instances.
+- The sidebar instance tree (`SegmentationTree`, `CameraFrameStrip`, `SegmentationPreview`) is split with narrow selectors and memo and is no longer a known bottleneck; it has not been measured again on a real long recording with many instances.
 
 ## To agree with the backend
 

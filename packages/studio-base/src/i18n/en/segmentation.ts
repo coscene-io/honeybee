@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-/** Copy for the semantic segmentation editor (`useTranslation("segmentation")`). */
+/** Copy for the segmentation editor (`useTranslation("segmentation")`). */
 export const segmentation = {
   absentCurrentFrame: "Absent in current frame",
   actionViewChanged: "The frame or view changed. Reopen this action.",
