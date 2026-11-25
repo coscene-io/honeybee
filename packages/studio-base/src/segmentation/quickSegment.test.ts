@@ -51,55 +51,57 @@ const request = {
   ],
 };
 
-it("sends the displayed frame and every point in source pixels to SegmentFrame", async () => {
-  const { client, segmentFrame } = setup({
-    mask: { counts: "152" },
-    score: 0.9,
-    width: 4,
-    height: 2,
+describe("quickSegment", () => {
+  it("sends the displayed frame and every point in source pixels to SegmentFrame", async () => {
+    const { client, segmentFrame } = setup({
+      mask: { counts: "152" },
+      score: 0.9,
+      width: 4,
+      height: 2,
+    });
+    const signal = new AbortController().signal;
+    const result = await quickSegment(client, RECORD, request, signal);
+    expect(result).toEqual({ mask: { counts: "152", width: 4, height: 2 }, score: 0.9 });
+    const [sent, options] = segmentFrame.mock.calls[0] as unknown as [
+      {
+        record: string;
+        topic: string;
+        frameTime: { seconds: bigint; nanos: number };
+        image: Uint8Array;
+        points: { x: number; y: number; negative: boolean }[];
+      },
+      { signal?: AbortSignal },
+    ];
+    expect(sent.record).toBe(RECORD);
+    expect(sent.topic).toBe("/camera");
+    expect(sent.frameTime).toEqual({ seconds: 1000n, nanos: 123000 });
+    expect(new TextDecoder().decode(sent.image)).toBe("jpeg");
+    expect(sent.points).toEqual([
+      { x: 2, y: 1, negative: false },
+      { x: 4, y: 0, negative: true },
+    ]);
+    expect(options.signal).toBe(signal);
   });
-  const signal = new AbortController().signal;
-  const result = await quickSegment(client, RECORD, request, signal);
-  expect(result).toEqual({ mask: { counts: "152", width: 4, height: 2 }, score: 0.9 });
-  const [sent, options] = segmentFrame.mock.calls[0] as unknown as [
-    {
-      record: string;
-      topic: string;
-      frameTime: { seconds: bigint; nanos: number };
-      image: Uint8Array;
-      points: { x: number; y: number; negative: boolean }[];
-    },
-    { signal?: AbortSignal },
-  ];
-  expect(sent.record).toBe(RECORD);
-  expect(sent.topic).toBe("/camera");
-  expect(sent.frameTime).toEqual({ seconds: 1000n, nanos: 123000 });
-  expect(new TextDecoder().decode(sent.image)).toBe("jpeg");
-  expect(sent.points).toEqual([
-    { x: 2, y: 1, negative: false },
-    { x: 4, y: 0, negative: true },
-  ]);
-  expect(options.signal).toBe(signal);
-});
 
-it("reports no foreground as an unset mask", async () => {
-  const { client } = setup({ score: 0, width: 4, height: 2 });
-  await expect(quickSegment(client, RECORD, request)).resolves.toEqual({
-    mask: undefined,
-    score: 0,
+  it("reports no foreground as an unset mask", async () => {
+    const { client } = setup({ score: 0, width: 4, height: 2 });
+    await expect(quickSegment(client, RECORD, request)).resolves.toEqual({
+      mask: undefined,
+      score: 0,
+    });
   });
-});
 
-it("rejects a displayed frame whose size differs from the source", async () => {
-  const { client, segmentFrame } = setup(
-    { score: 0, width: 4, height: 2 },
-    { width: 2, height: 1 },
-  );
-  await expect(quickSegment(client, RECORD, request)).rejects.toThrow("2×1");
-  expect(segmentFrame).not.toHaveBeenCalled();
-});
+  it("rejects a displayed frame whose size differs from the source", async () => {
+    const { client, segmentFrame } = setup(
+      { score: 0, width: 4, height: 2 },
+      { width: 2, height: 1 },
+    );
+    await expect(quickSegment(client, RECORD, request)).rejects.toThrow("2×1");
+    expect(segmentFrame).not.toHaveBeenCalled();
+  });
 
-it("rejects a mask the server computed at another size", async () => {
-  const { client } = setup({ mask: { counts: "8" }, score: 1, width: 8, height: 1 });
-  await expect(quickSegment(client, RECORD, request)).rejects.toThrow("8×1");
+  it("rejects a mask the server computed at another size", async () => {
+    const { client } = setup({ mask: { counts: "8" }, score: 1, width: 8, height: 1 });
+    await expect(quickSegment(client, RECORD, request)).rejects.toThrow("8×1");
+  });
 });

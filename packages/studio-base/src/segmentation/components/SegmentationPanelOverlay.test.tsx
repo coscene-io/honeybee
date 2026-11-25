@@ -28,70 +28,74 @@ jest.mock("./SegmentationWorkbench", () => ({
   ),
 }));
 
-it("sits below the panel header and withholds mismatched pixels", async () => {
-  const runtime = createMockSegmentationRuntime();
-  setMockControls(runtime.service, { delayMs: 0 });
-  await runtime.initialize();
-  testHost().session.setState({
-    runtime,
-    panelId: "image-panel",
-    open: true,
-    surfaces: { "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: true } },
-  });
-  const { container, unmount } = render(<SegmentationPanelOverlay panelId="image-panel" />);
-  expect(getComputedStyle(container.querySelector("div")!).getPropertyValue("inset")).toMatch(
-    /^30px\s/,
-  );
-  expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toContain(
-    "decoded",
-  );
-  act(() => {
+describe("SegmentationPanelOverlay", () => {
+  it("sits below the panel header and withholds mismatched pixels", async () => {
+    const runtime = createMockSegmentationRuntime();
+    setMockControls(runtime.service, { delayMs: 0 });
+    await runtime.initialize();
     testHost().session.setState({
-      surfaces: {
-        "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: false },
-      },
+      runtime,
+      panelId: "image-panel",
+      open: true,
+      surfaces: { "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: true } },
+    });
+    const { container, unmount } = render(<SegmentationPanelOverlay panelId="image-panel" />);
+    expect(getComputedStyle(container.querySelector("div")!).getPropertyValue("inset")).toMatch(
+      /^30px\s/,
+    );
+    expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toContain(
+      "decoded",
+    );
+    act(() => {
+      testHost().session.setState({
+        surfaces: {
+          "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: false },
+        },
+      });
+    });
+    expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toBe(
+      "pending",
+    );
+    unmount();
+    runtime.dispose();
+    testHost().session.setState({
+      runtime: undefined,
+      panelId: undefined,
+      open: false,
+      surfaces: {},
     });
   });
-  expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toBe("pending");
-  unmount();
-  runtime.dispose();
-  testHost().session.setState({
-    runtime: undefined,
-    panelId: undefined,
-    open: false,
-    surfaces: {},
-  });
-});
 
-it("mounts a workbench on every open camera, not only the focused one", async () => {
-  const runtime = createMockSegmentationRuntime();
-  setMockControls(runtime.service, { delayMs: 0 });
-  await runtime.initialize();
-  testHost().session.setState({
-    runtime,
-    open: true,
-    panelId: "left",
-    surfaces: {
-      left: { frameId: "frame-0", imageUrl: "data:image/png;base64,left", sourceReady: true },
-      right: { frameId: "side-0", imageUrl: "data:image/png;base64,right", sourceReady: true },
-    },
-  });
-  const { unmount } = render(
-    <>
-      <SegmentationPanelOverlay panelId="left" />
-      <SegmentationPanelOverlay panelId="right" />
-    </>,
-  );
-  const images = screen.getAllByRole("img", { name: "Workbench" }).map((button) => {
-    return button.getAttribute("data-image");
-  });
-  expect(images).toEqual([expect.stringContaining("left"), expect.stringContaining("right")]);
-  unmount();
-  runtime.dispose();
-  testHost().session.setState({
-    runtime: undefined,
-    panelId: undefined,
-    open: false,
-    surfaces: {},
+  it("mounts a workbench on every open camera, not only the focused one", async () => {
+    const runtime = createMockSegmentationRuntime();
+    setMockControls(runtime.service, { delayMs: 0 });
+    await runtime.initialize();
+    testHost().session.setState({
+      runtime,
+      open: true,
+      panelId: "left",
+      surfaces: {
+        left: { frameId: "frame-0", imageUrl: "data:image/png;base64,left", sourceReady: true },
+        right: { frameId: "side-0", imageUrl: "data:image/png;base64,right", sourceReady: true },
+      },
+    });
+    const { unmount } = render(
+      <>
+        <SegmentationPanelOverlay panelId="left" />
+        <SegmentationPanelOverlay panelId="right" />
+      </>,
+    );
+    const images = screen.getAllByRole("img", { name: "Workbench" }).map((button) => {
+      return button.getAttribute("data-image");
+    });
+    expect(images).toEqual([expect.stringContaining("left"), expect.stringContaining("right")]);
+    unmount();
+    runtime.dispose();
+    testHost().session.setState({
+      runtime: undefined,
+      panelId: undefined,
+      open: false,
+      surfaces: {},
+    });
   });
 });

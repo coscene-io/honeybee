@@ -40,109 +40,115 @@ afterEach(() => {
   });
 });
 
-it("lists polygons from every open camera in the same instance tree", async () => {
-  const store = await storeWithSeed();
-  testHost().session.setState({
-    open: true,
-    surfaces: {
-      left: { frameId: "frame-0", sourceReady: true },
-      right: { frameId: "side-0", sourceReady: true },
-    },
+describe("cross canvas", () => {
+  it("lists polygons from every open camera in the same instance tree", async () => {
+    const store = await storeWithSeed();
+    testHost().session.setState({
+      open: true,
+      surfaces: {
+        left: { frameId: "frame-0", sourceReady: true },
+        right: { frameId: "side-0", sourceReady: true },
+      },
+    });
+    render(<SegmentationTree store={store} />);
+    expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
+    expect(screen.getAllByRole("treeitem", { name: "front · Polygon 1" }).length).toBeGreaterThan(
+      0,
+    );
+    store.getState().dispose();
   });
-  render(<SegmentationTree store={store} />);
-  expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
-  expect(screen.getAllByRole("treeitem", { name: "front · Polygon 1" }).length).toBeGreaterThan(0);
-  store.getState().dispose();
-});
 
-it("uses current preview frames outside editing and clears unknown images instead of showing the old edit frame", async () => {
-  const store = await storeWithSeed();
-  testHost().session.setState({
-    open: false,
-    previewFrames: { front: "frame-0", side: "side-0" },
+  it("uses current preview frames outside editing and clears unknown images instead of showing the old edit frame", async () => {
+    const store = await storeWithSeed();
+    testHost().session.setState({
+      open: false,
+      previewFrames: { front: "frame-0", side: "side-0" },
+    });
+    render(<SegmentationTree store={store} />);
+    expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
+    expect(screen.getAllByText("1 visible cameras · 1 polygons")).toHaveLength(3);
+    act(() => {
+      testHost().session.setState({ previewFrames: { front: undefined, side: undefined } });
+    });
+    expect(screen.queryByRole("treeitem", { name: /Polygon 1/ })).toBeNull();
+    expect(screen.getByText("Person 1")).toBeDefined();
+    store.getState().dispose();
   });
-  render(<SegmentationTree store={store} />);
-  expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
-  expect(screen.getAllByText("1 visible cameras · 1 polygons")).toHaveLength(3);
-  act(() => {
-    testHost().session.setState({ previewFrames: { front: undefined, side: undefined } });
-  });
-  expect(screen.queryByRole("treeitem", { name: /Polygon 1/ })).toBeNull();
-  expect(screen.getByText("Person 1")).toBeDefined();
-  store.getState().dispose();
-});
 
-it("lets the first vertex choose either canvas, then keeps the stroke there", async () => {
-  const store = await storeWithSeed();
-  store.getState().startDrawing("instance-1");
-  const staged = store.getState().stagedOperations;
-  testHost().session.setState({
-    open: true,
-    panelId: "left",
-    surfaces: {
-      left: { frameId: "frame-0", sourceReady: true },
-      right: { frameId: "side-0", sourceReady: true },
-    },
-  });
-  Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
-    configurable: true,
-    value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
-  });
-  const imageUrl = store.getState().document!.frames.find((item) => item.id === "side-0")?.imageUrl;
-  render(
-    <SegmentationCanvas
-      decodedFrame={TEST_DECODED_FRAME}
-      store={store}
-      frameId="side-0"
-      imageUrl={imageUrl}
-    />,
-  );
-  expect(screen.queryByText(/other canvas/)).toBeNull();
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  fireEvent(
-    canvas,
-    new MouseEvent("pointerdown", { clientX: 20, clientY: 20, button: 0, bubbles: true }),
-  );
-  // Retargeting moves only the canvas-local session; nothing is staged for it.
-  expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "side-0" });
-  expect(store.getState().stagedOperations).toEqual(staged);
-  expect(store.getState().currentFrameId).toBe("side-0");
-  expect(testHost().session.getState().strokeFrameId).toBe("side-0");
-  store.getState().dispose();
-});
-
-it("does not leave the canvas after the first vertex is placed", async () => {
-  const store = await storeWithSeed();
-  store.getState().startDrawing("instance-1");
-  testHost().session.setState({
-    open: true,
-    panelId: "left",
-    strokeFrameId: "frame-0",
-    surfaces: {
-      left: { frameId: "frame-0", sourceReady: true },
-      right: { frameId: "side-0", sourceReady: true },
-    },
-  });
-  render(
-    <>
-      <SegmentationTree store={store} />
+  it("lets the first vertex choose either canvas, then keeps the stroke there", async () => {
+    const store = await storeWithSeed();
+    store.getState().startDrawing("instance-1");
+    const staged = store.getState().stagedOperations;
+    testHost().session.setState({
+      open: true,
+      panelId: "left",
+      surfaces: {
+        left: { frameId: "frame-0", sourceReady: true },
+        right: { frameId: "side-0", sourceReady: true },
+      },
+    });
+    Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
+      configurable: true,
+      value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+    });
+    const imageUrl = store
+      .getState()
+      .document!.frames.find((item) => item.id === "side-0")?.imageUrl;
+    render(
       <SegmentationCanvas
         decodedFrame={TEST_DECODED_FRAME}
         store={store}
         frameId="side-0"
-        imageUrl="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"
-      />
-    </>,
-  );
-  expect(screen.getByTitle(/other canvas/)).toBeDefined();
-  fireEvent.pointerDown(screen.getByRole("img", { name: "Frame polygons" }), {
-    clientX: 20,
-    clientY: 20,
-    button: 0,
+        imageUrl={imageUrl}
+      />,
+    );
+    expect(screen.queryByText(/other canvas/)).toBeNull();
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    fireEvent(
+      canvas,
+      new MouseEvent("pointerdown", { clientX: 20, clientY: 20, button: 0, bubbles: true }),
+    );
+    // Retargeting moves only the canvas-local session; nothing is staged for it.
+    expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "side-0" });
+    expect(store.getState().stagedOperations).toEqual(staged);
+    expect(store.getState().currentFrameId).toBe("side-0");
+    expect(testHost().session.getState().strokeFrameId).toBe("side-0");
+    store.getState().dispose();
   });
-  const sideRow = screen.getByRole("treeitem", { name: "side · Polygon 1" });
-  fireEvent.click(sideRow.querySelector("[data-tree-primary]")!);
-  expect(store.getState().currentFrameId).toBe("frame-0");
-  expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
-  store.getState().dispose();
+
+  it("does not leave the canvas after the first vertex is placed", async () => {
+    const store = await storeWithSeed();
+    store.getState().startDrawing("instance-1");
+    testHost().session.setState({
+      open: true,
+      panelId: "left",
+      strokeFrameId: "frame-0",
+      surfaces: {
+        left: { frameId: "frame-0", sourceReady: true },
+        right: { frameId: "side-0", sourceReady: true },
+      },
+    });
+    render(
+      <>
+        <SegmentationTree store={store} />
+        <SegmentationCanvas
+          decodedFrame={TEST_DECODED_FRAME}
+          store={store}
+          frameId="side-0"
+          imageUrl="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"
+        />
+      </>,
+    );
+    expect(screen.getByTitle(/other canvas/)).toBeDefined();
+    fireEvent.pointerDown(screen.getByRole("img", { name: "Frame polygons" }), {
+      clientX: 20,
+      clientY: 20,
+      button: 0,
+    });
+    const sideRow = screen.getByRole("treeitem", { name: "side · Polygon 1" });
+    fireEvent.click(sideRow.querySelector("[data-tree-primary]")!);
+    expect(store.getState().currentFrameId).toBe("frame-0");
+    expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
+    store.getState().dispose();
+  });
 });
