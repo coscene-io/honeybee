@@ -447,15 +447,18 @@ function splitRing(ring: [number, number][]): [number, number][][] {
 }
 
 function ringsAreSimple(rings: [number, number][][]): boolean {
-  return rings.every(ringIsSimple);
+  return rings.every((ring) => ringIsSimple(ring));
 }
 
 /**
  * No two non-adjacent edges of the ring touch. Edges are bucketed into a uniform grid of about
  * one cell per edge and only edges sharing a cell are compared, so a traced 1080p contour with
  * thousands of vertices costs near-linear time instead of the all-pairs O(n²).
+ *
+ * `stats.comparisons` counts the edge pairs actually tested, so tests can bound the work without
+ * timing it.
  */
-function ringIsSimple(ring: [number, number][]): boolean {
+export function ringIsSimple(ring: [number, number][], stats?: { comparisons: number }): boolean {
   const n = ring.length;
   if (n < 4) {
     // Every pair of a triangle's edges is adjacent.
@@ -513,6 +516,9 @@ function ringIsSimple(ring: [number, number][]): boolean {
           cy !== Math.max(lo[i * 2 + 1]!, lo[j * 2 + 1]!)
         ) {
           continue;
+        }
+        if (stats) {
+          stats.comparisons++;
         }
         if (segmentsTouch(ring[i]!, ring[(i + 1) % n]!, ring[j]!, ring[(j + 1) % n]!)) {
           return false;
