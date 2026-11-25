@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { RenderResult } from "@testing-library/react";
 
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
@@ -19,6 +19,10 @@ import {
 } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type { SegmentationDocument, SegmentationPolygon } from "../../types";
+import { render, useSegmentationTestHost } from "../../testing/host";
+
+// Every test that uses these helpers renders inside a fresh segmentation host.
+useSegmentationTestHost();
 
 type StructureSetup = RenderResult & {
   store: ReturnType<typeof createSemanticSegmentationStore>;

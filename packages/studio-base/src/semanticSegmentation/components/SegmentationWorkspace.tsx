@@ -11,11 +11,8 @@ import { useShallow } from "zustand/react/shallow";
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import {
-  segmentationSession,
-  type DecodedSegmentationFrame,
-  type SegmentationRuntime,
-} from "../runtime";
+import type { DecodedSegmentationFrame, SegmentationRuntime } from "../runtime";
+import { useSegmentationHost } from "../segmentationHostContext";
 
 function ActiveWorkbench({
   runtime,
@@ -70,8 +67,9 @@ export function SegmentationWorkspace({
 }): React.JSX.Element | undefined {
   // Only the fields read here: a whole-store subscription re-rendered every panel's workspace for
   // any panel's surface change.
+  const host = useSegmentationHost();
   const session = useStore(
-    segmentationSession,
+    host.session,
     useShallow((state) => ({
       open: state.open,
       runtime: state.runtime,
@@ -93,9 +91,9 @@ export function SegmentationWorkspace({
       frameId={surface.frameId}
       focused={focused}
       onClaimFocus={() => {
-        const live = segmentationSession.getState();
+        const live = host.session.getState();
         if (live.panelId !== panelId) {
-          segmentationSession.setState({ panelId });
+          host.session.setState({ panelId });
         }
       }}
     />

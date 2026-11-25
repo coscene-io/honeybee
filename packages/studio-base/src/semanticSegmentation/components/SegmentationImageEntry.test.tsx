@@ -7,19 +7,21 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import { annotationProfileNavigation } from "../annotationProfile";
-import { segmentationImageSources, type SegmentationImage } from "../imageSource";
-import { segmentationSession } from "../runtime";
+import type { SegmentationImage } from "../imageSource";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
+import { render, testHost, createTestBridge, useSegmentationTestHost } from "../testing/host";
+
+useSegmentationTestHost();
 
 const selectItem = jest.fn();
 const maximize = jest.fn();
@@ -98,12 +100,14 @@ function fixture(frames: "recorded" | "none" = "recorded") {
     receiveTime: fromNanoSec(0n),
     decodedIdentity: {},
   };
+  const bridge = createTestBridge();
   const view = (topic = "/camera") => (
     <div ref={containerRef}>
       <canvas width={8} height={4} />
       <SegmentationImageEntry
         onActionsChange={recordEntryActions}
         containerRef={containerRef}
+        bridge={bridge}
         topic={topic}
         panelId="panel-1"
         onMaximize={maximize}
@@ -113,7 +117,7 @@ function fixture(frames: "recorded" | "none" = "recorded") {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   const capture = jest.fn(() => image);
-  segmentationImageSources.set(canvas, capture);
+  bridge.publish({ image: capture });
   return {
     ...result,
     view,
@@ -142,11 +146,11 @@ async function open(mode: "inline" | "maximize" = "inline") {
   });
   await waitFor(
     () => {
-      expect(segmentationSession.getState().open).toBe(true);
+      expect(testHost().session.getState().open).toBe(true);
     },
     { timeout: 3000 },
   );
-  return segmentationSession.getState().runtime!;
+  return testHost().session.getState().runtime!;
 }
 beforeEach(() => {
   mockUserId = "fixture-user";
@@ -158,7 +162,7 @@ beforeEach(() => {
   pipeline.playerState.activeData.isPlaying = false;
   pipeline.playerState.progress = { messageCache: { blocks: [], startTime: { sec: 0, nsec: 0 } } };
   pipeline.subscribeMessageRange = undefined;
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,
@@ -178,14 +182,14 @@ it("uses the sparse presentation index and actual decoded first/last frame, with
   expect(runtime.store.getState().currentFrameId).toBe(
     runtime.store.getState().document?.frames[0]?.id,
   );
-  expect(focusedImageUrl()).toContain("first");
+  expect(focusedImageUrl(testHost().session)).toContain("first");
   pipeline.playerState.activeData.currentTime = fromNanoSec(1_000_000_000n);
   f.setImage(900_000_000n);
   f.event();
   expect(runtime.store.getState().currentFrameId).toBe(
     runtime.store.getState().document?.frames[2]?.id,
   );
-  expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(testHost().session.getState().sourceReady).toBe(true);
 });
 
 it("gates delayed decoding and never relabels old pixels as the requested frame", async () => {
@@ -194,16 +198,16 @@ it("gates delayed decoding and never relabels old pixels as the requested frame"
   const first = runtime.store.getState().currentFrameId;
   pipeline.playerState.activeData.currentTime = fromNanoSec(950_000_000n);
   f.rerender(f.view());
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   expect(runtime.store.getState().currentFrameId).toBe(first);
   f.setImage(900_000_000n);
   f.event();
-  expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(testHost().session.getState().sourceReady).toBe(true);
   expect(runtime.store.getState().currentFrameId).not.toBe(first);
   f.setImage(300_000_000n); // A late decode from the previous seek must not overwrite the newer target.
   f.event();
-  expect(segmentationSession.getState().sourceReady).toBe(false);
-  expect(focusedImageUrl()).toContain("900000000");
+  expect(testHost().session.getState().sourceReady).toBe(false);
+  expect(focusedImageUrl(testHost().session)).toContain("900000000");
 });
 
 it.each(["topic", "player"])(
@@ -216,10 +220,10 @@ it.each(["topic", "player"])(
       pipeline.playerState.playerId = "new-player";
     }
     f.rerender(f.view(kind === "topic" ? "/rear" : "/camera"));
-    expect(segmentationSession.getState().open).toBe(false);
+    expect(testHost().session.getState().open).toBe(false);
     f.setImage(900_000_000n, { topic: "/rear" });
     f.event();
-    expect(focusedImageUrl()).toBeUndefined();
+    expect(focusedImageUrl(testHost().session)).toBeUndefined();
     expect(runtime.store.getState().document?.classes).toEqual([
       { id, name: "retained draft", color: expect.any(String) },
     ]);
@@ -239,7 +243,7 @@ it("ignores initialization completing after a source switch", async () => {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 1100));
   });
-  expect(segmentationSession.getState().open).toBe(false);
+  expect(testHost().session.getState().open).toBe(false);
 });
 
 describe("annotation quality", () => {
@@ -279,7 +283,7 @@ describe("annotation quality", () => {
     await waitFor(() => {
       expect(reload).toHaveBeenCalledWith("ds.profile=720p15");
     });
-    expect(segmentationSession.getState().open).toBe(false);
+    expect(testHost().session.getState().open).toBe(false);
   });
 
   it("starts on 720p, and on raw (another topic) without switching", async () => {
@@ -298,7 +302,7 @@ it("detaches the frame listener and clears captured image resources on panel rem
   const calls = f.capture.mock.calls.length;
   f.event();
   expect(f.capture).toHaveBeenCalledTimes(calls);
-  expect(segmentationSession.getState()).toMatchObject({
+  expect(testHost().session.getState()).toMatchObject({
     open: false,
     panelId: undefined,
     sourceReady: false,
@@ -424,20 +428,20 @@ it("appends newly decoded feed frames and keeps frame identity across subsequent
   expect(runtime.store.getState().currentFrameId).toContain("900000000:900000000");
   expect(runtime.store.getState().document?.classes.some((item) => item.id === id)).toBe(true);
   expect(runtime.store.getState().stagedOperations).toHaveLength(1);
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   await waitFor(() => {
     expect(runtime.store.getState().frameWindowError).toBeDefined();
   });
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   await act(async () => {
     await runtime.store.getState().retryCurrentFrameWindow();
   });
   await waitFor(() => {
-    expect(segmentationSession.getState().sourceReady).toBe(true);
+    expect(testHost().session.getState().sourceReady).toBe(true);
   });
   runtime.store.setState({ error: "Unrelated GPU status failure" });
   f.event();
-  expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(testHost().session.getState().sourceReady).toBe(true);
   pipeline.playerState.activeData.endTime = fromNanoSec(2_000_000_000n);
   pipeline.playerState.activeData.currentTime = fromNanoSec(1_950_000_000n);
   f.setImage(1_900_000_000n);
@@ -477,7 +481,7 @@ it("fences a different video file inside the same record and topic", async () =>
   f.rerender(f.view());
   f.setImage(900_000_000n);
   f.event();
-  expect(segmentationSession.getState().open).toBe(false);
+  expect(testHost().session.getState().open).toBe(false);
   expect(runtime.store.getState().currentFrameId).toBe(first);
 });
 
@@ -512,7 +516,7 @@ it("withholds decoded-frame navigation and cached reentry until terminal stop ac
   f.setImage(300_000_000n);
   f.event();
   expect(runtime.store.getState().currentFrameId).toBe(first);
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   f.rerender(f.view("/other-camera"));
   f.rerender(f.view());
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
@@ -521,7 +525,7 @@ it("withholds decoded-frame navigation and cached reentry until terminal stop ac
     enterAnnotation();
   });
   await screen.findByText("Wait for propagation to confirm it stopped before annotating.");
-  expect(segmentationSession.getState().open).toBe(false);
+  expect(testHost().session.getState().open).toBe(false);
   act(() => {
     runtime.store.setState({
       propagation: { status: "cancelled", processedFrames: 0, cancellationPending: false },
@@ -529,7 +533,7 @@ it("withholds decoded-frame navigation and cached reentry until terminal stop ac
   });
   expect(await open()).toBe(runtime);
   expect(runtime.store.getState().currentFrameId).toBe(first);
-  expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(testHost().session.getState().sourceReady).toBe(true);
 });
 
 it("entry leaves the native clock and playback alone and binds the displayed log time", async () => {
@@ -548,12 +552,12 @@ it("does not annotate a future native image before its timestamp or seek to make
   const f = fixture();
   f.setImage(300_000_000n);
   await open();
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   expect(pipeline.seekPlayback).not.toHaveBeenCalled();
   pipeline.playerState.activeData.currentTime = fromNanoSec(300_000_000n);
   f.event();
-  expect(segmentationSession.getState().sourceReady).toBe(true);
-  expect(focusedSurface()?.decodedFrame?.frameId).toContain("300000000");
+  expect(testHost().session.getState().sourceReady).toBe(true);
+  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toContain("300000000");
 });
 
 it("keeps native playback running while editing is gated", async () => {
@@ -561,8 +565,8 @@ it("keeps native playback running while editing is gated", async () => {
   pipeline.playerState.activeData.isPlaying = true;
   await open();
   expect(pipeline.pausePlayback).not.toHaveBeenCalled();
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   pipeline.playerState.activeData.isPlaying = false;
   f.event();
-  expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(testHost().session.getState().sourceReady).toBe(true);
 });

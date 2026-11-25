@@ -10,6 +10,7 @@ import { useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 
+import type { CameraStepState } from "./cameraFrames";
 import type { SegmentationMaskOverlay } from "./imageSource";
 import type { MaskOverlayControls } from "./maskOverlay/overlaySource";
 import type { SharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
@@ -18,6 +19,7 @@ import type {
   SegmentationSession,
   SegmentationSessionState,
 } from "./runtime";
+import type { SegmentationChrome } from "./segmentationChrome";
 import type { SourceFrameLoaders } from "./sourceFrames";
 
 /**
@@ -29,6 +31,10 @@ import type { SourceFrameLoaders } from "./sourceFrames";
 export type SegmentationHost = {
   session: SegmentationSession;
   registry: SegmentationRegistry;
+  /** The live image panels that can open the annotation space. */
+  chrome: SegmentationChrome;
+  /** Playback-bar frame stepping state (the step still being decoded). */
+  cameraStep: CameraStepState;
   /** The frame loader of each video bound to the open session, by video id. */
   sourceFrames: SourceFrameLoaders;
   /** Masks the editor publishes for every Image panel to draw. */

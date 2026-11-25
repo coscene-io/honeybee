@@ -15,8 +15,9 @@ import { useStore } from "zustand";
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 
 import { useSemanticSegmentationEnabled } from "../featureFlag";
-import { endSegmentationSession, segmentationSession } from "../runtime";
-import { mainSegmentationCanvas, segmentationChrome } from "../segmentationChrome";
+import { endSegmentationSession } from "../runtime";
+import { mainSegmentationCanvas } from "../segmentationChrome";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 
 const useStyles = makeStyles()((theme) => ({
@@ -38,8 +39,9 @@ const useStyles = makeStyles()((theme) => ({
 export function SegmentationAppBarControls(): React.JSX.Element | undefined {
   const { classes } = useStyles();
   const { t } = useTranslation("segmentation");
-  const canvases = useStore(segmentationChrome, (state) => state.canvases);
-  const open = useStore(segmentationSession, (state) => state.open);
+  const host = useSegmentationHost();
+  const canvases = useStore(host.chrome, (state) => state.canvases);
+  const open = useSegmentationSession((state) => state.open);
   // Annotations are read and saved only through the AnnotationService: the entry is offered only
   // with the rollout flag on and a cloud record open, and is hidden (not disabled) otherwise.
   const available = useSemanticSegmentationEnabled();
@@ -58,7 +60,9 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
             className={classes.button}
             size="small"
             color="inherit"
-            onClick={endSegmentationSession}
+            onClick={() => {
+              endSegmentationSession(host.session);
+            }}
           >
             {t("endAnnotation")}
           </Button>

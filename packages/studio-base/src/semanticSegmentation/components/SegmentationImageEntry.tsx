@@ -10,7 +10,6 @@ import { t } from "i18next";
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { makeStyles } from "tss-react/mui";
-import { useStore } from "zustand";
 
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
@@ -38,31 +37,24 @@ import { ensureAnnotationProfile, needsAnnotationProfileCheck } from "../annotat
 import { cameraStepTarget } from "../cameraFrames";
 import {
   imageFrameIdentity,
-  segmentationCachedFrames,
-  segmentationImageMetadataSources,
-  segmentationImageSources,
   segmentationSourceKey,
   type SegmentationImage,
   type SegmentationImageMetadata,
+  type SegmentationPanelBridge,
 } from "../imageSource";
-import { installMaskOverlaySource } from "../maskOverlay/overlaySource";
 import {
-  acquireSegmentationRuntime,
   activateSegmentationRuntime,
   createSegmentationRuntime,
-  releaseSegmentationRuntime,
-  segmentationSession,
   type SegmentationRuntime,
   type SegmentationSurface,
 } from "../runtime";
-import { segmentationChrome } from "../segmentationChrome";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import type { SemanticSegmentationService } from "../service";
 import {
   SOURCE_FRAME_WINDOW_NS,
   createSourceFrameLoader,
   framesFromStamps,
   readStamps,
-  sourceFrameLoaders,
   type SourceFrameLoader,
 } from "../sourceFrames";
 import type { SegmentationDocument } from "../types";
@@ -81,16 +73,6 @@ type Binding = {
   /** Lists this camera's frames from the data source. Absent when the player cannot list ranges. */
   frames?: SourceFrameLoader;
 };
-
-function cachedCanvasFrames(
-  container: HTMLElement | ReactNull,
-): ReturnType<NonNullable<ReturnType<typeof segmentationCachedFrames.get>>> {
-  const canvas = container?.querySelector("canvas");
-  if (!(canvas instanceof HTMLCanvasElement)) {
-    return [];
-  }
-  return segmentationCachedFrames.get(canvas)?.() ?? [];
-}
 
 function receivedFrameStamps(
   messages: readonly {
@@ -188,6 +170,7 @@ const useStyles = makeStyles()((theme) => ({
 
 export function SegmentationImageEntry({
   containerRef,
+  bridge,
   topic,
   panelId,
   onMaximize,
@@ -196,6 +179,8 @@ export function SegmentationImageEntry({
   service: injectedService,
 }: {
   containerRef: RefObject<ReactNull | HTMLDivElement>;
+  /** This panel's renderer: its displayed image, camera and cached frames. */
+  bridge: SegmentationPanelBridge;
   topic?: string;
   panelId: string;
   onMaximize: () => void;
@@ -209,6 +194,7 @@ export function SegmentationImageEntry({
   service?: SemanticSegmentationService;
 }): React.JSX.Element | undefined {
   const { classes } = useStyles();
+  const host = useSegmentationHost();
   const { sidebarActions } = useWorkspaceActions();
   const getPipeline = useMessagePipelineGetter();
   // Narrow selectors: the full player state changes on every streamed message.
@@ -251,6 +237,9 @@ export function SegmentationImageEntry({
         throw new SegmentationError("errorNeedsCloudRecord");
       }
       return createSegmentationRuntime(service, document, {
+        seek: (logTimeNs) => {
+          host.session.getState().seek?.(logTimeNs);
+        },
         ...(appConfiguration
           ? {
               creationToolSetting: {
@@ -263,29 +252,25 @@ export function SegmentationImageEntry({
           : {}),
       });
     },
-    [appConfiguration, createService],
+    [appConfiguration, createService, host],
   );
   // The panel holds the runtime of the record it shows; unmounting lets the registry dispose it.
   useEffect(
     () => () => {
-      releaseSegmentationRuntime(panelId);
+      host.registry.release(panelId);
     },
-    [panelId],
+    [host, panelId],
   );
   // The open record is Core Data. A second file in that record is a different playback URL,
   // not a second name on the record, so the title must not hide the URL.
   const dataAssetName = record?.name;
   const active = useRef<Binding | undefined>(undefined);
-  useEffect(() => {
-    // Masks render on the GPU in every Image panel, in preview, editing and playback alike.
-    installMaskOverlaySource();
-  }, []);
-  const sessionOpen = useStore(segmentationSession, (session) => session.open);
+  const sessionOpen = useSegmentationSession((session) => session.open);
   // Only an open session re-syncs on every clock change; the read-only preview moves by window.
   const sessionClock = useMessagePipeline((state) =>
     sessionOpen ? state.playerState.activeData?.currentTime : undefined,
   );
-  const sessionRuntime = useStore(segmentationSession, (session) =>
+  const sessionRuntime = useSegmentationSession((session) =>
     session.open ? session.runtime : undefined,
   );
   const generation = useRef(0);
@@ -332,8 +317,8 @@ export function SegmentationImageEntry({
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
       return undefined;
     }
-    return segmentationImageSources.get(canvas)?.();
-  }, [containerRef]);
+    return bridge.sources()?.image();
+  }, [bridge, containerRef]);
   const capture = useCallback(() => {
     const image = rawCapture();
     return image?.decodedIdentity === blockedImage.current ? undefined : image;
@@ -347,11 +332,10 @@ export function SegmentationImageEntry({
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
       return undefined;
     }
-    const image = (
-      segmentationImageMetadataSources.get(canvas) ?? segmentationImageSources.get(canvas)
-    )?.();
+    const sources = bridge.sources();
+    const image = (sources?.imageMetadata ?? sources?.image)?.();
     return image?.decodedIdentity === blockedImage.current ? undefined : image;
-  }, [containerRef]);
+  }, [bridge, containerRef]);
 
   const previewCanStart = cachedBlocks > 0 || captureMetadata() != undefined;
   useEffect(() => {
@@ -359,13 +343,13 @@ export function SegmentationImageEntry({
     const seek = (logTimeNs: bigint) => {
       getPipeline().seekPlayback?.(fromNanoSec(logTimeNs));
     };
-    segmentationSession.setState({ seek });
+    host.session.setState({ seek });
     return () => {
-      if (segmentationSession.getState().seek === seek) {
-        segmentationSession.setState({ seek: undefined });
+      if (host.session.getState().seek === seek) {
+        host.session.setState({ seek: undefined });
       }
     };
-  }, [getPipeline]);
+  }, [getPipeline, host]);
   useEffect(() => {
     if (!annotatable || topic == undefined || sessionOpen || previewWindowStart == undefined) {
       return;
@@ -400,8 +384,8 @@ export function SegmentationImageEntry({
     const gate = { stop: false };
     const listing = new AbortController();
     const superseded = () =>
-      gate.stop || epoch !== previewGeneration.current || segmentationSession.getState().open;
-    segmentationSession.setState({ previewLoading: true });
+      gate.stop || epoch !== previewGeneration.current || host.session.getState().open;
+    host.session.setState({ previewLoading: true });
     void (async () => {
       try {
         const stableRecordId = segmentationSourceKey({
@@ -466,7 +450,7 @@ export function SegmentationImageEntry({
           }
           if (superseded()) {
             if (!gate.stop && epoch === previewGeneration.current) {
-              segmentationSession.setState({ previewLoading: false });
+              host.session.setState({ previewLoading: false });
             }
             return;
           }
@@ -481,7 +465,7 @@ export function SegmentationImageEntry({
           sizeBytes: 0,
           frames: framesFromStamps(videoId, startNs, stamps.values()),
         });
-        const { runtime, created } = acquireSegmentationRuntime(sessionKey, panelId, () =>
+        const { runtime, created } = host.registry.acquire(sessionKey, panelId, () =>
           createSourceRuntime(document, startNs),
         );
         if (!created) {
@@ -490,7 +474,7 @@ export function SegmentationImageEntry({
         await runtime.initialize();
         if (superseded()) {
           if (!gate.stop && epoch === previewGeneration.current) {
-            segmentationSession.setState({ previewLoading: false });
+            host.session.setState({ previewLoading: false });
           }
           return;
         }
@@ -512,23 +496,24 @@ export function SegmentationImageEntry({
         }
         if (superseded()) {
           if (!gate.stop && epoch === previewGeneration.current) {
-            segmentationSession.setState({ previewLoading: false });
+            host.session.setState({ previewLoading: false });
           }
           return;
         }
-        segmentationSession.setState({ previewRuntime: runtime, previewLoading: false });
+        host.session.setState({ previewRuntime: runtime, previewLoading: false });
       } catch {
         if (!gate.stop && epoch === previewGeneration.current) {
-          segmentationSession.setState({ previewLoading: false });
+          host.session.setState({ previewLoading: false });
         }
       }
     })();
     return () => {
       gate.stop = true;
       listing.abort();
-      segmentationSession.setState({ previewLoading: false });
+      host.session.setState({ previewLoading: false });
     };
   }, [
+    host,
     annotatable,
     previewCanStart,
     captureMetadata,
@@ -553,15 +538,15 @@ export function SegmentationImageEntry({
     active.current = undefined;
     if (binding?.frames) {
       binding.frames.dispose();
-      if (sourceFrameLoaders.get(binding.videoId) === binding.frames) {
-        sourceFrameLoaders.delete(binding.videoId);
+      if (host.sourceFrames.get(binding.videoId) === binding.frames) {
+        host.sourceFrames.delete(binding.videoId);
       }
     }
     const ownsSession =
       binding != undefined &&
-      segmentationSession.getState().runtime === binding.runtime &&
-      segmentationSession.getState().panelId === panelId;
-    const remaining = { ...segmentationSession.getState().surfaces };
+      host.session.getState().runtime === binding.runtime &&
+      host.session.getState().panelId === panelId;
+    const remaining = { ...host.session.getState().surfaces };
     delete remaining[panelId];
     const nextPanelId = Object.keys(remaining)[0];
     const handoff = ownsSession && nextPanelId != undefined;
@@ -577,10 +562,10 @@ export function SegmentationImageEntry({
     ) {
       binding.runtime.store.setState({ drawing: undefined });
     }
-    if (!ownsSession && segmentationSession.getState().surfaces[panelId] == undefined) {
+    if (!ownsSession && host.session.getState().surfaces[panelId] == undefined) {
       return;
     }
-    segmentationSession.setState((session) => {
+    host.session.setState((session) => {
       const surfaces = { ...session.surfaces };
       delete surfaces[panelId];
       const successor = Object.keys(surfaces)[0];
@@ -605,7 +590,7 @@ export function SegmentationImageEntry({
         sourceReady: next.sourceReady,
       };
     });
-  }, [panelId]);
+  }, [host, panelId]);
 
   // Fence before paint: no new-source callback may write into the previous record's runtime.
   useLayoutEffect(() => {
@@ -625,7 +610,7 @@ export function SegmentationImageEntry({
 
   const sync = useCallback(() => {
     const binding = active.current;
-    const session = segmentationSession.getState();
+    const session = host.session.getState();
     if (!binding) {
       return;
     }
@@ -634,7 +619,7 @@ export function SegmentationImageEntry({
     }
     const focused = session.panelId === panelId;
     const publish = (surface: SegmentationSurface) => {
-      segmentationSession.setState((current) => {
+      host.session.setState((current) => {
         const previous = current.surfaces[panelId];
         const next: SegmentationSurface = {
           frameId: surface.frameId ?? previous?.frameId,
@@ -692,7 +677,7 @@ export function SegmentationImageEntry({
     // Zoom and pan render the same decoded image again. Rebuild the source table only when the
     // image or a frame source (player cache, tick messages, the panel's decoder cache) changed.
     const blocks = getPipeline().playerState.progress.messageCache?.blocks;
-    const canvasFrames = cachedCanvasFrames(containerRef.current);
+    const canvasFrames = bridge.sources()?.cachedFrames?.() ?? [];
     const sources = {
       image: image.decodedIdentity,
       bindingKey: binding.key,
@@ -824,6 +809,7 @@ export function SegmentationImageEntry({
             imageUrl: image.imageUrl,
             nativeView: image.nativeView,
             nativeCanvas: containerRef.current?.querySelector("canvas") ?? undefined,
+            viewControls: bridge.sources()?.viewControls,
             presentation: session.presentation,
           };
     publish({
@@ -836,16 +822,16 @@ export function SegmentationImageEntry({
           binding.runtime.store.getState().isFrameReady(frame.id) &&
           !binding.runtime.store.getState().loading,
     });
-  }, [capture, captureMetadata, containerRef, getPipeline, panelId, topic]);
+  }, [bridge, capture, captureMetadata, containerRef, getPipeline, host, panelId, topic]);
 
   useEffect(
     () =>
-      segmentationSession.subscribe((next, previous) => {
+      host.session.subscribe((next, previous) => {
         if (next.presentation !== previous.presentation) {
           sync();
         }
       }),
-    [sync],
+    [host, sync],
   );
 
   useEffect(
@@ -867,14 +853,14 @@ export function SegmentationImageEntry({
         sync();
       } catch (cause) {
         setError(String(cause));
-        segmentationSession.setState({ sourceReady: false });
+        host.session.setState({ sourceReady: false });
       }
     };
     container?.addEventListener("segmentation-frame", onFrame);
     return () => {
       container?.removeEventListener("segmentation-frame", onFrame);
     };
-  }, [containerRef, sync]);
+  }, [containerRef, host, sync]);
   // `isPlaying` too: a fixed step plays until its target and then only stops, without moving
   // the clock again. The readiness computed while playing must be recomputed then.
   useLayoutEffect(() => {
@@ -885,7 +871,7 @@ export function SegmentationImageEntry({
     async (mode: "inline" | "maximize") => {
       setError(undefined);
       const bound = active.current;
-      const live = segmentationSession.getState();
+      const live = host.session.getState();
       if (bound && live.open && live.runtime === bound.runtime && bound.key === latestKey.current) {
         const storeState = bound.runtime.store.getState();
         if (storeState.drawing != undefined && live.panelId !== panelId) {
@@ -895,7 +881,7 @@ export function SegmentationImageEntry({
           return;
         }
         if (live.panelId !== panelId) {
-          segmentationSession.setState({ panelId });
+          host.session.setState({ panelId });
           sync();
         }
         if (mode === "maximize") {
@@ -943,7 +929,7 @@ export function SegmentationImageEntry({
               (block) => block?.messagesByTopic[imageTopic] ?? [],
             ) ?? []),
             ...data.messages,
-            ...cachedCanvasFrames(containerRef.current),
+            ...(bridge.sources()?.cachedFrames?.() ?? []),
           ],
           imageTopic,
         )) {
@@ -962,7 +948,7 @@ export function SegmentationImageEntry({
           sizeBytes: 0,
           frames: framesFromStamps(videoId, startNs, stamps.values()),
         });
-        const acquired = acquireSegmentationRuntime(sessionKey, panelId, () =>
+        const acquired = host.registry.acquire(sessionKey, panelId, () =>
           createSourceRuntime(document, startNs),
         );
         runtime = acquired.runtime;
@@ -1011,14 +997,13 @@ export function SegmentationImageEntry({
         frames,
       };
       if (frames) {
-        sourceFrameLoaders.set(videoId, frames);
+        host.sourceFrames.set(videoId, frames);
       }
-      activateSegmentationRuntime(runtime);
-      const joining =
-        segmentationSession.getState().open && segmentationSession.getState().runtime === runtime;
-      segmentationSession.setState({
+      activateSegmentationRuntime(host.session, runtime);
+      const joining = host.session.getState().open && host.session.getState().runtime === runtime;
+      host.session.setState({
         open: true,
-        panelId: joining ? (segmentationSession.getState().panelId ?? panelId) : panelId,
+        panelId: joining ? (host.session.getState().panelId ?? panelId) : panelId,
         ...(joining ? {} : { sourceReady: false }),
       });
       sync();
@@ -1030,7 +1015,7 @@ export function SegmentationImageEntry({
         onMaximize();
       }
       if (!joining) {
-        for (const canvas of segmentationChrome.getState().canvases) {
+        for (const canvas of host.chrome.getState().canvases) {
           if (canvas.panelId !== panelId) {
             canvas.enterInline();
           }
@@ -1050,7 +1035,7 @@ export function SegmentationImageEntry({
           1,
         );
         const live = getPipeline().playerState.activeData;
-        const session = segmentationSession.getState();
+        const session = host.session.getState();
         // Skip if the user moved the clock meanwhile or left this session.
         if (
           first != undefined &&
@@ -1064,11 +1049,12 @@ export function SegmentationImageEntry({
       }
     },
     [
+      host,
+      bridge,
       annotatable,
       captureMetadata,
       dataAssetName,
       getPipeline,
-      containerRef,
       mediaIdentity,
       onMaximize,
       panelId,
@@ -1092,7 +1078,7 @@ export function SegmentationImageEntry({
           setError(String(cause));
         });
       };
-      if (segmentationSession.getState().open || !needsAnnotationProfileCheck(playerUrlState)) {
+      if (host.session.getState().open || !needsAnnotationProfileCheck(playerUrlState)) {
         go();
         return;
       }
@@ -1115,7 +1101,7 @@ export function SegmentationImageEntry({
     return () => {
       onActionsChange(undefined);
     };
-  }, [enter, onActionsChange, playerUrlState]);
+  }, [enter, host, onActionsChange, playerUrlState]);
 
   useLayoutEffect(() => {
     onAvailabilityChange?.(sessionRuntime == undefined ? "available" : "hidden");
@@ -1124,7 +1110,7 @@ export function SegmentationImageEntry({
   if (sessionRuntime) {
     return undefined;
   }
-  const preview = <AnnotationPreview containerRef={containerRef} topic={topic} />;
+  const preview = <AnnotationPreview containerRef={containerRef} topic={topic} bridge={bridge} />;
   return (
     <>
       {error ? (

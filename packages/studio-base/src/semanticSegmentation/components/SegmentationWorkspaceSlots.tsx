@@ -8,7 +8,6 @@
 import { useSnackbar } from "notistack";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useStore } from "zustand";
 
 import {
   useWorkspaceSlot,
@@ -20,7 +19,7 @@ import {
 import { takeProfileSwitchNotice } from "../annotationProfile";
 import { segmentationPlaybackStep, useSegmentationStepLabel } from "../cameraFrames";
 import { useSemanticSegmentationEnabled } from "../featureFlag";
-import { hasUnsavedSegmentationWork, segmentationSession } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { getSegmentationShortcuts } from "../shortcuts";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
@@ -35,7 +34,8 @@ const SLOT_ID = "semanticSegmentation";
  */
 export function SegmentationWorkspaceSlots(): React.JSX.Element {
   const { t } = useTranslation("segmentation");
-  const annotating = useStore(segmentationSession, (state) => state.open);
+  const host = useSegmentationHost();
+  const annotating = useSegmentationSession((state) => state.open);
   // Annotations are read and saved only through the AnnotationService: a cloud record is needed.
   const annotatable = useSemanticSegmentationEnabled();
 
@@ -57,9 +57,10 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
         : {
             backwardLabel: t("seekBackwardCamera", { camera: stepCamera }),
             forwardLabel: t("seekForwardCamera", { camera: stepCamera }),
-            step: segmentationPlaybackStep,
+            step: (direction, modifiers, seek, clockNs) =>
+              segmentationPlaybackStep(host, direction, modifiers, seek, clockNs),
           },
-    [stepCamera, t],
+    [host, stepCamera, t],
   );
   useWorkspaceSlot("playbackStep", SLOT_ID, playbackStep);
 
@@ -101,7 +102,7 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
   // Staged and unsent edits live only in memory: ask before the page goes away with them.
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (hasUnsavedSegmentationWork()) {
+      if (host.registry.hasUnsavedWork()) {
         event.preventDefault();
         // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required by older supported browsers.
         event.returnValue = "";
@@ -111,7 +112,7 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
     return () => {
       window.removeEventListener("beforeunload", warn);
     };
-  }, []);
+  }, [host]);
 
   return <GlobalPropagationLock />;
 }

@@ -15,6 +15,7 @@ import type { TreeEnv } from "./treeState";
 import { useTreeIndex } from "./useTreeIndex";
 import type { TreeIndex } from "./useTreeIndex";
 import { segmentationErrorText } from "../../errors";
+import { useSegmentationHost } from "../../segmentationHostContext";
 import type { SemanticSegmentationStore } from "../../types";
 
 export type TreeShell = {
@@ -39,6 +40,7 @@ export function useTreeShell({
   disabled: boolean;
 }): TreeShell {
   const { t } = useTranslation("segmentation");
+  const host = useSegmentationHost();
   const state = useTreeState(store);
   const { document, index, surfaces, treeFrameIds, overview, selection, contextKey } =
     useTreeIndex(state);
@@ -49,6 +51,7 @@ export function useTreeShell({
   const [error, setError] = useState<string>();
   const env: TreeEnv = {
     store,
+    host,
     state,
     document,
     surfaces,

@@ -7,7 +7,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 import { useStore } from "zustand";
 
@@ -26,12 +26,14 @@ import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SegmentationImageEntry } from "../../components/SegmentationImageEntry";
 import { SpatialSidebar } from "../../components/SpatialSidebar";
-import { segmentationImageSources, type SegmentationImage } from "../../imageSource";
+import type { SegmentationImage } from "../../imageSource";
 import { polygonsOf } from "../../maskGeometry";
-import { segmentationSession } from "../../runtime";
 import { enterAnnotation, recordEntryActions } from "../../testing/entryActions";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import { focusedImageUrl } from "../../testing/session";
+import { render, testHost, createTestBridge, useSegmentationTestHost } from "../../testing/host";
+
+useSegmentationTestHost();
 
 const maximize = jest.fn();
 let mockUserId = "fixture-user";
@@ -115,12 +117,12 @@ function SidebarBinding(): React.JSX.Element {
   );
 }
 function BoundCanvas(): React.JSX.Element | ReactNull {
-  const session = useStore(segmentationSession);
+  const session = useStore(testHost().session);
   return session.open && session.runtime ? (
     <SegmentationCanvas
       decodedFrame={TEST_DECODED_FRAME}
       store={session.runtime.store}
-      imageUrl={focusedImageUrl()}
+      imageUrl={focusedImageUrl(testHost().session)}
       disabled={!session.sourceReady}
     />
   ) : (
@@ -149,6 +151,7 @@ function fixture() {
     receiveTime: fromNanoSec(0n),
     decodedIdentity: {},
   };
+  const bridge = createTestBridge();
   const view = (topic = "/camera") => (
     <WorkspaceContextProvider disablePersistence initialState={initialWorkspace}>
       <ThemeProvider isDark>
@@ -158,6 +161,7 @@ function fixture() {
           <SegmentationImageEntry
             onActionsChange={recordEntryActions}
             containerRef={containerRef}
+            bridge={bridge}
             topic={topic}
             panelId="panel-1"
             onMaximize={maximize}
@@ -170,7 +174,7 @@ function fixture() {
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
   const capture = jest.fn(() => image);
-  segmentationImageSources.set(canvas, capture);
+  bridge.publish({ image: capture });
   return {
     ...result,
     view,
@@ -199,11 +203,11 @@ async function open(mode: "inline" | "maximize" = "inline") {
   });
   await waitFor(
     () => {
-      expect(segmentationSession.getState().open).toBe(true);
+      expect(testHost().session.getState().open).toBe(true);
     },
     { timeout: 3000 },
   );
-  return segmentationSession.getState().runtime!;
+  return testHost().session.getState().runtime!;
 }
 beforeEach(() => {
   mockUserId = "fixture-user";
@@ -212,7 +216,7 @@ beforeEach(() => {
   pipeline.playerState.activeData.endTime = fromNanoSec(1_000_000_000n);
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
   pipeline.playerState.activeData.lastSeekTime = 0;
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,
@@ -248,8 +252,8 @@ it("actual Workspace sidebar actions select adjacent Space from Moment and bind 
     .document!.frames.find((item) => item.id === runtime.store.getState().currentFrameId)!;
   expect(frame.timestampSec).toBe(0.3);
   expect(frame.videoId).toBe(runtime.store.getState().document!.videos[0]!.id);
-  expect(segmentationSession.getState().sourceReady).toBe(true);
-  expect(focusedImageUrl()).toBeDefined();
+  expect(testHost().session.getState().sourceReady).toBe(true);
+  expect(focusedImageUrl(testHost().session)).toBeDefined();
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
     configurable: true,

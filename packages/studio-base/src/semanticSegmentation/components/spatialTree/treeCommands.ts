@@ -10,7 +10,6 @@ import { dialogOperationLabels } from "./treeTypes";
 import type { TreeContext } from "./treeTypes";
 import { segmentationErrorText } from "../../errors";
 import { polygonsOf } from "../../maskGeometry";
-import { segmentationSession } from "../../runtime";
 import type { SegmentationNodeRef } from "../../types";
 import {
   canDropNode,
@@ -49,7 +48,7 @@ export function claimFrame(env: TreeEnv, node: SegmentationNodeRef): boolean {
   )?.[0];
   state.setCurrentFrame(owner.frameId);
   if (panelId != undefined) {
-    segmentationSession.setState({ panelId });
+    env.host.session.setState({ panelId });
   }
   return true;
 }

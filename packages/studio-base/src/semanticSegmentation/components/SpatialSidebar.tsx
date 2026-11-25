@@ -10,7 +10,7 @@ import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
-import { segmentationSession } from "../runtime";
+import { useSegmentationSession } from "../segmentationHostContext";
 import type { SemanticSegmentationStore } from "../types";
 import { SpatialTree } from "./SpatialTree";
 
@@ -38,11 +38,11 @@ const useStyles = makeStyles()((theme) => ({
 export function SpatialSidebar(): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("segmentation");
-  const open = useStore(segmentationSession, (state) => state.open);
-  const runtime = useStore(segmentationSession, (state) =>
+  const open = useSegmentationSession((state) => state.open);
+  const runtime = useSegmentationSession((state) =>
     state.open ? state.runtime : (state.previewRuntime ?? state.runtime),
   );
-  const sourceReady = useStore(segmentationSession, (state) => state.sourceReady);
+  const sourceReady = useSegmentationSession((state) => state.sourceReady);
   return runtime ? (
     <>
       <div className={classes.caption}>{open ? t("sidebarOpen") : t("sidebarPreview")}</div>

@@ -6,12 +6,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 
-import { segmentationSession } from "../runtime";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
+import { render, testHost, useSegmentationTestHost } from "../testing/host";
+
+useSegmentationTestHost();
 
 async function open(panelId = "panel-1") {
   const document = createSeedDocument();
@@ -23,7 +25,7 @@ async function open(panelId = "panel-1") {
     configurable: true,
     value: () => {},
   });
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime,
     open: true,
     panelId,
@@ -34,7 +36,7 @@ async function open(panelId = "panel-1") {
 }
 
 afterEach(() => {
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,
@@ -88,6 +90,6 @@ it("holds submission, version history and ending the session behind Submit", asy
   expect(within(menu).getByRole("button", { name: "Clear staged" })).toBeTruthy();
   expect(within(menu).queryByRole("button", { name: "Undo" })).toBeNull();
   fireEvent.click(within(menu).getByRole("menuitem", { name: "End annotation" }));
-  expect(segmentationSession.getState().open).toBe(false);
+  expect(testHost().session.getState().open).toBe(false);
   runtime.dispose();
 });

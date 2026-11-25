@@ -40,13 +40,13 @@ export type SegmentationViewControls = {
 
 /** What the Image renderer, which lives in its own React root, shares with the editor. */
 export type SegmentationRendererSources = {
-  /** Frame identity and projection of the displayed image, without a PNG copy of its pixels. */
-  imageMetadata: () => SegmentationImageMetadata | undefined;
   /** The displayed image with its PNG, encoded on first read. */
   image: SegmentationImageSource;
-  viewControls: SegmentationViewControls;
+  /** Frame identity and projection of the displayed image, without a PNG copy of its pixels. */
+  imageMetadata?: () => SegmentationImageMetadata | undefined;
+  viewControls?: SegmentationViewControls;
   /** Frames the panel's decoder cache still holds. */
-  cachedFrames: () => MessageEvent[];
+  cachedFrames?: () => MessageEvent[];
 };
 
 export function imageFrameIdentity(

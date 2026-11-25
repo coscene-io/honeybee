@@ -17,13 +17,13 @@ import { createMockSemanticSegmentationService } from "./mockService";
 export function createMockSegmentationRuntime(
   document?: SegmentationDocument,
   options?: SegmentationRuntimeOptions,
+  /** Adjusts the service before the runtime is built: the runtime takes its methods then. */
+  prepare?: (service: ReturnType<typeof createMockSemanticSegmentationService>) => void,
 ): SegmentationRuntime {
-  return createSegmentationRuntime(
-    createMockSemanticSegmentationService({
-      document,
-      controls: { delayMs: 500, streamDelayMs: 350 },
-    }),
+  const service = createMockSemanticSegmentationService({
     document,
-    options,
-  );
+    controls: { delayMs: 500, streamDelayMs: 350 },
+  });
+  prepare?.(service);
+  return createSegmentationRuntime(service, document, options);
 }

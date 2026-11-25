@@ -5,10 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { createCameraStepState } from "./cameraFrames";
 import { createSegmentationMaskOverlay } from "./imageSource";
 import { createMaskOverlayControls, installMaskOverlaySource } from "./maskOverlay/overlaySource";
 import { createSharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import { createSegmentationRegistry, createSegmentationSession } from "./runtime";
+import { createSegmentationChrome } from "./segmentationChrome";
 import type { SegmentationHost } from "./segmentationHostContext";
 
 /** A new, empty host: its own session and runtime registry, shared by nothing else. */
@@ -26,6 +28,8 @@ export function createSegmentationHost(): SegmentationHost {
   return {
     session,
     registry,
+    chrome: createSegmentationChrome(),
+    cameraStep: createCameraStepState(),
     sourceFrames: new Map(),
     maskOverlay,
     maskOverlayControls,

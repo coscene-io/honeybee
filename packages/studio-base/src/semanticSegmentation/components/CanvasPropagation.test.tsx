@@ -7,12 +7,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ThemeProvider } from "@mui/material/styles";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { createMuiTheme } from "@foxglove/theme";
 
 import { polygonsOf } from "../maskGeometry";
-import { segmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
@@ -20,6 +19,9 @@ import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
 import { buildCanvasPropagationScope } from "./propagationSeeds";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
+import { render, testHost, useSegmentationTestHost } from "../testing/host";
+
+useSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 const polygon = (id: string, x: number) => ({
@@ -58,7 +60,7 @@ async function setup(options: { open?: boolean; seeded?: boolean } = {}) {
   const runtime = createMockSegmentationRuntime(document);
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0 });
   await runtime.initialize();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime,
     open: options.open ?? true,
     panelId: "canvas-a",
@@ -75,7 +77,7 @@ async function setup(options: { open?: boolean; seeded?: boolean } = {}) {
 
 afterEach(() => {
   cleanup();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,

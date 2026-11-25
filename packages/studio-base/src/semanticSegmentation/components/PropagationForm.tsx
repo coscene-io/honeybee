@@ -22,10 +22,10 @@ import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
-import { sourceFrameLoaders } from "../sourceFrames";
 import type { PropagationRequest, SegmentationFrame, SemanticSegmentationStore } from "../types";
 import type { CanvasPropagationScope } from "./propagationSeeds";
 import { segmentationErrorText } from "../errors";
+import { useSegmentationHost } from "../segmentationHostContext";
 
 /**
  * How far one click propagates. The API needs an end time (there is no open-ended stream) and
@@ -118,6 +118,7 @@ export function PropagationForm({
 }): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("segmentation");
+  const host = useSegmentationHost();
   // Narrow subscriptions: the form stays open while frames stream in.
   const document = useStore(store, (state) => state.document);
   const interactionResetVersion = useStore(store, (state) => state.interactionResetVersion);
@@ -229,7 +230,7 @@ export function PropagationForm({
     void (async () => {
       // The document lists only the frames read so far: read the whole range first, so every
       // propagated frame has a local frame to land on.
-      const loader = sourceFrameLoaders.get(frame.videoId);
+      const loader = host.sourceFrames.get(frame.videoId);
       const seedNs = BigInt(frame.logTimeNs);
       const rangeNs = BigInt(rangeSec) * 1_000_000_000n;
       const sides: ("forward" | "backward")[] =

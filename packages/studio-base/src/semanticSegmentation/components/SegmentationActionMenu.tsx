@@ -14,12 +14,8 @@ import { useStore } from "zustand";
 
 import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 
-import {
-  endSegmentationSession,
-  openWorkflowPanel,
-  segmentationSession,
-  type SegmentationRuntime,
-} from "../runtime";
+import { endSegmentationSession, openWorkflowPanel, type SegmentationRuntime } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { SubmissionControls } from "./WorkflowControls";
 
 const useStyles = makeStyles()((theme) => ({
@@ -65,6 +61,7 @@ function ActionButtons({
   const loading = useStore(store, (state) => state.loading);
   const canRedo = useStore(store, (state) => state.canRedo);
   const staged = useStore(store, (state) => state.stagedOperations.length);
+  const host = useSegmentationHost();
   const [submitAnchor, setSubmitAnchor] = useState<HTMLElement>();
   const busy = !frameReady || loading;
   const dirty = staged > 0;
@@ -128,7 +125,7 @@ function ActionButtons({
           <MenuList dense>
             <MenuItem
               onClick={() => {
-                openWorkflowPanel("seg-submissions");
+                openWorkflowPanel(host.session, "seg-submissions");
                 closeSubmit();
               }}
             >
@@ -139,7 +136,7 @@ function ActionButtons({
               disabled={locked}
               onClick={() => {
                 closeSubmit();
-                endSegmentationSession();
+                endSegmentationSession(host.session);
               }}
             >
               {t("endAnnotation")}
@@ -153,9 +150,7 @@ function ActionButtons({
 
 /** Undo, redo and submit for the open record session, shown once in the app bar. */
 export function SegmentationActionMenu(): React.JSX.Element | undefined {
-  const runtime = useStore(segmentationSession, (session) =>
-    session.open ? session.runtime : undefined,
-  );
-  const sourceReady = useStore(segmentationSession, (session) => session.sourceReady);
+  const runtime = useSegmentationSession((session) => (session.open ? session.runtime : undefined));
+  const sourceReady = useSegmentationSession((session) => session.sourceReady);
   return runtime ? <ActionButtons runtime={runtime} sourceReady={sourceReady} /> : undefined;
 }

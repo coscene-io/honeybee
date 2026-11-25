@@ -10,7 +10,9 @@ import type { ReactNode } from "react";
 
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 
+import { createSegmentationPanelBridge, type SegmentationPanelBridge } from "../imageSource";
 import { registerSegmentationCanvas } from "../segmentationChrome";
+import { useSegmentationHost } from "../segmentationHostContext";
 import {
   SegmentationImageEntry,
   type SegmentationImageEntryActions,
@@ -21,7 +23,10 @@ import { SegmentationWorkspace } from "./SegmentationWorkspace";
 type Props = {
   imageTopic: string | undefined;
   /** Renders the Image panel itself, with the propagate button in its toolbar. */
-  renderPanel: (extra: { additionalToolbarIcons: ReactNode }) => ReactNode;
+  renderPanel: (extra: {
+    additionalToolbarIcons: ReactNode;
+    segmentation: SegmentationPanelBridge;
+  }) => ReactNode;
 };
 
 /**
@@ -35,6 +40,13 @@ export function SegmentationImagePanelAdapter({
 }: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const panel = usePanelContext();
+  const host = useSegmentationHost();
+  // What this panel's renderer, in its own React root, shares with the editor.
+  const bridge = useMemo(
+    () =>
+      createSegmentationPanelBridge({ maskOverlay: host.maskOverlay, maskPlanes: host.maskPlanes }),
+    [host],
+  );
   const registration = useRef<(() => void) | undefined>(undefined);
   const propagateIcon = useMemo(
     () => <SegmentationPropagateButton panelId={panel.id} />,
@@ -47,7 +59,7 @@ export function SegmentationImagePanelAdapter({
       if (!actions) {
         return;
       }
-      registration.current = registerSegmentationCanvas({
+      registration.current = registerSegmentationCanvas(host.chrome, {
         panelId: panel.id,
         topic: imageTopic,
         enterInline: actions.enterInline,
@@ -58,7 +70,7 @@ export function SegmentationImagePanelAdapter({
         },
       });
     },
-    [imageTopic, panel.id],
+    [host, imageTopic, panel.id],
   );
   useEffect(
     () => () => {
@@ -69,9 +81,10 @@ export function SegmentationImagePanelAdapter({
 
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
-      {renderPanel({ additionalToolbarIcons: propagateIcon })}
+      {renderPanel({ additionalToolbarIcons: propagateIcon, segmentation: bridge })}
       <SegmentationImageEntry
         containerRef={containerRef}
+        bridge={bridge}
         topic={imageTopic}
         panelId={panel.id}
         onMaximize={panel.enterFullscreen}

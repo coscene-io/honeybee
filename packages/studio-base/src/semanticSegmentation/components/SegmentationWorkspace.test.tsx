@@ -7,12 +7,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 
-import { segmentationSession } from "../runtime";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
+import { render, testHost, useSegmentationTestHost } from "../testing/host";
+
+useSegmentationTestHost();
 
 jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
   PANEL_TOOLBAR_MIN_HEIGHT: 30,
@@ -30,7 +32,7 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
   const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime,
     panelId: "image-panel",
     open: true,
@@ -42,7 +44,7 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
     "decoded",
   );
   act(() => {
-    segmentationSession.setState({
+    testHost().session.setState({
       surfaces: {
         "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: false },
       },
@@ -51,7 +53,7 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
   expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toBe("pending");
   unmount();
   runtime.dispose();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     panelId: undefined,
     open: false,
@@ -63,7 +65,7 @@ it("mounts a workbench on every open camera, not only the focused one", async ()
   const runtime = createMockSegmentationRuntime();
   setMockControls(runtime.service, { delayMs: 0 });
   await runtime.initialize();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime,
     open: true,
     panelId: "left",
@@ -84,7 +86,7 @@ it("mounts a workbench on every open camera, not only the focused one", async ()
   expect(images).toEqual([expect.stringContaining("left"), expect.stringContaining("right")]);
   unmount();
   runtime.dispose();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     panelId: undefined,
     open: false,

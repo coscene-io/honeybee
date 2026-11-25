@@ -6,12 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { deferred, polygon, setup, triangle } from "./fixtures";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
 import { polygonsOf } from "../../maskGeometry";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
+import { render, useSegmentationTestHost } from "../../testing/host";
+
+useSegmentationTestHost();
 
 it("stages edits without writes and keeps newer B dirty when A is acknowledged", async () => {
   const { service, store } = await setup();

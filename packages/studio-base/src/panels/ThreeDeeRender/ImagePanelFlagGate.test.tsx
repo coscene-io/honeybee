@@ -10,6 +10,8 @@ import { render, screen } from "@testing-library/react";
 
 import { CoreDataContext } from "@foxglove/studio-base/context/CoreDataContext";
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
+import { createSegmentationHost } from "@foxglove/studio-base/semanticSegmentation/segmentationHost";
+import { SegmentationHostContext } from "@foxglove/studio-base/semanticSegmentation/segmentationHostContext";
 import { createCoreDataSourceStore } from "@foxglove/studio-base/semanticSegmentation/testing/coreDataSource";
 
 import { ImagePanel } from "./index";
@@ -62,10 +64,14 @@ const Image = ImagePanel as unknown as (props: {
 
 // The real rollout gate (no featureFlag mock): flag from cos-config, record from Core Data.
 function renderOnSource(source?: Parameters<typeof createCoreDataSourceStore>[0]): void {
+  // The workspace extension supplies the host once the flag is on; here the test does.
+  const host = window.cosConfig ? createSegmentationHost() : undefined;
   const core = createCoreDataSourceStore(source);
   render(
     <CoreDataContext.Provider value={core}>
-      <Image config={{ imageMode: { imageTopic: "/camera" } }} saveConfig={jest.fn()} />
+      <SegmentationHostContext.Provider value={host}>
+        <Image config={{ imageMode: { imageTopic: "/camera" } }} saveConfig={jest.fn()} />
+      </SegmentationHostContext.Provider>
     </CoreDataContext.Provider>,
   );
 }

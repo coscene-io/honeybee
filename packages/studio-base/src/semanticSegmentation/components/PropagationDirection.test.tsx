@@ -7,16 +7,18 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ThemeProvider } from "@mui/material/styles";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { createMuiTheme } from "@foxglove/theme";
 
-import { segmentationSession } from "../runtime";
 import { frameInstanceKey, propagationTargets } from "../service";
 import type { SegmentationDocument } from "../types";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
+import { render, testHost, useSegmentationTestHost } from "../testing/host";
+
+useSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 /** Five frames per second in the mock recording: frame-20 has frames on both sides. */
@@ -59,7 +61,7 @@ async function setup() {
   act(() => {
     runtime.store.getState().setCurrentFrame(SEED_FRAME);
   });
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime,
     open: true,
     panelId: "canvas-a",
@@ -95,7 +97,7 @@ const seedNs = (runtime: Awaited<ReturnType<typeof setup>>["runtime"]) =>
 
 afterEach(() => {
   cleanup();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,

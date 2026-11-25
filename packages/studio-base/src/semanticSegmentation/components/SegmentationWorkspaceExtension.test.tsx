@@ -8,50 +8,83 @@
 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
+import { useContext } from "react";
 import { createStore, type StoreApi } from "zustand";
 
 import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
 import {
-  closeKeyboardShortcuts,
-  openKeyboardShortcuts,
+  KeyboardShortcutsDialogProvider,
+  createKeyboardShortcutsDialogStore,
 } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 import { CoreDataContext, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
-import { useWorkspaceSlots } from "@foxglove/studio-base/context/WorkspaceSlots";
+import {
+  WorkspaceSlotsProvider,
+  createWorkspaceSlotsStore,
+} from "@foxglove/studio-base/context/WorkspaceSlots";
 
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
-import {
-  acquireSegmentationRuntime,
-  releaseSegmentationRuntime,
-  segmentationSession,
-  type SegmentationRuntime,
-} from "../runtime";
-import { segmentationChrome } from "../segmentationChrome";
-import { SegmentationWorkspaceExtension } from "./SegmentationWorkspaceExtension";
+import type { SegmentationRuntime } from "../runtime";
+import { SegmentationHostContext, type SegmentationHost } from "../segmentationHostContext";
 import { CLOUD_RECORD, createCoreDataSourceStore } from "../testing/coreDataSource";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument } from "../testing/mockService";
+import { SegmentationWorkspaceExtension } from "./SegmentationWorkspaceExtension";
 
 const RECORD = CLOUD_RECORD;
 let core: StoreApi<CoreDataStore>;
+let slots = createWorkspaceSlotsStore();
+let shortcuts = createKeyboardShortcutsDialogStore();
+/** What the extension's children see in context: the host it created, once it has. */
+let seenHost: SegmentationHost | undefined;
+
 const setRecord = (name: string | undefined) => {
   core.setState({
     record: { loading: false, value: name == undefined ? undefined : { name } },
   } as never);
 };
+const flag = (on: boolean) => {
+  window.cosConfig = on
+    ? ({
+        FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
+      } as typeof window.cosConfig)
+    : undefined;
+};
 
-/** Renders the extension on the open source; the editor part loads on demand once the flag is on. */
-function renderExtension(extra?: React.ReactNode) {
-  return render(
+function Child(): React.JSX.Element {
+  seenHost = useContext(SegmentationHostContext);
+  return <div data-testid="child" />;
+}
+
+/** The workspace around the extension, as the Workspace mounts it. */
+function tree(extra?: React.ReactNode): React.JSX.Element {
+  return (
     <CoreDataContext.Provider value={core}>
-      <SegmentationWorkspaceExtension />
-      {extra}
-    </CoreDataContext.Provider>,
+      <WorkspaceSlotsProvider store={slots}>
+        <KeyboardShortcutsDialogProvider store={shortcuts}>
+          <SegmentationWorkspaceExtension>
+            <Child />
+            {extra}
+          </SegmentationWorkspaceExtension>
+        </KeyboardShortcutsDialogProvider>
+      </WorkspaceSlotsProvider>
+    </CoreDataContext.Provider>
   );
 }
-async function registered(): Promise<void> {
+function renderExtension(extra?: React.ReactNode) {
+  return render(tree(extra));
+}
+async function hostReady(): Promise<SegmentationHost> {
   await waitFor(() => {
-    expect(Object.keys(useWorkspaceSlots.getState().appBarItems)).toEqual(["semanticSegmentation"]);
+    expect(seenHost).toBeDefined();
   });
+  return seenHost!;
+}
+async function registered(): Promise<SegmentationHost> {
+  const host = await hostReady();
+  await waitFor(() => {
+    expect(Object.keys(slots.getState().appBarItems)).toEqual(["semanticSegmentation"]);
+  });
+  return host;
 }
 const originalUserAgent = navigator.userAgent;
 const setUserAgent = (value: string) => {
@@ -60,69 +93,107 @@ const setUserAgent = (value: string) => {
 
 beforeEach(async () => {
   core = createCoreDataSourceStore();
-  window.cosConfig = {
-    FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
-  } as typeof window.cosConfig;
+  slots = createWorkspaceSlotsStore();
+  shortcuts = createKeyboardShortcutsDialogStore();
+  seenHost = undefined;
+  flag(true);
   await i18n.changeLanguage("en");
 });
 
 afterEach(() => {
   window.cosConfig = undefined;
   setUserAgent(originalUserAgent);
-  act(() => {
-    closeKeyboardShortcuts();
-    segmentationChrome.setState({ canvases: [] });
-    segmentationSession.setState({ open: false, runtime: undefined, panelId: undefined });
-  });
 });
 
-it("registers nothing while the rollout flag is off, even on a cloud record", () => {
-  window.cosConfig = undefined;
-  const { container } = renderExtension();
-  const slots = useWorkspaceSlots.getState();
-  expect(slots.appBarItems).toEqual({});
-  expect(slots.leftSidebarItems).toEqual({});
-  expect(slots.playbackStep).toEqual({});
-  expect(slots.shortcutColumns).toEqual({});
-  expect(container.innerHTML).toBe("");
+it("has no host and registers nothing while the rollout flag is off, even on a cloud record", async () => {
+  flag(false);
+  const { getByTestId } = renderExtension();
+  // The workspace still renders: only the editor is absent.
+  expect(getByTestId("child")).toBeTruthy();
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(seenHost).toBeUndefined();
+  const state = slots.getState();
+  expect(state.appBarItems).toEqual({});
+  expect(state.leftSidebarItems).toEqual({});
+  expect(state.playbackStep).toEqual({});
+  expect(state.shortcutColumns).toEqual({});
+});
+
+it("provides a host to everything below it once the flag is on", async () => {
+  renderExtension();
+  const host = await hostReady();
+  expect(host.registry.heldCount()).toBe(0);
+  expect(host.session.getState().open).toBe(false);
+});
+
+it("does not remount its children when the flag turns on, or off again", async () => {
+  flag(false);
+  const view = renderExtension();
+  const child = view.getByTestId("child");
+  flag(true);
+  view.rerender(tree());
+  const host = await hostReady();
+  expect(view.getByTestId("child")).toBe(child);
+  flag(false);
+  view.rerender(tree());
+  await waitFor(() => {
+    expect(seenHost).toBeUndefined();
+  });
+  expect(view.getByTestId("child")).toBe(child);
+  // Turning it off disposed what the host held.
+  expect(host.maskOverlay.get()).toBeUndefined();
+});
+
+it("disposes the host, and the runtimes it holds, when it unmounts", async () => {
+  const view = renderExtension();
+  const host = await hostReady();
+  const runtime = createMockSegmentationRuntime(createSeedDocument());
+  const dispose = jest.spyOn(runtime, "dispose");
+  host.registry.acquire("record-x", "panel-x", () => runtime);
+  expect(host.registry.heldCount()).toBe(1);
+  view.unmount();
+  expect(dispose).toHaveBeenCalledTimes(1);
+  expect(host.registry.heldCount()).toBe(0);
 });
 
 it("registers the app bar entry, and the Space sidebar only for a cloud record", async () => {
   setRecord(undefined);
   renderExtension();
   await registered();
-  expect(useWorkspaceSlots.getState().leftSidebarItems).toEqual({});
+  expect(slots.getState().leftSidebarItems).toEqual({});
 
   act(() => {
     setRecord(RECORD);
   });
-  const sidebar = Object.values(useWorkspaceSlots.getState().leftSidebarItems);
+  const sidebar = Object.values(slots.getState().leftSidebarItems);
   expect(sidebar.map(({ key, item }) => [key, item.title])).toEqual([["space", "Space"]]);
 
   act(() => {
     setRecord("local.mcap");
   });
-  expect(useWorkspaceSlots.getState().leftSidebarItems).toEqual({});
+  expect(slots.getState().leftSidebarItems).toEqual({});
 });
 
 it("offers no Space sidebar once a local file replaces the cloud source", async () => {
   renderExtension();
   await registered();
-  expect(Object.keys(useWorkspaceSlots.getState().leftSidebarItems)).toHaveLength(1);
+  expect(Object.keys(slots.getState().leftSidebarItems)).toHaveLength(1);
   act(() => {
     // Core Data keeps the previous record; only the data source tells the source changed.
     core.setState({ dataSource: { id: "file", type: "file" } } as never);
   });
-  expect(useWorkspaceSlots.getState().leftSidebarItems).toEqual({});
+  expect(slots.getState().leftSidebarItems).toEqual({});
 });
 
 it("takes over back / forward only while a camera is being annotated", async () => {
   renderExtension();
-  await registered();
-  expect(useWorkspaceSlots.getState().playbackStep).toEqual({});
+  const host = await registered();
+  expect(slots.getState().playbackStep).toEqual({});
 
   act(() => {
-    segmentationChrome.setState({
+    host.chrome.setState({
       canvases: [
         {
           panelId: "Image!head",
@@ -132,7 +203,7 @@ it("takes over back / forward only while a camera is being annotated", async () 
         },
       ],
     });
-    segmentationSession.setState({
+    host.session.setState({
       open: true,
       panelId: "Image!head",
       // The lock overlay reads the propagation status; nothing else is used here.
@@ -141,14 +212,14 @@ it("takes over back / forward only while a camera is being annotated", async () 
       } as unknown as SegmentationRuntime,
     });
   });
-  const [step] = Object.values(useWorkspaceSlots.getState().playbackStep);
+  const [step] = Object.values(slots.getState().playbackStep);
   expect(step?.backwardLabel).toBe("Previous frame (head)");
   expect(step?.forwardLabel).toBe("Next frame (head)");
 
   act(() => {
-    segmentationSession.setState({ open: false });
+    host.session.setState({ open: false });
   });
-  expect(useWorkspaceSlots.getState().playbackStep).toEqual({});
+  expect(slots.getState().playbackStep).toEqual({});
 });
 
 describe("leaving the page", () => {
@@ -157,58 +228,52 @@ describe("leaving the page", () => {
     window.dispatchEvent(event);
     return event.defaultPrevented;
   };
-  async function withUnsavedWork() {
+  async function withUnsavedWork(host: SegmentationHost) {
     const runtime = createMockSegmentationRuntime(createSeedDocument());
-    acquireSegmentationRuntime("record-unload", "panel-unload", () => runtime);
+    host.registry.acquire("record-unload", "panel-unload", () => runtime);
     await runtime.initialize();
     runtime.store.getState().addClass("Unsaved");
     return runtime;
   }
-  afterEach(async () => {
-    releaseSegmentationRuntime("panel-unload");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
 
   it("asks first only while there is unsaved annotation work", async () => {
     renderExtension();
-    await registered();
+    const host = await registered();
     expect(unload()).toBe(false);
-    const runtime = await withUnsavedWork();
+    const runtime = await withUnsavedWork(host);
     expect(unload()).toBe(true);
     runtime.store.getState().undo();
     expect(unload()).toBe(false);
   });
 
   it("stops asking once the extension is gone", async () => {
-    const { unmount } = renderExtension();
-    await registered();
-    await withUnsavedWork();
-    unmount();
+    const view = renderExtension();
+    const host = await registered();
+    await withUnsavedWork(host);
+    view.unmount();
     expect(unload()).toBe(false);
   });
 });
 
 describe("Spatial annotation shortcuts column", () => {
-  const openDialog = async () => {
+  const openDialog = async (opts: { annotating: boolean }) => {
     renderExtension(<KeyboardShortcutsDialog />);
-    await registered();
+    const host = await registered();
     act(() => {
-      openKeyboardShortcuts();
+      host.session.setState({ open: opts.annotating });
+      shortcuts.setState({ open: true });
     });
   };
 
   it("is absent without an annotation session", async () => {
-    await openDialog();
+    await openDialog({ annotating: false });
     expect(screen.queryByText("Spatial annotation")).toBeNull();
     expect(screen.queryByText("Fit to selection")).toBeNull();
   });
 
   it("shows Mac keys under a Mac user agent", async () => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)");
-    act(() => {
-      segmentationSession.setState({ open: true });
-    });
-    await openDialog();
+    await openDialog({ annotating: true });
     expect(screen.getByText("Spatial annotation")).toBeTruthy();
     expect(screen.getByText("Fit to selection")).toBeTruthy();
     expect(screen.getByText("⌘ + Z")).toBeTruthy();
@@ -219,10 +284,7 @@ describe("Spatial annotation shortcuts column", () => {
 
   it("shows Ctrl and Alt keys elsewhere, in the active language", async () => {
     setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-    act(() => {
-      segmentationSession.setState({ open: true });
-    });
-    await openDialog();
+    await openDialog({ annotating: true });
     expect(screen.getByText("Ctrl + Z")).toBeTruthy();
     expect(screen.getByText("Ctrl + Shift + Z")).toBeTruthy();
     expect(screen.getByText("Ctrl + Y")).toBeTruthy();

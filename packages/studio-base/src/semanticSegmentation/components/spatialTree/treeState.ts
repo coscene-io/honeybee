@@ -11,6 +11,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
 import type { SegmentationSurface } from "../../runtime";
+import type { SegmentationHost } from "../../segmentationHostContext";
 import type {
   SegmentationDocument,
   SegmentationNodeRef,
@@ -63,6 +64,7 @@ export function useTreeState(store: StoreApi<SemanticSegmentationStore>): TreeSt
 /** What the tree's commands read, rebuilt every render so they always see current state. */
 export type TreeEnv = {
   store: StoreApi<SemanticSegmentationStore>;
+  host: SegmentationHost;
   state: TreeState;
   document: SegmentationDocument | undefined;
   surfaces: Record<string, SegmentationSurface>;

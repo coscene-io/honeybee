@@ -473,7 +473,6 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
-      <SegmentationWorkspaceExtension />
       <KeyboardShortcutsDialog />
       <DeepLinksSyncAdapter deepLinks={props.deepLinks} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
@@ -603,7 +602,9 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
     >
       <WorkspaceSlotsProvider>
         <KeyboardShortcutsDialogProvider>
-          <WorkspaceContent {...props} />
+          <SegmentationWorkspaceExtension>
+            <WorkspaceContent {...props} />
+          </SegmentationWorkspaceExtension>
         </KeyboardShortcutsDialogProvider>
       </WorkspaceSlotsProvider>
     </WorkspaceContextProvider>

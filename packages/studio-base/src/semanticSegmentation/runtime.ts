@@ -9,6 +9,7 @@ import { createStore } from "zustand/vanilla";
 import type { StoreApi } from "zustand/vanilla";
 
 import { SegmentationError } from "./errors";
+import type { SegmentationViewControls } from "./imageSource";
 import type { LiveSemanticSegmentationService } from "./liveService";
 import type { NativeImageView } from "./nativeImageTransform";
 import {
@@ -228,6 +229,8 @@ export type DecodedSegmentationFrame = {
   imageUrl: string;
   nativeView?: NativeImageView;
   nativeCanvas?: HTMLCanvasElement;
+  /** The Image panel's own camera, for an annotation canvas laid over it. */
+  viewControls?: SegmentationViewControls;
   presentation?: { id: number; signal: AbortSignal };
 };
 
