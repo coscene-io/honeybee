@@ -28,21 +28,23 @@ async function setup() {
   return store;
 }
 
-it("shows only the view tools button until it is opened", async () => {
-  const store = await setup();
-  expect(screen.queryByRole("button", { name: "Zoom out" })).toBeNull();
-  expect(screen.queryByText(/Select an instance/)).toBeNull();
-  const fab = screen.getByRole("button", { name: "View tools" });
-  expect(fab.getAttribute("aria-expanded")).toBe("false");
-  fireEvent.click(fab);
-  expect(fab.getAttribute("aria-expanded")).toBe("true");
-  const tools = screen.getByRole("group", { name: "View tools" });
-  expect(within(tools).getByRole("button", { name: "Zoom out" })).toBeTruthy();
-  expect(within(tools).getByRole("button", { name: "Pan" })).toBeTruthy();
-  expect(within(tools).getByLabelText("Overlay opacity")).toBeTruthy();
-  expect(within(tools).getByRole("button", { name: "Keyboard shortcuts" })).toBeTruthy();
-  fireEvent.keyDown(within(tools).getByRole("button", { name: "Zoom out" }), { key: "Escape" });
-  expect(screen.queryByRole("group", { name: "View tools" })).toBeNull();
-  expect(fab.getAttribute("aria-expanded")).toBe("false");
-  store.getState().dispose();
+describe("compact canvas", () => {
+  it("shows only the view tools button until it is opened", async () => {
+    const store = await setup();
+    expect(screen.queryByRole("button", { name: "Zoom out" })).toBeNull();
+    expect(screen.queryByText(/Select an instance/)).toBeNull();
+    const fab = screen.getByRole("button", { name: "View tools" });
+    expect(fab.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fab);
+    expect(fab.getAttribute("aria-expanded")).toBe("true");
+    const tools = screen.getByRole("group", { name: "View tools" });
+    expect(within(tools).getByRole("button", { name: "Zoom out" })).toBeTruthy();
+    expect(within(tools).getByRole("button", { name: "Pan" })).toBeTruthy();
+    expect(within(tools).getByLabelText("Overlay opacity")).toBeTruthy();
+    expect(within(tools).getByRole("button", { name: "Keyboard shortcuts" })).toBeTruthy();
+    fireEvent.keyDown(within(tools).getByRole("button", { name: "Zoom out" }), { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "View tools" })).toBeNull();
+    expect(fab.getAttribute("aria-expanded")).toBe("false");
+    store.getState().dispose();
+  });
 });

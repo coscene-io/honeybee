@@ -38,45 +38,52 @@ async function loadedStore() {
   return store;
 }
 
-it("stages edits without cloning or re-summarizing untouched observations", async () => {
-  const store = await loadedStore();
-  const before = store.getState().document!;
-  const keys = Object.keys(before.annotations);
-  expect(keys.length).toBeGreaterThan(500);
-  expect(Object.values(before.annotations).some((item) => item.kind === "mask")).toBe(true);
-  const edited = frameInstanceKey("frame-0", "instance-1");
-  for (let index = 0; index < 20; index++) {
-    store.getState().renameClass("class-1", `Renamed ${index}`);
-  }
-  store.getState().addPolygon("instance-1", triangle);
-  const after = store.getState().document!;
-  for (const key of keys) {
-    if (key !== edited) {
-      expect(after.annotations[key]).toBe(before.annotations[key]);
-      expect(after.annotationSummaries[key]).toBe(before.annotationSummaries[key]);
+describe("store performance", () => {
+  it("stages edits without cloning or re-summarizing untouched observations", async () => {
+    const store = await loadedStore();
+    const before = store.getState().document!;
+    const keys = Object.keys(before.annotations);
+    expect(keys.length).toBeGreaterThan(500);
+    expect(Object.values(before.annotations).some((item) => item.kind === "mask")).toBe(true);
+    const edited = frameInstanceKey("frame-0", "instance-1");
+    for (let index = 0; index < 20; index++) {
+      store.getState().renameClass("class-1", `Renamed ${index}`);
     }
-  }
-  expect(after.annotations[edited]).not.toBe(before.annotations[edited]);
-  store.getState().dispose();
-});
-
-it("streams propagated frames without cloning the rest of the document", async () => {
-  const store = await loadedStore();
-  const before = store.getState().document!;
-  await store.getState().startPropagation({
-    instanceId: "instance-1",
-    fromFrameId: "frame-0",
-    endTimeNs: "1700000004000000000",
+    store.getState().addPolygon("instance-1", triangle);
+    const after = store.getState().document!;
+    for (const key of keys) {
+      if (key !== edited) {
+        expect(after.annotations[key]).toBe(before.annotations[key]);
+        expect(after.annotationSummaries[key]).toBe(before.annotationSummaries[key]);
+      }
+    }
+    expect(after.annotations[edited]).not.toBe(before.annotations[edited]);
+    store.getState().dispose();
   });
-  expect(store.getState().propagation).toMatchObject({ status: "completed", processedFrames: 20 });
-  const after = store.getState().document!;
-  const propagated = new Set(
-    Array.from({ length: 20 }, (_, index) => frameInstanceKey(`frame-${index + 1}`, "instance-1")),
-  );
-  for (const key of Object.keys(before.annotations)) {
-    if (!propagated.has(key)) {
-      expect(after.annotations[key]).toBe(before.annotations[key]);
+
+  it("streams propagated frames without cloning the rest of the document", async () => {
+    const store = await loadedStore();
+    const before = store.getState().document!;
+    await store.getState().startPropagation({
+      instanceId: "instance-1",
+      fromFrameId: "frame-0",
+      endTimeNs: "1700000004000000000",
+    });
+    expect(store.getState().propagation).toMatchObject({
+      status: "completed",
+      processedFrames: 20,
+    });
+    const after = store.getState().document!;
+    const propagated = new Set(
+      Array.from({ length: 20 }, (_, index) =>
+        frameInstanceKey(`frame-${index + 1}`, "instance-1"),
+      ),
+    );
+    for (const key of Object.keys(before.annotations)) {
+      if (!propagated.has(key)) {
+        expect(after.annotations[key]).toBe(before.annotations[key]);
+      }
     }
-  }
-  store.getState().dispose();
+    store.getState().dispose();
+  });
 });

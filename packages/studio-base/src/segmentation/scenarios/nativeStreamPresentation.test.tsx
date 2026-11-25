@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
@@ -264,153 +264,153 @@ function seekedLogTimes(): string[] {
   );
 }
 
-it("streams propagation results, lets the player follow them and never replaces native pixels", async () => {
-  const f = await fixture();
-  const shown = focusedSurface(testHost().session)?.decodedFrame?.frameId;
-  await act(async () => {
-    await f.start();
+describe("native stream presentation", () => {
+  it("streams propagation results, lets the player follow them and never replaces native pixels", async () => {
+    const f = await fixture();
+    const shown = focusedSurface(testHost().session)?.decodedFrame?.frameId;
+    await act(async () => {
+      await f.start();
+    });
+    expect(f.runtime.store.getState().propagation.status).toBe("completed");
+    // The player follows the results (throttled seeks), never pauses, and only to result frames.
+    const results = resultLogTimes(f.runtime);
+    expect(seekedLogTimes().length).toBeGreaterThan(0);
+    expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
+    expect(pipeline.pausePlayback).not.toHaveBeenCalled();
+    expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(shown);
+    expect(f.container.querySelector("svg image")).toBeNull();
+    expect(
+      screen.queryByTestId("segmentation-native-overlay")?.getAttribute("data-log-time-ns"),
+    ).toBe("400000000");
+    expect(f.runtime.store.getState().stagedOperations.length).toBeGreaterThan(3);
   });
-  expect(f.runtime.store.getState().propagation.status).toBe("completed");
-  // The player follows the results (throttled seeks), never pauses, and only to result frames.
-  const results = resultLogTimes(f.runtime);
-  expect(seekedLogTimes().length).toBeGreaterThan(0);
-  expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
-  expect(pipeline.pausePlayback).not.toHaveBeenCalled();
-  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(shown);
-  expect(f.container.querySelector("svg image")).toBeNull();
-  expect(
-    f.container
-      .querySelector('[data-testid="segmentation-native-overlay"]')
-      ?.getAttribute("data-log-time-ns"),
-  ).toBe("400000000");
-  expect(f.runtime.store.getState().stagedOperations.length).toBeGreaterThan(3);
-});
 
-it("keeps the seed immutable while native playback advances during propagation", async () => {
-  const f = await fixture();
-  const original = f.runtime.service.propagate.bind(f.runtime.service);
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
+  it("keeps the seed immutable while native playback advances during propagation", async () => {
+    const f = await fixture();
+    const original = f.runtime.service.propagate.bind(f.runtime.service);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let capturedSeed: string | undefined;
+    f.runtime.service.propagate = async function* (request, signal) {
+      capturedSeed = request.fromFrameId;
+      await gate;
+      yield* original(request, signal);
+    };
+    let running!: Promise<void>;
+    act(() => {
+      running = f.start();
+    });
+    await flush();
+    pipeline.playerState.activeData.currentTime = fromNanoSec(650_000_000n);
+    f.decode(6);
+    expect(capturedSeed).toBe(f.frames[4]!.id);
+    expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[6]!.id);
+    await act(async () => {
+      release();
+      await running;
+    });
+    // Following the results seeks only to result frames; the seed stays the frame it started on.
+    const results = resultLogTimes(f.runtime);
+    expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
+    expect(capturedSeed).toBe(f.frames[4]!.id);
   });
-  let capturedSeed: string | undefined;
-  f.runtime.service.propagate = async function* (request, signal) {
-    capturedSeed = request.fromFrameId;
-    await gate;
-    yield* original(request, signal);
-  };
-  let running!: Promise<void>;
-  act(() => {
-    running = f.start();
-  });
-  await flush();
-  pipeline.playerState.activeData.currentTime = fromNanoSec(650_000_000n);
-  f.decode(6);
-  expect(capturedSeed).toBe(f.frames[4]!.id);
-  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[6]!.id);
-  await act(async () => {
-    release();
-    await running;
-  });
-  // Following the results seeks only to result frames; the seed stays the frame it started on.
-  const results = resultLogTimes(f.runtime);
-  expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
-  expect(capturedSeed).toBe(f.frames[4]!.id);
-});
 
-it("STOP rejects late results and waits for iterator termination without a native presentation", async () => {
-  const f = await fixture({ withoutCancel: true });
-  const original = f.runtime.service.propagate.bind(f.runtime.service);
-  let finish!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    finish = resolve;
+  it("STOP rejects late results and waits for iterator termination without a native presentation", async () => {
+    const f = await fixture({ withoutCancel: true });
+    const original = f.runtime.service.propagate.bind(f.runtime.service);
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    f.runtime.service.propagate = async function* (request, signal) {
+      const iterator = original(request, signal)[Symbol.asyncIterator]();
+      const first = await iterator.next();
+      if (first.done !== true) {
+        yield first.value;
+      }
+      await gate;
+      for (let next = await iterator.next(); next.done !== true; next = await iterator.next()) {
+        yield next.value;
+      }
+    };
+    let running!: Promise<void>;
+    act(() => {
+      running = f.start();
+    });
+    await flush();
+    const accepted = f.runtime.store.getState().stagedOperations;
+    act(() => {
+      f.runtime.store.getState().stopPropagation();
+    });
+    expect(f.runtime.store.getState().propagation.status).toBe("stopping");
+    expect(() => f.runtime.store.getState().addClass("locked")).toThrow("Stop propagation");
+    await act(async () => {
+      finish();
+      await running;
+    });
+    expect(f.runtime.store.getState().propagation.status).toBe("cancelled");
+    expect(f.runtime.store.getState().stagedOperations).toBe(accepted);
+    // The player follows propagation only to frames accepted before STOP (or stays on the seed),
+    // never to a late result.
+    const allowed = resultLogTimes(f.runtime);
+    allowed.add(f.frames[4]!.logTimeNs);
+    expect(seekedLogTimes().every((time) => allowed.has(time))).toBe(true);
   });
-  f.runtime.service.propagate = async function* (request, signal) {
-    const iterator = original(request, signal)[Symbol.asyncIterator]();
-    const first = await iterator.next();
-    if (first.done !== true) {
-      yield first.value;
-    }
-    await gate;
-    for (let next = await iterator.next(); next.done !== true; next = await iterator.next()) {
-      yield next.value;
-    }
-  };
-  let running!: Promise<void>;
-  act(() => {
-    running = f.start();
-  });
-  await flush();
-  const accepted = f.runtime.store.getState().stagedOperations;
-  act(() => {
-    f.runtime.store.getState().stopPropagation();
-  });
-  expect(f.runtime.store.getState().propagation.status).toBe("stopping");
-  expect(() => f.runtime.store.getState().addClass("locked")).toThrow("Stop propagation");
-  await act(async () => {
-    finish();
-    await running;
-  });
-  expect(f.runtime.store.getState().propagation.status).toBe("cancelled");
-  expect(f.runtime.store.getState().stagedOperations).toBe(accepted);
-  // The player follows propagation only to frames accepted before STOP (or stays on the seed),
-  // never to a late result.
-  const allowed = resultLogTimes(f.runtime);
-  allowed.add(f.frames[4]!.logTimeNs);
-  expect(seekedLogTimes().every((time) => allowed.has(time))).toBe(true);
-});
 
-it("accepts a fresh decode before React observes the native seek and hides stale geometry", async () => {
-  const f = await fixture();
-  pipeline.playerState.activeData.currentTime = fromNanoSec(550_000_000n);
-  pipeline.playerState.activeData.lastSeekTime = 123;
-  f.decode(5);
-  f.rerender(f.view());
-  expect(testHost().session.getState().sourceReady).toBe(true);
-  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[5]!.id);
-  f.decode(4);
-  expect(testHost().session.getState().sourceReady).toBe(false);
-  expect(f.container.querySelector('[data-testid="instance-union-fill"]')).toBeNull();
-  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
-});
+  it("accepts a fresh decode before React observes the native seek and hides stale geometry", async () => {
+    const f = await fixture();
+    pipeline.playerState.activeData.currentTime = fromNanoSec(550_000_000n);
+    pipeline.playerState.activeData.lastSeekTime = 123;
+    f.decode(5);
+    f.rerender(f.view());
+    expect(testHost().session.getState().sourceReady).toBe(true);
+    expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[5]!.id);
+    f.decode(4);
+    expect(testHost().session.getState().sourceReady).toBe(false);
+    expect(screen.queryByTestId("instance-union-fill")).toBeNull();
+    expect(pipeline.seekPlayback).not.toHaveBeenCalled();
+  });
 
-it("fences native identity after the user changes", async () => {
-  const f = await fixture();
-  mockUserId = "other";
-  f.rerender(f.view());
-  await flush();
-  expect(testHost().session.getState().open).toBe(false);
-  expect(f.container.querySelector('[data-testid="segmentation-native-overlay"]')).toBeNull();
-  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
-});
+  it("fences native identity after the user changes", async () => {
+    const f = await fixture();
+    mockUserId = "other";
+    f.rerender(f.view());
+    await flush();
+    expect(testHost().session.getState().open).toBe(false);
+    expect(screen.queryByTestId("segmentation-native-overlay")).toBeNull();
+    expect(pipeline.seekPlayback).not.toHaveBeenCalled();
+  });
 
-it("keeps handles a fixed screen size when the Image panel zooms the native view", async () => {
-  Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
-    configurable: true,
-    value(this: SVGElement) {
-      const scale = Number(this.getAttribute("transform")?.match(/matrix\(([-\d.e]+)/)?.[1] ?? 1);
-      return { a: scale, b: 0, c: 0, d: scale, e: 0, f: 0 };
-    },
+  it("keeps handles a fixed screen size when the Image panel zooms the native view", async () => {
+    Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
+      configurable: true,
+      value(this: SVGElement) {
+        const scale = Number(this.getAttribute("transform")?.match(/matrix\(([-\d.e]+)/)?.[1] ?? 1);
+        return { a: scale, b: 0, c: 0, d: scale, e: 0, f: 0 };
+      },
+    });
+    const f = await fixture();
+    act(() => {
+      const store = f.runtime.store.getState();
+      store.setFocus({ type: "instance", id: Object.values(store.document!.instances)[0]!.id });
+      store.setEditing(true);
+    });
+    await flush();
+    const radius = () =>
+      Number(screen.queryAllByTestId("vertex-handle-visible")[0]?.getAttribute("r"));
+    expect(radius()).toBe(4.5);
+    f.decode(4, {
+      nativeView: {
+        width: 960,
+        height: 540,
+        imageWidth: 960,
+        imageHeight: 540,
+        matrix: [4, 0, 0, 4, 0, 0],
+      },
+    });
+    await flush();
+    expect(radius()).toBe(4.5 / 4);
   });
-  const f = await fixture();
-  act(() => {
-    const store = f.runtime.store.getState();
-    store.setFocus({ type: "instance", id: Object.values(store.document!.instances)[0]!.id });
-    store.setEditing(true);
-  });
-  await flush();
-  const radius = () =>
-    Number(document.querySelector('[data-testid="vertex-handle-visible"]')?.getAttribute("r"));
-  expect(radius()).toBe(4.5);
-  f.decode(4, {
-    nativeView: {
-      width: 960,
-      height: 540,
-      imageWidth: 960,
-      imageHeight: 540,
-      matrix: [4, 0, 0, 4, 0, 0],
-    },
-  });
-  await flush();
-  expect(radius()).toBe(4.5 / 4);
 });

@@ -44,52 +44,63 @@ afterEach(() => {
   });
 });
 
-it("renders nothing while no session is open", () => {
-  const { container } = render(<SegmentationActionMenu />);
-  expect(container.textContent).toBe("");
-});
-
-it("shows undo, redo and submit as three header buttons", async () => {
-  const runtime = await open();
-  render(<SegmentationActionMenu />);
-  const names = screen
-    .getAllByRole("button")
-    .map((button) => button.getAttribute("aria-label") ?? button.textContent);
-  expect(names).toEqual(["Undo annotation", "Redo annotation", "Submit"]);
-  expect(screen.getByRole("button", { name: "Undo annotation" })).toHaveProperty("disabled", true);
-  expect(screen.getByRole("button", { name: "Redo annotation" })).toHaveProperty("disabled", true);
-  runtime.dispose();
-});
-
-it("undoes and redoes staged edits from the header icons", async () => {
-  const runtime = await open();
-  render(<SegmentationActionMenu />);
-  act(() => {
-    runtime.store.getState().addClass("Fresh class");
+describe("SegmentationActionMenu", () => {
+  it("renders nothing while no session is open", () => {
+    const { container } = render(<SegmentationActionMenu />);
+    expect(container.textContent).toBe("");
   });
-  expect(screen.getByLabelText("1 staged change").textContent).toBe("1");
-  fireEvent.click(screen.getByRole("button", { name: "Undo annotation" }));
-  expect(runtime.store.getState().stagedOperations).toHaveLength(0);
-  expect(screen.queryByLabelText("1 staged change")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Redo annotation" }));
-  expect(runtime.store.getState().stagedOperations).toHaveLength(1);
-  runtime.dispose();
-});
 
-it("holds submission, version history and ending the session behind Submit", async () => {
-  const runtime = await open();
-  render(<SegmentationActionMenu />);
-  act(() => {
-    runtime.store.getState().addClass("Fresh class");
+  it("shows undo, redo and submit as three header buttons", async () => {
+    const runtime = await open();
+    render(<SegmentationActionMenu />);
+    const names = screen
+      .getAllByRole("button")
+      .map((button) => button.getAttribute("aria-label") ?? button.textContent);
+    expect(names).toEqual(["Undo annotation", "Redo annotation", "Submit"]);
+    expect(screen.getByRole("button", { name: "Undo annotation" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.getByRole("button", { name: "Redo annotation" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    runtime.dispose();
   });
-  fireEvent.click(screen.getByRole("button", { name: /^Submit/ }));
-  const menu = screen.getByRole("dialog", { name: "Submit" });
-  expect(within(menu).getByRole("button", { name: "Submit 1" })).toHaveProperty("disabled", false);
-  expect(within(menu).getByLabelText("Submit message")).toBeTruthy();
-  expect(within(menu).getByText(/Waiting to submit: 1/)).toBeTruthy();
-  expect(within(menu).getByRole("button", { name: "Clear staged" })).toBeTruthy();
-  expect(within(menu).queryByRole("button", { name: "Undo" })).toBeNull();
-  fireEvent.click(within(menu).getByRole("menuitem", { name: "End annotation" }));
-  expect(testHost().session.getState().open).toBe(false);
-  runtime.dispose();
+
+  it("undoes and redoes staged edits from the header icons", async () => {
+    const runtime = await open();
+    render(<SegmentationActionMenu />);
+    act(() => {
+      runtime.store.getState().addClass("Fresh class");
+    });
+    expect(screen.getByLabelText("1 staged change").textContent).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: "Undo annotation" }));
+    expect(runtime.store.getState().stagedOperations).toHaveLength(0);
+    expect(screen.queryByLabelText("1 staged change")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Redo annotation" }));
+    expect(runtime.store.getState().stagedOperations).toHaveLength(1);
+    runtime.dispose();
+  });
+
+  it("holds submission, version history and ending the session behind Submit", async () => {
+    const runtime = await open();
+    render(<SegmentationActionMenu />);
+    act(() => {
+      runtime.store.getState().addClass("Fresh class");
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Submit/ }));
+    const menu = screen.getByRole("dialog", { name: "Submit" });
+    expect(within(menu).getByRole("button", { name: "Submit 1" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(within(menu).getByLabelText("Submit message")).toBeTruthy();
+    expect(within(menu).getByText(/Waiting to submit: 1/)).toBeTruthy();
+    expect(within(menu).getByRole("button", { name: "Clear staged" })).toBeTruthy();
+    expect(within(menu).queryByRole("button", { name: "Undo" })).toBeNull();
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "End annotation" }));
+    expect(testHost().session.getState().open).toBe(false);
+    runtime.dispose();
+  });
 });

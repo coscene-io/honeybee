@@ -18,39 +18,44 @@ import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 
 installSegmentationTestHost();
 
-// The canvas and the tree subscribed to the whole store, so every queue, error and
-// propagation-progress update re-rendered thousands of lines of UI.
-it("does not re-render the canvas or the tree for state they do not show", async () => {
-  const store = createSegmentationStore(
-    createMockSegmentationService({
-      document: createSeedDocument(),
-      controls: { delayMs: 0 },
-    }),
-  );
-  await store.getState().initialize();
-  const renders = { tree: 0, canvas: 0 };
-  render(
-    <>
-      <Profiler id="tree" onRender={() => (renders.tree += 1)}>
-        <SegmentationTree store={store} />
-      </Profiler>
-      <Profiler id="canvas" onRender={() => (renders.canvas += 1)}>
-        <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />
-      </Profiler>
-    </>,
-  );
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
-  const before = { ...renders };
+describe("render scope", () => {
+  // The canvas and the tree subscribed to the whole store, so every queue, error and
+  // propagation-progress update re-rendered thousands of lines of UI.
+  it("does not re-render the canvas or the tree for state they do not show", async () => {
+    const store = createSegmentationStore(
+      createMockSegmentationService({
+        document: createSeedDocument(),
+        controls: { delayMs: 0 },
+      }),
+    );
+    await store.getState().initialize();
+    const renders = { tree: 0, canvas: 0 };
+    render(
+      <>
+        <Profiler id="tree" onRender={() => (renders.tree += 1)}>
+          <SegmentationTree store={store} />
+        </Profiler>
+        <Profiler id="canvas" onRender={() => (renders.canvas += 1)}>
+          <SegmentationCanvas decodedFrame={TEST_DECODED_FRAME} store={store} />
+        </Profiler>
+      </>,
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const before = { ...renders };
 
-  act(() => {
-    store.setState({ error: "unrelated", canRedo: true, submissionQueue: [] });
-    store.setState((state) => ({
-      propagation: { ...state.propagation, processedFrames: state.propagation.processedFrames + 1 },
-    }));
-  });
+    act(() => {
+      store.setState({ error: "unrelated", canRedo: true, submissionQueue: [] });
+      store.setState((state) => ({
+        propagation: {
+          ...state.propagation,
+          processedFrames: state.propagation.processedFrames + 1,
+        },
+      }));
+    });
 
-  expect(renders).toEqual(before);
-  store.getState().dispose();
+    expect(renders).toEqual(before);
+    store.getState().dispose();
+  });
 });
