@@ -10,10 +10,11 @@ import { useTranslation } from "react-i18next";
 
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 
-import { openKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
+import { useOpenKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
 
 export function ShortcutsHelpButton({ showLabel }: { showLabel?: boolean }): React.JSX.Element {
   const { t } = useTranslation("general");
+  const openKeyboardShortcuts = useOpenKeyboardShortcuts();
 
   return (
     <HoverableIconButton
