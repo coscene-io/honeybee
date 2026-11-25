@@ -5,7 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Box, Button, Checkbox, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+  alpha,
+} from "@mui/material";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -42,6 +51,7 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 2,
     marginRight: 6,
   },
+  presenceMark: { color: theme.palette.success.main },
   presenceText: {
     position: "absolute",
     width: 1,
@@ -65,11 +75,12 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 4,
     border: `1px solid ${theme.palette.primary.main}`,
     color: theme.palette.primary.main,
-    backgroundColor:
-      theme.palette.mode === "light" ? "rgba(59, 102, 245, 0.08)" : "rgba(82, 140, 255, 0.16)",
+    backgroundColor: alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity),
     "&:hover": {
-      backgroundColor:
-        theme.palette.mode === "light" ? "rgba(59, 102, 245, 0.16)" : "rgba(82, 140, 255, 0.28)",
+      backgroundColor: alpha(
+        theme.palette.primary.main,
+        theme.palette.action.selectedOpacity + theme.palette.action.hoverOpacity,
+      ),
     },
   },
 }));
@@ -103,7 +114,7 @@ export type TreeRowProps = {
 type RowLabelProps = Pick<TreeRowProps, "node" | "label" | "presence">;
 
 function RowLabel({ node, label, presence }: RowLabelProps): React.JSX.Element {
-  const { theme } = useStyles();
+  const { classes } = useStyles();
   if (presence == undefined) {
     return <>{label}</>;
   }
@@ -113,7 +124,7 @@ function RowLabel({ node, label, presence }: RowLabelProps): React.JSX.Element {
         component="span"
         aria-hidden="true"
         data-testid={`instance-presence-${node.id}`}
-        style={{ color: theme.palette.success.main }}
+        className={classes.presenceMark}
       >
         {presence === "present" ? "●" : "○"}
       </Box>{" "}

@@ -11,7 +11,7 @@ import { useOptionalFeatureIsOnWithConfig } from "@foxglove/studio-base/provider
 /**
  * Rollout flag for spatial annotation (semantic segmentation). Default off: with it off no Image
  * panel mounts the editor, builds the mask layer or calls the AnnotationService, and the app bar
- * entry and the 空间 sidebar tab stay hidden. Turn it on per environment only where the
+ * entry and the "Space" sidebar tab stay hidden. Turn it on per environment only where the
  * AnnotationService backend is deployed.
  */
 import { isAnnotationRecordName } from "./recordName";

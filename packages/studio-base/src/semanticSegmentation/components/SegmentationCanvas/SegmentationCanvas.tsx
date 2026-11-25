@@ -11,19 +11,19 @@ import { makeStyles } from "tss-react/mui";
 
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 
-import { annotationViewportProps } from "../annotationInput";
-import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
-import { CanvasContextMenu } from "./canvas/CanvasContextMenu";
-import { CanvasToolsPanel } from "./canvas/CanvasToolsPanel";
-import { CanvasViewport } from "./canvas/CanvasViewport";
-import { MaskConversionDialog } from "./canvas/MaskConversionDialog";
-import { deriveCanvas } from "./canvas/canvasDerive";
-import { useCanvasState } from "./canvas/canvasState";
-import type { SegmentationCanvasProps } from "./canvas/canvasTypes";
-import { useCanvasUi } from "./canvas/canvasUi";
-import type { CanvasContext } from "./canvas/canvasUi";
-import { useCanvasActions } from "./canvas/useCanvasActions";
-import { useCanvasEffects } from "./canvas/useCanvasEffects";
+import { CanvasContextMenu } from "./CanvasContextMenu";
+import { CanvasToolsPanel } from "./CanvasToolsPanel";
+import { CanvasViewport } from "./CanvasViewport";
+import { MaskConversionDialog } from "./MaskConversionDialog";
+import { deriveCanvas } from "./canvasDerive";
+import { useCanvasState } from "./canvasState";
+import type { SegmentationCanvasProps } from "./canvasTypes";
+import { useCanvasUi } from "./canvasUi";
+import type { CanvasContext } from "./canvasUi";
+import { useCanvasActions } from "./useCanvasActions";
+import { useCanvasEffects } from "./useCanvasEffects";
+import { annotationViewportProps } from "../../annotationInput";
+import { useSegmentationHost, useSegmentationSession } from "../../segmentationHostContext";
 
 const useStyles = makeStyles()(() => ({
   root: {

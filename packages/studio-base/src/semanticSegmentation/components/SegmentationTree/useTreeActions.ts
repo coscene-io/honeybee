@@ -7,9 +7,8 @@
 
 import type { Dispatch, SetStateAction } from "react";
 
-import { canDropNode, nodeWithinFocus, polygonInstance } from "../editorTree";
-import { beginPolygonEdit } from "../polygonEdit";
-import { useStableActions } from "../useStableCallback";
+import { useStableActions } from "@foxglove/studio-base/hooks/useStableCallback";
+
 import type { TreeMenuActions } from "./TreeContextMenu";
 import type { TreeToolbarActions } from "./TreeToolbar";
 import { annotateInstance, chooseNode, claimFrame, dropNode, dropReason } from "./treeCommands";
@@ -17,6 +16,8 @@ import type { TreeRowActions } from "./treeRowActions";
 import { ownsRowEvent } from "./treeShortcuts";
 import type { TreeEnv } from "./treeState";
 import type { ClassCreationState, TreeDialogState, TreeDragState } from "./useTreeDialog";
+import { canDropNode, nodeWithinFocus, polygonInstance } from "../../editorTree";
+import { beginPolygonEdit } from "../../polygonEdit";
 
 type Deps = {
   env: TreeEnv;

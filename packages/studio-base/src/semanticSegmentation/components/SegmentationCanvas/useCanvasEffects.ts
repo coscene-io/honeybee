@@ -7,7 +7,8 @@
 
 import { useEffect, useLayoutEffect } from "react";
 
-import { useStableCallback } from "../useStableCallback";
+import { useStableCallback } from "@foxglove/studio-base/hooks/useStableCallback";
+
 import { cancelGesture, commitPolygonPreview, resetTemporaryInput } from "./canvasActions";
 import type { CanvasContext } from "./canvasUi";
 

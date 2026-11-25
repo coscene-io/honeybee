@@ -5,13 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { CanvasState } from "./canvasState";
+import type { EditableVertex, VertexRef } from "./canvasTypes";
 import { polygonsOf } from "../../maskGeometry";
+import { findPolygonOwner, focusContains } from "../../polygonEdit";
 import type { DecodedSegmentationFrame } from "../../runtime";
 import { frameInstanceKey } from "../../service";
 import type { SegmentationDocument, SegmentationFrame } from "../../types";
-import { findPolygonOwner, focusContains } from "../polygonEdit";
-import type { CanvasState } from "./canvasState";
-import type { EditableVertex, VertexRef } from "./canvasTypes";
 
 export type CanvasDeriveInput = {
   state: CanvasState;
@@ -27,6 +27,36 @@ export type CanvasDeriveInput = {
 };
 
 type Observation = SegmentationDocument["annotations"][string] | undefined;
+
+export type CanvasDerived = {
+  document: SegmentationDocument | undefined;
+  /** The store's current frame. */
+  activeFrameId: string | undefined;
+  /** The frame this canvas draws. */
+  frameId: string | undefined;
+  frame: SegmentationFrame | undefined;
+  source: string | undefined;
+  nativeView: DecodedSegmentationFrame["nativeView"];
+  /** A drawing started on another frame: this canvas does not take part in it. */
+  draftElsewhere: boolean;
+  navigationLocked: boolean;
+  locked: boolean;
+  drawing: CanvasState["drawing"];
+  tool: CanvasState["creationTool"];
+  quickMode: boolean;
+  focusedInstanceId: string | undefined;
+  focusedObservation: Observation;
+  brushActive: boolean;
+  unreadableHere: NonNullable<SegmentationDocument["unreadableObservations"]>[string][];
+  inFocus: (instanceId: string, polygonId: string) => boolean;
+  scopePolygons: string[];
+  activePolygonId: string | undefined;
+  editsVertices: (instanceId: string, polygonId: string) => boolean;
+  vertices: EditableVertex[];
+  activePoint: EditableVertex | undefined;
+  /** Vertices that are selected and still editable; keyboard edits act on these. */
+  selectedEditable: VertexRef[];
+};
 
 const PROPAGATING = ["running", "stopping"];
 
@@ -105,8 +135,7 @@ function editableVerticesOf(
 }
 
 /** Everything the canvas works out from the store, its props and its local view state. */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- the shape is the return value; `CanvasDerived` names it for callers
-export function deriveCanvas(input: CanvasDeriveInput) {
+export function deriveCanvas(input: CanvasDeriveInput): CanvasDerived {
   const { state, shownFrameId, decodedFrame, disabled, selectedVertices } = input;
   const document = state.document;
   const activeFrameId = state.currentFrameId;
@@ -185,5 +214,3 @@ export function deriveCanvas(input: CanvasDeriveInput) {
     ),
   };
 }
-
-export type CanvasDerived = ReturnType<typeof deriveCanvas>;

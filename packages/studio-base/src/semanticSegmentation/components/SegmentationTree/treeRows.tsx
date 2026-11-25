@@ -7,10 +7,18 @@
 
 import type { TFunction } from "i18next";
 
+import { TreeNote } from "./PresenceStrip";
+import { TreeRow } from "./TreeRow";
+import { presenceCellsOf } from "./treeLogic";
+import type { TreeRowActions } from "./treeRowActions";
+import type { FlatTreeRow } from "./treeTypes";
+import { nodeWithinFocus, selectionStatus } from "../../editorTree";
 import { polygonsOf, summaryHasGeometry } from "../../maskGeometry";
 import { segmentationCanvasLabel } from "../../segmentationChrome";
 import { frameInstanceKey } from "../../service";
 import type { SourceFrameLoaders } from "../../sourceFrames";
+import type { FrameIndex } from "../../spatialTreeIndex";
+import { instancesByClass } from "../../spatialTreeIndex";
 import type {
   SegmentationClass,
   SegmentationDocument,
@@ -18,14 +26,6 @@ import type {
   SegmentationNodeRef,
 } from "../../types";
 import { CameraFrameStrip, cameraStripVisible } from "../CameraFrameStrip";
-import { nodeWithinFocus, selectionStatus } from "../editorTree";
-import type { FrameIndex } from "../spatialTreeIndex";
-import { instancesByClass } from "../spatialTreeIndex";
-import { TreeNote } from "./PresenceStrip";
-import { TreeRow } from "./TreeRow";
-import { presenceCellsOf } from "./treeLogic";
-import type { TreeRowActions } from "./treeRowActions";
-import type { FlatTreeRow } from "./treeTypes";
 
 /** Everything the flat row list reads. Only rows near the viewport actually render. */
 export type RowContext = {

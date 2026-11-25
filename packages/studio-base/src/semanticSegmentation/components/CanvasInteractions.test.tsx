@@ -14,7 +14,7 @@ import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/Playba
 
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
-import { SegmentationCanvas } from "./SegmentationCanvas";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
 import { render, installSegmentationTestHost } from "../testing/host";

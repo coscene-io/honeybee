@@ -6,15 +6,34 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useRef, useState } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 
 import type { TreeEnv } from "./treeState";
 import type { TreeContext, TreeDialog, TreeMenu } from "./treeTypes";
 import { segmentationErrorText } from "../../errors";
 import type { SegmentationDocument, SegmentationNodeRef } from "../../types";
 
+export type TreeDialogState = {
+  menu: TreeMenu | undefined;
+  setMenu: Dispatch<SetStateAction<TreeMenu | undefined>>;
+  dialog: TreeDialog | undefined;
+  setDialog: Dispatch<SetStateAction<TreeDialog | undefined>>;
+  name: string;
+  setName: Dispatch<SetStateAction<string>>;
+  target: string;
+  setTarget: Dispatch<SetStateAction<string>>;
+  scope: "frame" | "all";
+  setScope: Dispatch<SetStateAction<"frame" | "all">>;
+  dialogDragSource: RefObject<SegmentationNodeRef | undefined>;
+  dialogContext: RefObject<TreeContext | undefined>;
+  open: (next: TreeDialog, dragged?: SegmentationNodeRef) => void;
+  reset: () => void;
+};
+
 /** Context menu, confirmation dialog and the form values the dialog edits. */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- the shape is the return value; `TreeDialogState` names it for callers
-export function useTreeDialog(env: Pick<TreeEnv, "document" | "contextKey" | "setError">) {
+export function useTreeDialog(
+  env: Pick<TreeEnv, "document" | "contextKey" | "setError">,
+): TreeDialogState {
   const [menu, setMenu] = useState<TreeMenu>();
   const [dialog, setDialog] = useState<TreeDialog>();
   const [name, setName] = useState("");
@@ -59,11 +78,19 @@ export function useTreeDialog(env: Pick<TreeEnv, "document" | "contextKey" | "se
   };
 }
 
-export type TreeDialogState = ReturnType<typeof useTreeDialog>;
+export type TreeDragState = {
+  dragSource: SegmentationNodeRef | undefined;
+  setDragSource: Dispatch<SetStateAction<SegmentationNodeRef | undefined>>;
+  dropTarget: string | undefined;
+  setDropTarget: Dispatch<SetStateAction<string | undefined>>;
+  dropMessage: string | undefined;
+  setDropMessage: Dispatch<SetStateAction<string | undefined>>;
+  dragContext: RefObject<TreeContext | undefined>;
+  reset: () => void;
+};
 
 /** The drag in flight and the drop target and message it shows. */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- the shape is the return value; `TreeDragState` names it for callers
-export function useTreeDrag() {
+export function useTreeDrag(): TreeDragState {
   const [dragSource, setDragSource] = useState<SegmentationNodeRef>();
   const [dropTarget, setDropTarget] = useState<string>();
   const [dropMessage, setDropMessage] = useState<string>();
@@ -86,11 +113,20 @@ export function useTreeDrag() {
   };
 }
 
-export type TreeDragState = ReturnType<typeof useTreeDrag>;
+export type ClassCreationState = {
+  creating: boolean;
+  newName: string;
+  setNewName: Dispatch<SetStateAction<string>>;
+  creationError: string | undefined;
+  setCreationError: Dispatch<SetStateAction<string | undefined>>;
+  begin: (document: SegmentationDocument | undefined) => void;
+  cancel: () => void;
+  create: () => void;
+  reset: () => void;
+};
 
 /** The inline "new class" row. */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- the shape is the return value; `ClassCreationState` names it for callers
-export function useClassCreation(env: TreeEnv) {
+export function useClassCreation(env: TreeEnv): ClassCreationState {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [creationError, setCreationError] = useState<string>();
@@ -151,5 +187,3 @@ export function useClassCreation(env: TreeEnv) {
     reset,
   };
 }
-
-export type ClassCreationState = ReturnType<typeof useClassCreation>;

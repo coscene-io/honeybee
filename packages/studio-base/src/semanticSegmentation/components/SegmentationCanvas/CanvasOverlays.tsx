@@ -6,10 +6,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { memo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import type { Brush, QuickResult } from "./canvasTypes";
 import type { EditorPoint } from "../../editorGeometry";
+import { OVERLAY_COLORS } from "../../overlayColors";
 import type { QuickPoint } from "../../quickSegment";
+
+const useStyles = makeStyles()({ pixelated: { imageRendering: "pixelated" } });
 
 type Scale = { width: number; height: number; screenScale: number };
 
@@ -27,10 +31,15 @@ export const EdgeInsertIndicator = memo(function EdgeInsertIndicator({
       pointerEvents="none"
       transform={`translate(${point.x * width} ${point.y * height})`}
     >
-      <circle r={7 / screenScale} fill="white" stroke="#4c8dff" strokeWidth={2 / screenScale} />
+      <circle
+        r={7 / screenScale}
+        fill="white"
+        stroke={OVERLAY_COLORS.accent}
+        strokeWidth={2 / screenScale}
+      />
       <path
         d={`M${-3.5 / screenScale},0 H${3.5 / screenScale} M0,${-3.5 / screenScale} V${3.5 / screenScale}`}
-        stroke="#2b6bd4"
+        stroke={OVERLAY_COLORS.accentStrong}
         strokeWidth={1.8 / screenScale}
       />
     </g>
@@ -63,7 +72,7 @@ export const BrushOverlay = memo(function BrushOverlay({
           pointerEvents="none"
           d={`M ${stroke.map((p) => `${p.x * width} ${p.y * height}`).join(" L ")}`}
           fill="none"
-          stroke={brush.mode === "paint" ? "#4c8dff" : "#ff5252"}
+          stroke={brush.mode === "paint" ? OVERLAY_COLORS.accent : OVERLAY_COLORS.erase}
           strokeOpacity={0.5}
           strokeWidth={(2 * brush.radius * width) / sourceWidth}
           strokeLinecap="round"
@@ -78,7 +87,7 @@ export const BrushOverlay = memo(function BrushOverlay({
           cy={cursor.y * height}
           r={(brush.radius * width) / sourceWidth}
           fill="none"
-          stroke={brush.mode === "paint" ? "white" : "#ff5252"}
+          stroke={brush.mode === "paint" ? "white" : OVERLAY_COLORS.erase}
           strokeWidth={1.5 / screenScale}
           strokeDasharray={
             brush.mode === "erase" ? `${4 / screenScale} ${3 / screenScale}` : undefined
@@ -105,8 +114,8 @@ export const SelectionRectangle = memo(function SelectionRectangle({
       y={Math.min(a.y, b.y) * height}
       width={Math.abs(a.x - b.x) * width}
       height={Math.abs(a.y - b.y) * height}
-      fill="rgba(76, 141, 255, 0.15)"
-      stroke="#4c8dff"
+      fill={OVERLAY_COLORS.accentFill}
+      stroke={OVERLAY_COLORS.accent}
       strokeWidth={1}
       strokeDasharray="4 3"
       vectorEffect="non-scaling-stroke"
@@ -122,6 +131,7 @@ export const QuickAnnotationLayer = memo(function QuickAnnotationLayer({
   height,
   screenScale,
 }: { result: QuickResult | undefined; points: QuickPoint[] } & Scale): React.JSX.Element {
+  const { classes } = useStyles();
   return (
     <g pointerEvents="none" data-testid="quick-annotation">
       {result && result.w > 0 && (
@@ -133,7 +143,7 @@ export const QuickAnnotationLayer = memo(function QuickAnnotationLayer({
           width={(result.w * width) / result.mask.width}
           height={(result.h * height) / result.mask.height}
           preserveAspectRatio="none"
-          style={{ imageRendering: "pixelated" }}
+          className={classes.pixelated}
         />
       )}
       {points.map((p, index) => (
@@ -142,7 +152,7 @@ export const QuickAnnotationLayer = memo(function QuickAnnotationLayer({
             cx={p.x * width}
             cy={p.y * height}
             r={6 / screenScale}
-            fill={p.positive ? "#00c853" : "#ff1744"}
+            fill={p.positive ? OVERLAY_COLORS.positivePoint : OVERLAY_COLORS.negativePoint}
             stroke="white"
             strokeWidth={1.5 / screenScale}
           />
@@ -182,7 +192,7 @@ export const DraftPolygonLayer = memo(function DraftPolygonLayer({
           cx={p.x * width}
           cy={p.y * height}
           r={5.25 / screenScale}
-          fill="#00bfa5"
+          fill={OVERLAY_COLORS.draftVertex}
         />
       ))}
     </g>

@@ -23,7 +23,7 @@ import WorkspaceContextProvider, {
 } from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
 import { SegmentationImageEntry } from "../../components/SegmentationImageEntry";
 import { SpatialSidebar } from "../../components/SpatialSidebar";
 import { polygonsOf } from "../../maskGeometry";

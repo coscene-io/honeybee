@@ -9,21 +9,22 @@ import { Alert, Box, Stack, Typography } from "@mui/material";
 import { makeStyles } from "tss-react/mui";
 import type { StoreApi } from "zustand";
 
-import type { SemanticSegmentationStore } from "../types";
-import { ClassCreationRow } from "./spatialTree/ClassCreationRow";
-import { TreeContextMenu } from "./spatialTree/TreeContextMenu";
-import { TreeDialogView } from "./spatialTree/TreeDialogView";
-import { TreeList } from "./spatialTree/TreeList";
-import { TreeToolbar } from "./spatialTree/TreeToolbar";
-import { flatTreeRows } from "./spatialTree/flatTreeRows";
-import { confirmDialog } from "./spatialTree/treeCommands";
-import { canMergeNodes } from "./spatialTree/treeLogic";
-import { forwardCanvasShortcut } from "./spatialTree/treeShortcuts";
-import { useMenuActions, useRowActions, useToolbarActions } from "./spatialTree/useTreeActions";
-import { useClassCreation, useTreeDialog, useTreeDrag } from "./spatialTree/useTreeDialog";
-import { useInteractionReset, useStripPreload } from "./spatialTree/useTreeIndex";
-import { useTreeShell } from "./spatialTree/useTreeShell";
-import { useStableCallback } from "./useStableCallback";
+import { useStableCallback } from "@foxglove/studio-base/hooks/useStableCallback";
+
+import { ClassCreationRow } from "./ClassCreationRow";
+import { TreeContextMenu } from "./TreeContextMenu";
+import { TreeDialogView } from "./TreeDialogView";
+import { TreeList } from "./TreeList";
+import { TreeToolbar } from "./TreeToolbar";
+import { flatTreeRows } from "./flatTreeRows";
+import { confirmDialog } from "./treeCommands";
+import { canMergeNodes } from "./treeLogic";
+import { forwardCanvasShortcut } from "./treeShortcuts";
+import { useMenuActions, useRowActions, useToolbarActions } from "./useTreeActions";
+import { useClassCreation, useTreeDialog, useTreeDrag } from "./useTreeDialog";
+import { useInteractionReset, useStripPreload } from "./useTreeIndex";
+import { useTreeShell } from "./useTreeShell";
+import type { SemanticSegmentationStore } from "../../types";
 
 const useStyles = makeStyles()((theme) => ({
   root: {

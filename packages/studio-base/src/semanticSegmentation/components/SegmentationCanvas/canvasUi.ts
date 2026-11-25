@@ -159,9 +159,15 @@ function useEditState() {
   };
 }
 
+export type CanvasUi = {
+  root: RefObject<HTMLDivElement | ReactNull>;
+} & ReturnType<typeof useViewState> &
+  ReturnType<typeof useGestureState> &
+  ReturnType<typeof useTemporaryState> &
+  ReturnType<typeof useEditState>;
+
 /** All local state of the canvas, grouped by concern. */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- the shape is the return value; `CanvasUi` names it for callers
-export function useCanvasUi(viewportRef: SegmentationCanvasProps["viewportRef"]) {
+export function useCanvasUi(viewportRef: SegmentationCanvasProps["viewportRef"]): CanvasUi {
   const root = useRef<HTMLDivElement>(ReactNull);
   return {
     root,
@@ -171,8 +177,6 @@ export function useCanvasUi(viewportRef: SegmentationCanvasProps["viewportRef"])
     ...useEditState(),
   };
 }
-
-export type CanvasUi = ReturnType<typeof useCanvasUi>;
 
 /** What every canvas handler reads: props, store state, local state and what follows from them. */
 export type CanvasContext = {

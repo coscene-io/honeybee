@@ -8,8 +8,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { RenderResult } from "@testing-library/react";
 
-import { SegmentationCanvas } from "../../components/SegmentationCanvas";
-import { SpatialTree } from "../../components/SpatialTree";
+import { SegmentationCanvas } from "../../components/SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "../../components/SegmentationTree/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";

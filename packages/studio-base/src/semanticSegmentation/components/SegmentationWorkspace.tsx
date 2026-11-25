@@ -5,14 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 
-import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
+import { SemanticSegmentationWorkbench } from "./SemanticSegmentationWorkbench";
 import type { DecodedSegmentationFrame, SegmentationRuntime } from "../runtime";
 import { useSegmentationHost } from "../segmentationHostContext";
+
+const useStyles = makeStyles()({
+  // Over the Image panel, below its toolbar.
+  overlay: { position: "absolute", inset: `${PANEL_TOOLBAR_MIN_HEIGHT}px 0 0`, zIndex: 5 },
+});
 
 function ActiveWorkbench({
   runtime,
@@ -33,13 +39,14 @@ function ActiveWorkbench({
   focused: boolean;
   onClaimFocus: () => void;
 }): React.JSX.Element {
+  const { classes } = useStyles();
   const loading = useStore(runtime.store, (state) => state.loading);
   const document = useStore(runtime.store, (state) => state.document);
   const frame = document?.frames.find((item) => item.id === frameId);
   const topic = document?.videos.find((item) => item.id === frame?.videoId)?.topic;
   return (
     <div
-      style={{ position: "absolute", inset: `${PANEL_TOOLBAR_MIN_HEIGHT}px 0 0`, zIndex: 5 }}
+      className={classes.overlay}
       data-testid="segmentation-native-overlay"
       data-panel-id={panelId}
       data-log-time-ns={frame?.logTimeNs}

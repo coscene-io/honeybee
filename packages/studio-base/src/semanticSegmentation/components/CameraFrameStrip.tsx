@@ -13,8 +13,8 @@ import { makeStyles } from "tss-react/mui";
 import { CAMERA_STRIP_RADIUS, type CameraStripCell } from "../cameraFrames";
 import { useSegmentationSession } from "../segmentationHostContext";
 import type { SourceFrameLoaders } from "../sourceFrames";
+import { cameraStripCells, frameIndexOf } from "../spatialTreeIndex";
 import type { SegmentationDocument } from "../types";
-import { cameraStripCells, frameIndexOf } from "./spatialTreeIndex";
 
 const useStyles = makeStyles()((theme) => ({
   root: { paddingLeft: theme.spacing(5), paddingRight: theme.spacing(1), alignItems: "center" },

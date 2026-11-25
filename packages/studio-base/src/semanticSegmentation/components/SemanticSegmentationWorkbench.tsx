@@ -11,12 +11,12 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 
-import { SegmentationCanvas } from "./components/SegmentationCanvas";
-import { WorkflowControls } from "./components/WorkflowControls";
-import { segmentationErrorText } from "./errors";
-import type { LiveSemanticSegmentationService } from "./liveService";
-import type { SegmentationRuntime, DecodedSegmentationFrame } from "./runtime";
-import { useSegmentationHost, useSegmentationSession } from "./segmentationHostContext";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
+import { WorkflowControls } from "./WorkflowControls";
+import { segmentationErrorText } from "../errors";
+import type { LiveSemanticSegmentationService } from "../liveService";
+import type { SegmentationRuntime, DecodedSegmentationFrame } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 
 const useStyles = makeStyles()((theme) => ({
   // An overlay on the Image panel: the panel owns the pixels, so nothing here is opaque.

@@ -8,12 +8,12 @@
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
-import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
+import { SemanticSegmentationWorkbench } from "./SemanticSegmentationWorkbench";
 import { cloneSegmentation, frameInstanceKey } from "../service";
 import { setMockControls } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
-import { SegmentationCanvas } from "./SegmentationCanvas";
-import { SpatialTree } from "./SpatialTree";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "./SegmentationTree/SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";

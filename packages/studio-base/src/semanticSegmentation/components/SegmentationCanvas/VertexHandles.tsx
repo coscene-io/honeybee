@@ -8,9 +8,12 @@
 import { memo } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import type { HoverTarget, VertexRef } from "./canvasTypes";
 import type { EditorPoint } from "../../editorGeometry";
+
+const useStyles = makeStyles()({ grab: { cursor: "grab" } });
 
 export type VertexActions = {
   startShape: (
@@ -48,6 +51,7 @@ type VertexHandlesProps = {
 export const VertexHandles = memo(function VertexHandles(
   props: VertexHandlesProps,
 ): React.JSX.Element {
+  const { classes } = useStyles();
   const { instanceId, polygonId, color, stored, points, selectedVertices, actions } = props;
   const { width, height, screenScale } = props;
   const { t } = useTranslation("segmentation");
@@ -82,7 +86,7 @@ export const VertexHandles = memo(function VertexHandles(
               r={8 / screenScale}
               fill="transparent"
               pointerEvents="all"
-              style={{ cursor: "grab" }}
+              className={classes.grab}
               onPointerDown={(event) => {
                 actions.startShape(event, instanceId, polygonId, stored, index);
               }}

@@ -24,7 +24,7 @@ const SegmentationWorkspaceSlots = lazy(async () => ({
  * around everything that may need the editor: the app bar, the sidebars and the Image panels.
  *
  * With the `honeybee_semantic_segmentation` rollout flag off nothing is created, registered,
- * mounted or downloaded: the context holds no host, and there is no app bar entry, no 空间 tab, no
+ * mounted or downloaded: the context holds no host, and there is no app bar entry, no "Space" tab, no
  * camera step override and no propagation lock. With it on, the host is built (loading the editor's
  * core on demand), provided through `SegmentationHostContext`, and disposed with this component.
  * The context element itself stays in place when the flag changes, so `children` are never

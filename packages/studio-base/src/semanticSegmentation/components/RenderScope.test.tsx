@@ -10,8 +10,8 @@ import { act } from "@testing-library/react";
 import { Profiler } from "react";
 
 import { createSemanticSegmentationStore } from "../store";
-import { SegmentationCanvas } from "./SegmentationCanvas";
-import { SpatialTree } from "./SpatialTree";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
+import { SpatialTree } from "./SegmentationTree/SpatialTree";
 import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";

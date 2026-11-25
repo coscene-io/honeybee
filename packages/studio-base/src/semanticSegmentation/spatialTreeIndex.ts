@@ -5,16 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { cameraFrameStrip, sortCameraFrames, type CameraStripCell } from "../cameraFrames";
-import { summaryHasGeometry } from "../maskGeometry";
-import { frameInstanceKey } from "../service";
-import type { SourceFrameLoaders } from "../sourceFrames";
+import { cameraFrameStrip, sortCameraFrames, type CameraStripCell } from "./cameraFrames";
+import { summaryHasGeometry } from "./maskGeometry";
+import { frameInstanceKey } from "./service";
+import type { SourceFrameLoaders } from "./sourceFrames";
 import type {
   SegmentationDocument,
   SegmentationFrame,
   SegmentationInstance,
   SegmentationVideo,
-} from "../types";
+} from "./types";
 
 /** Lookups the tree needs every render, built once per frame list instead of scanned per row. */
 export type FrameIndex = {

@@ -12,7 +12,8 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { useStableActions } from "../useStableCallback";
+import { useStableActions } from "@foxglove/studio-base/hooks/useStableCallback";
+
 import type { ContextMenuActions } from "./CanvasContextMenu";
 import type { NoticeActions } from "./CanvasNotices";
 import type { ToolsActions } from "./CanvasToolsPanel";

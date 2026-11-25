@@ -21,6 +21,7 @@ import {
 import { polygonPath } from "../editorGeometry";
 import type { SegmentationImageMetadata, SegmentationPanelBridge } from "../imageSource";
 import { polygonsOf } from "../maskGeometry";
+import { OVERLAY_COLORS } from "../overlayColors";
 import type { SegmentationRuntime } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 
@@ -144,8 +145,8 @@ function PreviewPolygons({
           <path
             key={polygon.id}
             d={polygonPath(polygon.points, view.imageWidth, view.imageHeight)}
-            fill="rgba(85, 184, 222, 0.28)"
-            stroke="#55b8de"
+            fill={OVERLAY_COLORS.previewFill}
+            stroke={OVERLAY_COLORS.previewStroke}
             strokeWidth={2}
           />
         ))}

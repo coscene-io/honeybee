@@ -26,8 +26,6 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import type { SegmentationDocument, SegmentationNodeRef } from "../../types";
-import { compactSelection } from "../editorTree";
 import {
   affectedInstancesOf,
   dialogNodesOf,
@@ -36,6 +34,8 @@ import {
   moveTargetsOf,
 } from "./treeLogic";
 import type { TreeDialog } from "./treeTypes";
+import { compactSelection } from "../../editorTree";
+import type { SegmentationDocument, SegmentationNodeRef } from "../../types";
 
 const useStyles = makeStyles()((theme) => ({
   dialogField: { marginTop: theme.spacing(1) },

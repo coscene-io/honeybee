@@ -8,15 +8,15 @@
 import { useEffect, useRef } from "react";
 import type { StoreApi } from "zustand";
 
+import { treeFrameIdsOf } from "./treeLogic";
+import type { TreeState } from "./treeState";
 import type { SegmentationSurface } from "../../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../../segmentationHostContext";
+import { frameIndexOf } from "../../spatialTreeIndex";
+import type { FrameIndex } from "../../spatialTreeIndex";
 import { filterSegmentationSelection } from "../../store";
 import type { SegmentationNodeRef, SemanticSegmentationStore } from "../../types";
 import { preloadCameraStrip } from "../CameraFrameStrip";
-import { frameIndexOf } from "../spatialTreeIndex";
-import type { FrameIndex } from "../spatialTreeIndex";
-import { treeFrameIdsOf } from "./treeLogic";
-import type { TreeState } from "./treeState";
 
 export type TreeIndex = {
   document: TreeState["document"];

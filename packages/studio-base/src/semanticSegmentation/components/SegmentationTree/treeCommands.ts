@@ -5,19 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { TreeEnv } from "./treeState";
-import { dialogOperationLabels } from "./treeTypes";
-import type { TreeContext } from "./treeTypes";
-import { segmentationErrorText } from "../../errors";
-import { polygonsOf } from "../../maskGeometry";
-import type { SegmentationNodeRef } from "../../types";
-import {
-  canDropNode,
-  compactSelection,
-  nodeInstances,
-  nodeWithinFocus,
-  toggleNodeSelection,
-} from "../editorTree";
 import {
   canMergeNodes,
   dialogNodesOf,
@@ -25,7 +12,20 @@ import {
   instancesOfCompact,
   mergePlan,
 } from "./treeLogic";
+import type { TreeEnv } from "./treeState";
+import { dialogOperationLabels } from "./treeTypes";
+import type { TreeContext } from "./treeTypes";
 import type { TreeDialogState } from "./useTreeDialog";
+import {
+  canDropNode,
+  compactSelection,
+  nodeInstances,
+  nodeWithinFocus,
+  toggleNodeSelection,
+} from "../../editorTree";
+import { segmentationErrorText } from "../../errors";
+import { polygonsOf } from "../../maskGeometry";
+import type { SegmentationNodeRef } from "../../types";
 
 /** Frame switch a polygon press or double-click needs; false when it must not happen. */
 export function claimFrame(env: TreeEnv, node: SegmentationNodeRef): boolean {

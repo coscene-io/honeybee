@@ -14,6 +14,7 @@ import { CanvasScene } from "./CanvasScene";
 import { cursorFor } from "./canvasMath";
 import type { CanvasContext } from "./canvasUi";
 import type { CanvasActions } from "./useCanvasActions";
+import { OVERLAY_COLORS } from "../../overlayColors";
 
 const useStyles = makeStyles()((theme) => ({
   viewport: {
@@ -22,7 +23,8 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: 0,
     overflow: "hidden",
     backgroundColor: theme.palette.background.default,
-    "&&:focus-visible": { outline: "2px solid #82b4ff", outlineOffset: -2 },
+    "&&:focus-visible": { outline: `2px solid ${OVERLAY_COLORS.focusRing}`, outlineOffset: -2 },
+    background: "transparent",
   },
 }));
 
@@ -44,7 +46,6 @@ export function CanvasViewport({ c, actions }: ViewportProps): React.JSX.Element
     <Box
       ref={ui.viewport}
       className={classes.viewport}
-      style={{ background: "transparent" }}
       data-testid="segmentation-viewport"
       tabIndex={0}
       role="group"

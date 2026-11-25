@@ -7,11 +7,11 @@
 
 import type { WindowedView } from "@foxglove/studio-base/components/Events/WindowedList";
 
+import type { TreeDialog } from "./treeTypes";
+import { canDropNode, compactSelection, nodeInstances, polygonInstance } from "../../editorTree";
 import { polygonsOf } from "../../maskGeometry";
 import type { SegmentationSurface } from "../../runtime";
 import type { SegmentationDocument, SegmentationFrame, SegmentationNodeRef } from "../../types";
-import { canDropNode, compactSelection, nodeInstances, polygonInstance } from "../editorTree";
-import type { TreeDialog } from "./treeTypes";
 
 /** Instance and class merges need service support; polygons can always move between instances. */
 export function canMergeNodes(

@@ -8,7 +8,7 @@
 
 import { act, fireEvent, screen, within } from "@testing-library/react";
 
-import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
+import { SemanticSegmentationWorkbench } from "./SemanticSegmentationWorkbench";
 import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";

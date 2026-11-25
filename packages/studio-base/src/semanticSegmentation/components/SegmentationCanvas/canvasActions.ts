@@ -20,9 +20,9 @@ import {
   runsOfMask,
   strokeRuns,
 } from "../../maskGeometry";
+import { beginPolygonEdit, findPolygonOwner, focusContains } from "../../polygonEdit";
 import { frameInstanceKey } from "../../service";
 import type { CreationTool, SemanticSegmentationStore } from "../../types";
-import { beginPolygonEdit, findPolygonOwner, focusContains } from "../polygonEdit";
 
 /** Runs a store command; a failure becomes the canvas' error banner instead of an exception. */
 export function run(c: CanvasContext, action: () => void): void {

@@ -22,7 +22,7 @@ jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
 jest.mock("@foxglove/studio-base/components/MessagePipeline", () => ({
   useMessagePipelineGetter: () => () => ({ playerState: {} }),
 }));
-jest.mock("../SemanticSegmentationWorkbench", () => ({
+jest.mock("./SemanticSegmentationWorkbench", () => ({
   SemanticSegmentationWorkbench: ({ imageUrl }: { imageUrl?: string }) => (
     <div role="img" aria-label="Workbench" data-image={imageUrl ?? "pending"} />
   ),
@@ -39,7 +39,9 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
     surfaces: { "image-panel": { imageUrl: "data:image/png;base64,decoded", sourceReady: true } },
   });
   const { container, unmount } = render(<SegmentationWorkspace panelId="image-panel" />);
-  expect(container.querySelector("div")!.style.inset).toMatch(/^30px\s/);
+  expect(getComputedStyle(container.querySelector("div")!).getPropertyValue("inset")).toMatch(
+    /^30px\s/,
+  );
   expect(screen.getByRole("img", { name: "Workbench" }).getAttribute("data-image")).toContain(
     "decoded",
   );

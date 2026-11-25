@@ -29,7 +29,7 @@ import { SpatialSidebar } from "./SpatialSidebar";
 const SLOT_ID = "semanticSegmentation";
 
 /**
- * The slot registrations of the segmentation editor (app bar entry, 空间 tab, camera step
+ * The slot registrations of the segmentation editor (app bar entry, "Space" tab, camera step
  * override, shortcut column) and the propagation lock. Loaded on demand by
  * `SegmentationWorkspaceExtension` once the rollout flag is on.
  */

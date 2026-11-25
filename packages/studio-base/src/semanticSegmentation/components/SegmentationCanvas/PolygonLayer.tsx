@@ -14,6 +14,8 @@ import type { HoverTarget, Preview, VertexRef } from "./canvasTypes";
 import { polygonPath } from "../../editorGeometry";
 import type { EditorPoint } from "../../editorGeometry";
 import { polygonsOf } from "../../maskGeometry";
+import { OVERLAY_COLORS } from "../../overlayColors";
+import { focusContains } from "../../polygonEdit";
 import { frameInstanceKey } from "../../service";
 import type {
   SegmentationDocument,
@@ -21,7 +23,6 @@ import type {
   SegmentationPolygon,
   SemanticSegmentationStore,
 } from "../../types";
-import { focusContains } from "../polygonEdit";
 
 export type ShapeActions = VertexActions & {
   doubleClickPolygon: (event: ReactMouseEvent<SVGElement>, polygonId: string) => void;
@@ -200,7 +201,10 @@ export function PolygonLayer(props: PolygonLayerProps): React.JSX.Element {
           {...props}
           document={document}
           instance={instance}
-          color={document.classes.find((item) => item.id === instance.classId)?.color ?? "#00897b"}
+          color={
+            document.classes.find((item) => item.id === instance.classId)?.color ??
+            OVERLAY_COLORS.unclassified
+          }
         />
       ))}
     </>
