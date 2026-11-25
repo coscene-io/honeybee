@@ -36,7 +36,10 @@ const stores = new Set<ReturnType<typeof createSemanticSegmentationStore>>();
 // tests read every row of their small documents.
 let bounds: jest.SpyInstance | undefined;
 beforeEach(() => {
-  const original = Reflect.get(Element.prototype, "getBoundingClientRect") as () => DOMRect;
+  const original = Reflect.get<Element, "getBoundingClientRect">(
+    Element.prototype,
+    "getBoundingClientRect",
+  );
   bounds = jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
     this: Element,
   ) {
