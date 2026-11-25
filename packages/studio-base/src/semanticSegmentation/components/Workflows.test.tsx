@@ -13,11 +13,11 @@ import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench"
 import { openWorkflowPanel } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 jest.mock("./SegmentationCanvas", () => ({
   SegmentationCanvas: () => <div>Canvas</div>,

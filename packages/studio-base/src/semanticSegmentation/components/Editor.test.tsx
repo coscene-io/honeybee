@@ -13,15 +13,15 @@ import { polygonsOf } from "../maskGeometry";
 import type { DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { openViewTools } from "../testing/viewTools";
-import { render, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 async function setup(configure?: (document: SegmentationDocument) => void) {
   const document = createSeedDocument();

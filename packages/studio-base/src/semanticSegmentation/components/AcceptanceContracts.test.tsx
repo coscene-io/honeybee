@@ -16,11 +16,11 @@ import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const pipeline = {
   playerState: { activeData: { startTime: { sec: 100, nsec: 0 } } },

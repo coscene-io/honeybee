@@ -23,14 +23,14 @@ import { SpatialTree } from "../../components/SpatialTree";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import { render, installSegmentationTestHost } from "../../testing/host";
 import {
   createMockSemanticSegmentationService,
   createSeedDocument,
 } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
-import { render, useSegmentationTestHost } from "../../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 function invariant(store: Awaited<ReturnType<typeof setup>>["store"]) {
   const state = store.getState();

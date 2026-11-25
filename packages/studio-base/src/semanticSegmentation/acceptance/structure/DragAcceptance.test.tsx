@@ -16,12 +16,12 @@ import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkben
 import { SegmentationCanvas } from "../../components/SegmentationCanvas";
 import { SpatialSidebar } from "../../components/SpatialSidebar";
 import { SpatialTree } from "../../components/SpatialTree";
+import { render, testHost, installSegmentationTestHost } from "../../testing/host";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
-import { render, testHost, useSegmentationTestHost } from "../../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 function visibleRow(id: string): HTMLElement {
   return row(id).querySelector<HTMLElement>(":scope > * > [data-tree-row]")!;

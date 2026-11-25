@@ -12,11 +12,11 @@ import { Profiler } from "react";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
-import { render, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 // The canvas and the tree subscribed to the whole store, so every queue, error and
 // propagation-progress update re-rendered thousands of lines of UI.

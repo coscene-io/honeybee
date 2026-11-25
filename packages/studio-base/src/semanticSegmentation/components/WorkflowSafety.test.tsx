@@ -13,11 +13,11 @@ import { frameInstanceKey } from "../service";
 import { SubmissionControls, WorkflowControls } from "./WorkflowControls";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
 import { polygonsOf } from "../maskGeometry";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
-import { render, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 afterEach(cleanup);
 async function setup() {

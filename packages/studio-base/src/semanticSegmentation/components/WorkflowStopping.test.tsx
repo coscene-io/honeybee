@@ -13,11 +13,11 @@ import { SpatialSidebar } from "./SpatialSidebar";
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 afterEach(() => {
   cleanup();

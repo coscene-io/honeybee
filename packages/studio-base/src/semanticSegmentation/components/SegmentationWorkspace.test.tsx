@@ -10,11 +10,11 @@
 import { act, screen } from "@testing-library/react";
 
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
   PANEL_TOOLBAR_MIN_HEIGHT: 30,

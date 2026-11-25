@@ -17,12 +17,12 @@ import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
+import { render, installSegmentationTestHost, testShortcutsDialog } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { openViewTools } from "../testing/viewTools";
-import { render, useSegmentationTestHost, testShortcutsDialog } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 function pointer(
   target: Element,

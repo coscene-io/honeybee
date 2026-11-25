@@ -29,11 +29,16 @@ import { SpatialSidebar } from "../../components/SpatialSidebar";
 import type { SegmentationImage } from "../../imageSource";
 import { polygonsOf } from "../../maskGeometry";
 import { enterAnnotation, recordEntryActions } from "../../testing/entryActions";
+import {
+  render,
+  testHost,
+  createTestBridge,
+  installSegmentationTestHost,
+} from "../../testing/host";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import { focusedImageUrl } from "../../testing/session";
-import { render, testHost, createTestBridge, useSegmentationTestHost } from "../../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const maximize = jest.fn();
 let mockUserId = "fixture-user";

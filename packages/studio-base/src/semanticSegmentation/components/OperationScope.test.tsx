@@ -9,9 +9,9 @@ import { act, screen } from "@testing-library/react";
 import i18n from "i18next";
 
 import { OperationScope } from "./OperationScope";
-import { render, useSegmentationTestHost } from "../testing/host";
+import { render, installSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const operation = {
   id: "op",

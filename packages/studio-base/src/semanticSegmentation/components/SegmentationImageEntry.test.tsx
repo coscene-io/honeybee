@@ -17,11 +17,11 @@ import { annotationProfileNavigation } from "../annotationProfile";
 import type { SegmentationImage } from "../imageSource";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
+import { render, testHost, createTestBridge, installSegmentationTestHost } from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
-import { render, testHost, createTestBridge, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const selectItem = jest.fn();
 const maximize = jest.fn();

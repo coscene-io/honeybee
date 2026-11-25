@@ -17,10 +17,10 @@ import {
 import { type SegmentationRuntime } from "./runtime";
 import { mainSegmentationCanvas } from "./segmentationChrome";
 import { type SourceFrameLoader } from "./sourceFrames";
+import { testHost, installSegmentationTestHost } from "./testing/host";
 import type { SegmentationFrame } from "./types";
-import { testHost, useSegmentationTestHost } from "./testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const BASE = 1_774_926_583_000_000_000n;
 

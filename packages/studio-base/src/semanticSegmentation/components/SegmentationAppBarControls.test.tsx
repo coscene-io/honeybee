@@ -17,11 +17,11 @@ import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
 import { registerSegmentationCanvas, type SegmentationCanvasEntry } from "../segmentationChrome";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
 import { createCoreDataSourceStore } from "../testing/coreDataSource";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 

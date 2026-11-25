@@ -25,10 +25,10 @@ import {
 import { SEMANTIC_SEGMENTATION_FEATURE_FLAG } from "../featureFlag";
 import type { SegmentationRuntime } from "../runtime";
 import { SegmentationHostContext, type SegmentationHost } from "../segmentationHostContext";
+import { SegmentationWorkspaceExtension } from "./SegmentationWorkspaceExtension";
 import { CLOUD_RECORD, createCoreDataSourceStore } from "../testing/coreDataSource";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument } from "../testing/mockService";
-import { SegmentationWorkspaceExtension } from "./SegmentationWorkspaceExtension";
 
 const RECORD = CLOUD_RECORD;
 let core: StoreApi<CoreDataStore>;
@@ -42,12 +42,13 @@ const setRecord = (name: string | undefined) => {
     record: { loading: false, value: name == undefined ? undefined : { name } },
   } as never);
 };
-const flag = (on: boolean) => {
-  window.cosConfig = on
-    ? ({
-        FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
-      } as typeof window.cosConfig)
-    : undefined;
+const flag = (state: "on" | "off") => {
+  window.cosConfig =
+    state === "on"
+      ? ({
+          FEATURE_FLAG_GROWTHBOOK: { [SEMANTIC_SEGMENTATION_FEATURE_FLAG]: true },
+        } as typeof window.cosConfig)
+      : undefined;
 };
 
 function Child(): React.JSX.Element {
@@ -96,7 +97,7 @@ beforeEach(async () => {
   slots = createWorkspaceSlotsStore();
   shortcuts = createKeyboardShortcutsDialogStore();
   seenHost = undefined;
-  flag(true);
+  flag("on");
   await i18n.changeLanguage("en");
 });
 
@@ -106,7 +107,7 @@ afterEach(() => {
 });
 
 it("has no host and registers nothing while the rollout flag is off, even on a cloud record", async () => {
-  flag(false);
+  flag("off");
   const { getByTestId } = renderExtension();
   // The workspace still renders: only the editor is absent.
   expect(getByTestId("child")).toBeTruthy();
@@ -129,14 +130,14 @@ it("provides a host to everything below it once the flag is on", async () => {
 });
 
 it("does not remount its children when the flag turns on, or off again", async () => {
-  flag(false);
+  flag("off");
   const view = renderExtension();
   const child = view.getByTestId("child");
-  flag(true);
+  flag("on");
   view.rerender(tree());
   const host = await hostReady();
   expect(view.getByTestId("child")).toBe(child);
-  flag(false);
+  flag("off");
   view.rerender(tree());
   await waitFor(() => {
     expect(seenHost).toBeUndefined();

@@ -14,11 +14,11 @@ import { createMuiTheme } from "@foxglove/theme";
 import { frameInstanceKey, propagationTargets } from "../service";
 import type { SegmentationDocument } from "../types";
 import { SegmentationPropagateButton } from "./SegmentationPropagateButton";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 /** Five frames per second in the mock recording: frame-20 has frames on both sides. */

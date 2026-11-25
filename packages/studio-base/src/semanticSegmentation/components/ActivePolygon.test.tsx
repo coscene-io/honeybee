@@ -10,11 +10,11 @@ import { act, fireEvent, screen } from "@testing-library/react";
 
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
-import { render, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 /** jsdom has no PointerEvent: dispatch a MouseEvent of the pointer type, as the other canvas tests do. */
 function pointer(target: Element, type: string, x: number, y: number): void {

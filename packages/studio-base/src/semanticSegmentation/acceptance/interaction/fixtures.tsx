@@ -17,6 +17,7 @@ import { polygonsOf, summarizeObservation } from "../../maskGeometry";
 import type { DecodedSegmentationFrame } from "../../runtime";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import { render, installSegmentationTestHost } from "../../testing/host";
 import {
   createMockSemanticSegmentationService,
   createSeedDocument,
@@ -28,10 +29,9 @@ import type {
   SegmentationPolygon,
   SemanticSegmentationStore,
 } from "../../types";
-import { render, useSegmentationTestHost } from "../../testing/host";
 
 // Every test that uses these helpers renders inside a fresh segmentation host.
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 export const triangle: NormalizedPoint[] = [
   { x: 0.1, y: 0.1 },

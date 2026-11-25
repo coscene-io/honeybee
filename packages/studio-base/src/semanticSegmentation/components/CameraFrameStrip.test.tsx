@@ -14,9 +14,9 @@ import { createMuiTheme } from "@foxglove/theme";
 import { frameInstanceKey } from "../service";
 import type { SegmentationDocument, SegmentationFrame } from "../types";
 import { CameraFrameStrip } from "./CameraFrameStrip";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const theme = createMuiTheme("light", "en");
 const BASE = 1_774_926_583_567_900_570n;

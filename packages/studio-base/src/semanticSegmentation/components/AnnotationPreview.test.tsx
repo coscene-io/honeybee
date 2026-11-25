@@ -12,11 +12,11 @@ import { fromNanoSec } from "@foxglove/rostime";
 
 import type { SegmentationImage } from "../imageSource";
 import { AnnotationPreview } from "./AnnotationPreview";
+import { createTestBridge, render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
-import { createTestBridge, render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const pipeline = {
   playerState: { activeData: { currentTime: fromNanoSec(1700000000150000000n) } },

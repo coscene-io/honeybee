@@ -12,10 +12,10 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 import { createSemanticSegmentationStore } from "../store";
 import { SpatialTree } from "./SpatialTree";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService } from "../testing/mockService";
-import { render, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 afterEach(cleanup);
 

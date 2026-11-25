@@ -9,11 +9,11 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
-import { render, testHost, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 async function open(panelId = "panel-1") {
   const document = createSeedDocument();

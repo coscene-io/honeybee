@@ -13,16 +13,16 @@ import { SpatialTree } from "../../components/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import { render, installSegmentationTestHost } from "../../testing/host";
 import {
   createMockSemanticSegmentationService,
   createSeedDocument,
 } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type { SegmentationDocument, SegmentationPolygon } from "../../types";
-import { render, useSegmentationTestHost } from "../../testing/host";
 
 // Every test that uses these helpers renders inside a fresh segmentation host.
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 type StructureSetup = RenderResult & {
   store: ReturnType<typeof createSemanticSegmentationStore>;

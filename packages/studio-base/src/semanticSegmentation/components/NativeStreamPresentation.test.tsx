@@ -17,11 +17,11 @@ import { frameInstanceKey } from "../service";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
+import { render, testHost, createTestBridge, installSegmentationTestHost } from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedSurface } from "../testing/session";
-import { render, testHost, createTestBridge, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const pipeline = {
   playerState: {

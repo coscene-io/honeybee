@@ -16,11 +16,16 @@ import { deferred } from "./fixtures";
 import { SegmentationImageEntry } from "../../components/SegmentationImageEntry";
 import type { SegmentationImage } from "../../imageSource";
 import { enterAnnotation, recordEntryActions } from "../../testing/entryActions";
+import {
+  render,
+  testHost,
+  createTestBridge,
+  installSegmentationTestHost,
+} from "../../testing/host";
 import { setMockControls } from "../../testing/mockService";
 import { focusedImageUrl } from "../../testing/session";
-import { render, testHost, createTestBridge, useSegmentationTestHost } from "../../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 const selectItem = jest.fn();
 const maximize = jest.fn();

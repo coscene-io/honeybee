@@ -15,13 +15,13 @@ import { SpatialTree } from "../../components/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
 import { openWorkflowPanel } from "../../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
+import { render, installSegmentationTestHost, testHost } from "../../testing/host";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type { FrameInstance } from "../../types";
-import { render, useSegmentationTestHost, testHost } from "../../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 it("bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
   const document = fixture();

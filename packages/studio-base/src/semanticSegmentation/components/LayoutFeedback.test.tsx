@@ -9,11 +9,11 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
-import { render, useSegmentationTestHost } from "../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 it("keeps workbench notices outside the layout and editing lock while leaving STOP to the global lock and keeping retry guards", async () => {
   const runtime = createMockSegmentationRuntime();

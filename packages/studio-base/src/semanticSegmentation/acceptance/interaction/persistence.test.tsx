@@ -12,9 +12,9 @@ import { deferred, polygon, setup, triangle } from "./fixtures";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
 import { polygonsOf } from "../../maskGeometry";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
-import { render, useSegmentationTestHost } from "../../testing/host";
+import { render, installSegmentationTestHost } from "../../testing/host";
 
-useSegmentationTestHost();
+installSegmentationTestHost();
 
 it("stages edits without writes and keeps newer B dirty when A is acknowledged", async () => {
   const { service, store } = await setup();

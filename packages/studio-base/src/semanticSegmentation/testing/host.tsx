@@ -30,7 +30,7 @@ let shortcuts = createKeyboardShortcutsDialogStore();
  * Gives every test of the calling file a fresh host (created before it, disposed after it). Call
  * once at the top of a test file; `testHost()` and the `render` of this module then use it.
  */
-export function useSegmentationTestHost(): void {
+export function installSegmentationTestHost(): void {
   if (registered) {
     return;
   }
@@ -52,7 +52,7 @@ export function useSegmentationTestHost(): void {
 /** The host of the running test. Tests only. */
 export function testHost(): SegmentationHost {
   if (!current) {
-    throw new Error("Call useSegmentationTestHost() at the top of the test file");
+    throw new Error("Call installSegmentationTestHost() at the top of the test file");
   }
   return current;
 }
@@ -81,7 +81,10 @@ export function TestHostProvider({ children }: { children?: ReactNode }): React.
 }
 
 /** `render` with the running test's host in context. Tests only. */
-export function render(ui: ReactElement, options: Omit<RenderOptions, "queries"> = {}) {
+export function render(
+  ui: ReactElement,
+  options: Omit<RenderOptions, "queries"> = {},
+): ReturnType<typeof renderUi> {
   return renderUi(ui, { wrapper: TestHostProvider, ...options });
 }
 
