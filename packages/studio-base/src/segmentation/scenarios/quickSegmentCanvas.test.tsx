@@ -16,9 +16,9 @@ import { maskOf, polygonsOf } from "../maskGeometry";
 import { quickSegment } from "../quickSegment";
 import { frameInstanceKey } from "../service";
 import { editor, fixture, pointer } from "./fixtures/canvas";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 /** A column-major rectangle mask, columns [x0, x1) and rows [y0, y1). */
 function rect(width: number, height: number, x0: number, x1: number, y0: number, y1: number) {
