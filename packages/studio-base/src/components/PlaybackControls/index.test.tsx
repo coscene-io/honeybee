@@ -16,6 +16,8 @@ import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConso
 import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import {
+  WorkspaceSlotsProvider,
+  createWorkspaceSlotsStore,
   registerWorkspaceSlot,
   type PlaybackStepOverride,
 } from "@foxglove/studio-base/context/WorkspaceSlots";
@@ -110,6 +112,8 @@ function KeyframeSearchLock({ active = true }: { active?: boolean }): ReactNull 
   return ReactNull;
 }
 
+let slots = createWorkspaceSlotsStore();
+
 function Wrapper({
   children,
   realtimeHistory,
@@ -135,13 +139,15 @@ function Wrapper({
               disablePersistence
               initialState={{ playbackControls: { repeat: false, speed: 1, timelineHeight } }}
             >
-              <PlaybackInteractionStateProvider>
-                <MockMessagePipelineProvider realtimeHistory={realtimeHistory}>
-                  {children}
-                  <SpeedObserver />
-                  <TimelineHeightObserver />
-                </MockMessagePipelineProvider>
-              </PlaybackInteractionStateProvider>
+              <WorkspaceSlotsProvider store={slots}>
+                <PlaybackInteractionStateProvider>
+                  <MockMessagePipelineProvider realtimeHistory={realtimeHistory}>
+                    {children}
+                    <SpeedObserver />
+                    <TimelineHeightObserver />
+                  </MockMessagePipelineProvider>
+                </PlaybackInteractionStateProvider>
+              </WorkspaceSlotsProvider>
             </WorkspaceContextProvider>
           </CoreDataProvider>
         </CoSceneConsoleApiContext.Provider>
@@ -151,6 +157,10 @@ function Wrapper({
 }
 
 describe("<PlaybackControls />", () => {
+  beforeEach(() => {
+    slots = createWorkspaceSlotsStore();
+  });
+
   it("leaves Space to the focused group button while retaining the global playback shortcut", () => {
     const play = jest.fn();
     const toggle = jest.fn();
@@ -744,7 +754,7 @@ describe("<RealtimeVizPlaybackControls />", () => {
       });
       let unregister = () => {};
       act(() => {
-        unregister = registerWorkspaceSlot("playbackStep", "test", {
+        unregister = registerWorkspaceSlot(slots, "playbackStep", "test", {
           backwardLabel: "Previous camera frame",
           forwardLabel: "Next camera frame",
           step,

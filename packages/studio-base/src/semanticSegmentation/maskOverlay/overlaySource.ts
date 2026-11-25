@@ -6,15 +6,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createStore } from "zustand/vanilla";
+import type { StoreApi } from "zustand/vanilla";
 
 import {
-  segmentationMaskOverlay,
   type SegmentationMaskGeometry,
+  type SegmentationMaskOverlay,
   type SegmentationMaskOverlaySource,
   type SegmentationMaskStyle,
 } from "../imageSource";
 import { clearMaskGeometryCaches, maskOf } from "../maskGeometry";
-import { segmentationSession, type SegmentationRuntime } from "../runtime";
+import type { SegmentationRuntime, SegmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
 import type { SegmentationDocument, SegmentationFrame, SemanticSegmentationStore } from "../types";
 import { MAX_MASK_SLOTS } from "./maskPlanes";
@@ -25,10 +26,14 @@ const PREVIEW_OPACITY = 0.45;
 export const DEFAULT_EDITOR_OPACITY = 0.5;
 
 /** Canvas-local display controls mirrored for the GPU layer (the SVG owns the same values). */
-export const maskOverlayControls = createStore<{ opacity: number; peekOriginal: boolean }>(() => ({
-  opacity: DEFAULT_EDITOR_OPACITY,
-  peekOriginal: false,
-}));
+export type MaskOverlayControls = StoreApi<{ opacity: number; peekOriginal: boolean }>;
+
+export function createMaskOverlayControls(): MaskOverlayControls {
+  return createStore<{ opacity: number; peekOriginal: boolean }>(() => ({
+    opacity: DEFAULT_EDITOR_OPACITY,
+    peekOriginal: false,
+  }));
+}
 
 type TopicIndex = {
   frames: SegmentationFrame[];
@@ -75,7 +80,13 @@ export type MaskOverlaySourceStats = {
  * Reads the shared segmentation session: the editing runtime when the session is open, otherwise
  * the read-only preview runtime. Mask observations only; polygons stay on the SVG layer.
  */
-export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
+export function createMaskOverlaySource({
+  session: sessionStore,
+  controls: controlsStore,
+}: {
+  session: SegmentationSession;
+  controls: MaskOverlayControls;
+}): SegmentationMaskOverlaySource & {
   stats: MaskOverlaySourceStats;
 } {
   let nextId = 1;
@@ -104,7 +115,7 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
   };
 
   function state(): SemanticSegmentationStore | undefined {
-    const session = segmentationSession.getState();
+    const session = sessionStore.getState();
     const runtime: SegmentationRuntime | undefined = session.open
       ? session.runtime
       : session.previewRuntime;
@@ -233,8 +244,8 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
     doc: SegmentationDocument,
     geometry: SegmentationMaskGeometry,
   ): SegmentationMaskStyle {
-    const session = segmentationSession.getState();
-    const controls = maskOverlayControls.getState();
+    const session = sessionStore.getState();
+    const controls = controlsStore.getState();
     const inputs = [
       session.open,
       controls,
@@ -335,24 +346,28 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
   };
 }
 
-let installed = false;
-
-/** Publishes the session's masks to every Image panel. Idempotent; lives for the page. */
-export function installMaskOverlaySource(): void {
-  if (installed) {
-    return;
-  }
-  installed = true;
-  const source = createMaskOverlaySource();
-  segmentationMaskOverlay.set(source);
+/**
+ * Publishes the session's masks to every Image panel of a host, until the returned function is
+ * called.
+ */
+export function installMaskOverlaySource({
+  session,
+  overlay,
+  controls,
+}: {
+  session: SegmentationSession;
+  overlay: SegmentationMaskOverlay;
+  controls: MaskOverlayControls;
+}): () => void {
+  overlay.set(createMaskOverlaySource({ session, controls }));
   let unsubscribeRuntime: (() => void) | undefined;
   let watched: SegmentationRuntime | undefined;
   const invalidate = () => {
-    segmentationMaskOverlay.invalidate();
+    overlay.invalidate();
   };
   const watch = () => {
-    const session = segmentationSession.getState();
-    const runtime = session.open ? session.runtime : session.previewRuntime;
+    const state = session.getState();
+    const runtime = state.open ? state.runtime : state.previewRuntime;
     if (runtime !== watched) {
       if (watched != undefined) {
         // Another recording (or none): the decoded masks of the previous one are dead weight.
@@ -374,7 +389,7 @@ export function installMaskOverlaySource(): void {
     invalidate();
   };
   watch();
-  segmentationSession.subscribe((next, previous) => {
+  const unsubscribeSession = session.subscribe((next, previous) => {
     if (
       next.open !== previous.open ||
       next.runtime !== previous.runtime ||
@@ -383,5 +398,12 @@ export function installMaskOverlaySource(): void {
       watch();
     }
   });
-  maskOverlayControls.subscribe(invalidate);
+  const unsubscribeControls = controls.subscribe(invalidate);
+  return () => {
+    unsubscribeSession();
+    unsubscribeControls();
+    unsubscribeRuntime?.();
+    unsubscribeRuntime = undefined;
+    overlay.set(undefined);
+  };
 }

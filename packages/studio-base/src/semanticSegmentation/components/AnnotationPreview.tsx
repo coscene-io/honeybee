@@ -18,13 +18,10 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 
-import {
-  segmentationImageMetadataSources,
-  segmentationImageSources,
-  type SegmentationImageMetadata,
-} from "../imageSource";
+import type { SegmentationImageMetadata, SegmentationPanelBridge } from "../imageSource";
 import { polygonsOf } from "../maskGeometry";
-import { segmentationSession, type SegmentationRuntime } from "../runtime";
+import type { SegmentationRuntime } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { polygonPath } from "./editorGeometry";
 
 const useStyles = makeStyles()((theme) => ({
@@ -46,12 +43,15 @@ function PreviewPolygons({
   runtime,
   topic,
   containerRef,
+  bridge,
 }: {
   runtime: SegmentationRuntime;
   topic: string;
   containerRef: RefObject<ReactNull | HTMLDivElement>;
+  bridge: SegmentationPanelBridge;
 }): React.JSX.Element | undefined {
   const { classes } = useStyles();
+  const host = useSegmentationHost();
   const document = useStore(runtime.store, (state) => state.document);
   const currentTime = useMessagePipeline((state) => state.playerState.activeData?.currentTime);
   const getPipeline = useMessagePipelineGetter();
@@ -66,9 +66,8 @@ function PreviewPolygons({
       return;
     }
     const sync = () => {
-      const image = (
-        segmentationImageMetadataSources.get(canvas) ?? segmentationImageSources.get(canvas)
-      )?.();
+      const sources = bridge.sources();
+      const image = (sources?.imageMetadata ?? sources?.image)?.();
       const data = getPipeline().playerState.activeData;
       const next =
         image?.topic === topic &&
@@ -104,7 +103,7 @@ function PreviewPolygons({
     return () => {
       canvas.removeEventListener("segmentation-frame", sync);
     };
-  }, [containerRef, currentTime, getPipeline, topic]);
+  }, [bridge, containerRef, currentTime, getPipeline, topic]);
 
   const video = document?.videos.find((item) => item.topic === topic);
   const shown =
@@ -115,17 +114,17 @@ function PreviewPolygons({
         frame.logTimeNs === toNanoSec(captured.receiveTime).toString(),
     );
   useLayoutEffect(() => {
-    segmentationSession.setState((session) => ({
+    host.session.setState((session) => ({
       previewFrames: { ...session.previewFrames, [topic]: shown?.id },
     }));
     return () => {
-      segmentationSession.setState((session) => {
+      host.session.setState((session) => {
         const previewFrames = { ...session.previewFrames };
         delete previewFrames[topic];
         return { previewFrames };
       });
     };
-  }, [topic, shown?.id]);
+  }, [host, topic, shown?.id]);
   const polygons = Object.values(document?.annotations ?? {})
     .filter((annotation) => annotation.frameId === shown?.id)
     .flatMap((annotation) => polygonsOf(annotation));
@@ -160,15 +159,18 @@ function PreviewPolygons({
 export function AnnotationPreview({
   containerRef,
   topic,
+  bridge,
 }: {
   containerRef: RefObject<ReactNull | HTMLDivElement>;
   topic?: string;
+  /** This panel's renderer, from which the displayed image is read. */
+  bridge: SegmentationPanelBridge;
 }): React.JSX.Element | undefined {
   const { classes } = useStyles();
   const { t } = useTranslation("segmentation");
-  const open = useStore(segmentationSession, (session) => session.open);
-  const runtime = useStore(segmentationSession, (session) => session.previewRuntime);
-  const loading = useStore(segmentationSession, (session) => session.previewLoading);
+  const open = useSegmentationSession((session) => session.open);
+  const runtime = useSegmentationSession((session) => session.previewRuntime);
+  const loading = useSegmentationSession((session) => session.previewLoading);
   if (open || topic == undefined) {
     return undefined;
   }
@@ -179,7 +181,14 @@ export function AnnotationPreview({
           {t("loadingExistingAnnotations")}
         </div>
       )}
-      {runtime && <PreviewPolygons runtime={runtime} topic={topic} containerRef={containerRef} />}
+      {runtime && (
+        <PreviewPolygons
+          runtime={runtime}
+          topic={topic}
+          containerRef={containerRef}
+          bridge={bridge}
+        />
+      )}
     </>
   );
 }

@@ -35,6 +35,8 @@ import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/cont
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { useSemanticSegmentationEnabled } from "@foxglove/studio-base/semanticSegmentation/featureFlag";
+import type { SegmentationPanelBridge } from "@foxglove/studio-base/semanticSegmentation/imageSource";
+import { SegmentationHostContext } from "@foxglove/studio-base/semanticSegmentation/segmentationHostContext";
 import {
   PlaybackDiagnosticsContext,
   type PanelDiagnostics,
@@ -53,8 +55,8 @@ type InitPanelArgs = {
   interfaceMode: InterfaceMode;
   testOptions: TestOptions;
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
-  /** Expose the image to the annotation editor (feature flag on and a cloud record open). */
-  segmentation?: boolean;
+  /** Connects the image to the annotation editor (feature flag on and a cloud record open). */
+  segmentation?: SegmentationPanelBridge;
 };
 
 function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
@@ -89,11 +91,11 @@ type AdapterContentProps = Props & {
   extensionData?: Record<string, unknown>;
   interfaceMode: InterfaceMode;
   additionalToolbarIcons?: ReactNode;
-  segmentation?: boolean;
+  segmentation?: SegmentationPanelBridge;
 };
 
 function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
-  const { interfaceMode, additionalToolbarIcons, segmentation = false } = props;
+  const { interfaceMode, additionalToolbarIcons, segmentation } = props;
   const crash = useCrash();
   const session = useContext(PlaybackDiagnosticsContext);
   const { id: panelId } = usePanelContext();
@@ -187,18 +189,29 @@ const SegmentationImagePanelAdapter = lazy(async () => ({
 }));
 
 function SegmentationImagePanel(props: Props & { extensionData: Record<string, unknown> }) {
+  // The workspace's extension provides the host once the editor's core has loaded.
+  const host = useContext(SegmentationHostContext);
   const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
   const renderPanel = useCallback(
-    ({ additionalToolbarIcons }: { additionalToolbarIcons: ReactNode }) => (
+    ({
+      additionalToolbarIcons,
+      segmentation,
+    }: {
+      additionalToolbarIcons: ReactNode;
+      segmentation: SegmentationPanelBridge;
+    }) => (
       <ThreeDeeRenderAdapterContent
         {...props}
         interfaceMode="image"
         additionalToolbarIcons={additionalToolbarIcons}
-        segmentation
+        segmentation={segmentation}
       />
     ),
     [props],
   );
+  if (host == undefined) {
+    return ReactNull;
+  }
   return (
     <Suspense fallback={ReactNull}>
       <SegmentationImagePanelAdapter imageTopic={imageTopic} renderPanel={renderPanel} />

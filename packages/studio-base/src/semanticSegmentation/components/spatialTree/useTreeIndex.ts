@@ -7,10 +7,9 @@
 
 import { useEffect, useRef } from "react";
 import type { StoreApi } from "zustand";
-import { useStore } from "zustand";
 
-import { segmentationSession } from "../../runtime";
 import type { SegmentationSurface } from "../../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../../segmentationHostContext";
 import { filterSegmentationSelection } from "../../store";
 import type { SegmentationNodeRef, SemanticSegmentationStore } from "../../types";
 import { preloadCameraStrip } from "../CameraFrameStrip";
@@ -33,9 +32,9 @@ export type TreeIndex = {
 
 /** The document, its frame index, the frames the tree lists and the filtered selection. */
 export function useTreeIndex(state: TreeState): TreeIndex {
-  const surfaces = useStore(segmentationSession, (session) => session.surfaces);
-  const sessionOpen = useStore(segmentationSession, (session) => session.open);
-  const previewFrames = useStore(segmentationSession, (session) => session.previewFrames);
+  const surfaces = useSegmentationSession((session) => session.surfaces);
+  const sessionOpen = useSegmentationSession((session) => session.open);
+  const previewFrames = useSegmentationSession((session) => session.previewFrames);
   const document = state.document;
   const index = document ? frameIndexOf(document) : undefined;
   const treeFrameIds = treeFrameIdsOf({
@@ -66,6 +65,7 @@ export function useStripPreload({
   overview,
   treeFrameIds,
 }: Pick<TreeIndex, "document" | "overview" | "treeFrameIds">): void {
+  const { sourceFrames } = useSegmentationHost();
   const stripFramesKey =
     overview && document && document.instances.length > 0 ? treeFrameIds.join("\u0000") : "";
   const latestDocument = useRef(document);
@@ -76,9 +76,9 @@ export function useStripPreload({
       return;
     }
     for (const id of stripFramesKey.split("\u0000")) {
-      preloadCameraStrip(current, id);
+      preloadCameraStrip(current, id, sourceFrames);
     }
-  }, [stripFramesKey]);
+  }, [stripFramesKey, sourceFrames]);
 }
 
 /** Clears component-owned transient work when the store asks for an interaction reset. */

@@ -10,6 +10,7 @@ import type { TFunction } from "i18next";
 import { polygonsOf, summaryHasGeometry } from "../../maskGeometry";
 import { segmentationCanvasLabel } from "../../segmentationChrome";
 import { frameInstanceKey } from "../../service";
+import type { SourceFrameLoaders } from "../../sourceFrames";
 import type {
   SegmentationClass,
   SegmentationDocument,
@@ -29,6 +30,7 @@ import type { FlatTreeRow } from "./treeTypes";
 /** Everything the flat row list reads. Only rows near the viewport actually render. */
 export type RowContext = {
   document: SegmentationDocument;
+  sourceFrames: SourceFrameLoaders;
   index: FrameIndex;
   t: TFunction<"segmentation">;
   treeFrameIds: string[];
@@ -186,7 +188,7 @@ function pushFrameRows(
           }),
       });
     });
-    if (ctx.overview && cameraStripVisible(document, instance.id, id)) {
+    if (ctx.overview && cameraStripVisible(document, instance.id, id, ctx.sourceFrames)) {
       rows.push({
         key: `strip:${instance.id}:${id}`,
         kind: "strip",
@@ -200,6 +202,7 @@ function pushFrameRows(
             camera={camera}
             color={category.color}
             disabled={ctx.disabled || ctx.drawing}
+            sourceFrames={ctx.sourceFrames}
           />
         ),
       });

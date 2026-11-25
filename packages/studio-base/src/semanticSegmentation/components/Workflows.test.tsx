@@ -7,14 +7,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { openWorkflowPanel, segmentationSession } from "../runtime";
+import { openWorkflowPanel } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
+
+installSegmentationTestHost();
 
 jest.mock("./SegmentationCanvas", () => ({
   SegmentationCanvas: () => <div>Canvas</div>,
@@ -30,7 +33,7 @@ async function initializedRuntime() {
 
 afterEach(() => {
   cleanup();
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
   });
@@ -60,7 +63,7 @@ describe("workbench workflow integration", () => {
     });
     await screen.findByText(/Could not read this annotation window/);
     // Submit lives in the app-bar menu; it stays disabled while the window is unavailable.
-    segmentationSession.setState({ runtime, open: true, panelId: "menu-panel", sourceReady: true });
+    testHost().session.setState({ runtime, open: true, panelId: "menu-panel", sourceReady: true });
     render(<SegmentationActionMenu />);
     fireEvent.click(screen.getByRole("button", { name: /^Submit/ }));
     expect(screen.getByRole("button", { name: /Submit 1/ })).toHaveProperty("disabled", true);
@@ -77,7 +80,7 @@ describe("workbench workflow integration", () => {
     expect(screen.getByRole("button", { name: /Submit 1/ })).toHaveProperty("disabled", false);
     fireEvent.keyDown(screen.getByRole("dialog", { name: "Submit" }), { key: "Escape" });
     act(() => {
-      segmentationSession.setState({ open: false, runtime: undefined, panelId: undefined });
+      testHost().session.setState({ open: false, runtime: undefined, panelId: undefined });
     });
     expect(runtime.store.getState().stagedOperations).toHaveLength(1);
     expect(runtime.store.getState().submissionQueue).toHaveLength(1);
@@ -101,7 +104,7 @@ describe("workbench workflow integration", () => {
   });
   it("makes every app surface inert while STOP remains outside and restores prior inert state", async () => {
     const runtime = await initializedRuntime();
-    segmentationSession.setState({ runtime });
+    testHost().session.setState({ runtime });
     const { container } = render(
       <>
         <button type="button">Existing player seek</button>
@@ -165,7 +168,7 @@ describe("workbench workflow integration", () => {
       ),
     ).toBeTruthy();
     act(() => {
-      openWorkflowPanel();
+      openWorkflowPanel(testHost().session);
     });
     expect(screen.queryByRole("button", { name: "Start propagation" })).toBeNull();
     runtime.store.getState().dispose();

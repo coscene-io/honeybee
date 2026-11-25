@@ -17,7 +17,6 @@ import {
   runsOfMask,
   strokeRuns,
 } from "../../maskGeometry";
-import { segmentationSession } from "../../runtime";
 import { frameInstanceKey } from "../../service";
 import type { CreationTool, SemanticSegmentationStore } from "../../types";
 import { hasPolygonArea, screenToNormalized } from "../editorGeometry";
@@ -206,7 +205,7 @@ export function claimShownFrame(c: CanvasContext): boolean {
   const live = c.store.getState();
   try {
     if (live.drawing != undefined) {
-      if (segmentationSession.getState().strokeFrameId != undefined) {
+      if (c.host.session.getState().strokeFrameId != undefined) {
         return false;
       }
       live.retargetDrawing(shownFrameId);
@@ -223,8 +222,8 @@ export function claimShownFrame(c: CanvasContext): boolean {
 
 /** Remembers which frame the drawing started on, once its first point is placed. */
 export function markStrokeFrame(c: CanvasContext): void {
-  if (segmentationSession.getState().strokeFrameId == undefined) {
-    segmentationSession.setState({ strokeFrameId: c.props.frameId ?? c.d.frameId });
+  if (c.host.session.getState().strokeFrameId == undefined) {
+    c.host.session.setState({ strokeFrameId: c.props.frameId ?? c.d.frameId });
   }
 }
 
@@ -233,7 +232,7 @@ export function switchTool(c: CanvasContext, next: CreationTool): void {
     return;
   }
   c.ui.setDraft([]);
-  segmentationSession.setState({ strokeFrameId: undefined });
+  c.host.session.setState({ strokeFrameId: undefined });
   run(c, () => {
     c.state.setCreationTool(next);
   });
@@ -263,7 +262,7 @@ export function finishDrawing(c: CanvasContext): void {
         c.ui.setNotice(c.t("polygonsMergedIntoMask"));
       }
     });
-    segmentationSession.setState({ strokeFrameId: undefined });
+    c.host.session.setState({ strokeFrameId: undefined });
     return;
   }
   if (draft.length < 3) {
@@ -281,7 +280,7 @@ export function finishDrawing(c: CanvasContext): void {
       c.ui.setNotice(c.t("polygonRasterized"));
     }
   });
-  segmentationSession.setState({ strokeFrameId: undefined });
+  c.host.session.setState({ strokeFrameId: undefined });
 }
 
 /** Enter on a selected polygon: start editing it. */

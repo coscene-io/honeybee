@@ -7,8 +7,6 @@
 
 import { useEffect, useLayoutEffect } from "react";
 
-import { maskOverlayControls } from "../../maskOverlay/overlaySource";
-import { segmentationSession } from "../../runtime";
 import { useStableCallback } from "../useStableCallback";
 import { cancelGesture, commitPolygonPreview, resetTemporaryInput } from "./canvasActions";
 import type { CanvasContext } from "./canvasUi";
@@ -29,7 +27,7 @@ function useGestureCallbacks(c: CanvasContext) {
 
 /** Image size, the mask layer's opacity and the screen scale of the image. */
 function useViewEffects(c: CanvasContext): void {
-  const { ui, d } = c;
+  const { ui, d, host } = c;
   const { nativeView } = d;
   const { setSize, setScreenScale, content, viewport, zoom, size } = ui;
   useLayoutEffect(() => {
@@ -39,8 +37,8 @@ function useViewEffects(c: CanvasContext): void {
   }, [nativeView, setSize]);
   useEffect(() => {
     // The GPU mask layer mirrors this canvas's overlay opacity and "peek original" hold.
-    maskOverlayControls.setState({ opacity: ui.opacity, peekOriginal: ui.peekOriginal });
-  }, [ui.opacity, ui.peekOriginal]);
+    host.maskOverlayControls.setState({ opacity: ui.opacity, peekOriginal: ui.peekOriginal });
+  }, [host, ui.opacity, ui.peekOriginal]);
   useLayoutEffect(() => {
     const updateScale = () => {
       const matrix =
@@ -65,7 +63,7 @@ function useViewEffects(c: CanvasContext): void {
 
 /** Drops quick-mask requests and brush strokes that no longer apply. */
 function useDrawingEffects(c: CanvasContext): void {
-  const { ui, d, store } = c;
+  const { ui, d, store, host } = c;
   const { drawing, frameId, tool, brushActive, focusedInstanceId } = d;
   const { setQuickPoints, setQuickResult, setQuickBusy, quickRequest, setStroke, setBrushCursor } =
     ui;
@@ -85,11 +83,11 @@ function useDrawingEffects(c: CanvasContext): void {
   useEffect(() => {
     if (
       store.getState().drawing == undefined &&
-      segmentationSession.getState().strokeFrameId != undefined
+      host.session.getState().strokeFrameId != undefined
     ) {
-      segmentationSession.setState({ strokeFrameId: undefined });
+      host.session.setState({ strokeFrameId: undefined });
     }
-  }, [drawing, store]);
+  }, [drawing, store, host]);
 }
 
 /** Resets held keys, selection and drafts when the edit scope or the frame changes. */

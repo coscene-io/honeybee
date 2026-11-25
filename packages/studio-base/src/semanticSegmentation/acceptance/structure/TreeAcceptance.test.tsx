@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import {
   confirm,
@@ -23,11 +23,14 @@ import { SpatialTree } from "../../components/SpatialTree";
 import { SubmissionControls, WorkflowControls } from "../../components/WorkflowControls";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import { render, installSegmentationTestHost } from "../../testing/host";
 import {
   createMockSemanticSegmentationService,
   createSeedDocument,
 } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
+
+installSegmentationTestHost();
 
 function invariant(store: Awaited<ReturnType<typeof setup>>["store"]) {
   const state = store.getState();

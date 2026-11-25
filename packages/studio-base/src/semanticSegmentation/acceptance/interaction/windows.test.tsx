@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { deferred, fixture } from "./fixtures";
 import { SemanticSegmentationWorkbench } from "../../SemanticSegmentationWorkbench";
@@ -15,10 +15,13 @@ import { SpatialTree } from "../../components/SpatialTree";
 import { polygonsOf } from "../../maskGeometry";
 import { openWorkflowPanel } from "../../runtime";
 import { cloneSegmentation, frameInstanceKey } from "../../service";
+import { render, installSegmentationTestHost, testHost } from "../../testing/host";
 import { createMockSegmentationRuntime } from "../../testing/mockRuntime";
 import { setMockControls } from "../../testing/mockService";
 import { TEST_DECODED_FRAME } from "../../testing/nativeFrame";
 import type { FrameInstance } from "../../types";
+
+installSegmentationTestHost();
 
 it("bounds 60s-video windows at start/30s/last actual frame and preserves selected instance while a read is held", async () => {
   const document = fixture();
@@ -56,7 +59,7 @@ it("bounds 60s-video windows at start/30s/last actual frame and preserves select
   ).toBeDefined();
   // A real drawer control reacts while the geometry promise remains unresolved.
   act(() => {
-    openWorkflowPanel();
+    openWorkflowPanel(testHost().session);
   });
   expect(screen.getByRole("complementary", { name: "Workflow" })).toBeDefined();
   expect(runtime.store.getState().loading).toBe(true);

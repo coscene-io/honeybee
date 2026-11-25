@@ -15,11 +15,8 @@ import { SegmentationCanvas } from "./components/SegmentationCanvas";
 import { WorkflowControls } from "./components/WorkflowControls";
 import { segmentationErrorText } from "./errors";
 import type { LiveSemanticSegmentationService } from "./liveService";
-import {
-  segmentationSession,
-  type SegmentationRuntime,
-  type DecodedSegmentationFrame,
-} from "./runtime";
+import type { SegmentationRuntime, DecodedSegmentationFrame } from "./runtime";
+import { useSegmentationHost, useSegmentationSession } from "./segmentationHostContext";
 
 const useStyles = makeStyles()((theme) => ({
   // An overlay on the Image panel: the panel owns the pixels, so nothing here is opaque.
@@ -118,7 +115,8 @@ export function SemanticSegmentationWorkbench({
   const storeError = useStore(store, (state) => state.error);
   const frameWindowError = useStore(store, (state) => state.frameWindowError);
   // The submit menu in the app bar opens the queue side panel.
-  const workflow = useStore(segmentationSession, (session) => session.workflow);
+  const host = useSegmentationHost();
+  const workflow = useSegmentationSession((session) => session.workflow);
   const [initializationError, setInitializationError] = useState<string>();
   // A camera whose timeline failed shows no presence on frames that are not loaded yet; say so.
   const timeline = runtime.service as Partial<LiveSemanticSegmentationService>;
@@ -181,9 +179,9 @@ export function SemanticSegmentationWorkbench({
   }, [workflow.open, workflow.target, workflow.nonce]);
   useEffect(
     () => () => {
-      segmentationSession.setState({ workflow: { open: false, nonce: 0 } });
+      host.session.setState({ workflow: { open: false, nonce: 0 } });
     },
-    [],
+    [host],
   );
   return (
     <div
@@ -274,7 +272,7 @@ export function SemanticSegmentationWorkbench({
             // One queue for the session: only the canvas holding the edit shows it.
             hidden={!workflow.open || !active}
             onClose={() => {
-              segmentationSession.setState((session) => ({
+              host.session.setState((session) => ({
                 workflow: { ...session.workflow, open: false },
               }));
             }}

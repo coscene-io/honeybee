@@ -7,6 +7,7 @@
 
 import { t } from "i18next";
 import { createStore } from "zustand/vanilla";
+import type { StoreApi } from "zustand/vanilla";
 
 /** One image panel that can open the record's annotation space. */
 export type SegmentationCanvasEntry = {
@@ -22,17 +23,24 @@ type SegmentationChromeState = {
   canvases: SegmentationCanvasEntry[];
 };
 
-/** Live image panels. The app bar is the only host of annotation controls. */
-export const segmentationChrome = createStore<SegmentationChromeState>(() => ({
-  canvases: [],
-}));
+/** The live image panels of one host. The app bar is the only place with annotation controls. */
+export type SegmentationChrome = StoreApi<SegmentationChromeState>;
+
+export function createSegmentationChrome(): SegmentationChrome {
+  return createStore<SegmentationChromeState>(() => ({
+    canvases: [],
+  }));
+}
 
 /**
  * Registers a canvas. The returned function removes this registration only.
  * A newer registration for the same panel survives an older cleanup.
  */
-export function registerSegmentationCanvas(entry: SegmentationCanvasEntry): () => void {
-  segmentationChrome.setState((state) => ({
+export function registerSegmentationCanvas(
+  chrome: SegmentationChrome,
+  entry: SegmentationCanvasEntry,
+): () => void {
+  chrome.setState((state) => ({
     canvases: [...state.canvases.filter((canvas) => canvas.panelId !== entry.panelId), entry],
   }));
   let current = true;
@@ -41,7 +49,7 @@ export function registerSegmentationCanvas(entry: SegmentationCanvasEntry): () =
       return;
     }
     current = false;
-    segmentationChrome.setState((state) => ({
+    chrome.setState((state) => ({
       canvases: state.canvases.filter((canvas) => canvas !== entry),
     }));
   };

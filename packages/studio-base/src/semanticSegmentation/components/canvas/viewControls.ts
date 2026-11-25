@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { segmentationViewControls } from "../../imageSource";
+import type { SegmentationViewControls } from "../../imageSource";
 import { runsOfMask } from "../../maskGeometry";
 import type { EditorPoint } from "../editorGeometry";
 import { focusContains } from "../polygonEdit";
@@ -15,9 +15,8 @@ import type { CanvasContext } from "./canvasUi";
 import { hitTarget } from "./vertexEditing";
 
 /** Over the Image panel the view is the panel's camera; drive it instead of our own zoom. */
-export function panelView(c: CanvasContext): ReturnType<typeof segmentationViewControls.get> {
-  const canvas = c.props.decodedFrame?.nativeCanvas;
-  return canvas ? segmentationViewControls.get(canvas) : undefined;
+export function panelView(c: CanvasContext): SegmentationViewControls | undefined {
+  return c.props.decodedFrame?.viewControls;
 }
 
 /**

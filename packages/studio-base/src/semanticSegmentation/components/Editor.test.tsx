@@ -6,19 +6,22 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { polygonsOf } from "../maskGeometry";
 import type { DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { openViewTools } from "../testing/viewTools";
+
+installSegmentationTestHost();
 
 async function setup(configure?: (document: SegmentationDocument) => void) {
   const document = createSeedDocument();

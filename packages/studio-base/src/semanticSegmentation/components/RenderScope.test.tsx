@@ -6,14 +6,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { Profiler } from "react";
 
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
+
+installSegmentationTestHost();
 
 // The canvas and the tree subscribed to the whole store, so every queue, error and
 // propagation-progress update re-rendered thousands of lines of UI.
