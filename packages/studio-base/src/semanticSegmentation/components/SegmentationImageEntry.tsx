@@ -6,9 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { alpha } from "@mui/material";
-import { t } from "i18next";
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
@@ -290,7 +290,12 @@ export function SegmentationImageEntry({
       }
     | undefined
   >(undefined);
-  const [error, setError] = useState<string>();
+  const { t } = useTranslation("segmentation");
+  // A message key is translated when rendered, so a language change updates a shown alert.
+  const [error, setError] = useState<
+    | { key: "frameSourceMissing" | "cloudRecordsOnly" | "waitForDecode" | "waitForStop" }
+    | { text: string }
+  >();
   // Errors raised while a session was open (frame sync runs every frame) are hidden until it
   // closes; drop them then so ending the session does not surface a stale alert.
   useEffect(() => {
@@ -457,7 +462,7 @@ export function SegmentationImageEntry({
         }
         const document = sourceDocument({
           recordId: stableRecordId,
-          recordName: pipeline.playerState.name ?? t("segmentation:currentMedia"),
+          recordName: pipeline.playerState.name ?? t("currentMedia"),
           videoId,
           topic,
           image,
@@ -514,6 +519,7 @@ export function SegmentationImageEntry({
     };
   }, [
     host,
+    t,
     annotatable,
     previewCanStart,
     captureMetadata,
@@ -739,7 +745,7 @@ export function SegmentationImageEntry({
       // Uncertain identity never leaves a writable overlay on the advancing native image.
       publish({ sourceReady: false });
       if (!frame) {
-        setError(t("segmentation:frameSourceMissing"));
+        setError({ key: "frameSourceMissing" });
       }
       return;
     }
@@ -852,7 +858,7 @@ export function SegmentationImageEntry({
       try {
         sync();
       } catch (cause) {
-        setError(String(cause));
+        setError({ text: String(cause) });
         host.session.setState({ sourceReady: false });
       }
     };
@@ -876,7 +882,7 @@ export function SegmentationImageEntry({
         const storeState = bound.runtime.store.getState();
         if (storeState.drawing != undefined && live.panelId !== panelId) {
           bound.runtime.store.setState({
-            error: t("segmentation:finishDrawingBeforeSwitch"),
+            error: t("finishDrawingBeforeSwitch"),
           });
           return;
         }
@@ -890,14 +896,14 @@ export function SegmentationImageEntry({
         return;
       }
       if (!annotatable) {
-        setError(t("segmentation:cloudRecordsOnly"));
+        setError({ key: "cloudRecordsOnly" });
         return;
       }
       const pipeline = getPipeline();
       const data = pipeline.playerState.activeData;
       const image = captureMetadata();
       if (!data || topic == undefined || (image != undefined && image.topic !== topic)) {
-        setError(t("segmentation:waitForDecode"));
+        setError({ key: "waitForDecode" });
         return;
       }
       const imageTopic = image?.topic ?? topic;
@@ -940,7 +946,7 @@ export function SegmentationImageEntry({
         }
         const document = sourceDocument({
           recordId: stableRecordId,
-          recordName: pipeline.playerState.name ?? t("segmentation:currentMedia"),
+          recordName: pipeline.playerState.name ?? t("currentMedia"),
           videoId,
           topic: imageTopic,
           image,
@@ -965,7 +971,7 @@ export function SegmentationImageEntry({
         return;
       }
       if (propagationLocksContext(runtime.store.getState().propagation.status)) {
-        setError(t("segmentation:waitForStop"));
+        setError({ key: "waitForStop" });
         return;
       }
       const subscribeMessageRange = getPipeline().subscribeMessageRange;
@@ -1050,6 +1056,7 @@ export function SegmentationImageEntry({
     },
     [
       host,
+      t,
       bridge,
       annotatable,
       captureMetadata,
@@ -1075,7 +1082,7 @@ export function SegmentationImageEntry({
     const start = (mode: "inline" | "maximize") => {
       const go = () => {
         void enterRef.current(mode).catch((cause: unknown) => {
-          setError(String(cause));
+          setError({ text: String(cause) });
         });
       };
       if (host.session.getState().open || !needsAnnotationProfileCheck(playerUrlState)) {
@@ -1115,7 +1122,7 @@ export function SegmentationImageEntry({
     <>
       {error ? (
         <div className={classes.error} role="alert">
-          {error}
+          {"key" in error ? t(error.key) : error.text}
         </div>
       ) : undefined}
       {preview}
