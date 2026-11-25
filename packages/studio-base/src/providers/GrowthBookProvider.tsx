@@ -153,6 +153,6 @@ export function useOptionalFeatureIsOnWithConfig(
   const growthbook = useContext(GrowthBookContext).growthbook as GrowthBook | undefined;
   const localFallback = getConfiguredFallback(featureKey, options.fallback ?? false);
   return growthbook == undefined
-    ? localFallback === true
+    ? localFallback
     : growthbook.getFeatureValue<JSONValue>(featureKey, localFallback) === true;
 }
