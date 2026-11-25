@@ -14,9 +14,9 @@ import { createSegmentationStore } from "../store";
 import { CurrentFramePropagationForm } from "./fixtures/canvas";
 import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationService } from "../testing/mockService";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 installSegmentationTestHost();
 

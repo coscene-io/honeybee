@@ -26,9 +26,9 @@ import {
 } from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedImageUrl, focusedSurface } from "../testing/session";
+import { allowSlowRunner } from "../testing/slowRunner";
 
-// jsdom UI tests run 10-20x slower on a loaded CI runner than locally; the default 5 s is too tight.
-jest.setTimeout(30_000);
+allowSlowRunner();
 
 jest.mock("@foxglove/studio-base/util/reloadWithSearch", () => ({ reloadWithSearch: jest.fn() }));
 
@@ -160,12 +160,9 @@ async function open(mode: "inline" | "maximize" = "inline") {
   act(() => {
     enterSegmentation(mode);
   });
-  await waitFor(
-    () => {
-      expect(testHost().session.getState().open).toBe(true);
-    },
-    { timeout: 3000 },
-  );
+  await waitFor(() => {
+    expect(testHost().session.getState().open).toBe(true);
+  });
   return testHost().session.getState().runtime!;
 }
 beforeEach(() => {
