@@ -23,6 +23,7 @@ import {
   strokeRuns,
 } from "./maskGeometry";
 import * as maskPolygon from "./maskPolygon";
+import { ringIsSimple, type PixelPolygon } from "./maskPolygon";
 import type { FrameInstance, ObservationGeometry, SegmentationMask } from "./types";
 
 describe("maskToEditorPolygons", () => {
@@ -289,7 +290,26 @@ describe("mask geometry caches", () => {
     expect(big.byteSize()).toBe(0);
   });
 
-  it.each([
+  it("checks ring simplicity without comparing every pair of edges", () => {
+    // Thousands of vertices, the shape a traced SAM mask edge has. All pairs would be n²/2 tests.
+    for (const ring of [circleRing(4000), toothedRing(2000)]) {
+      const stats = { comparisons: 0 };
+      expect(ringIsSimple(ring, stats)).toBe(true);
+      expect(stats.comparisons).toBeLessThan(ring.length * Math.sqrt(ring.length));
+    }
+    const bowtie: PixelPolygon = [
+      [0, 0],
+      [10, 10],
+      [10, 0],
+      [0, 10],
+    ];
+    expect(ringIsSimple(bowtie)).toBe(false);
+  });
+
+  // Wall-clock check, skipped by default like StateTransitionsCoordinator.perfprobe.test.ts:
+  //   PERF_PROBE=1 yarn test maskGeometry.test.ts
+  const probeIt = process.env.PERF_PROBE === "1" ? it : it.skip;
+  probeIt.each([
     ["a noisy edge", () => noisyMask(1920, 1080)],
     ["a toothed edge", () => combMask(1920, 1080)],
   ])("converts a 1080p mask with %s in interactive time", (_name, make) => {
@@ -298,8 +318,26 @@ describe("mask geometry caches", () => {
     const polygons = maskToEditorPolygons(mask, "/camera");
     const elapsed = performance.now() - started;
     expect(polygons.length).toBeGreaterThan(0);
-    // The toothed mask took ~1.9 s with the all-pairs simplicity check and ~0.3 s with the grid;
-    // the bound leaves room for slower CI machines.
+    // The toothed mask took ~1.9 s with the all-pairs simplicity check and ~0.3 s with the grid.
     expect(elapsed).toBeLessThan(1500);
   });
 });
+
+/** A regular polygon with `n` vertices: simple, and spread over the whole grid. */
+function circleRing(n: number): PixelPolygon {
+  return Array.from({ length: n }, (_, i): [number, number] => [
+    500 + 400 * Math.cos((2 * Math.PI * i) / n),
+    500 + 400 * Math.sin((2 * Math.PI * i) / n),
+  ]);
+}
+
+/** A square whose top edge is `teeth` 3-pixel teeth, like the edges of combMask's outline. */
+function toothedRing(teeth: number): PixelPolygon {
+  const side = teeth * 6;
+  const ring: PixelPolygon = [];
+  for (let k = 0; k < teeth; k++) {
+    ring.push([k * 6, 0], [k * 6 + 3, 4]);
+  }
+  ring.push([side, 0], [side, side], [0, side]);
+  return ring;
+}
