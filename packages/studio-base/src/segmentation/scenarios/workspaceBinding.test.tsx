@@ -233,74 +233,76 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it("actual Workspace sidebar actions select adjacent Space from Moment and bind sidebar edits to decoded video/frame", async () => {
-  mockFile = {
-    dataAssetName: "workspace-binding-record",
-    name: "workspace-binding-record/files/camera",
-    filename: "camera.mp4",
-    sizeBytes: 8n,
-  };
-  pipeline.playerState.activeData.currentTime = fromNanoSec(350_000_000n);
-  const f = fixture();
-  f.setImage(300_000_000n);
-  const moment = screen.getByRole("tab", { name: "一刻" });
-  const space = screen.getByRole("tab", { name: "Space" });
-  expect(moment.getAttribute("aria-selected")).toBe("true");
-  expect(space.getAttribute("aria-selected")).toBe("false");
-  expect(moment.nextElementSibling).toBe(space);
-  expect(screen.getByText("Existing Moment panel")).toBeDefined();
-  const runtime = await open();
-  await waitFor(() => {
-    expect(space.getAttribute("aria-selected")).toBe("true");
+describe("workspace binding", () => {
+  it("actual Workspace sidebar actions select adjacent Space from Moment and bind sidebar edits to decoded video/frame", async () => {
+    mockFile = {
+      dataAssetName: "workspace-binding-record",
+      name: "workspace-binding-record/files/camera",
+      filename: "camera.mp4",
+      sizeBytes: 8n,
+    };
+    pipeline.playerState.activeData.currentTime = fromNanoSec(350_000_000n);
+    const f = fixture();
+    f.setImage(300_000_000n);
+    const moment = screen.getByRole("tab", { name: "一刻" });
+    const space = screen.getByRole("tab", { name: "Space" });
+    expect(moment.getAttribute("aria-selected")).toBe("true");
+    expect(space.getAttribute("aria-selected")).toBe("false");
+    expect(moment.nextElementSibling).toBe(space);
+    expect(screen.getByText("Existing Moment panel")).toBeDefined();
+    const runtime = await open();
+    await waitFor(() => {
+      expect(space.getAttribute("aria-selected")).toBe("true");
+    });
+    expect(moment.getAttribute("aria-selected")).toBe("false");
+    expect(screen.queryByText("Existing Moment panel")).toBeNull();
+    const frame = runtime.store
+      .getState()
+      .document!.frames.find((item) => item.id === runtime.store.getState().currentFrameId)!;
+    expect(frame.timestampSec).toBe(0.3);
+    expect(frame.videoId).toBe(runtime.store.getState().document!.videos[0]!.id);
+    expect(testHost().session.getState().sourceReady).toBe(true);
+    expect(focusedImageUrl(testHost().session)).toBeDefined();
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
+      configurable: true,
+      value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "New" }));
+    fireEvent.change(screen.getByLabelText("Class name"), { target: { value: "Bound camera" } });
+    fireEvent.keyDown(screen.getByLabelText("Class name"), { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Add instance to Bound camera" }));
+    fireEvent.click(screen.getByRole("button", { name: /Annotate.*#1$/ }));
+    const instanceId = runtime.store.getState().drawing!.instanceId;
+    for (const [x, y] of [
+      [96, 54],
+      [288, 54],
+      [288, 162],
+    ]) {
+      fireEvent(
+        canvas,
+        new MouseEvent("pointerdown", { clientX: x, clientY: y, button: 0, bubbles: true }),
+      );
+    }
+    fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
+    expect(runtime.store.getState().currentFrameId).toBe(frame.id);
+    expect(runtime.store.getState().drawing).toBeUndefined();
+    const annotation = Object.values(runtime.store.getState().document!.annotations).find(
+      (item) => item.instanceId === instanceId,
+    )!;
+    expect(annotation.frameId).toBe(frame.id);
+    const polygonId = polygonsOf(annotation)[0]!.id;
+    expect(polygonsOf(annotation)[0]!.points).toEqual([
+      { x: 0.1, y: 0.1 },
+      { x: 0.3, y: 0.1 },
+      { x: 0.3, y: 0.3 },
+    ]);
+    expect(f.container.querySelectorAll(`[data-node-id="${polygonId}"]`)).toHaveLength(1);
+    expect(
+      runtime.store.getState().document!.frames.find((item) => item.id === annotation.frameId)!
+        .videoId,
+    ).toBe(frame.videoId);
+    f.unmount();
+    runtime.dispose();
   });
-  expect(moment.getAttribute("aria-selected")).toBe("false");
-  expect(screen.queryByText("Existing Moment panel")).toBeNull();
-  const frame = runtime.store
-    .getState()
-    .document!.frames.find((item) => item.id === runtime.store.getState().currentFrameId)!;
-  expect(frame.timestampSec).toBe(0.3);
-  expect(frame.videoId).toBe(runtime.store.getState().document!.videos[0]!.id);
-  expect(testHost().session.getState().sourceReady).toBe(true);
-  expect(focusedImageUrl(testHost().session)).toBeDefined();
-  const canvas = screen.getByRole("img", { name: "Frame polygons" });
-  Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
-    configurable: true,
-    value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
-  });
-  fireEvent.click(screen.getByRole("button", { name: "New" }));
-  fireEvent.change(screen.getByLabelText("Class name"), { target: { value: "Bound camera" } });
-  fireEvent.keyDown(screen.getByLabelText("Class name"), { key: "Enter" });
-  fireEvent.click(screen.getByRole("button", { name: "Add instance to Bound camera" }));
-  fireEvent.click(screen.getByRole("button", { name: /Annotate.*#1$/ }));
-  const instanceId = runtime.store.getState().drawing!.instanceId;
-  for (const [x, y] of [
-    [96, 54],
-    [288, 54],
-    [288, 162],
-  ]) {
-    fireEvent(
-      canvas,
-      new MouseEvent("pointerdown", { clientX: x, clientY: y, button: 0, bubbles: true }),
-    );
-  }
-  fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
-  expect(runtime.store.getState().currentFrameId).toBe(frame.id);
-  expect(runtime.store.getState().drawing).toBeUndefined();
-  const annotation = Object.values(runtime.store.getState().document!.annotations).find(
-    (item) => item.instanceId === instanceId,
-  )!;
-  expect(annotation.frameId).toBe(frame.id);
-  const polygonId = polygonsOf(annotation)[0]!.id;
-  expect(polygonsOf(annotation)[0]!.points).toEqual([
-    { x: 0.1, y: 0.1 },
-    { x: 0.3, y: 0.1 },
-    { x: 0.3, y: 0.3 },
-  ]);
-  expect(f.container.querySelectorAll(`[data-node-id="${polygonId}"]`)).toHaveLength(1);
-  expect(
-    runtime.store.getState().document!.frames.find((item) => item.id === annotation.frameId)!
-      .videoId,
-  ).toBe(frame.videoId);
-  f.unmount();
-  runtime.dispose();
 });

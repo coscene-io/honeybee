@@ -67,30 +67,32 @@ async function setup() {
   return { store, canvas, outline, handlesOf, firstId: "instance-1-polygon-0", secondId };
 }
 
-it("shows vertices only for the active polygon and highlights the rest of the edit scope", async () => {
-  const { store, canvas, outline, handlesOf, firstId, secondId } = await setup();
-  // No single polygon is chosen yet: nothing shows handles, both are highlighted as the scope.
-  expect(handlesOf(firstId)).toHaveLength(0);
-  expect(handlesOf(secondId)).toHaveLength(0);
-  expect(outline(firstId).getAttribute("data-polygon-emphasis")).toBe("scope");
-  expect(outline(secondId).getAttribute("data-polygon-emphasis")).toBe("scope");
-  expect(screen.getByTestId("choose-polygon-hint").textContent).toContain("2 polygons");
+describe("active polygon", () => {
+  it("shows vertices only for the active polygon and highlights the rest of the edit scope", async () => {
+    const { store, canvas, outline, handlesOf, firstId, secondId } = await setup();
+    // No single polygon is chosen yet: nothing shows handles, both are highlighted as the scope.
+    expect(handlesOf(firstId)).toHaveLength(0);
+    expect(handlesOf(secondId)).toHaveLength(0);
+    expect(outline(firstId).getAttribute("data-polygon-emphasis")).toBe("scope");
+    expect(outline(secondId).getAttribute("data-polygon-emphasis")).toBe("scope");
+    expect(screen.getByTestId("choose-polygon-hint").textContent).toContain("2 polygons");
 
-  // Pressing a polygon in scope makes it the active one; it does not start a drag.
-  pointer(outline(secondId), "pointerdown", 150, 70);
-  pointer(canvas, "pointerup", 150, 70);
-  expect(store.getState().editing).toBe(true);
-  expect(handlesOf(secondId)).toHaveLength(3);
-  expect(handlesOf(firstId)).toHaveLength(0);
-  expect(outline(secondId).getAttribute("data-polygon-emphasis")).toBe("active");
-  expect(outline(firstId).getAttribute("data-polygon-emphasis")).toBe("scope");
-  expect(screen.queryByTestId("choose-polygon-hint")).toBeNull();
+    // Pressing a polygon in scope makes it the active one; it does not start a drag.
+    pointer(outline(secondId), "pointerdown", 150, 70);
+    pointer(canvas, "pointerup", 150, 70);
+    expect(store.getState().editing).toBe(true);
+    expect(handlesOf(secondId)).toHaveLength(3);
+    expect(handlesOf(firstId)).toHaveLength(0);
+    expect(outline(secondId).getAttribute("data-polygon-emphasis")).toBe("active");
+    expect(outline(firstId).getAttribute("data-polygon-emphasis")).toBe("scope");
+    expect(screen.queryByTestId("choose-polygon-hint")).toBeNull();
 
-  // Double-clicking the other polygon moves the vertex handles to it.
-  pointer(outline(firstId), "pointerdown", 300, 150);
-  pointer(canvas, "pointerup", 300, 150);
-  fireEvent.doubleClick(outline(firstId), { button: 0 });
-  expect(handlesOf(firstId).length).toBeGreaterThanOrEqual(3);
-  expect(handlesOf(secondId)).toHaveLength(0);
-  expect(outline(firstId).getAttribute("data-polygon-emphasis")).toBe("active");
+    // Double-clicking the other polygon moves the vertex handles to it.
+    pointer(outline(firstId), "pointerdown", 300, 150);
+    pointer(canvas, "pointerup", 300, 150);
+    fireEvent.doubleClick(outline(firstId), { button: 0 });
+    expect(handlesOf(firstId).length).toBeGreaterThanOrEqual(3);
+    expect(handlesOf(secondId)).toHaveLength(0);
+    expect(outline(firstId).getAttribute("data-polygon-emphasis")).toBe("active");
+  });
 });

@@ -177,47 +177,49 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it("isolates real source B after late annotation and upload completions from A", async () => {
-  const f = fixture();
-  const a = await open();
-  setMockControls(a.service, { delayMs: 0 });
-  const draft = a.store.getState().addClass("A isolated draft");
-  const originalRead = a.service.loadFrameWindow.bind(a.service);
-  const oldWindow = await originalRead(a.store.getState().document!.videos[0]!.id, 0, 1);
-  const readGate = deferred<typeof oldWindow>();
-  jest.spyOn(a.service, "loadFrameWindow").mockImplementation(async () => await readGate.promise);
-  const oldRead = a.store.getState().loadFrameWindow(oldWindow.videoId, 0, 1);
-  const inferenceA = jest.spyOn(a.service, "propagate");
-  mockFile = {
-    dataAssetName: "record-B",
-    name: "record-B/files/b",
-    filename: "b.mp4",
-    sizeBytes: 8n,
-  };
-  pipeline.playerState.activeData.currentTime = fromNanoSec(350_000_000n);
-  f.rerender(f.view("/rear"));
-  f.setImage(300_000_000n, { topic: "/rear" });
-  f.event();
-  const b = await open();
-  expect(b).not.toBe(a);
-  expect(b.store.getState().document!.classes).toEqual([]);
-  const bVideo = b.store.getState().document!.videos[0]!.id;
-  expect(bVideo).not.toBe(oldWindow.videoId);
-  const bDocument = b.store.getState().document;
-  const bFrame = b.store.getState().currentFrameId;
-  const bImage = focusedImageUrl(testHost().session);
-  await act(async () => {
-    readGate.resolve(oldWindow);
-    await oldRead;
+describe("source isolation", () => {
+  it("isolates real source B after late annotation and upload completions from A", async () => {
+    const f = fixture();
+    const a = await open();
+    setMockControls(a.service, { delayMs: 0 });
+    const draft = a.store.getState().addClass("A isolated draft");
+    const originalRead = a.service.loadFrameWindow.bind(a.service);
+    const oldWindow = await originalRead(a.store.getState().document!.videos[0]!.id, 0, 1);
+    const readGate = deferred<typeof oldWindow>();
+    jest.spyOn(a.service, "loadFrameWindow").mockImplementation(async () => await readGate.promise);
+    const oldRead = a.store.getState().loadFrameWindow(oldWindow.videoId, 0, 1);
+    const inferenceA = jest.spyOn(a.service, "propagate");
+    mockFile = {
+      dataAssetName: "record-B",
+      name: "record-B/files/b",
+      filename: "b.mp4",
+      sizeBytes: 8n,
+    };
+    pipeline.playerState.activeData.currentTime = fromNanoSec(350_000_000n);
+    f.rerender(f.view("/rear"));
+    f.setImage(300_000_000n, { topic: "/rear" });
+    f.event();
+    const b = await open();
+    expect(b).not.toBe(a);
+    expect(b.store.getState().document!.classes).toEqual([]);
+    const bVideo = b.store.getState().document!.videos[0]!.id;
+    expect(bVideo).not.toBe(oldWindow.videoId);
+    const bDocument = b.store.getState().document;
+    const bFrame = b.store.getState().currentFrameId;
+    const bImage = focusedImageUrl(testHost().session);
+    await act(async () => {
+      readGate.resolve(oldWindow);
+      await oldRead;
+    });
+    expect(testHost().session.getState().runtime).toBe(b);
+    expect(focusedImageUrl(testHost().session)).toBe(bImage);
+    expect(b.store.getState().document).toEqual(bDocument);
+    expect(b.store.getState().currentFrameId).toBe(bFrame);
+    expect(a.store.getState().document!.classes.some((item) => item.id === draft)).toBe(true);
+    expect(b.store.getState().document!.classes.some((item) => item.id === draft)).toBe(false);
+    expect(inferenceA).not.toHaveBeenCalled();
+    f.unmount();
+    a.dispose();
+    b.dispose();
   });
-  expect(testHost().session.getState().runtime).toBe(b);
-  expect(focusedImageUrl(testHost().session)).toBe(bImage);
-  expect(b.store.getState().document).toEqual(bDocument);
-  expect(b.store.getState().currentFrameId).toBe(bFrame);
-  expect(a.store.getState().document!.classes.some((item) => item.id === draft)).toBe(true);
-  expect(b.store.getState().document!.classes.some((item) => item.id === draft)).toBe(false);
-  expect(inferenceA).not.toHaveBeenCalled();
-  f.unmount();
-  a.dispose();
-  b.dispose();
 });
