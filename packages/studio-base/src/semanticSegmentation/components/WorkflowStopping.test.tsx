@@ -7,25 +7,37 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { SpatialSidebar } from "./SpatialSidebar";
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { segmentationSession } from "../runtime";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
 import { MomentReferencePicker } from "./MomentReferencePicker";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
+import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
 
+installSegmentationTestHost();
+
 afterEach(() => {
   cleanup();
-  segmentationSession.setState({ runtime: undefined, open: false });
+  testHost().session.setState({ runtime: undefined, open: false });
   document.body.removeAttribute("tabindex");
 });
 
 it("keeps actual editor/picker/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
-  const runtime = createMockSegmentationRuntime();
+  let cancels = 0;
+  const runtime = createMockSegmentationRuntime(undefined, undefined, (service) => {
+    const originalCancel = service.cancelPropagation?.bind(service);
+    if (!originalCancel) {
+      throw new Error("Mock fixture must support cancellation acknowledgement");
+    }
+    service.cancelPropagation = async (context) => {
+      cancels++;
+      return await originalCancel(context);
+    };
+  });
   setMockControls(runtime.service, {
     delayMs: 0,
     streamDelayMs: 1000,
@@ -34,16 +46,7 @@ it("keeps actual editor/picker/native surfaces locked until delayed cancel ack a
   });
   await runtime.initialize();
   runtime.store.getState().setFocus({ type: "instance", id: "instance-1" });
-  let cancels = 0;
-  const originalCancel = runtime.service.cancelPropagation?.bind(runtime.service);
-  if (!originalCancel) {
-    throw new Error("Mock fixture must support cancellation acknowledgement");
-  }
-  runtime.service.cancelPropagation = async (context) => {
-    cancels++;
-    return await originalCancel(context);
-  };
-  segmentationSession.setState({ runtime, open: true });
+  testHost().session.setState({ runtime, open: true });
   const { container } = render(
     <>
       <button type="button">Native timeline seek</button>

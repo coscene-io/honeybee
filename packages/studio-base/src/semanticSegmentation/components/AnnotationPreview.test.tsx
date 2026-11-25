@@ -6,19 +6,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 
-import {
-  segmentationImageMetadataSources,
-  segmentationImageSources,
-  type SegmentationImage,
-} from "../imageSource";
-import { segmentationSession } from "../runtime";
+import type { SegmentationImage } from "../imageSource";
 import { AnnotationPreview } from "./AnnotationPreview";
+import { createTestBridge, render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { createSeedDocument, setMockControls } from "../testing/mockService";
+
+installSegmentationTestHost();
 
 const pipeline = {
   playerState: { activeData: { currentTime: fromNanoSec(1700000000150000000n) } },
@@ -36,12 +34,15 @@ it("uses exact displayed log time and native transform for preview and read-only
   await runtime.initialize();
   await runtime.store.getState().loadFrameWindow("video-1", 0, 1);
   const topic = document.videos.find((video) => video.id === "video-1")!.topic!;
-  segmentationSession.setState({ open: false, previewRuntime: runtime, previewFrames: {} });
+  testHost().session.setState({ open: false, previewRuntime: runtime, previewFrames: {} });
   const nativeContainer = window.document.createElement("div");
   const canvas = window.document.createElement("canvas");
   nativeContainer.append(canvas);
   const containerRef = { current: nativeContainer };
-  const result = render(<AnnotationPreview topic={topic} containerRef={containerRef} />);
+  const bridge = createTestBridge();
+  const result = render(
+    <AnnotationPreview topic={topic} containerRef={containerRef} bridge={bridge} />,
+  );
   let image: SegmentationImage | undefined = {
     topic,
     imageUrl: "data:image/png;base64,test",
@@ -57,8 +58,7 @@ it("uses exact displayed log time and native transform for preview and read-only
     },
   };
   const capturePixels = jest.fn(() => image);
-  segmentationImageSources.set(canvas, capturePixels);
-  segmentationImageMetadataSources.set(canvas, () => image);
+  bridge.publish({ image: capturePixels, imageMetadata: () => image });
   act(() => {
     canvas.dispatchEvent(new Event("segmentation-frame"));
   });
@@ -69,15 +69,15 @@ it("uses exact displayed log time and native transform for preview and read-only
   expect(result.container.querySelector("svg > g")?.getAttribute("transform")).toBe(
     "matrix(0.5 0 0 0.5 10 20)",
   );
-  expect(segmentationSession.getState().previewFrames[topic]).toBe("frame-0");
+  expect(testHost().session.getState().previewFrames[topic]).toBe("frame-0");
   image = undefined; // Native seek invalidates the image identity before the next decode.
   act(() => {
     canvas.dispatchEvent(new Event("segmentation-frame"));
   });
   expect(result.container.querySelector("svg")).toBeNull();
-  expect(segmentationSession.getState().previewFrames[topic]).toBeUndefined();
+  expect(testHost().session.getState().previewFrames[topic]).toBeUndefined();
   expect(capturePixels).not.toHaveBeenCalled();
   result.unmount();
   runtime.dispose();
-  segmentationSession.setState({ previewRuntime: undefined, previewFrames: {} });
+  testHost().session.setState({ previewRuntime: undefined, previewFrames: {} });
 });

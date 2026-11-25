@@ -10,15 +10,17 @@ import { createStore } from "zustand/vanilla";
 import {
   cameraFrameStrip,
   cameraStepTarget,
-  resetCameraStepForTests,
   segmentationCameraStep,
   segmentationPlaybackStep,
   sortCameraFrames,
 } from "./cameraFrames";
-import { segmentationSession, type SegmentationRuntime } from "./runtime";
-import { mainSegmentationCanvas, segmentationChrome } from "./segmentationChrome";
-import { sourceFrameLoaders, type SourceFrameLoader } from "./sourceFrames";
+import { type SegmentationRuntime } from "./runtime";
+import { mainSegmentationCanvas } from "./segmentationChrome";
+import { type SourceFrameLoader } from "./sourceFrames";
+import { testHost, installSegmentationTestHost } from "./testing/host";
 import type { SegmentationFrame } from "./types";
+
+installSegmentationTestHost();
 
 const BASE = 1_774_926_583_000_000_000n;
 
@@ -171,7 +173,7 @@ describe("segmentationPlaybackStep", () => {
       drawing: undefined as { instanceId: string; frameId: string } | undefined,
       propagation: { status: "idle" },
     }));
-    segmentationChrome.setState({
+    testHost().chrome.setState({
       canvases: [
         {
           panelId: "Image!head",
@@ -187,7 +189,7 @@ describe("segmentationPlaybackStep", () => {
         },
       ],
     });
-    segmentationSession.setState({
+    testHost().session.setState({
       open: true,
       runtime: { store } as unknown as SegmentationRuntime,
       panelId,
@@ -199,10 +201,9 @@ describe("segmentationPlaybackStep", () => {
   }
 
   beforeEach(() => {
-    resetCameraStepForTests();
     ensured.length = 0;
     for (const videoId of ["head", "stereo"]) {
-      sourceFrameLoaders.set(videoId, {
+      testHost().sourceFrames.set(videoId, {
         videoId,
         ensureRange: async () => {},
         ensureFollowing: async (from: bigint, count: number) => {
@@ -214,34 +215,38 @@ describe("segmentationPlaybackStep", () => {
     }
   });
   afterEach(() => {
-    sourceFrameLoaders.clear();
-    segmentationSession.setState({
+    testHost().sourceFrames.clear();
+    testHost().session.setState({
       open: false,
       runtime: undefined,
       panelId: undefined,
       surfaces: {},
     });
-    segmentationChrome.setState({ canvases: [] });
+    testHost().chrome.setState({ canvases: [] });
   });
 
   it("keeps the player's own step, modifiers included, outside annotation", () => {
     const seek = jest.fn();
     const modifiers = { altKey: true, shiftKey: false };
-    expect(segmentationPlaybackStep(1, modifiers, seek)).toEqual({ handled: false, modifiers });
-    expect(segmentationCameraStep(1)).toBeUndefined();
+    expect(segmentationPlaybackStep(testHost(), 1, modifiers, seek)).toEqual({
+      handled: false,
+      modifiers,
+    });
+    expect(segmentationCameraStep(testHost(), 1)).toBeUndefined();
     expect(seek).not.toHaveBeenCalled();
   });
 
   it("steps the target camera to its exact next and previous log time", async () => {
     openSession("Image!head", { "Image!head": head[10]!.id, "Image!stereo": stereo[10]!.id });
     const seek = jest.fn();
-    expect(segmentationPlaybackStep(1, undefined, seek)).toEqual({ handled: true });
+    expect(segmentationPlaybackStep(testHost(), 1, undefined, seek)).toEqual({ handled: true });
     await Promise.resolve();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(seek).toHaveBeenLastCalledWith(BigInt(head[11]!.logTimeNs));
     expect(ensured[0]).toEqual(["head", BigInt(head[10]!.logTimeNs), 1]);
-    resetCameraStepForTests();
-    await segmentationCameraStep(-1)!.then((target) => {
+    // A step that was never displayed must not shift the next one.
+    testHost().cameraStep.pending = undefined;
+    await segmentationCameraStep(testHost(), -1)!.then((target) => {
       expect(target).toBe(BigInt(head[9]!.logTimeNs));
     });
   });
@@ -249,10 +254,12 @@ describe("segmentationPlaybackStep", () => {
   it("Shift steps ten frames; Alt falls back to the default fixed step", async () => {
     openSession("Image!head", { "Image!head": head[10]!.id });
     const seek = jest.fn();
-    segmentationPlaybackStep(1, { altKey: false, shiftKey: true }, seek);
+    segmentationPlaybackStep(testHost(), 1, { altKey: false, shiftKey: true }, seek);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(seek).toHaveBeenLastCalledWith(BigInt(head[20]!.logTimeNs));
-    expect(segmentationPlaybackStep(1, { altKey: true, shiftKey: false }, seek)).toEqual({
+    expect(
+      segmentationPlaybackStep(testHost(), 1, { altKey: true, shiftKey: false }, seek),
+    ).toEqual({
       handled: false,
       modifiers: { altKey: false, shiftKey: false },
     });
@@ -260,36 +267,38 @@ describe("segmentationPlaybackStep", () => {
 
   it("follows the target canvas: selecting a stereo polygon retargets stepping", async () => {
     openSession("Image!head", { "Image!head": head[10]!.id, "Image!stereo": stereo[20]!.id });
-    segmentationSession.setState({ panelId: "Image!stereo" });
-    await expect(segmentationCameraStep(1)).resolves.toBe(BigInt(stereo[21]!.logTimeNs));
+    testHost().session.setState({ panelId: "Image!stereo" });
+    await expect(segmentationCameraStep(testHost(), 1)).resolves.toBe(
+      BigInt(stereo[21]!.logTimeNs),
+    );
   });
 
   it("keeps moving on repeated presses before the stepped frame is shown", async () => {
     openSession("Image!head", { "Image!head": head[10]!.id });
-    await expect(segmentationCameraStep(1)).resolves.toBe(BigInt(head[11]!.logTimeNs));
-    await expect(segmentationCameraStep(1)).resolves.toBe(BigInt(head[12]!.logTimeNs));
-    segmentationSession.setState({
+    await expect(segmentationCameraStep(testHost(), 1)).resolves.toBe(BigInt(head[11]!.logTimeNs));
+    await expect(segmentationCameraStep(testHost(), 1)).resolves.toBe(BigInt(head[12]!.logTimeNs));
+    testHost().session.setState({
       surfaces: { "Image!head": { frameId: head[12]!.id, sourceReady: true } },
     });
-    await expect(segmentationCameraStep(1)).resolves.toBe(BigInt(head[13]!.logTimeNs));
+    await expect(segmentationCameraStep(testHost(), 1)).resolves.toBe(BigInt(head[13]!.logTimeNs));
   });
 
   it("steps from the player clock while the camera shows no frame for it", async () => {
     // Annotated at frame 30, then the timeline was dragged to the recording start, before any
     // camera frame: the surface still names frame 30 but has nothing decoded.
     openSession("Image!head", { "Image!head": head[30]!.id });
-    segmentationSession.setState({
+    testHost().session.setState({
       surfaces: { "Image!head": { frameId: head[30]!.id, sourceReady: false } },
     });
     const start = BigInt(head[0]!.logTimeNs) - 50_000_000n;
     const seek = jest.fn();
-    segmentationPlaybackStep(1, undefined, seek, start);
+    segmentationPlaybackStep(testHost(), 1, undefined, seek, start);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(seek).toHaveBeenLastCalledWith(BigInt(head[0]!.logTimeNs));
     expect(ensured.at(-1)).toEqual(["head", start, 1]);
     // Backward from the start: no earlier frame, so nothing moves.
     seek.mockClear();
-    segmentationPlaybackStep(-1, undefined, seek, start);
+    segmentationPlaybackStep(testHost(), -1, undefined, seek, start);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(seek).not.toHaveBeenCalled();
   });
@@ -297,22 +306,26 @@ describe("segmentationPlaybackStep", () => {
   it("keeps stepping from a requested frame while it decodes", async () => {
     openSession("Image!head", { "Image!head": head[10]!.id });
     const clock = BigInt(head[10]!.logTimeNs);
-    await expect(segmentationCameraStep(1, 1, clock)).resolves.toBe(BigInt(head[11]!.logTimeNs));
+    await expect(segmentationCameraStep(testHost(), 1, 1, clock)).resolves.toBe(
+      BigInt(head[11]!.logTimeNs),
+    );
     // The seek is under way: the old frame is no longer ready and the clock has not moved yet.
-    segmentationSession.setState({
+    testHost().session.setState({
       surfaces: { "Image!head": { frameId: head[10]!.id, sourceReady: false } },
     });
-    await expect(segmentationCameraStep(1, 1, clock)).resolves.toBe(BigInt(head[12]!.logTimeNs));
-    await expect(segmentationCameraStep(1, 1, BigInt(head[12]!.logTimeNs))).resolves.toBe(
-      BigInt(head[13]!.logTimeNs),
+    await expect(segmentationCameraStep(testHost(), 1, 1, clock)).resolves.toBe(
+      BigInt(head[12]!.logTimeNs),
     );
+    await expect(
+      segmentationCameraStep(testHost(), 1, 1, BigInt(head[12]!.logTimeNs)),
+    ).resolves.toBe(BigInt(head[13]!.logTimeNs));
   });
 
   it("does not move while a polygon is being drawn", async () => {
     const store = openSession("Image!head", { "Image!head": head[10]!.id });
     store.setState({ drawing: { instanceId: "instance-1", frameId: head[10]!.id } });
     const seek = jest.fn();
-    expect(segmentationPlaybackStep(1, undefined, seek)).toEqual({ handled: true });
+    expect(segmentationPlaybackStep(testHost(), 1, undefined, seek)).toEqual({ handled: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(seek).not.toHaveBeenCalled();
   });
@@ -320,7 +333,7 @@ describe("segmentationPlaybackStep", () => {
   describe("a step whose frames are still being read", () => {
     let release: (error?: Error) => void = () => {};
     beforeEach(() => {
-      sourceFrameLoaders.set("head", {
+      testHost().sourceFrames.set("head", {
         videoId: "head",
         ensureRange: async () => {},
         ensureFollowing: async () => {
@@ -346,19 +359,19 @@ describe("segmentationPlaybackStep", () => {
       [
         "the session ends",
         () => {
-          segmentationSession.setState({ open: false });
+          testHost().session.setState({ open: false });
         },
       ],
       [
         "another canvas takes the edit",
         () => {
-          segmentationSession.setState({ panelId: "Image!stereo" });
+          testHost().session.setState({ panelId: "Image!stereo" });
         },
       ],
       [
         "the canvas shows another frame",
         () => {
-          segmentationSession.setState({
+          testHost().session.setState({
             surfaces: { "Image!head": { frameId: head[25]!.id, sourceReady: true } },
           });
         },
@@ -366,7 +379,7 @@ describe("segmentationPlaybackStep", () => {
     ])("does not jump late when %s", async (_case, change) => {
       openSession("Image!head", { "Image!head": head[10]!.id });
       const seek = jest.fn();
-      segmentationPlaybackStep(1, undefined, seek);
+      segmentationPlaybackStep(testHost(), 1, undefined, seek);
       change();
       release();
       await settle();
@@ -376,7 +389,7 @@ describe("segmentationPlaybackStep", () => {
     it("does not jump late once propagation holds the editor", async () => {
       const store = openSession("Image!head", { "Image!head": head[10]!.id });
       const seek = jest.fn();
-      segmentationPlaybackStep(1, undefined, seek);
+      segmentationPlaybackStep(testHost(), 1, undefined, seek);
       store.setState({ propagation: { status: "running" } });
       release();
       await settle();
@@ -385,9 +398,9 @@ describe("segmentationPlaybackStep", () => {
 
     it("keeps only the newest of overlapping steps", async () => {
       openSession("Image!head", { "Image!head": head[10]!.id });
-      const first = segmentationCameraStep(1)!;
+      const first = segmentationCameraStep(testHost(), 1)!;
       const releaseFirst = release;
-      const second = segmentationCameraStep(1)!;
+      const second = segmentationCameraStep(testHost(), 1)!;
       releaseFirst();
       release();
       await expect(first).resolves.toBeUndefined();
@@ -399,7 +412,7 @@ describe("segmentationPlaybackStep", () => {
         getState: () => { error?: string };
       };
       const seek = jest.fn();
-      segmentationPlaybackStep(1, undefined, seek);
+      segmentationPlaybackStep(testHost(), 1, undefined, seek);
       release(new Error("network down"));
       await settle();
       expect(store.getState().error).toBe(

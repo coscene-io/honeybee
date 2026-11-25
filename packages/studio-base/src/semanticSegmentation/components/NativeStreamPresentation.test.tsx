@@ -6,19 +6,22 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
 
-import { segmentationImageSources, type SegmentationImage } from "../imageSource";
-import { segmentationSession, type SegmentationRuntime } from "../runtime";
+import type { SegmentationImage } from "../imageSource";
+import { type SegmentationRuntime } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
 import { enterAnnotation, recordEntryActions } from "../testing/entryActions";
+import { render, testHost, createTestBridge, installSegmentationTestHost } from "../testing/host";
 import { setMockControls } from "../testing/mockService";
 import { focusedSurface } from "../testing/session";
+
+installSegmentationTestHost();
 
 const pipeline = {
   playerState: {
@@ -42,6 +45,7 @@ const pipeline = {
 };
 const getPipeline = () => pipeline;
 let mockUserId = "native-test-user";
+let mockWithoutCancel = false;
 jest.mock("@foxglove/studio-base/components/MessagePipeline", () => ({
   useMessagePipeline: (selector: (state: typeof pipeline) => unknown) => selector(pipeline),
   useMessagePipelineGetter: () => getPipeline,
@@ -56,15 +60,21 @@ jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
 // The fixture source counts as a cloud record; sessions use the in-memory mock service in place of the live one.
 jest.mock("@foxglove/studio-base/util/coscene/annotation", () => ({
   isAnnotationRecordName: () => true,
-  createLiveSemanticSegmentationService: ({ document }: { document: unknown }) =>
-    jest
+  createLiveSemanticSegmentationService: ({ document }: { document: unknown }) => {
+    const service = jest
       .requireActual<
         typeof import("@foxglove/studio-base/semanticSegmentation/testing/mockService")
       >("@foxglove/studio-base/semanticSegmentation/testing/mockService")
       .createMockSemanticSegmentationService({
         document: document as never,
         controls: { delayMs: 500, streamDelayMs: 350 },
-      }),
+      });
+    if (mockWithoutCancel) {
+      // The runtime takes the service's optional methods when it is created.
+      service.cancelPropagation = undefined;
+    }
+    return service;
+  },
 }));
 jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
   useCoreData: (selector: (store: { record: { value?: undefined } }) => unknown) =>
@@ -88,7 +98,8 @@ async function flush() {
   });
 }
 let sequence = 0;
-async function fixture() {
+async function fixture(options: { withoutCancel?: boolean } = {}) {
+  mockWithoutCancel = options.withoutCancel === true;
   const containerRef = createRef<HTMLDivElement>();
   pipeline.playerState.urlState.parameters.url = `native-presentation-${++sequence}.mp4`;
   // Nine recorded frames, 100 ms apart; message times identify each frame.
@@ -110,12 +121,14 @@ async function fixture() {
       matrix: [1, 0, 0, 1, 0, 0],
     },
   };
+  const bridge = createTestBridge();
   const view = (mode: "workspace" | "entry" = "workspace") => (
     <div ref={containerRef}>
       <canvas width={8} height={4} />
       <SegmentationImageEntry
         onActionsChange={recordEntryActions}
         containerRef={containerRef}
+        bridge={bridge}
         topic="/camera"
         panelId="native-panel"
         onMaximize={() => {}}
@@ -125,17 +138,17 @@ async function fixture() {
   );
   const result = render(view());
   const canvas = containerRef.current!.querySelector("canvas")!;
-  segmentationImageSources.set(canvas, () => image);
+  bridge.publish({ image: () => image });
   act(() => {
     enterAnnotation();
   });
   await waitFor(
     () => {
-      expect(segmentationSession.getState().open).toBe(true);
+      expect(testHost().session.getState().open).toBe(true);
     },
     { timeout: 3000 },
   );
-  const runtime = segmentationSession.getState().runtime!;
+  const runtime = testHost().session.getState().runtime!;
   setMockControls(runtime.service, { delayMs: 0, streamDelayMs: 0, cancelDelayMs: 400 });
   let instanceId = "";
   act(() => {
@@ -192,7 +205,7 @@ beforeEach(() => {
   mockUserId = "native-test-user";
   pipeline.playerState.activeData.currentTime = fromNanoSec(400_000_000n);
   pipeline.playerState.activeData.lastSeekTime = 0;
-  segmentationSession.setState({
+  testHost().session.setState({
     runtime: undefined,
     open: false,
     panelId: undefined,
@@ -215,7 +228,7 @@ beforeEach(() => {
   pipeline.pausePlayback.mockClear();
 });
 afterEach(() => {
-  const runtime = segmentationSession.getState().runtime;
+  const runtime = testHost().session.getState().runtime;
   cleanup();
   runtime?.dispose();
 });
@@ -243,7 +256,7 @@ function seekedLogTimes(): string[] {
 
 it("streams propagation results, lets the player follow them and never replaces native pixels", async () => {
   const f = await fixture();
-  const shown = focusedSurface()?.decodedFrame?.frameId;
+  const shown = focusedSurface(testHost().session)?.decodedFrame?.frameId;
   await act(async () => {
     await f.start();
   });
@@ -253,7 +266,7 @@ it("streams propagation results, lets the player follow them and never replaces 
   expect(seekedLogTimes().length).toBeGreaterThan(0);
   expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
   expect(pipeline.pausePlayback).not.toHaveBeenCalled();
-  expect(focusedSurface()?.decodedFrame?.frameId).toBe(shown);
+  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(shown);
   expect(f.container.querySelector("svg image")).toBeNull();
   expect(
     f.container
@@ -284,7 +297,7 @@ it("keeps the seed immutable while native playback advances during propagation",
   pipeline.playerState.activeData.currentTime = fromNanoSec(650_000_000n);
   f.decode(6);
   expect(capturedSeed).toBe(f.frames[4]!.id);
-  expect(focusedSurface()?.decodedFrame?.frameId).toBe(f.frames[6]!.id);
+  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[6]!.id);
   await act(async () => {
     release();
     await running;
@@ -296,8 +309,7 @@ it("keeps the seed immutable while native playback advances during propagation",
 });
 
 it("STOP rejects late results and waits for iterator termination without a native presentation", async () => {
-  const f = await fixture();
-  f.runtime.service.cancelPropagation = undefined;
+  const f = await fixture({ withoutCancel: true });
   const original = f.runtime.service.propagate.bind(f.runtime.service);
   let finish!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -344,10 +356,10 @@ it("accepts a fresh decode before React observes the native seek and hides stale
   pipeline.playerState.activeData.lastSeekTime = 123;
   f.decode(5);
   f.rerender(f.view());
-  expect(segmentationSession.getState().sourceReady).toBe(true);
-  expect(focusedSurface()?.decodedFrame?.frameId).toBe(f.frames[5]!.id);
+  expect(testHost().session.getState().sourceReady).toBe(true);
+  expect(focusedSurface(testHost().session)?.decodedFrame?.frameId).toBe(f.frames[5]!.id);
   f.decode(4);
-  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(testHost().session.getState().sourceReady).toBe(false);
   expect(f.container.querySelector('[data-testid="instance-union-fill"]')).toBeNull();
   expect(pipeline.seekPlayback).not.toHaveBeenCalled();
 });
@@ -357,7 +369,7 @@ it("fences native identity after the user changes", async () => {
   mockUserId = "other";
   f.rerender(f.view());
   await flush();
-  expect(segmentationSession.getState().open).toBe(false);
+  expect(testHost().session.getState().open).toBe(false);
   expect(f.container.querySelector('[data-testid="segmentation-native-overlay"]')).toBeNull();
   expect(pipeline.seekPlayback).not.toHaveBeenCalled();
 });

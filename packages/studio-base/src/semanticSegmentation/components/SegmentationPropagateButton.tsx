@@ -13,11 +13,8 @@ import { useStore } from "zustand";
 
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 
-import {
-  segmentationSession,
-  type SegmentationRuntime,
-  type SegmentationSurface,
-} from "../runtime";
+import type { SegmentationRuntime, SegmentationSurface } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { PropagationForm } from "./PropagationForm";
 import { buildCanvasPropagationScope } from "./propagationSeeds";
 
@@ -30,7 +27,7 @@ export function SegmentationPropagateButton({
 }: {
   panelId: string;
 }): React.JSX.Element | undefined {
-  const session = useStore(segmentationSession);
+  const session = useSegmentationSession((state) => state);
   const surface = session.surfaces[panelId];
   return session.open && session.runtime && surface ? (
     <CanvasPropagate
@@ -54,6 +51,7 @@ function CanvasPropagate({
   focused: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("segmentation");
+  const host = useSegmentationHost();
   const [anchor, setAnchor] = useState<HTMLElement>();
   const document = useStore(runtime.store, (state) => state.document);
   const locked = useStore(runtime.store, (state) =>
@@ -92,7 +90,7 @@ function CanvasPropagate({
             onClick={(event) => {
               const target = event.currentTarget;
               if (!focused && surface.frameId != undefined) {
-                segmentationSession.setState({ panelId });
+                host.session.setState({ panelId });
                 runtime.store.getState().setCurrentFrame(surface.frameId);
               }
               setAnchor(target);

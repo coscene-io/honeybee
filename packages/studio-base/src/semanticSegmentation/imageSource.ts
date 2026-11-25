@@ -9,6 +9,7 @@ import { toNanoSec, type Time } from "@foxglove/rostime";
 import type { MessageEvent } from "@foxglove/studio";
 import type { PlayerURLState } from "@foxglove/studio-base/players/types";
 
+import type { SharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import type { NativeImageView } from "./nativeImageTransform";
 
 export type SegmentationImage = Readonly<{
@@ -27,15 +28,6 @@ export type SegmentationImage = Readonly<{
 export type SegmentationImageMetadata = Omit<SegmentationImage, "imageUrl">;
 export type SegmentationImageSource = () => SegmentationImage | undefined;
 
-/** Read-only overlays need frame identity and projection, not a PNG copy of the pixels. */
-export const segmentationImageMetadataSources = new WeakMap<
-  HTMLCanvasElement,
-  () => SegmentationImageMetadata | undefined
->();
-
-/** Bridges the Image renderer's separate React root to its enclosing coStudio panel. */
-export const segmentationImageSources = new WeakMap<HTMLCanvasElement, SegmentationImageSource>();
-
 /**
  * The Image panel's own camera, for an annotation canvas laid over it. Points are client (CSS)
  * pixels; zoom ratios multiply the current zoom around that point; pan moves by screen pixels.
@@ -45,10 +37,17 @@ export type SegmentationViewControls = {
   zoom: (ratio: number, clientX: number, clientY: number) => void;
   panBy: (dx: number, dy: number) => void;
 };
-export const segmentationViewControls = new WeakMap<HTMLCanvasElement, SegmentationViewControls>();
 
-/** Frames the panel's decoder cache still holds, keyed by the same canvas as the capture. */
-export const segmentationCachedFrames = new WeakMap<HTMLCanvasElement, () => MessageEvent[]>();
+/** What the Image renderer, which lives in its own React root, shares with the editor. */
+export type SegmentationRendererSources = {
+  /** The displayed image with its PNG, encoded on first read. */
+  image: SegmentationImageSource;
+  /** Frame identity and projection of the displayed image, without a PNG copy of its pixels. */
+  imageMetadata?: () => SegmentationImageMetadata | undefined;
+  viewControls?: SegmentationViewControls;
+  /** Frames the panel's decoder cache still holds. */
+  cachedFrames?: () => MessageEvent[];
+};
 
 export function imageFrameIdentity(
   image: Pick<SegmentationImage, "timestamp" | "receiveTime">,
@@ -126,29 +125,71 @@ export type SegmentationMaskOverlaySource = {
   ) => SegmentationMaskGeometry[];
 };
 
-let maskOverlaySource: SegmentationMaskOverlaySource | undefined;
-const maskOverlayListeners = new Set<() => void>();
+/** The masks the editor publishes for every Image panel to draw. */
+export type SegmentationMaskOverlay = {
+  get: () => SegmentationMaskOverlaySource | undefined;
+  set: (source: SegmentationMaskOverlaySource | undefined) => void;
+  /** Content or style changed: renderers re-query on their next frame. */
+  invalidate: () => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
+/** A new, empty overlay channel. One per `SegmentationHost`. */
+export function createSegmentationMaskOverlay(): SegmentationMaskOverlay {
+  let source: SegmentationMaskOverlaySource | undefined;
+  const listeners = new Set<() => void>();
+  const overlay: SegmentationMaskOverlay = {
+    get: () => source,
+    set(next) {
+      source = next;
+      overlay.invalidate();
+    },
+    invalidate() {
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  return overlay;
+}
 
 /**
- * The Image renderer lives in its own React root; the segmentation layer publishes masks here and
- * every ImageMode reads them on its own render frame, after it committed the displayed image.
+ * What one Image panel's renderer and the annotation editor exchange. The renderer lives in its
+ * own React root (a panel extension), so context cannot reach it: the panel's adapter creates this
+ * object and hands it to the renderer explicitly. The overlay and plane cache are the host's, shared
+ * by all panels; the sources are this panel's own.
  */
-export const segmentationMaskOverlay = {
-  get: (): SegmentationMaskOverlaySource | undefined => maskOverlaySource,
-  set(source: SegmentationMaskOverlaySource | undefined): void {
-    maskOverlaySource = source;
-    segmentationMaskOverlay.invalidate();
-  },
-  /** Content or style changed: renderers re-query on their next frame. */
-  invalidate(): void {
-    for (const listener of maskOverlayListeners) {
-      listener();
-    }
-  },
-  subscribe(listener: () => void): () => void {
-    maskOverlayListeners.add(listener);
-    return () => {
-      maskOverlayListeners.delete(listener);
-    };
-  },
+export type SegmentationPanelBridge = {
+  /** Masks to draw, from the host. */
+  maskOverlay: SegmentationMaskOverlay;
+  /** The CPU mask-plane cache shared by every panel of the host. */
+  maskPlanes: SharedMaskPlanes;
+  /** Renderer side: offer this panel's image and camera; the returned function withdraws them. */
+  publish: (sources: SegmentationRendererSources) => () => void;
+  /** Editor side: what the renderer currently offers. */
+  sources: () => SegmentationRendererSources | undefined;
 };
+
+export function createSegmentationPanelBridge(
+  shared: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">,
+): SegmentationPanelBridge {
+  let current: SegmentationRendererSources | undefined;
+  return {
+    ...shared,
+    publish(sources) {
+      current = sources;
+      return () => {
+        if (current === sources) {
+          current = undefined;
+        }
+      };
+    },
+    sources: () => current,
+  };
+}

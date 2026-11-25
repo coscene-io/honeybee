@@ -8,21 +8,36 @@
 import { MaskPlaneCache } from "./maskPlaneCache";
 import { createMaskPlaneWorker } from "./maskPlaneWorker";
 
-let shared: MaskPlaneCache | undefined;
+export type SharedMaskPlanes = {
+  /** The shared cache, created on first use. */
+  get: () => MaskPlaneCache;
+  /** Terminates the worker and drops the planes, whatever still uses them. */
+  dispose: () => void;
+};
 
 /**
- * One Worker and one byte-bounded CPU cache shared by every Image panel. When the last panel
- * unregisters, the worker is terminated and the planes are dropped; the next panel starts afresh.
+ * One Worker and one byte-bounded CPU cache shared by every Image panel of a host. When the last
+ * panel unregisters, the worker is terminated and the planes are dropped; the next panel starts
+ * afresh.
  */
-export function sharedMaskPlaneCache(): MaskPlaneCache {
-  if (shared == undefined) {
-    const cache: MaskPlaneCache = new MaskPlaneCache(createMaskPlaneWorker, undefined, () => {
-      cache.dispose();
-      if (shared === cache) {
-        shared = undefined;
+export function createSharedMaskPlanes(): SharedMaskPlanes {
+  let shared: MaskPlaneCache | undefined;
+  return {
+    get() {
+      if (shared == undefined) {
+        const cache: MaskPlaneCache = new MaskPlaneCache(createMaskPlaneWorker, undefined, () => {
+          cache.dispose();
+          if (shared === cache) {
+            shared = undefined;
+          }
+        });
+        shared = cache;
       }
-    });
-    shared = cache;
-  }
-  return shared;
+      return shared;
+    },
+    dispose() {
+      shared?.dispose();
+      shared = undefined;
+    },
+  };
 }

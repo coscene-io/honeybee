@@ -71,6 +71,7 @@ export function SpatialTree({
   const menuActions = useMenuActions(deps);
   const rows = useTreeRows({
     document,
+    sourceFrames: env.host.sourceFrames,
     index: shell.index,
     t,
     treeFrameIds: shell.treeFrameIds,

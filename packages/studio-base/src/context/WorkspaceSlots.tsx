@@ -5,8 +5,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useMemo } from "react";
-import { create } from "zustand";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import type { ReactNode } from "react";
+import { createStore } from "zustand";
+import type { StoreApi } from "zustand";
 
 import type { SidebarItem } from "@foxglove/studio-base/components/Sidebars";
 import type { LeftSidebarItemKey } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -16,7 +25,9 @@ import type { LeftSidebarItemKey } from "@foxglove/studio-base/context/Workspace
  * keyboard shortcuts dialog, moment fields) without the shared code importing the feature.
  *
  * A feature registers while it is mounted (`useWorkspaceSlot`); shared code reads the slot and
- * falls back to its own behavior when nothing is registered.
+ * falls back to its own behavior when nothing is registered. The slots live in a store created by
+ * `WorkspaceSlotsProvider` and reached through React context; without a provider nothing can be
+ * registered and every slot reads as empty.
  */
 
 export type PlaybackStepModifiers = { altKey: boolean; shiftKey: boolean };
@@ -60,7 +71,7 @@ export type MomentValueAdornment = React.ComponentType<{
 /** A left sidebar tab, shown after the built-in Moment tab. */
 export type LeftSidebarSlotItem = { key: LeftSidebarItemKey; item: SidebarItem };
 
-type Slots = {
+export type Slots = {
   appBarItems: Readonly<Record<string, React.ComponentType>>;
   leftSidebarItems: Readonly<Record<string, LeftSidebarSlotItem>>;
   playbackStep: Readonly<Record<string, PlaybackStepOverride>>;
@@ -71,24 +82,51 @@ type Slots = {
 
 export type WorkspaceSlotName = keyof Slots;
 
-export const useWorkspaceSlots = create<Slots>(() => ({
-  appBarItems: {},
-  leftSidebarItems: {},
-  playbackStep: {},
-  shortcutColumns: {},
-  momentValueRenderers: {},
-  momentValueAdornments: {},
-}));
+export function createWorkspaceSlotsStore(): StoreApi<Slots> {
+  return createStore<Slots>(() => ({
+    appBarItems: {},
+    leftSidebarItems: {},
+    playbackStep: {},
+    shortcutColumns: {},
+    momentValueRenderers: {},
+    momentValueAdornments: {},
+  }));
+}
 
-/** Registers `value` under `id` in `slot`; an undefined value registers nothing. */
+export const WorkspaceSlotsContext = createContext<StoreApi<Slots> | undefined>(undefined);
+
+/** Owns the slot registry for everything below it (the Workspace mounts one). */
+export function WorkspaceSlotsProvider({
+  children,
+  store: provided,
+}: {
+  children?: ReactNode;
+  /** Tests pass their own store to inspect what was registered. */
+  store?: StoreApi<Slots>;
+}): React.JSX.Element {
+  const [owned] = useState(createWorkspaceSlotsStore);
+  return (
+    <WorkspaceSlotsContext.Provider value={provided ?? owned}>
+      {children}
+    </WorkspaceSlotsContext.Provider>
+  );
+}
+
+/** The slot store, or undefined outside a `WorkspaceSlotsProvider`. */
+export function useWorkspaceSlotsStore(): StoreApi<Slots> | undefined {
+  return useContext(WorkspaceSlotsContext);
+}
+
+/** Registers `value` under `id` in `slot`; the returned function removes it again. */
 export function registerWorkspaceSlot<K extends WorkspaceSlotName>(
+  store: StoreApi<Slots>,
   slot: K,
   id: string,
   value: Slots[K][string],
 ): () => void {
-  useWorkspaceSlots.setState((slots) => ({ [slot]: { ...slots[slot], [id]: value } }));
+  store.setState((slots) => ({ [slot]: { ...slots[slot], [id]: value } }));
   return () => {
-    useWorkspaceSlots.setState((slots) => {
+    store.setState((slots) => {
       if (slots[slot][id] !== value) {
         return {};
       }
@@ -104,17 +142,27 @@ export function useWorkspaceSlot<K extends WorkspaceSlotName>(
   id: string,
   value: Slots[K][string] | undefined,
 ): void {
+  const store = useWorkspaceSlotsStore();
   useEffect(
-    () => (value == undefined ? undefined : registerWorkspaceSlot(slot, id, value)),
-    [slot, id, value],
+    () =>
+      store == undefined || value == undefined
+        ? undefined
+        : registerWorkspaceSlot(store, slot, id, value),
+    [store, slot, id, value],
   );
 }
+
+const NO_ENTRIES: Readonly<Record<string, never>> = Object.freeze({});
+const noSubscribe = () => () => {};
 
 /** The registered `[id, value]` pairs of one slot, in registration order. */
 export function useWorkspaceSlotEntries<K extends WorkspaceSlotName>(
   slot: K,
 ): [string, Slots[K][string]][] {
-  const entries = useWorkspaceSlots((slots) => slots[slot]);
+  const store = useWorkspaceSlotsStore();
+  const entries = useSyncExternalStore(store ? store.subscribe : noSubscribe, () =>
+    store ? store.getState()[slot] : NO_ENTRIES,
+  );
   return useMemo(() => Object.entries(entries) as [string, Slots[K][string]][], [entries]);
 }
 

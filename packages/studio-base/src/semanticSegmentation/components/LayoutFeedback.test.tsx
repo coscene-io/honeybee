@@ -6,11 +6,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
+
+installSegmentationTestHost();
 
 it("keeps workbench notices outside the layout and editing lock while leaving STOP to the global lock and keeping retry guards", async () => {
   const runtime = createMockSegmentationRuntime();

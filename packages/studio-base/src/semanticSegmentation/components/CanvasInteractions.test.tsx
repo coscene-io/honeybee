@@ -6,21 +6,23 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
-import { closeKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SubmissionControls } from "./WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
+import { render, installSegmentationTestHost, testShortcutsDialog } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import { scaledFrame, TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { openViewTools } from "../testing/viewTools";
+
+installSegmentationTestHost();
 
 function pointer(
   target: Element,
@@ -510,11 +512,6 @@ describe("Studio keyboard shortcuts dialog", () => {
   beforeEach(async () => {
     await i18n.changeLanguage("en");
   });
-  afterEach(() => {
-    act(() => {
-      closeKeyboardShortcuts();
-    });
-  });
 
   it("opens from ? on the focused canvas without any annotation-owned dialog", async () => {
     const { viewport } = await setup();
@@ -532,7 +529,7 @@ describe("Studio keyboard shortcuts dialog", () => {
     fireEvent.click(within(openViewTools()).getByRole("button", { name: "Keyboard shortcuts" }));
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     act(() => {
-      closeKeyboardShortcuts();
+      testShortcutsDialog().setState({ open: false });
     });
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();

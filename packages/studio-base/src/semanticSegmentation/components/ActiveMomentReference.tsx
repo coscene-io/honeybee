@@ -11,7 +11,7 @@ import type { StoreApi } from "zustand";
 
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 
-import { segmentationSession } from "../runtime";
+import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import type { SemanticSegmentationStore } from "../types";
 import {
   MomentReferencePicker,
@@ -30,8 +30,8 @@ export function ActiveMomentReference({
   /** Record belonging to the actual Moment form, independent of the global annotation session. */
   recordId?: string;
 }): React.JSX.Element | undefined {
-  const runtime = useStore(segmentationSession, (state) => state.runtime);
-  const sourceReady = useStore(segmentationSession, (state) => state.sourceReady);
+  const runtime = useSegmentationSession((state) => state.runtime);
+  const sourceReady = useSegmentationSession((state) => state.sourceReady);
   return runtime ? (
     <ScopedMomentReference
       store={runtime.store}
@@ -56,6 +56,7 @@ function ScopedMomentReference({
   recordId?: string;
   sourceReady: boolean;
 }): React.JSX.Element {
+  const host = useSegmentationHost();
   const activeRecordId = useStore(store, (state) => state.document?.record.id);
   const sameRecord = recordId != undefined && activeRecordId === recordId;
   return (
@@ -64,7 +65,7 @@ function ScopedMomentReference({
       value={value}
       disabled={!sourceReady || !sameRecord}
       onChange={(next) => {
-        const session = segmentationSession.getState();
+        const session = host.session.getState();
         if (
           recordId != undefined &&
           session.runtime?.store === store &&
@@ -110,7 +111,7 @@ export function SpatialReferenceValue({
   highlight?: string;
 }): React.JSX.Element {
   const { t } = useTranslation("segmentation");
-  const runtime = useStore(segmentationSession, (state) => state.runtime);
+  const runtime = useSegmentationSession((state) => state.runtime);
   return runtime ? (
     <ResolvedValue store={runtime.store} value={value} highlight={highlight} />
   ) : (

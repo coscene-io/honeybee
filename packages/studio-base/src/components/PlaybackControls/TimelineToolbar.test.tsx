@@ -18,7 +18,7 @@ import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import SeekStepControls from "./SeekStepControls";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { TimelineToolbar } from "./TimelineToolbar";
-import { closeKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
+import { KeyboardShortcutsDialogProvider } from "./keyboardShortcutsDialogStore";
 
 let mockWidth = 1200;
 let mockHeight: number | undefined = 40;
@@ -41,30 +41,36 @@ function ToolbarFixture({
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
-      {realHelp === true && <KeyboardShortcutsDialog />}
-      <TimelineToolbar
-        onHeightChange={onHeightChange}
-        playback={
-          <>
-            <button>Back</button>
-            <button>Play</button>
-            <button>Forward</button>
-          </>
-        }
-        playbackOptions={<button>Repeat</button>}
-        seekStep={seekStep}
-        momentSettingsUrl={momentSettingsUrl}
-        speed={<button>Speed</button>}
-        time={({ compact }) => <input aria-label="Time" data-compact={compact} />}
-        sourceInfo={<button>Source</button>}
-        create={() => <button onClick={onCreate}>Create</button>}
-        editing={() => <button>Edit</button>}
-        zoom={<input type="range" aria-label="Timeline zoom" />}
-        fit={() => <button>Fit</button>}
-        help={({ showLabel }) =>
-          realHelp === true ? <ShortcutsHelpButton showLabel={showLabel} /> : <button>Help</button>
-        }
-      />
+      <KeyboardShortcutsDialogProvider>
+        {realHelp === true && <KeyboardShortcutsDialog />}
+        <TimelineToolbar
+          onHeightChange={onHeightChange}
+          playback={
+            <>
+              <button>Back</button>
+              <button>Play</button>
+              <button>Forward</button>
+            </>
+          }
+          playbackOptions={<button>Repeat</button>}
+          seekStep={seekStep}
+          momentSettingsUrl={momentSettingsUrl}
+          speed={<button>Speed</button>}
+          time={({ compact }) => <input aria-label="Time" data-compact={compact} />}
+          sourceInfo={<button>Source</button>}
+          create={() => <button onClick={onCreate}>Create</button>}
+          editing={() => <button>Edit</button>}
+          zoom={<input type="range" aria-label="Timeline zoom" />}
+          fit={() => <button>Fit</button>}
+          help={({ showLabel }) =>
+            realHelp === true ? (
+              <ShortcutsHelpButton showLabel={showLabel} />
+            ) : (
+              <button>Help</button>
+            )
+          }
+        />
+      </KeyboardShortcutsDialogProvider>
     </ThemeProvider>
   );
 }
@@ -73,7 +79,6 @@ describe("TimelineToolbar", () => {
   beforeEach(async () => {
     mockWidth = 1200;
     mockHeight = 40;
-    closeKeyboardShortcuts();
     await i18n.changeLanguage("en");
   });
 

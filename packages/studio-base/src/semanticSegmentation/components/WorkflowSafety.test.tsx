@@ -7,15 +7,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { frameInstanceKey } from "../service";
 import { MomentReferencePicker } from "./MomentReferencePicker";
 import { SubmissionControls, WorkflowControls } from "./WorkflowControls";
 import { CurrentFramePropagationForm } from "../acceptance/interaction/fixtures";
 import { polygonsOf } from "../maskGeometry";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
+
+installSegmentationTestHost();
 
 afterEach(cleanup);
 async function setup() {

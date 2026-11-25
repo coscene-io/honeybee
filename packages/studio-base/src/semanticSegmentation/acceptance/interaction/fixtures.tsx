@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, type RenderResult } from "@testing-library/react";
+import { act, fireEvent, screen, type RenderResult } from "@testing-library/react";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand/vanilla";
 
@@ -17,6 +17,7 @@ import { polygonsOf, summarizeObservation } from "../../maskGeometry";
 import type { DecodedSegmentationFrame } from "../../runtime";
 import { frameInstanceKey } from "../../service";
 import { createSemanticSegmentationStore } from "../../store";
+import { render, installSegmentationTestHost } from "../../testing/host";
 import {
   createMockSemanticSegmentationService,
   createSeedDocument,
@@ -28,6 +29,9 @@ import type {
   SegmentationPolygon,
   SemanticSegmentationStore,
 } from "../../types";
+
+// Every test that uses these helpers renders inside a fresh segmentation host.
+installSegmentationTestHost();
 
 export const triangle: NormalizedPoint[] = [
   { x: 0.1, y: 0.1 },

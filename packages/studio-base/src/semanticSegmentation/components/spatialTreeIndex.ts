@@ -8,7 +8,7 @@
 import { cameraFrameStrip, sortCameraFrames, type CameraStripCell } from "../cameraFrames";
 import { summaryHasGeometry } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
-import { sourceFrameLoaders } from "../sourceFrames";
+import type { SourceFrameLoaders } from "../sourceFrames";
 import type {
   SegmentationDocument,
   SegmentationFrame,
@@ -140,6 +140,7 @@ export function cameraStripCells(
   document: Pick<SegmentationDocument, "frames" | "videos" | "annotationSummaries">,
   instanceId: string,
   frameId: string,
+  sourceFrames: SourceFrameLoaders,
 ): CameraStripCell[] {
   let entry = stripCaches.get(document.annotationSummaries);
   if (entry?.frames !== document.frames || entry.length !== document.frames.length) {
@@ -163,7 +164,7 @@ export function cameraStripCells(
           currentFrameId: frameId,
           isAnnotated: (id) =>
             summaryHasGeometry(document.annotationSummaries[frameInstanceKey(id, instanceId)]),
-          isLoaded: sourceFrameLoaders.get(frame.videoId)?.isLoaded,
+          isLoaded: sourceFrames.get(frame.videoId)?.isLoaded,
         })
       : [];
   entry.cells.set(key, cells);

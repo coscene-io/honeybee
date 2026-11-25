@@ -58,8 +58,8 @@ export type SourceFrameLoader = {
   dispose: () => void;
 };
 
-/** The loader of each video bound to an open annotation session. */
-export const sourceFrameLoaders = new Map<string, SourceFrameLoader>();
+/** The loader of each video bound to an open annotation session (`SegmentationHost.sourceFrames`). */
+export type SourceFrameLoaders = Map<string, SourceFrameLoader>;
 
 export function createSourceFrameLoader({
   subscribeMessageRange,

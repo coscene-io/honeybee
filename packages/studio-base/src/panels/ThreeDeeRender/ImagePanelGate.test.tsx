@@ -8,6 +8,9 @@
 
 import { render, screen } from "@testing-library/react";
 
+import { createSegmentationHost } from "@foxglove/studio-base/semanticSegmentation/segmentationHost";
+import { SegmentationHostContext } from "@foxglove/studio-base/semanticSegmentation/segmentationHostContext";
+
 import { ImagePanel } from "./index";
 
 let mockEnabled = false;
@@ -77,7 +80,12 @@ describe("Image panel spatial annotation gate", () => {
 
   it("mounts the editor entry, workspace and propagate button when annotation is on", async () => {
     mockEnabled = true;
-    render(<Image config={{ imageMode: { imageTopic: "/camera" } }} saveConfig={jest.fn()} />);
+    const host = createSegmentationHost();
+    render(
+      <SegmentationHostContext.Provider value={host}>
+        <Image config={{ imageMode: { imageTopic: "/camera" } }} saveConfig={jest.fn()} />
+      </SegmentationHostContext.Provider>,
+    );
     // The editor is a lazily loaded chunk.
     expect(await screen.findByTestId("segmentation-entry")).toBeTruthy();
     expect(screen.getByTestId("segmentation-workspace")).toBeTruthy();

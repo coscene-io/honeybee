@@ -9,11 +9,10 @@ import { Box, Stack, Typography } from "@mui/material";
 import { memo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
-import { useStore } from "zustand";
 
 import { CAMERA_STRIP_RADIUS, type CameraStripCell } from "../cameraFrames";
-import { segmentationSession } from "../runtime";
-import { sourceFrameLoaders } from "../sourceFrames";
+import { useSegmentationSession } from "../segmentationHostContext";
+import type { SourceFrameLoaders } from "../sourceFrames";
 import type { SegmentationDocument } from "../types";
 import { cameraStripCells, frameIndexOf } from "./spatialTreeIndex";
 
@@ -50,6 +49,8 @@ type CameraFrameStripProps = {
   camera: string;
   color: string;
   disabled: boolean;
+  /** The host's frame loaders: they decide which cells are loaded. */
+  sourceFrames: SourceFrameLoaders;
 };
 
 /** Whether this instance appears anywhere in the camera's strip around `frameId`. */
@@ -57,17 +58,24 @@ export function cameraStripVisible(
   document: SegmentationDocument,
   instanceId: string,
   frameId: string,
+  sourceFrames: SourceFrameLoaders,
 ): boolean {
-  return cameraStripCells(document, instanceId, frameId).some((cell) => cell.state === "annotated");
+  return cameraStripCells(document, instanceId, frameId, sourceFrames).some(
+    (cell) => cell.state === "annotated",
+  );
 }
 
 /**
  * Starts reading the camera's source frames around `frameId`, so a strip far from the focused
  * camera fills in. The tree calls this for every strip, including ones scrolled out of view.
  */
-export function preloadCameraStrip(document: SegmentationDocument, frameId: string): void {
+export function preloadCameraStrip(
+  document: SegmentationDocument,
+  frameId: string,
+  sourceFrames: SourceFrameLoaders,
+): void {
   const current = frameIndexOf(document).frameById.get(frameId);
-  const loader = current ? sourceFrameLoaders.get(current.videoId) : undefined;
+  const loader = current ? sourceFrames.get(current.videoId) : undefined;
   if (!current || !loader) {
     return;
   }
@@ -86,8 +94,12 @@ function sameStrip(previous: CameraFrameStripProps, next: CameraFrameStripProps)
     previous.camera === next.camera &&
     previous.color === next.color &&
     previous.disabled === next.disabled &&
-    cameraStripCells(previous.document, previous.instanceId, previous.frameId) ===
-      cameraStripCells(next.document, next.instanceId, next.frameId)
+    cameraStripCells(
+      previous.document,
+      previous.instanceId,
+      previous.frameId,
+      previous.sourceFrames,
+    ) === cameraStripCells(next.document, next.instanceId, next.frameId, next.sourceFrames)
   );
 }
 
@@ -102,22 +114,23 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
   camera,
   color,
   disabled,
+  sourceFrames,
 }: CameraFrameStripProps): React.JSX.Element | ReactNull {
   const { classes, theme } = useStyles();
   const { t } = useTranslation("segmentation");
-  const seek = useStore(segmentationSession, (session) => session.seek);
+  const seek = useSegmentationSession((session) => session.seek);
   const current = frameIndexOf(document).frameById.get(frameId);
   const videoId = current?.videoId;
   const centerNs = current?.logTimeNs;
   useEffect(() => {
-    const loader = videoId == undefined ? undefined : sourceFrameLoaders.get(videoId);
+    const loader = videoId == undefined ? undefined : sourceFrames.get(videoId);
     if (!loader || centerNs == undefined) {
       return;
     }
     const center = BigInt(centerNs);
     void loader.ensureRange(center - PRELOAD_NS, center + PRELOAD_NS).catch(() => undefined);
-  }, [videoId, centerNs]);
-  const cells = cameraStripCells(document, instanceId, frameId);
+  }, [videoId, centerNs, sourceFrames]);
+  const cells = cameraStripCells(document, instanceId, frameId, sourceFrames);
   // A camera where this instance never appears nearby would only add noise.
   if (!cells.some((cell) => cell.state === "annotated")) {
     return ReactNull;

@@ -9,9 +9,9 @@ import { t } from "i18next";
 import { useStore } from "zustand";
 
 import { segmentationErrorText } from "./errors";
-import { segmentationSession } from "./runtime";
-import { segmentationCanvasLabel, segmentationChrome } from "./segmentationChrome";
-import { SOURCE_FRAME_WINDOW_NS, sourceFrameLoaders } from "./sourceFrames";
+import { segmentationCanvasLabel } from "./segmentationChrome";
+import { useSegmentationHost, type SegmentationHost } from "./segmentationHostContext";
+import { SOURCE_FRAME_WINDOW_NS } from "./sourceFrames";
 import type { SegmentationFrame } from "./types";
 
 /** Frames shown on each side of the current frame in a camera's mini timeline. */
@@ -154,12 +154,12 @@ export function cameraStepTarget(
 /** The camera the playback bar steps while annotating: the canvas that receives edits. */
 type CameraStepCamera = { panelId: string; label: string; topic?: string };
 
-function segmentationStepCamera(): CameraStepCamera | undefined {
-  const session = segmentationSession.getState();
+function segmentationStepCamera(host: SegmentationHost): CameraStepCamera | undefined {
+  const session = host.session.getState();
   if (!session.open || session.panelId == undefined || !session.runtime) {
     return undefined;
   }
-  const topic = segmentationChrome
+  const topic = host.chrome
     .getState()
     .canvases.find((canvas) => canvas.panelId === session.panelId)?.topic;
   return { panelId: session.panelId, topic, label: segmentationCanvasLabel(topic) };
@@ -170,13 +170,18 @@ function segmentationStepCamera(): CameraStepCamera | undefined {
  * Until another frame is shown, repeated presses continue from the requested frame instead of
  * repeating the same step.
  */
-let pendingStep: { videoId: string; fromNs: bigint; ns: bigint; clockNs?: bigint } | undefined;
+export type CameraStepState = {
+  pending: { videoId: string; fromNs: bigint; ns: bigint; clockNs?: bigint } | undefined;
+  /** Identifies the latest step request; an older one that resolves late is dropped. */
+  latest: number;
+};
 
-/** Identifies the latest step request; an older one that resolves late is dropped. */
-let latestStep = 0;
+export function createCameraStepState(): CameraStepState {
+  return { pending: undefined, latest: 0 };
+}
 
-function busyEditing(): boolean {
-  const session = segmentationSession.getState();
+function busyEditing(host: SegmentationHost): boolean {
+  const session = host.session.getState();
   const state = session.runtime?.store.getState();
   return (
     state == undefined ||
@@ -186,8 +191,8 @@ function busyEditing(): boolean {
   );
 }
 
-function reportStepError(error: unknown): void {
-  segmentationSession.getState().runtime?.store.setState({
+function reportStepError(host: SegmentationHost, error: unknown): void {
+  host.session.getState().runtime?.store.setState({
     error: t("segmentation:frameStepFailed", {
       error: segmentationErrorText(error),
     }),
@@ -201,6 +206,7 @@ function reportStepError(error: unknown): void {
  * holds the editor).
  */
 export function segmentationCameraStep(
+  host: SegmentationHost,
   direction: 1 | -1,
   count = 1,
   /**
@@ -210,17 +216,17 @@ export function segmentationCameraStep(
    */
   clockNs?: bigint,
 ): Promise<bigint | undefined> | undefined {
-  const camera = segmentationStepCamera();
+  const camera = segmentationStepCamera(host);
   if (!camera) {
     return undefined;
   }
-  const session = segmentationSession.getState();
+  const session = host.session.getState();
   const runtime = session.runtime!;
   const state = runtime.store.getState();
   const document = state.document;
   const surface = session.surfaces[camera.panelId];
   const shown = document?.frames.find((frame) => frame.id === surface?.frameId);
-  const busy = busyEditing();
+  const busy = busyEditing(host);
   const videoId =
     shown?.videoId ??
     (camera.topic == undefined
@@ -232,8 +238,11 @@ export function segmentationCameraStep(
     return Promise.resolve(undefined);
   }
   const shownNs = shown ? BigInt(shown.logTimeNs) : undefined;
+  const { cameraStep } = host;
   const pending =
-    pendingStep?.videoId === videoId && pendingStep.fromNs === shownNs ? pendingStep : undefined;
+    cameraStep.pending?.videoId === videoId && cameraStep.pending.fromNs === shownNs
+      ? cameraStep.pending
+      : undefined;
   let currentNs: bigint;
   if (fromClock) {
     // A step still decoding keeps going from its target; any other clock is a seek elsewhere.
@@ -244,9 +253,9 @@ export function segmentationCameraStep(
   } else {
     currentNs = pending?.ns ?? shownNs!;
   }
-  const request = ++latestStep;
+  const request = ++cameraStep.latest;
   const shownFrameId = surface?.frameId;
-  const loader = sourceFrameLoaders.get(videoId);
+  const loader = host.sourceFrames.get(videoId);
   const ready = loader
     ? direction > 0
       ? loader.ensureFollowing(currentNs, count)
@@ -255,20 +264,20 @@ export function segmentationCameraStep(
   return ready
     .catch((error: unknown) => {
       // Step within the frames read so far, but say why it may stop short.
-      reportStepError(error);
+      reportStepError(host, error);
     })
     .then(() => {
       // The read can take a while. Drop the step when anything it was based on moved meanwhile:
       // a newer step, another session, runtime or edited camera, another shown frame (playback
       // or a seek), or an edit that holds the editor. A late jump would surprise the user.
-      const live = segmentationSession.getState();
+      const live = host.session.getState();
       if (
-        request !== latestStep ||
+        request !== cameraStep.latest ||
         !live.open ||
         live.runtime !== runtime ||
         live.panelId !== camera.panelId ||
         live.surfaces[camera.panelId]?.frameId !== shownFrameId ||
-        busyEditing()
+        busyEditing(host)
       ) {
         return undefined;
       }
@@ -278,7 +287,7 @@ export function segmentationCameraStep(
       const target = cameraStepTarget(frames, currentNs, direction, count);
       if (target != undefined) {
         // Without a shown frame there is nothing to key a pending step on; the clock moves instead.
-        pendingStep =
+        cameraStep.pending =
           shownNs == undefined
             ? undefined
             : {
@@ -300,40 +309,39 @@ type StepModifiers = { altKey: boolean; shiftKey: boolean };
  * `handled: false` means the caller runs its own step with `modifiers`.
  */
 export function segmentationPlaybackStep(
+  host: SegmentationHost,
   direction: 1 | -1,
   event: StepModifiers | undefined,
   seek: (logTimeNs: bigint) => void,
   clockNs?: bigint,
 ): { handled: true } | { handled: false; modifiers: StepModifiers | undefined } {
-  if (segmentationStepCamera() == undefined) {
+  if (segmentationStepCamera(host) == undefined) {
     return { handled: false, modifiers: event };
   }
   if (event?.altKey === true) {
     return { handled: false, modifiers: { altKey: false, shiftKey: event.shiftKey } };
   }
-  void segmentationCameraStep(direction, event?.shiftKey === true ? 10 : 1, clockNs)
+  void segmentationCameraStep(host, direction, event?.shiftKey === true ? 10 : 1, clockNs)
     ?.then((target) => {
       if (target != undefined) {
         seek(target);
       }
     })
-    .catch(reportStepError);
+    .catch((error: unknown) => {
+      reportStepError(host, error);
+    });
   return { handled: true };
 }
 
 /** Name of the camera the playback bar steps, or undefined outside an annotation session. */
 export function useSegmentationStepLabel(): string | undefined {
-  const panelId = useStore(segmentationSession, (session) =>
+  const host = useSegmentationHost();
+  const panelId = useStore(host.session, (session) =>
     session.open && session.runtime ? session.panelId : undefined,
   );
   const topic = useStore(
-    segmentationChrome,
+    host.chrome,
     (chrome) => chrome.canvases.find((canvas) => canvas.panelId === panelId)?.topic,
   );
   return panelId == undefined ? undefined : segmentationCanvasLabel(topic);
-}
-
-/** Test hook: forget a step that was never displayed. */
-export function resetCameraStepForTests(): void {
-  pendingStep = undefined;
 }

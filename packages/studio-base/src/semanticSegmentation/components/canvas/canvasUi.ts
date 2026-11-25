@@ -23,6 +23,7 @@ import type {
   VertexRef,
 } from "./canvasTypes";
 import type { QuickPoint } from "../../quickSegment";
+import type { SegmentationHost } from "../../segmentationHostContext";
 import type { MaskConversionLoss, SemanticSegmentationStore } from "../../types";
 import type { EditorPoint } from "../editorGeometry";
 
@@ -184,6 +185,10 @@ export type CanvasUi = ReturnType<typeof useCanvasUi>;
 /** What every canvas handler reads: props, store state, local state and what follows from them. */
 export type CanvasContext = {
   store: StoreApi<SemanticSegmentationStore>;
+  /** The workspace's shared session (which canvas holds the edit, the stroke in progress). */
+  host: SegmentationHost;
+  /** Opens the keyboard shortcuts dialog. */
+  openShortcuts: () => void;
   props: SegmentationCanvasProps;
   state: CanvasState;
   ui: CanvasUi;

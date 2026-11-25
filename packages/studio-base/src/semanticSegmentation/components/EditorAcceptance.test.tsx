@@ -6,16 +6,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 
 import { polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
 import { createSemanticSegmentationStore } from "../store";
+import { render, installSegmentationTestHost } from "../testing/host";
 import { createMockSemanticSegmentationService, createSeedDocument } from "../testing/mockService";
 import type { NormalizedPoint, SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
+
+installSegmentationTestHost();
 
 // Contract: the original Given/When/Then in requirements.csv, not the preaudit wording.
 function fixture(frameCount: number, present: (frame: number, instance: number) => boolean) {
