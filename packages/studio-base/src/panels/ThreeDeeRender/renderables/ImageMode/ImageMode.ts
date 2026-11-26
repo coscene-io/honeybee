@@ -394,6 +394,13 @@ export class ImageMode
         () => {
           this.renderer.queueAnimationFrame();
         },
+        (listener) => {
+          const canvas = this.renderer.gl.domElement;
+          canvas.addEventListener("webglcontextrestored", listener);
+          return () => {
+            canvas.removeEventListener("webglcontextrestored", listener);
+          };
+        },
       );
     }
     this.#segmentationMasks?.update(this.imageRenderable);
@@ -412,6 +419,12 @@ export class ImageMode
     this.#segmentationMasks?.dispose();
     this.#segmentationMasks = undefined;
     this.#segmentationBridge = bridge;
+    if (!bridge) {
+      // No editor is left to ask for a capture, so nothing may hold a decoded frame for one.
+      this.#segmentationCaptureRequested = false;
+      this.#segmentationBlockedImage = undefined;
+      this.#segmentationCapture = undefined;
+    }
     // Only redraws so the next frame can build the layer; once built, the layer subscribes itself.
     this.#unsubscribeMaskOverlay = bridge?.maskOverlay.subscribe(() => {
       if (this.#segmentationMasks == undefined) {
@@ -1351,9 +1364,12 @@ export class ImageMode
   /** Set once something asks for a capture; panels nobody annotates never hold a frame for it. */
   #segmentationCaptureRequested = false;
 
-  /** A capture right after a seek must not return the frame shown before it. */
+  /**
+   * A capture right after a seek must not return the frame shown before it. Blocked while an editor
+   * is connected, even before its first capture, or after one was requested.
+   */
   #blockSegmentationCaptureOfCurrentImage(): void {
-    if (this.#segmentationCaptureRequested) {
+    if (this.#segmentationCaptureRequested || this.#segmentationBridge != undefined) {
       this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
     }
   }

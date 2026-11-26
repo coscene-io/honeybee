@@ -31,6 +31,7 @@ import {
   createSegmentationMaskOverlay,
   createSegmentationPanelBridge,
 } from "@foxglove/studio-base/segmentation/imageSource";
+import { MaskPlaneCache } from "@foxglove/studio-base/segmentation/maskOverlay/maskPlaneCache";
 
 import { ImageMode } from "./ImageMode";
 import {
@@ -510,6 +511,58 @@ describe("ImageMode compressed video seek replay", () => {
     next.encodeImageUrl();
     expect(encode).toHaveBeenLastCalledWith("image/png");
     expect(encode).toHaveBeenCalledTimes(2);
+    imageMode.dispose();
+  });
+
+  it("blocks the pre-seek image before the connected editor's first capture", async () => {
+    const imageMode = new TestImageMode(makeRenderer());
+    const bridge = createSegmentationPanelBridge({
+      maskOverlay: createSegmentationMaskOverlay(),
+      maskPlanes: { get: () => new MaskPlaneCache(undefined), dispose: () => {} },
+    });
+    imageMode.setSegmentationBridge(bridge);
+    const initial = makeVideoMessage(0n, "key");
+    await compressedVideoSubscription(imageMode).processQueue?.([initial], PLAYBACK_CONTEXT);
+    const renderable = imageMode.currentImageRenderable()!;
+    const decoded = jest.spyOn(renderable, "getDecodedImage").mockReturnValue(new ImageData(8, 4));
+    // Keep the old frame available in the test double so the capture guard must reject it.
+    jest.spyOn(renderable, "invalidateImage").mockImplementation(() => {});
+    renderable.userData.displayedFrameState = { image: initial.message, receiveTime: 0n };
+
+    imageMode.handleSeek();
+    expect(imageMode.captureSegmentationImageMetadata()).toBeUndefined();
+
+    const sought = makeVideoMessage(900n, "key");
+    decoded.mockReturnValue(new ImageData(8, 4));
+    renderable.userData.displayedFrameState = { image: sought.message, receiveTime: 900n };
+    expect(imageMode.captureSegmentationImageMetadata()?.receiveTime).toEqual(sought.receiveTime);
+    imageMode.dispose();
+  });
+
+  it("clears capture blocking on disconnect and does not block on the next seek", async () => {
+    const imageMode = new TestImageMode(makeRenderer());
+    const bridge = createSegmentationPanelBridge({
+      maskOverlay: createSegmentationMaskOverlay(),
+      maskPlanes: { get: () => new MaskPlaneCache(undefined), dispose: () => {} },
+    });
+    imageMode.setSegmentationBridge(bridge);
+    const frame = makeVideoMessage(0n, "key");
+    await compressedVideoSubscription(imageMode).processQueue?.([frame], PLAYBACK_CONTEXT);
+    const renderable = imageMode.currentImageRenderable()!;
+    const pixels = new ImageData(8, 4);
+    const decoded = jest.spyOn(renderable, "getDecodedImage").mockReturnValue(pixels);
+    // Keep the old frame available in the test double to observe capture blocking directly.
+    jest.spyOn(renderable, "invalidateImage").mockImplementation(() => {});
+    renderable.userData.displayedFrameState = { image: frame.message, receiveTime: 0n };
+    expect(imageMode.captureSegmentationImageMetadata()?.decodedIdentity).toBe(pixels);
+
+    imageMode.handleSeek();
+    expect(imageMode.captureSegmentationImageMetadata()).toBeUndefined();
+    imageMode.setSegmentationBridge(undefined);
+    decoded.mockClear();
+    imageMode.handleSeek();
+    expect(decoded).not.toHaveBeenCalled();
+    expect(imageMode.captureSegmentationImageMetadata()?.decodedIdentity).toBe(pixels);
     imageMode.dispose();
   });
 
