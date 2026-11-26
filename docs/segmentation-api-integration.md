@@ -4,14 +4,14 @@ The editor reads and writes annotations for eligible cloud recordings through th
 
 ## Terms
 
-| Term               | Meaning                                                                                                                                                                |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| segmentation       | This feature: the `segmentation/` source folder, `Segmentation*` types and components, and the `segmentation` i18n namespace.                                          |
-| spatial annotation | The backend API only: `services/api/spatial-annotation`, the `AnnotationService` protocol, and the persisted `spatial://` reference URIs.                              |
-| flag name          | `honeybee_semantic_segmentation`. It is already in use outside the code, so it keeps its original wording, as does the `spatial://` URI format.                        |
-| host               | The session, runtime registry, and caches that one workspace provides to its Image panels and sidebar through React context.                                            |
-| runtime            | The store and service of one recording. Panels that annotate the same recording share it.                                                                              |
-| panel bridge       | What one Image panel's renderer, which lives in its own React root, exchanges with the editor.                                                                         |
+| Term               | Meaning                                                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| segmentation       | This feature: the `segmentation/` source folder, `Segmentation*` types and components, and the `segmentation` i18n namespace.                   |
+| spatial annotation | The backend API only: `services/api/spatial-annotation`, the `AnnotationService` protocol, and the persisted `spatial://` reference URIs.       |
+| flag name          | `honeybee_semantic_segmentation`. It is already in use outside the code, so it keeps its original wording, as does the `spatial://` URI format. |
+| host               | The session, runtime registry, and caches that one workspace provides to its Image panels and sidebar through React context.                    |
+| runtime            | The store and service of one recording. Panels that annotate the same recording share it.                                                       |
+| panel bridge       | What one Image panel's renderer, which lives in its own React root, exchanges with the editor.                                                  |
 
 ## Adapter
 
@@ -43,6 +43,8 @@ The adapter's cache is updated after each successful catalog request, so a retry
 
 When the store evicts distant frames, `releaseFrames` also drops their loaded markers, geometry, unreadable wire observations, and `occluded` values from the adapter. Ordinary eviction keeps annotation summaries and protects frames with staged edits or pending submissions, including failed batches awaiting retry. If a later submission needs an evicted frame, the adapter reads it again before building the whole-frame snapshot.
 
+The source frame loader registers camera timestamps from the recording. The frame strip loads up to 20 neighbours on either side of the displayed frame, reading across windows as needed. Stepping through a camera also reads contiguous windows until it finds the requested frames or reaches the recording boundary. If the player seeks while a step waits for a window, the editor drops the pending step. When several Image panels register a loader for the same video, the latest registration handles reads. Removing that panel restores the previous loader.
+
 ## Geometry mapping
 
 - The adapter reads polygon coordinates by dividing them by the topic's decoded dimensions. Server coordinates outside the image can produce values outside `[0, 1]` in the editor document. On write, the adapter scales and clamps them to `[0, width] × [0, height]` before validation. This can change an existing polygon on a whole-frame save. A polygon ID in another format gets a deterministic UUID derived from the record, instance, and ID.
@@ -70,7 +72,9 @@ Implemented in `segmentation/frameTime.ts`.
 
 ## Propagation
 
-The propagation panel lists the instances that have geometry on the canvas's current frame. The instances selected in the tree are checked by default (all of them when none is selected), and only checked instances are sent as seeds. The direction is forward, backward or both. Propagating to earlier frames sends an `end_time` before the seed frame with `direction: BACKWARD`, and results arrive in reverse time order. **Both** starts the backward run only after the forward run completes successfully.
+The propagation panel lists the instances that have geometry on the canvas's current frame. The instances selected in the tree are checked by default (all of them when none is selected), and only checked instances are sent as seeds. The editor reads source frame timestamps in the requested range before starting propagation. Closing the form during preparation or ending the session cancels the pending start.
+
+The direction is forward, backward or both. Propagating to earlier frames sends an `end_time` before the seed frame with `direction: BACKWARD`, and results arrive in reverse time order. When both sides have target frames, **Both** starts the backward run only after the forward run completes successfully. If just one side has target frames, the editor runs that side.
 
 `PropagateAnnotation` is a gRPC-Web server stream. The adapter ignores `ready`. For a `frame` event that resolves to a local frame, the adapter handles each selected instance as follows.
 
@@ -80,9 +84,11 @@ The propagation panel lists the instances that have geometry on the canvas's cur
 
 `done` completes the run unless any mask failed to decode. In that case the adapter throws `errorPropagationMaskSizeMismatch`. An `error` event throws an `AnnotationRpcError` with the gRPC code name and server message. The UI translates the error by code. A stream that closes before `done` also fails. Results already staged stay in the queue. Stopping aborts the RPC. `LIVE_PROPAGATION_MODELS` lists `sam2.1-motion`, the model the backend supports.
 
+The workflow panel belongs to the edit session. If the focused Image panel closes and another takes over, that panel keeps the same workflow state. Ending the session closes the workflow panel.
+
 ## Quick annotation
 
-Quick annotation calls `SegmentFrame` (cosceneapis #870) to create a mask from clicks. Each click sends the displayed frame as a source-size JPEG, all points selected so far, and the `frame_time` truncated to microseconds. Points use source image pixels, with `negative` marking background points. The server keeps no session, so each request uploads the image. When the response has no mask, the editor reports that the points selected no foreground and keeps the previous result. Enter adds the mask to the local staging queue. Submitting the queue persists the mask through `SaveAnnotation`. Quick annotation is available for cloud recordings. See `segmentation/quickSegment.ts`.
+Quick annotation calls `SegmentFrame` (cosceneapis #870) to create a mask from clicks. The editor uses the decoded frame shown by the paused Image panel. After a seek, the previous image cannot be captured, even if the user has yet to make their first capture. Each click sends the displayed frame as a source-size JPEG, all points selected so far, and the `frame_time` truncated to microseconds. Points use source image pixels, with `negative` marking background points. The server keeps no session, so each request uploads the image. When the response has no mask, the editor reports that the points selected no foreground and keeps the previous result. Enter adds the mask to the local staging queue. Submitting the queue persists the mask through `SaveAnnotation`. Quick annotation is available for cloud recordings. See `segmentation/quickSegment.ts`.
 
 ## Generated code
 
@@ -96,13 +102,13 @@ The published `@coscene-io/cosceneapis-es-v2` has no `services/annotation_pb` ye
 - The backend validates neither mask pixel counts nor the upper bound of polygon coordinates. The editor does both for now; the server should too.
 - `ListTimelineRanges` returns one point range per observation instead of coalesced ranges, so the number of pages grows with the number of observations.
 - `Mask` carries counts without dimensions. A change in total pixel count makes existing masks unreadable. The editor preserves the original wire data and reports the likely original dimensions when it can infer them. If the new dimensions have the same pixel count, such as 640×480 and 480×640, the adapter interprets the counts using the new shape and records no size mismatch.
-- H.264 transcode profiles use the same topic (`…/h264`) at different sizes. A 720p mask cannot be read at 480p. With a readable shard manifest that lists video profiles, starting annotation switches to 720p or the closest available profile (the higher one on a tie). The page reports the switch, and the user clicks **Edit** again. Raw stays raw. Annotation starts at the current quality if the manifest is missing, cannot be read, or lists no video profiles. Sessions that fall back to different decoded sizes may produce masks that the other session cannot read.
+- H.264 transcode profiles use the same topic (`…/h264`) at different sizes. A 720p mask cannot be read at 480p. With a valid shard manifest that lists video profiles, starting annotation switches to 720p or the closest available profile (the higher one on a tie). The page reports the switch, and the user clicks **Edit** again. Raw stays raw. Annotation starts at the current quality if the manifest is missing or unreadable, the profile list is invalid, or there are no video profiles. Sessions that fall back to different decoded sizes may produce masks that the other session cannot read. If the player or source changes during the manifest check, the old result is discarded before it can enter annotation or switch quality.
 - **Raw and h264 are two topics with independent annotations that are never mapped onto each other.** What is annotated on raw is not visible on a transcode quality, and the reverse. This is a known limitation for now.
 
 ## Enabling and release order
 
 - The feature is controlled by the GrowthBook flag `honeybee_semantic_segmentation`, off by default. Without a GrowthBook provider it falls back to `FEATURE_FLAG_GROWTHBOOK.honeybee_semantic_segmentation` in cos-config.
-- The workspace lazily loads the segmentation host and slots when the flag is on, including for local sources. The Image panel adapter, annotation controls, and `AnnotationService` requests also require an eligible cloud recording. The data source must be `coscene-data-platform` and Core Data must hold a valid record name. During a switch to a different cloud recording, the editor waits until Core Data matches the requested record.
+- The workspace lazily loads the segmentation host and slots when the flag is on, including for local sources. The Image panel adapter, annotation controls, and `AnnotationService` requests also require an eligible cloud recording. The data source must be `coscene-data-platform` and Core Data must hold a valid record name. During a switch to a different cloud recording, the editor waits until Core Data matches the requested record. An eligible panel shows the regular Image panel while the host or adapter loads. If the adapter import fails, the panel reports the error and keeps the regular Image view.
 - If GrowthBook turns the flag off while the host holds unsaved work, the editor and the browser's leave-page guard stay active. The flag change takes effect after the work is saved or discarded and any running propagation has ended.
 - Release order: deploy the `AnnotationService` to the target environment first (backend #2403, currently only on dev), then turn the flag on there.
 - Operations that have not been submitted exist only in memory. While there is unsaved annotation work the browser asks before leaving the page (the desktop app does not). After switching to another record, the runtime with unsaved work stays in memory; retry or discard it by returning to the original record.
