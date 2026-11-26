@@ -33,6 +33,16 @@ describe("loadManifestProfiles", () => {
     await expect(loadManifestProfiles("https://m/a.json")).resolves.toEqual([]);
   });
 
+  it.each([
+    { profiles: {} },
+    { profiles: JSON.parse("[null]") as unknown },
+    { profiles: [{ id: 720 }] },
+    { profiles: [{ id: "720p", params: { h: "720" } }] },
+  ])("rejects malformed profiles %j", async ({ profiles }) => {
+    answer({ ok: true, json: async () => ({ profiles }) });
+    await expect(loadManifestProfiles("https://m/a.json")).resolves.toBeUndefined();
+  });
+
   it("is undefined when the manifest cannot be read", async () => {
     answer({ ok: false });
     await expect(loadManifestProfiles("https://m/a.json")).resolves.toBeUndefined();

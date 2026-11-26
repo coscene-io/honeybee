@@ -8,7 +8,7 @@
 import { createCameraStepState } from "./cameraFrames";
 import { createSegmentationMaskOverlay } from "./imageSource";
 import { clearMaskGeometryCaches } from "./maskGeometry";
-import { createMaskOverlayControls, installMaskOverlaySource } from "./maskOverlay/overlaySource";
+import { installMaskOverlaySource } from "./maskOverlay/overlaySource";
 import { createSharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import { createSegmentationRegistry, createSegmentationSession } from "./runtime";
 import { createSegmentationChrome } from "./segmentationChrome";
@@ -20,12 +20,10 @@ export function createSegmentationHost(): SegmentationHost {
   const session = createSegmentationSession();
   const registry = createSegmentationRegistry(session);
   const maskOverlay = createSegmentationMaskOverlay();
-  const maskOverlayControls = createMaskOverlayControls();
   const maskPlanes = createSharedMaskPlanes();
   const uninstallOverlay = installMaskOverlaySource({
     session,
     overlay: maskOverlay,
-    controls: maskOverlayControls,
   });
   return {
     session,
@@ -34,7 +32,6 @@ export function createSegmentationHost(): SegmentationHost {
     cameraStep: createCameraStepState(),
     sourceFrames: createSourceFrameLoaders(),
     maskOverlay,
-    maskOverlayControls,
     maskPlanes,
     dispose: () => {
       uninstallOverlay();

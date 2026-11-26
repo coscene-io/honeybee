@@ -177,7 +177,7 @@ export function openPolygonConversion(c: CanvasContext, instanceId: string): voi
   const { frameId, document } = c.d;
   const observation =
     frameId != undefined ? document?.annotations[frameInstanceKey(frameId, instanceId)] : undefined;
-  if (observation?.kind !== "mask") {
+  if (frameId == undefined || observation?.kind !== "mask") {
     return;
   }
   run(c, () => {
@@ -187,7 +187,7 @@ export function openPolygonConversion(c: CanvasContext, instanceId: string): voi
       c.state.convertToPolygons(instanceId);
       c.ui.setNotice(c.t("convertedMaskPolygons"));
     } else {
-      c.ui.setConversion({ instanceId, loss });
+      c.ui.setConversion({ instanceId, frameId, loss });
     }
   });
 }

@@ -58,8 +58,15 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
         : {
             backwardLabel: t("seekBackwardCamera", { camera: stepCamera }),
             forwardLabel: t("seekForwardCamera", { camera: stepCamera }),
-            step: (direction, modifiers, seek, clockNs) =>
-              segmentationPlaybackStep(host, direction, modifiers, seek, clockNs),
+            step: (direction, modifiers, seek, clockNs, isPlaybackCurrent) =>
+              segmentationPlaybackStep(
+                host,
+                direction,
+                modifiers,
+                seek,
+                clockNs,
+                isPlaybackCurrent,
+              ),
           },
     [host, stepCamera, t],
   );

@@ -557,6 +557,7 @@ export function SegmentationImageEntry({
         return ownsSession
           ? {
               open: false,
+              workflow: { open: false, nonce: 0 },
               imageUrl: undefined,
               decodedFrame: undefined,
               panelId: undefined,
@@ -963,10 +964,6 @@ export function SegmentationImageEntry({
                   boundRuntime.registerSource({ videos: [], frames: source });
                 }
               },
-              knownLogTimes: () =>
-                (boundRuntime.store.getState().document?.frames ?? [])
-                  .filter((item) => item.videoId === videoId)
-                  .map((item) => BigInt(item.logTimeNs)),
             })
           : undefined;
       active.current?.unbindFrames?.();
@@ -1047,6 +1044,14 @@ export function SegmentationImageEntry({
     ],
   );
 
+  const profileCheck = useRef<AbortController | undefined>(undefined);
+  useLayoutEffect(
+    () => () => {
+      profileCheck.current?.abort();
+    },
+    [bindingKey],
+  );
+
   const enterRef = useRef(enter);
   useLayoutEffect(() => {
     enterRef.current = enter;
@@ -1058,17 +1063,32 @@ export function SegmentationImageEntry({
           setError({ text: String(cause) });
         });
       };
+      profileCheck.current?.abort();
       if (host.session.getState().open || !needsSegmentationProfileCheck(playerUrlState)) {
         go();
         return;
       }
       // Annotation is fixed to one transcode quality; on another one the page switches to it
       // (and the user starts again once it is back).
-      void ensureSegmentationProfile(playerUrlState).then((result) => {
-        if (result === "ready") {
-          go();
-        }
-      });
+      const check = new AbortController();
+      profileCheck.current = check;
+      const isCurrent = () => {
+        const player = getPipeline().playerState;
+        return (
+          !check.signal.aborted &&
+          latestKey.current === bindingKey &&
+          player.playerId === playerId &&
+          (player.urlState?.parameters?.url ?? player.name) === mediaIdentity &&
+          player.urlState === playerUrlState
+        );
+      };
+      void ensureSegmentationProfile(playerUrlState, { signal: check.signal, isCurrent }).then(
+        (result) => {
+          if (result === "ready" && isCurrent()) {
+            go();
+          }
+        },
+      );
     };
     onActionsChange({
       enterInline: () => {
@@ -1081,7 +1101,16 @@ export function SegmentationImageEntry({
     return () => {
       onActionsChange(undefined);
     };
-  }, [enter, host, onActionsChange, playerUrlState]);
+  }, [
+    bindingKey,
+    enter,
+    getPipeline,
+    host,
+    mediaIdentity,
+    onActionsChange,
+    playerId,
+    playerUrlState,
+  ]);
 
   useLayoutEffect(() => {
     onAvailabilityChange?.(sessionRuntime == undefined ? "available" : "hidden");
@@ -1090,7 +1119,15 @@ export function SegmentationImageEntry({
   if (sessionRuntime) {
     return undefined;
   }
-  const preview = <SegmentationPreview containerRef={containerRef} topic={topic} bridge={bridge} />;
+  const preview = (
+    <SegmentationPreview
+      containerRef={containerRef}
+      topic={topic}
+      videoId={JSON.stringify([recordId, mediaIdentity, topic])!}
+      panelId={panelId}
+      bridge={bridge}
+    />
+  );
   return (
     <>
       {error ? (

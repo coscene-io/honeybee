@@ -43,11 +43,15 @@ const useStyles = makeStyles()((theme) => ({
 function PreviewPolygons({
   runtime,
   topic,
+  videoId,
+  panelId,
   containerRef,
   bridge,
 }: {
   runtime: SegmentationRuntime;
   topic: string;
+  videoId: string;
+  panelId: string;
   containerRef: RefObject<ReactNull | HTMLDivElement>;
   bridge: SegmentationPanelBridge;
 }): React.JSX.Element | undefined {
@@ -105,26 +109,24 @@ function PreviewPolygons({
     return bridge.subscribeFrames(sync);
   }, [bridge, containerRef, currentTime, getPipeline, topic]);
 
-  const video = document?.videos.find((item) => item.topic === topic);
   const shown =
     captured &&
     document?.frames.find(
       (frame) =>
-        frame.videoId === video?.id &&
-        frame.logTimeNs === toNanoSec(captured.receiveTime).toString(),
+        frame.videoId === videoId && frame.logTimeNs === toNanoSec(captured.receiveTime).toString(),
     );
   useLayoutEffect(() => {
     host.session.setState((session) => ({
-      previewFrames: { ...session.previewFrames, [topic]: shown?.id },
+      previewFrames: { ...session.previewFrames, [panelId]: shown?.id },
     }));
     return () => {
       host.session.setState((session) => {
         const previewFrames = { ...session.previewFrames };
-        delete previewFrames[topic];
+        delete previewFrames[panelId];
         return { previewFrames };
       });
     };
-  }, [host, topic, shown?.id]);
+  }, [host, panelId, shown?.id]);
   const polygons = Object.values(document?.annotations ?? {})
     .filter((annotation) => annotation.frameId === shown?.id)
     .flatMap((annotation) => polygonsOf(annotation));
@@ -159,10 +161,14 @@ function PreviewPolygons({
 export function SegmentationPreview({
   containerRef,
   topic,
+  videoId,
+  panelId,
   bridge,
 }: {
   containerRef: RefObject<ReactNull | HTMLDivElement>;
   topic?: string;
+  videoId: string;
+  panelId: string;
   /** This panel's renderer, from which the displayed image is read. */
   bridge: SegmentationPanelBridge;
 }): React.JSX.Element | undefined {
@@ -185,6 +191,8 @@ export function SegmentationPreview({
         <PreviewPolygons
           runtime={runtime}
           topic={topic}
+          videoId={videoId}
+          panelId={panelId}
           containerRef={containerRef}
           bridge={bridge}
         />

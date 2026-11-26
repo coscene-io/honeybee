@@ -82,6 +82,10 @@ describe("structure drag acceptance", () => {
       } else if (ending === "cancel") {
         fireEvent.dragEnd(source, { dataTransfer: transfer });
       } else {
+        // Source metadata can arrive between drag start and drop.
+        act(() => {
+          store.setState({ document: { ...before } });
+        });
         fireEvent.drop(target, { dataTransfer: transfer });
         // A legitimate selection/focus color remains; temporary hover/outline/thin border does not.
         expect(getComputedStyle(targetVisual).backgroundColor).toBe(theme.palette.action.selected);

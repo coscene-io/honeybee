@@ -12,6 +12,7 @@ import { makeStyles } from "tss-react/mui";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 
 import { createSegmentationPanelBridge, type SegmentationPanelBridge } from "../imageSource";
+import { createMaskOverlayControls } from "../maskOverlay/overlaySource";
 import { registerSegmentationCanvas } from "../segmentationChrome";
 import { useSegmentationHost } from "../segmentationHostContext";
 import {
@@ -51,7 +52,11 @@ export function SegmentationImagePanelAdapter({
   // What this panel's renderer, in its own React root, shares with the editor.
   const bridge = useMemo(
     () =>
-      createSegmentationPanelBridge({ maskOverlay: host.maskOverlay, maskPlanes: host.maskPlanes }),
+      createSegmentationPanelBridge({
+        maskOverlay: host.maskOverlay,
+        maskOverlayControls: createMaskOverlayControls(),
+        maskPlanes: host.maskPlanes,
+      }),
     [host],
   );
   const registration = useRef<(() => void) | undefined>(undefined);
@@ -97,7 +102,10 @@ export function SegmentationImagePanelAdapter({
         onMaximize={panel.enterFullscreen}
         onActionsChange={onActionsChange}
       />
-      <SegmentationPanelOverlay panelId={panel.id} />
+      <SegmentationPanelOverlay
+        panelId={panel.id}
+        maskOverlayControls={bridge.maskOverlayControls}
+      />
     </div>
   );
 }

@@ -11,10 +11,12 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 
 import { createMuiTheme } from "@foxglove/theme";
 
+import { deferred } from "./fixtures/canvas";
 import { SegmentationActionMenu } from "../components/SegmentationActionMenu";
 import { SegmentationPropagateButton } from "../components/SegmentationPropagateButton";
 import { polygonsOf } from "../maskGeometry";
 import { buildCanvasPropagationScope } from "../propagationSeeds";
+import { endSegmentationSession } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
@@ -111,6 +113,51 @@ describe("canvas propagation", () => {
   it("disables the button when the frame has no seeded instance", async () => {
     await setup({ seeded: false });
     expect(screen.getByRole("button", { name: "Propagate" })).toHaveProperty("disabled", true);
+  });
+
+  it("preserves an in-progress drawing when another canvas can propagate", async () => {
+    const runtime = await setup();
+    const session = testHost().session;
+    act(() => {
+      session.setState({ panelId: "other-canvas" });
+      runtime.store.getState().startDrawing("instance-1");
+    });
+    const propagate = screen.getByRole("button", { name: "Propagate" });
+    expect(propagate).toHaveProperty("disabled", true);
+    fireEvent.click(propagate);
+    expect(session.getState().panelId).toBe("other-canvas");
+    expect(runtime.store.getState().drawing).toBeDefined();
+  });
+
+  it("does not start propagation if the annotation session ends during the source read", async () => {
+    const runtime = await setup();
+    const online = jest.spyOn(runtime.service, "propagate");
+    const startPropagation = jest.spyOn(runtime.store.getState(), "startPropagation");
+    const { promise, resolve } = deferred();
+    const ensureRange = jest.fn(async () => {
+      await promise;
+    });
+    testHost().sourceFrames.register({
+      videoId: "video-1",
+      ensureRange,
+      ensureFollowing: async () => {},
+      ensurePreceding: async () => {},
+      isLoaded: () => true,
+      subscribe: () => () => {},
+      dispose: () => {},
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Propagate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start propagation" }));
+    expect(ensureRange).toHaveBeenCalledTimes(1);
+    act(() => {
+      endSegmentationSession(testHost().session);
+    });
+    await act(async () => {
+      resolve();
+      await promise;
+    });
+    expect(startPropagation).not.toHaveBeenCalled();
+    expect(online).not.toHaveBeenCalled();
   });
 
   it("sends one request with every seeded instance of the canvas's video", async () => {

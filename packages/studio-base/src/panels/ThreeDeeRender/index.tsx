@@ -34,6 +34,7 @@ import { mountPanel } from "@foxglove/studio-base/components/PanelExtensionAdapt
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import { reportError } from "@foxglove/studio-base/reportError";
 import { useSegmentationEnabled } from "@foxglove/studio-base/segmentation/featureFlag";
 import type { SegmentationPanelBridge } from "@foxglove/studio-base/segmentation/imageSource";
 import { SegmentationHostContext } from "@foxglove/studio-base/segmentation/segmentationHostContext";
@@ -182,24 +183,33 @@ function ImagePanelAdapter(props: Props) {
 
 // The editor is loaded only when it is used (flag on and a cloud record open), so other Image
 // panels and the 3D panel never download it.
-const SegmentationImagePanelAdapter = lazy(async () => ({
-  default: (
-    await import("@foxglove/studio-base/segmentation/components/SegmentationImagePanelAdapter")
-  ).SegmentationImagePanelAdapter,
-}));
+type RenderImagePanel = (extra: {
+  additionalToolbarIcons?: ReactNode;
+  segmentation?: SegmentationPanelBridge;
+}) => React.JSX.Element;
+
+type ImageAdapter = (props: {
+  imageTopic: string | undefined;
+  renderPanel: RenderImagePanel;
+}) => React.JSX.Element;
+
+const SegmentationImagePanelAdapter = lazy<ImageAdapter>(async () => {
+  try {
+    const { SegmentationImagePanelAdapter: Adapter } =
+      await import("@foxglove/studio-base/segmentation/components/SegmentationImagePanelAdapter");
+    return { default: Adapter };
+  } catch (error) {
+    reportError(error instanceof Error ? error : new Error(String(error)));
+    return { default: ({ renderPanel }) => renderPanel({}) };
+  }
+});
 
 function SegmentationImagePanel(props: Props & { extensionData: Record<string, unknown> }) {
   // The workspace's extension provides the host once the editor's core has loaded.
   const host = useContext(SegmentationHostContext);
   const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
-  const renderPanel = useCallback(
-    ({
-      additionalToolbarIcons,
-      segmentation,
-    }: {
-      additionalToolbarIcons: ReactNode;
-      segmentation: SegmentationPanelBridge;
-    }) => (
+  const renderPanel = useCallback<RenderImagePanel>(
+    ({ additionalToolbarIcons, segmentation }) => (
       <ThreeDeeRenderAdapterContent
         {...props}
         interfaceMode="image"
@@ -209,11 +219,12 @@ function SegmentationImagePanel(props: Props & { extensionData: Record<string, u
     ),
     [props],
   );
+  const plainPanel = renderPanel({});
   if (host == undefined) {
-    return ReactNull;
+    return plainPanel;
   }
   return (
-    <Suspense fallback={ReactNull}>
+    <Suspense fallback={plainPanel}>
       <SegmentationImagePanelAdapter imageTopic={imageTopic} renderPanel={renderPanel} />
     </Suspense>
   );

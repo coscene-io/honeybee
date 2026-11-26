@@ -62,9 +62,13 @@ const Image = ImagePanel as unknown as (props: {
 }) => React.JSX.Element;
 
 // The real rollout gate (no featureFlag mock): flag from cos-config, record from Core Data.
-function renderOnSource(source?: Parameters<typeof createCoreDataSourceStore>[0]): void {
+function renderOnSource(
+  source?: Parameters<typeof createCoreDataSourceStore>[0],
+  hostStatus: "available" | "loading" = "available",
+): void {
   // The workspace extension supplies the host once the flag is on; here the test does.
-  const host = window.cosConfig ? createSegmentationHost() : undefined;
+  const host =
+    hostStatus === "available" && window.cosConfig ? createSegmentationHost() : undefined;
   const core = createCoreDataSourceStore(source);
   render(
     <CoreDataContext.Provider value={core}>
@@ -89,11 +93,22 @@ describe("Image panel rollout gate", () => {
     expect(props.additionalToolbarIcons).toBeUndefined();
   });
 
+  it("renders the Image panel before the segmentation host is available", () => {
+    window.cosConfig = {
+      FEATURE_FLAG_GROWTHBOOK: { [SEGMENTATION_FEATURE_FLAG]: true },
+    } as typeof window.cosConfig;
+    renderOnSource(undefined, "loading");
+    expect(screen.getByTestId("image-renderer")).toBeTruthy();
+    expect(screen.queryByTestId("segmentation-entry")).toBeNull();
+  });
+
   it("mounts the editor (loaded on demand) once the flag is on", async () => {
     window.cosConfig = {
       FEATURE_FLAG_GROWTHBOOK: { [SEGMENTATION_FEATURE_FLAG]: true },
     } as typeof window.cosConfig;
     renderOnSource();
+    expect(screen.getByTestId("image-renderer")).toBeTruthy();
+    expect(screen.queryByTestId("segmentation-entry")).toBeNull();
     expect(await screen.findByTestId("segmentation-entry")).toBeTruthy();
     expect(screen.getByTestId("segmentation-panel-overlay")).toBeTruthy();
     const props = mockAdapterProps.mock.calls.at(-1)![0] as Record<string, unknown>;

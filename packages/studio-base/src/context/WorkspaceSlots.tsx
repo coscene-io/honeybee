@@ -46,6 +46,8 @@ export type PlaybackStepOverride = {
     modifiers: PlaybackStepModifiers | undefined,
     seek: (logTimeNs: bigint) => void,
     clockNs: bigint,
+    /** False after another seek or a player change invalidates this step. */
+    isPlaybackCurrent: () => boolean,
   ) => { handled: true } | { handled: false; modifiers: PlaybackStepModifiers | undefined };
 };
 

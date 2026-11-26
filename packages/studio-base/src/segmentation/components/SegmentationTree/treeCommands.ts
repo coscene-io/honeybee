@@ -14,7 +14,6 @@ import {
 } from "./treeLogic";
 import type { TreeEnv } from "./treeState";
 import { dialogOperationLabels } from "./treeTypes";
-import type { TreeContext } from "./treeTypes";
 import type { TreeDialogState } from "./useTreeDialog";
 import {
   canDropNode,
@@ -133,17 +132,17 @@ export function dropReason(
 /** Drops a dragged node: instances and classes ask in a dialog, polygons move at once. */
 export function dropNode(
   env: TreeEnv,
-  dragContext: TreeContext | undefined,
+  dragContext: string | undefined,
   dialog: Pick<TreeDialogState, "open" | "setTarget">,
   source: SegmentationNodeRef,
   destination: SegmentationNodeRef,
 ): void {
   const { document, state } = env;
-  if (dragContext?.key !== env.contextKey || dragContext.document !== document) {
+  if (dragContext !== env.contextKey) {
     env.setError(env.t("dragViewChanged"));
     return;
   }
-  if (!document || !canDropNode(document, source, destination, state.focus)) {
+  if (env.locked || !document || !canDropNode(document, source, destination, state.focus)) {
     env.setError(dropReason(env, source, destination));
     return;
   }
