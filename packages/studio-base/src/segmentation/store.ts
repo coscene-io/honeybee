@@ -47,6 +47,7 @@ import {
   SegmentationDocument,
   SegmentationPatch,
   SegmentationNodeRef,
+  SegmentationPolygon,
   SegmentationStore,
   StagedOperation,
 } from "./types";
@@ -1078,22 +1079,36 @@ export function createSegmentationStore(
         );
       },
       mergePolygons(polygonIds, targetInstanceId) {
-        const target = observation(targetInstanceId);
+        if (!document().instances.some((instance) => instance.id === targetInstanceId)) {
+          throw new SegmentationError("errorUnknownInstance");
+        }
+        const annotations = Object.values(document().annotations);
         const remaining = new Map<string, FrameInstance & { kind: "polygons" }>();
-        const moved: FrameInstance & { kind: "polygons" } = {
-          frameId: frameId(),
-          instanceId: targetInstanceId,
-          kind: "polygons",
-          polygons: [],
-        };
+        // Each polygon moves to the target instance on its own frame: the tree lists polygons of
+        // every visible camera, not only the current frame's.
+        const movedByFrame = new Map<string, SegmentationPolygon[]>();
         for (const id of polygonIds) {
-          const found = findPolygon(id);
-          if (found.instanceId === targetInstanceId) {
+          const owner =
+            annotations.find(
+              (item) =>
+                item.frameId === frameId() && polygonsOf(item).some((polygon) => polygon.id === id),
+            ) ??
+            annotations.find(
+              (item) =>
+                loadedFrames.has(item.frameId) &&
+                polygonsOf(item).some((polygon) => polygon.id === id),
+            );
+          if (owner?.kind !== "polygons") {
+            throw new SegmentationError("errorUnknownPolygon");
+          }
+          if (owner.instanceId === targetInstanceId) {
             continue;
           }
-          const key = frameInstanceKey(found.frameId, found.instanceId);
-          const source = remaining.get(key) ?? found;
-          moved.polygons.push(source.polygons.find((polygon) => polygon.id === id)!);
+          const key = frameInstanceKey(owner.frameId, owner.instanceId);
+          const source = remaining.get(key) ?? cloneSegmentation(owner);
+          const moved = movedByFrame.get(owner.frameId) ?? [];
+          moved.push(source.polygons.find((polygon) => polygon.id === id)!);
+          movedByFrame.set(owner.frameId, moved);
           source.polygons = source.polygons.filter((polygon) => polygon.id !== id);
           remaining.set(key, source);
         }
@@ -1101,11 +1116,13 @@ export function createSegmentationStore(
         for (const [key, source] of remaining) {
           changes[key] = polygonObservation(source.frameId, source.instanceId, source.polygons);
         }
-        if (moved.polygons.length > 0) {
+        for (const [movedFrameId, polygons] of movedByFrame) {
+          const targetKey = frameInstanceKey(movedFrameId, targetInstanceId);
+          const target = document().annotations[targetKey];
           // Polygons moved onto a mask are rasterized into it (one representation).
-          changes[frameInstanceKey(frameId(), targetInstanceId)] = mergeObservations(
-            target,
-            moved,
+          changes[targetKey] = mergeObservations(
+            target ? cloneSegmentation(target) : undefined,
+            { frameId: movedFrameId, instanceId: targetInstanceId, kind: "polygons", polygons },
             targetInstanceId,
           );
         }
