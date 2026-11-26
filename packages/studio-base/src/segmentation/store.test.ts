@@ -664,3 +664,14 @@ it("asks the service to cancel a running propagation when the store is disposed"
   expect(cancel).toHaveBeenCalledTimes(1);
   expect(cancel.mock.calls[0]![0].instanceId).toBe("instance-1");
 });
+
+it("trims a supplied instance name and rejects one the editor would not accept", async () => {
+  const service = createMockSegmentationService({ controls: { delayMs: 0, streamDelayMs: 0 } });
+  const store = createSegmentationStore(service);
+  await store.getState().initialize();
+  expect(() => store.getState().addInstance("class-2", "   ")).toThrow();
+  expect(() => store.getState().addInstance("class-2", "x".repeat(101))).toThrow();
+  const id = store.getState().addInstance("class-2", "  Named  ");
+  expect(store.getState().document!.instances.find((item) => item.id === id)?.name).toBe("Named");
+  store.getState().dispose();
+});
