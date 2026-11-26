@@ -190,7 +190,10 @@ export class SegmentationMaskLayer {
   readonly #unsubscribe: (() => void)[];
 
   public constructor(
-    private readonly bridge: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">,
+    private readonly bridge: Pick<
+      SegmentationPanelBridge,
+      "maskOverlay" | "maskOverlayControls" | "maskPlanes"
+    >,
     private readonly maxTextureSize: () => number,
     onChange: () => void,
   ) {
@@ -230,6 +233,9 @@ export class SegmentationMaskLayer {
       this.#cache.onReady(onChange),
       this.#cache.addConsumer(this),
     ];
+    if (bridge.maskOverlayControls) {
+      this.#unsubscribe.push(bridge.maskOverlayControls.subscribe(onChange));
+    }
   }
 
   /** Call after the image renderable committed this frame's image. */
@@ -253,7 +259,7 @@ export class SegmentationMaskLayer {
     // (sourceFrames.framesFromStamps), and for the MCAP sources of cloud records receiveTime is
     // the MCAP log time (McapIndexedIterableSource), which is also the backend's frame_time.
     const logTimeNs = displayed.receiveTime.toString();
-    const frame = source.frame(topic, logTimeNs);
+    const frame = source.frame(topic, logTimeNs, this.bridge.maskOverlayControls?.getState());
     const prefetch = this.#prefetchWindow(topic, displayed.receiveTime);
     const upcoming = source.upcoming(topic, logTimeNs, prefetch);
     // Pin the drawn frame and take a prefetch share only while this panel has masks to show.

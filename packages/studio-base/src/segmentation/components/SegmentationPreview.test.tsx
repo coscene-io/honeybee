@@ -11,6 +11,7 @@ import { act } from "@testing-library/react";
 import { fromNanoSec } from "@foxglove/rostime";
 
 import { SegmentationPreview } from "./SegmentationPreview";
+import { frameInstanceKey } from "../service";
 import {
   createTestBridge,
   render,
@@ -43,16 +44,44 @@ describe("SegmentationPreview", () => {
     setMockControls(runtime.service, { delayMs: 0 });
     await runtime.initialize();
     await runtime.store.getState().loadFrameWindow("video-1", 0, 1);
-    const topic = document.videos.find((video) => video.id === "video-1")!.topic!;
+    const video = document.videos.find((item) => item.id === "video-1")!;
+    const topic = video.topic!;
+    const existing = runtime.store.getState().document!;
+    const currentVideo = { ...video, id: "second-media" };
+    const currentFrame = { ...existing.frames[0]!, id: "second-frame", videoId: currentVideo.id };
+    const annotations = Object.fromEntries(
+      Object.values(existing.annotations)
+        .filter((annotation) => annotation.frameId === "frame-0")
+        .map((annotation) => [
+          frameInstanceKey(currentFrame.id, annotation.instanceId),
+          { ...annotation, frameId: currentFrame.id },
+        ]),
+    );
+    runtime.store.setState({
+      document: {
+        ...existing,
+        videos: [...existing.videos, currentVideo],
+        frames: [...existing.frames, currentFrame],
+        annotations: { ...existing.annotations, ...annotations },
+      },
+    });
     testHost().session.setState({ open: false, previewRuntime: runtime, previewFrames: {} });
     const nativeContainer = window.document.createElement("div");
     const canvas = window.document.createElement("canvas");
     nativeContainer.append(canvas);
     const containerRef = { current: nativeContainer };
     const bridge = createTestBridge();
-    const result = render(
-      <SegmentationPreview topic={topic} containerRef={containerRef} bridge={bridge} />,
+    const preview = (panelId: string) => (
+      <SegmentationPreview
+        topic={topic}
+        videoId={currentVideo.id}
+        panelId={panelId}
+        containerRef={containerRef}
+        bridge={bridge}
+      />
     );
+    const result = render(preview("first"));
+    const duplicate = render(preview("second"));
     let image: TestImage | undefined = {
       topic,
       imageUrl: "data:image/png;base64,test",
@@ -79,13 +108,18 @@ describe("SegmentationPreview", () => {
     expect(result.container.querySelector("svg > g")?.getAttribute("transform")).toBe(
       "matrix(0.5 0 0 0.5 10 20)",
     );
-    expect(testHost().session.getState().previewFrames[topic]).toBe("frame-0");
+    expect(testHost().session.getState().previewFrames).toEqual({
+      first: "second-frame",
+      second: "second-frame",
+    });
+    duplicate.unmount();
+    expect(testHost().session.getState().previewFrames).toEqual({ first: "second-frame" });
     image = undefined; // Native seek invalidates the image identity before the next decode.
     act(() => {
       bridge.notifyFrame();
     });
     expect(result.container.querySelector("svg")).toBeNull();
-    expect(testHost().session.getState().previewFrames[topic]).toBeUndefined();
+    expect(testHost().session.getState().previewFrames.first).toBeUndefined();
     expect(capturePixels).not.toHaveBeenCalled();
     result.unmount();
     runtime.dispose();

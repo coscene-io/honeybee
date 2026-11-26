@@ -19,7 +19,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 
 import { polygonPath } from "../editorGeometry";
-import { frameAt, polygonsOnFrame } from "../frameIndex";
+import { polygonsOnFrame, videoFrameAt } from "../frameIndex";
 import type { SegmentationImageMetadata, SegmentationPanelBridge } from "../imageSource";
 import { OVERLAY_COLORS } from "../overlayColors";
 import type { SegmentationRuntime } from "../runtime";
@@ -43,11 +43,15 @@ const useStyles = makeStyles()((theme) => ({
 function PreviewPolygons({
   runtime,
   topic,
+  videoId,
+  panelId,
   containerRef,
   bridge,
 }: {
   runtime: SegmentationRuntime;
   topic: string;
+  videoId: string;
+  panelId: string;
   containerRef: RefObject<ReactNull | HTMLDivElement>;
   bridge: SegmentationPanelBridge;
 }): React.JSX.Element | undefined {
@@ -105,24 +109,24 @@ function PreviewPolygons({
     return bridge.subscribeFrames(sync);
   }, [bridge, containerRef, currentTime, getPipeline, topic]);
 
-  // Indexed by camera and exact log time, shared with the mask layer: the cost of finding the
-  // displayed frame does not grow with the frames seen so far.
+  // Indexed by video (record, media and topic) and exact log time, built with the mask layer's
+  // index: the cost of finding the displayed frame does not grow with the frames seen so far.
   const shown =
     captured && document
-      ? frameAt(document, topic, toNanoSec(captured.receiveTime).toString())
+      ? videoFrameAt(document, videoId, toNanoSec(captured.receiveTime).toString())
       : undefined;
   useLayoutEffect(() => {
     host.session.setState((session) => ({
-      previewFrames: { ...session.previewFrames, [topic]: shown?.id },
+      previewFrames: { ...session.previewFrames, [panelId]: shown?.id },
     }));
     return () => {
       host.session.setState((session) => {
         const previewFrames = { ...session.previewFrames };
-        delete previewFrames[topic];
+        delete previewFrames[panelId];
         return { previewFrames };
       });
     };
-  }, [host, topic, shown?.id]);
+  }, [host, panelId, shown?.id]);
   const polygons = document && shown ? polygonsOnFrame(document, shown.id) : [];
   const view = captured?.nativeView;
   if (!box || !view || polygons.length === 0) {
@@ -155,10 +159,14 @@ function PreviewPolygons({
 export function SegmentationPreview({
   containerRef,
   topic,
+  videoId,
+  panelId,
   bridge,
 }: {
   containerRef: RefObject<ReactNull | HTMLDivElement>;
   topic?: string;
+  videoId: string;
+  panelId: string;
   /** This panel's renderer, from which the displayed image is read. */
   bridge: SegmentationPanelBridge;
 }): React.JSX.Element | undefined {
@@ -181,6 +189,8 @@ export function SegmentationPreview({
         <PreviewPolygons
           runtime={runtime}
           topic={topic}
+          videoId={videoId}
+          panelId={panelId}
           containerRef={containerRef}
           bridge={bridge}
         />

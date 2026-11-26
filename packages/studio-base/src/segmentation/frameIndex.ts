@@ -23,6 +23,8 @@ type Indexed = {
   videos: SegmentationDocument["videos"];
   videoCount: number;
   topics: Map<string, TopicFrames>;
+  /** The same frames by video id: one topic can carry several media files of a record. */
+  byVideo: Map<string, TopicFrames>;
 };
 
 // Keyed by the frames table. Runtimes grow their tables in place (registerSource splices them),
@@ -38,13 +40,17 @@ const indexes = new WeakMap<readonly SegmentationFrame[], Indexed>();
 export function topicFrameIndex(
   doc: Pick<SegmentationDocument, "frames" | "videos">,
 ): Map<string, TopicFrames> {
+  return indexed(doc).topics;
+}
+
+function indexed(doc: Pick<SegmentationDocument, "frames" | "videos">): Indexed {
   const cached = indexes.get(doc.frames);
   if (
     cached?.frameCount === doc.frames.length &&
     cached.videos === doc.videos &&
     cached.videoCount === doc.videos.length
   ) {
-    return cached.topics;
+    return cached;
   }
   const byVideo = new Map<string, SegmentationFrame[]>();
   for (const frame of doc.frames) {
@@ -53,29 +59,47 @@ export function topicFrameIndex(
     byVideo.set(frame.videoId, list);
   }
   const topics = new Map<string, TopicFrames>();
+  const videos = new Map<string, TopicFrames>();
   for (const video of doc.videos) {
-    if (video.topic == undefined) {
-      continue;
-    }
     const keyed = (byVideo.get(video.id) ?? []).map((frame) => ({
       frame,
       time: BigInt(frame.logTimeNs),
     }));
     keyed.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
     const frames = keyed.map((item) => item.frame);
-    topics.set(video.topic, {
+    const entry = {
       frames,
       times: keyed.map((item) => item.time),
       byLogTime: new Map(frames.map((frame, position) => [frame.logTimeNs, position])),
-    });
+    };
+    videos.set(video.id, entry);
+    if (video.topic != undefined) {
+      topics.set(video.topic, entry);
+    }
   }
-  indexes.set(doc.frames, {
+  const next = {
     frameCount: doc.frames.length,
     videos: doc.videos,
     videoCount: doc.videos.length,
     topics,
-  });
-  return topics;
+    byVideo: videos,
+  };
+  indexes.set(doc.frames, next);
+  return next;
+}
+
+/**
+ * The frame of one video (record, media and topic) at exactly `logTimeNs`, if registered. Unlike
+ * a topic, a video id tells apart media files of one record that share a camera topic.
+ */
+export function videoFrameAt(
+  doc: Pick<SegmentationDocument, "frames" | "videos">,
+  videoId: string,
+  logTimeNs: string,
+): SegmentationFrame | undefined {
+  const entry = indexed(doc).byVideo.get(videoId);
+  const position = entry?.byLogTime.get(logTimeNs);
+  return position == undefined ? undefined : entry!.frames[position];
 }
 
 /** The frame of `topic` at exactly `logTimeNs`, if registered. */

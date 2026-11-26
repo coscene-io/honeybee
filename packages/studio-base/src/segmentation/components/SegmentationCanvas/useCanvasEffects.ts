@@ -28,7 +28,8 @@ function useGestureCallbacks(c: CanvasContext) {
 
 /** Image size, the mask layer's opacity and the screen scale of the image. */
 function useViewEffects(c: CanvasContext): void {
-  const { ui, d, host } = c;
+  const { ui, d, props } = c;
+  const { maskOverlayControls } = props;
   const { nativeView } = d;
   const { setSize, setScreenScale, content, viewport, zoom, size } = ui;
   useLayoutEffect(() => {
@@ -38,8 +39,8 @@ function useViewEffects(c: CanvasContext): void {
   }, [nativeView, setSize]);
   useEffect(() => {
     // The GPU mask layer mirrors this canvas's overlay opacity and "peek original" hold.
-    host.maskOverlayControls.setState({ opacity: ui.opacity, peekOriginal: ui.peekOriginal });
-  }, [host, ui.opacity, ui.peekOriginal]);
+    maskOverlayControls?.setState({ opacity: ui.opacity, peekOriginal: ui.peekOriginal });
+  }, [maskOverlayControls, ui.opacity, ui.peekOriginal]);
   useLayoutEffect(() => {
     const updateScale = () => {
       const matrix =

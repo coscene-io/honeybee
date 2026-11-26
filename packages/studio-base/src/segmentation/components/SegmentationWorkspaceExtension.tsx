@@ -8,6 +8,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { reportError } from "@foxglove/studio-base/reportError";
+
 import { useSegmentationFlag } from "../featureFlag";
 import { SegmentationHostContext, useHostHasUnsavedWork } from "../segmentationHostContext";
 import type { SegmentationHost } from "../segmentationHostContext";
@@ -47,12 +49,16 @@ export function SegmentationWorkspaceExtension({
     }
     let cancelled = false;
     let created: SegmentationHost | undefined;
-    void import("../segmentationHost").then(({ createSegmentationHost }) => {
-      if (!cancelled) {
-        created = createSegmentationHost();
-        setHost(created);
-      }
-    });
+    void import("../segmentationHost")
+      .then(({ createSegmentationHost }) => {
+        if (!cancelled) {
+          created = createSegmentationHost();
+          setHost(created);
+        }
+      })
+      .catch((error: unknown) => {
+        reportError(error instanceof Error ? error : new Error(String(error)));
+      });
     return () => {
       cancelled = true;
       created?.dispose();

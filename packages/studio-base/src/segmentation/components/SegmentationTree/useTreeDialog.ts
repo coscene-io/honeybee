@@ -85,7 +85,7 @@ export type TreeDragState = {
   setDropTarget: Dispatch<SetStateAction<string | undefined>>;
   dropMessage: string | undefined;
   setDropMessage: Dispatch<SetStateAction<string | undefined>>;
-  dragContext: RefObject<TreeContext | undefined>;
+  dragContext: RefObject<string | undefined>;
   reset: () => void;
 };
 
@@ -94,7 +94,7 @@ export function useTreeDrag(): TreeDragState {
   const [dragSource, setDragSource] = useState<SegmentationNodeRef>();
   const [dropTarget, setDropTarget] = useState<string>();
   const [dropMessage, setDropMessage] = useState<string>();
-  const dragContext = useRef<TreeContext | undefined>(undefined);
+  const dragContext = useRef<string | undefined>(undefined);
   function reset(): void {
     setDragSource(undefined);
     setDropTarget(undefined);

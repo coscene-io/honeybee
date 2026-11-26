@@ -259,7 +259,7 @@ export type SegmentationSessionState = {
   /** Read-only annotations for the open recording. Editing still uses `runtime`. */
   previewRuntime: SegmentationRuntime | undefined;
   previewLoading: boolean;
-  /** Exact displayed frame per topic for the read-only overview. */
+  /** Exact displayed frame per Image panel for the read-only overview. */
   previewFrames: Record<string, string | undefined>;
   open: boolean;
   /** Canvas that receives new edits. Other open canvases stay visible. */
@@ -303,7 +303,7 @@ export function openWorkflowPanel(session: SegmentationSession, target?: string)
 
 /** Leaves segmentation: every canvas closes; staged edits stay in the runtime. */
 export function endSegmentationSession(session: SegmentationSession): void {
-  session.setState({ open: false, sourceReady: false });
+  session.setState({ open: false, sourceReady: false, workflow: { open: false, nonce: 0 } });
 }
 
 export function activateSegmentationRuntime(
@@ -406,7 +406,9 @@ export function createSegmentationRegistry(session: SegmentationSession): Segmen
     const current = session.getState();
     if (current.runtime === held.runtime || current.previewRuntime === held.runtime) {
       session.setState({
-        ...(current.runtime === held.runtime ? { runtime: undefined, open: false } : {}),
+        ...(current.runtime === held.runtime
+          ? { runtime: undefined, open: false, workflow: { open: false, nonce: 0 } }
+          : {}),
         ...(current.previewRuntime === held.runtime ? { previewRuntime: undefined } : {}),
       });
     }

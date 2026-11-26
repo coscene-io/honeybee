@@ -50,6 +50,8 @@ export type SourceFrameLoader = {
   ensureRange: (fromNs: bigint, toNs: bigint) => Promise<void>;
   /** Reads later windows until `count` frames after `fromNs` are known or the recording ends. */
   ensureFollowing: (fromNs: bigint, count: number) => Promise<void>;
+  /** Reads earlier windows until `count` frames before `fromNs` are known or the recording starts. */
+  ensurePreceding: (fromNs: bigint, count: number) => Promise<void>;
   /**
    * True when every window overlapping `[fromNs, toNs]` has been read, so the document lists all
    * frames there. Times outside the recording count as read: there is nothing more to list.
@@ -116,7 +118,6 @@ export function createSourceFrameLoader({
   startNs,
   endNs,
   register,
-  knownLogTimes,
 }: {
   subscribeMessageRange: SubscribeMessageRange;
   topic: string;
@@ -124,17 +125,16 @@ export function createSourceFrameLoader({
   startNs: bigint;
   endNs: bigint;
   register: (frames: SegmentationFrame[]) => void;
-  /** Log times already in the document for this video. */
-  knownLogTimes: () => bigint[];
 }): SourceFrameLoader {
   const abort = new AbortController();
+  const isDisposed = () => abort.signal.aborted;
   const retryTimers = new Set<ReturnType<typeof setTimeout>>();
   const windows = new Map<bigint, Promise<void>>();
-  const loaded = new Set<bigint>();
+  const loaded = new Map<bigint, Set<bigint>>();
   const listeners = new Set<() => void>();
   const lastWindow = endNs > startNs ? (endNs - startNs) / SOURCE_FRAME_WINDOW_NS : 0n;
   const loadWindow = async (index: bigint): Promise<void> => {
-    if (index < 0n || index > lastWindow) {
+    if (isDisposed() || index < 0n || index > lastWindow) {
       return;
     }
     const existing = windows.get(index);
@@ -151,11 +151,11 @@ export function createSourceFrameLoader({
       fromNanoSec(to < endNs ? to : endNs),
       abort.signal,
     ).then((stamps) => {
-      if (abort.signal.aborted) {
+      if (isDisposed()) {
         return;
       }
       // Marked before registering, so views that re-render on the new frames see the window as read.
-      loaded.add(index);
+      loaded.set(index, new Set(stamps.map((stamp) => toNanoSec(stamp.receiveTime))));
       if (stamps.length > 0) {
         register(framesFromStamps(videoId, startNs, stamps));
       }
@@ -168,6 +168,9 @@ export function createSourceFrameLoader({
     try {
       await pending;
     } catch (error) {
+      if (isDisposed()) {
+        return;
+      }
       // A failed read may succeed later. Hold the failure briefly so playback ticks do not retry it.
       const timer = setTimeout(() => {
         retryTimers.delete(timer);
@@ -180,6 +183,24 @@ export function createSourceFrameLoader({
     }
   };
   const windowOf = (ns: bigint) => (ns <= startNs ? 0n : (ns - startNs) / SOURCE_FRAME_WINDOW_NS);
+  const ensureNeighbors = async (fromNs: bigint, count: number, direction: 1n | -1n) => {
+    const fromWindow = windowOf(fromNs);
+    const first = fromWindow > lastWindow ? lastWindow : fromWindow;
+    let found = 0;
+    for (let index = first; index >= 0n && index <= lastWindow; index += direction) {
+      if (isDisposed() || found >= count) {
+        return;
+      }
+      // Read ahead one window, but count only frames in the windows now known to be contiguous.
+      loadWindow(index + direction).catch(() => undefined);
+      await loadWindow(index);
+      for (const time of loaded.get(index) ?? []) {
+        if (direction > 0n ? time > fromNs : time < fromNs) {
+          found++;
+        }
+      }
+    }
+  };
   return {
     videoId,
     ensureRange: async (fromNs, toNs) => {
@@ -190,21 +211,10 @@ export function createSourceFrameLoader({
       await Promise.all(loads);
     },
     ensureFollowing: async (fromNs, count) => {
-      for (let index = windowOf(fromNs); index <= lastWindow; index++) {
-        // Read the next window while this one is read: a step that crosses into it is common, and
-        // a serial scan would wait for each read in turn. Its error surfaces when it is awaited.
-        if (index + 1n <= lastWindow) {
-          loadWindow(index + 1n).catch(() => undefined);
-        }
-        await loadWindow(index);
-        if (abort.signal.aborted) {
-          return;
-        }
-        const after = knownLogTimes().filter((time) => time > fromNs).length;
-        if (after >= count) {
-          return;
-        }
-      }
+      await ensureNeighbors(fromNs, count, 1n);
+    },
+    ensurePreceding: async (fromNs, count) => {
+      await ensureNeighbors(fromNs, count, -1n);
     },
     isLoaded: (fromNs, toNs) => {
       const first = fromNs < startNs ? 0n : windowOf(fromNs);
