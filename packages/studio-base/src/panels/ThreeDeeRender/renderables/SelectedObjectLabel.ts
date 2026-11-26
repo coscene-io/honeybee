@@ -7,12 +7,14 @@
 
 import * as THREE from "three";
 
+import { RosValue } from "@foxglove/studio-base/players/types";
 import { Label } from "@foxglove/three-text";
 
 import { FrameAxisRenderable } from "./FrameAxes";
 import { DEFAULT_SHOW_SELECTED_OBJECT_LABEL } from "./SceneSettings";
 import { IRenderer, LAYER_SELECTED } from "../IRenderer";
 import type { PickedRenderable } from "../Picker";
+import type { Renderable } from "../Renderable";
 import { SceneExtension } from "../SceneExtension";
 import {
   acquirePooledLabel,
@@ -36,11 +38,25 @@ function getFiniteNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function safeGetInstanceDetails(
+  renderable: Renderable,
+  instanceIndex: number,
+): Record<string, RosValue> | undefined {
+  try {
+    return renderable.instanceDetails(instanceIndex);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Format a concise, readable 3D callout text for a selected PointCloud point, URDF/mesh, Marker,
  * SceneEntity, or other pickable Renderable.
  */
-export function formatSelectedObjectLabel(selection: PickedRenderable): string {
+export function formatSelectedObjectLabel(
+  selection: PickedRenderable,
+  resolvedInstanceDetails?: Record<string, RosValue>,
+): string {
   const { renderable, instanceIndex } = selection;
   const idFromMessage = renderable.idFromMessage();
   const baseName =
@@ -53,12 +69,15 @@ export function formatSelectedObjectLabel(selection: PickedRenderable): string {
           : renderable.userData.frameId;
 
   if (instanceIndex != undefined) {
-    const details = renderable.instanceDetails(instanceIndex);
-    const x = getFiniteNumber(details?.x);
-    const y = getFiniteNumber(details?.y);
-    const z = getFiniteNumber(details?.z);
+    const details = resolvedInstanceDetails ?? safeGetInstanceDetails(renderable, instanceIndex);
+    if (details == undefined) {
+      return "";
+    }
+    const x = getFiniteNumber(details.x);
+    const y = getFiniteNumber(details.y);
+    const z = getFiniteNumber(details.z);
     if (x != undefined && y != undefined && z != undefined) {
-      const intensity = getFiniteNumber(details?.intensity);
+      const intensity = getFiniteNumber(details.intensity);
       const header = truncateLine(
         renderable.topic != undefined && renderable.topic.length > 0 ? renderable.topic : baseName,
       );
@@ -80,13 +99,17 @@ export function formatSelectedObjectLabel(selection: PickedRenderable): string {
 export function computeSelectedObjectWorldPosition(
   selection: PickedRenderable,
   out: THREE.Vector3,
+  resolvedInstanceDetails?: Record<string, RosValue>,
 ): boolean {
   const { renderable, instanceIndex } = selection;
   if (instanceIndex != undefined) {
-    const details = renderable.instanceDetails(instanceIndex);
-    const x = getFiniteNumber(details?.x);
-    const y = getFiniteNumber(details?.y);
-    const z = getFiniteNumber(details?.z);
+    const details = resolvedInstanceDetails ?? safeGetInstanceDetails(renderable, instanceIndex);
+    if (details == undefined) {
+      return false;
+    }
+    const x = getFiniteNumber(details.x);
+    const y = getFiniteNumber(details.y);
+    const z = getFiniteNumber(details.z);
     if (x != undefined && y != undefined && z != undefined) {
       renderable.updateWorldMatrix(true, false);
       out.set(x, y, z).applyMatrix4(renderable.matrixWorld);
@@ -110,6 +133,7 @@ export class SelectedObjectLabel extends SceneExtension {
 
   #label: Label | undefined;
   #selected: PickedRenderable | undefined;
+  #lastText: string | undefined;
   #colorScheme: "dark" | "light";
 
   public constructor(renderer: IRenderer, name: string = SelectedObjectLabel.extensionId) {
@@ -127,6 +151,7 @@ export class SelectedObjectLabel extends SceneExtension {
       this.#label = undefined;
     }
     this.#selected = undefined;
+    this.#lastText = undefined;
     super.dispose();
   }
 
@@ -153,20 +178,7 @@ export class SelectedObjectLabel extends SceneExtension {
     fixedFrameId: string,
   ): void {
     super.startFrame(currentTime, renderFrameId, fixedFrameId);
-
-    const label = this.#label;
-    const selection = this.#selected;
-    if (!label || !selection) {
-      return;
-    }
-
-    if (!this.#isEnabled() || !selection.renderable.visible) {
-      label.visible = false;
-      return;
-    }
-
-    const validPosition = computeSelectedObjectWorldPosition(selection, label.position);
-    label.visible = validPosition;
+    this.#syncSelection();
   }
 
   /** Exposed for testing/inspection of the active pooled label instance. */
@@ -211,14 +223,30 @@ export class SelectedObjectLabel extends SceneExtension {
 
   #syncSelection(): void {
     const selection = this.#selected;
-    if (!selection || !this.#isEnabled() || selection.renderable instanceof FrameAxisRenderable) {
+    if (
+      !selection ||
+      !this.#isEnabled() ||
+      selection.renderable instanceof FrameAxisRenderable ||
+      !selection.renderable.visible
+    ) {
       if (this.#label) {
         this.#label.visible = false;
       }
       return;
     }
 
-    const text = formatSelectedObjectLabel(selection);
+    let instanceDetails: Record<string, RosValue> | undefined;
+    if (selection.instanceIndex != undefined) {
+      instanceDetails = safeGetInstanceDetails(selection.renderable, selection.instanceIndex);
+      if (instanceDetails == undefined) {
+        if (this.#label) {
+          this.#label.visible = false;
+        }
+        return;
+      }
+    }
+
+    const text = formatSelectedObjectLabel(selection, instanceDetails);
     if (text.length === 0) {
       if (this.#label) {
         this.#label.visible = false;
@@ -227,9 +255,16 @@ export class SelectedObjectLabel extends SceneExtension {
     }
 
     const label = this.#ensureLabel();
-    label.setText(text);
-    const validPosition = computeSelectedObjectWorldPosition(selection, label.position);
-    label.visible = validPosition && selection.renderable.visible;
+    if (text !== this.#lastText) {
+      label.setText(text);
+      this.#lastText = text;
+    }
+    const validPosition = computeSelectedObjectWorldPosition(
+      selection,
+      label.position,
+      instanceDetails,
+    );
+    label.visible = validPosition;
   }
 
   #handleSelectedRenderable = (selection: PickedRenderable | undefined): void => {

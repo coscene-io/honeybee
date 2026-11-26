@@ -9,11 +9,15 @@
 import { setupJestCanvasMock } from "jest-canvas-mock";
 import * as THREE from "three";
 
+import { fromNanoSec } from "@foxglove/rostime";
+import { NumericType, PointCloud } from "@foxglove/schemas";
+import { MessageEvent } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { RosValue } from "@foxglove/studio-base/players/types";
 import { LabelMaterial } from "@foxglove/three-text";
 
 import { FrameAxes } from "./FrameAxes";
+import { PointClouds } from "./PointClouds";
 import { DEFAULT_PUBLISH_SETTINGS } from "./PublishSettings";
 import {
   computeSelectedObjectWorldPosition,
@@ -58,7 +62,8 @@ jest.mock("three", () => {
 });
 
 class MockPointCloudRenderable extends Renderable {
-  #point: Record<string, RosValue>;
+  #point: Record<string, RosValue> | undefined;
+  #shouldThrow = false;
 
   public constructor(name: string, renderer: Renderer, point: Record<string, RosValue>) {
     super(name, renderer, {
@@ -73,7 +78,14 @@ class MockPointCloudRenderable extends Renderable {
     this.#point = point;
   }
 
-  public override instanceDetails(_instanceId: number): Record<string, RosValue> {
+  public enableThrowOnRead(): void {
+    this.#shouldThrow = true;
+  }
+
+  public override instanceDetails(_instanceId: number): Record<string, RosValue> | undefined {
+    if (this.#shouldThrow) {
+      throw new RangeError("Offset is outside the bounds of the DataView");
+    }
     return this.#point;
   }
 }
@@ -227,10 +239,12 @@ describe("SelectedObjectLabel", () => {
     expect(extension.getLabel()).toBe(firstLabel);
     expect(acquireSpy).toHaveBeenCalledTimes(1);
 
-    // Selecting a FrameAxisRenderable hides SelectedObjectLabel to avoid duplicate labels
+    // Selecting a FrameAxisRenderable hides SelectedObjectLabel and keeps it hidden across frames
     renderer.addCoordinateFrame("base_link");
     const frameRenderable = frameAxes.renderables.get("base_link")!;
     renderer.setSelectedRenderable({ renderable: frameRenderable });
+    expect(firstLabel?.visible).toBe(false);
+    renderer.animationFrame();
     expect(firstLabel?.visible).toBe(false);
 
     // Disabling showSelectedObjectLabel hides the callout
@@ -240,6 +254,143 @@ describe("SelectedObjectLabel", () => {
       draft.scene.showSelectedObjectLabel = false;
     });
     expect(firstLabel?.visible).toBe(false);
+    renderer.animationFrame();
+    expect(firstLabel?.visible).toBe(false);
+
+    renderer.dispose();
+  });
+
+  it("synchronizes label text and position when streaming point cloud data updates and hides safely on out-of-bounds index", async () => {
+    const renderer = new Renderer({
+      canvas,
+      config: {
+        ...createConfig(),
+        followTf: "lidar",
+        topics: {
+          "/lidar/points": { visible: true },
+        },
+      },
+      interfaceMode: "3d",
+      fetchAsset,
+      sceneExtensionConfig: DEFAULT_SCENE_EXTENSION_CONFIG,
+      testOptions: {},
+    });
+    const extension = renderer.sceneExtensions.get(
+      SelectedObjectLabel.extensionId,
+    ) as SelectedObjectLabel;
+    const pointClouds = renderer.sceneExtensions.get(PointClouds.extensionId) as PointClouds;
+
+    const makeCloudEvent = (
+      points: [number, number, number, number][],
+      timeNs: bigint,
+    ): MessageEvent<PointCloud> => {
+      const stride = 16;
+      const buffer = new ArrayBuffer(points.length * stride);
+      const view = new DataView(buffer);
+      points.forEach(([x, y, z, intensity], idx) => {
+        const offset = idx * stride;
+        view.setFloat32(offset + 0, x, true);
+        view.setFloat32(offset + 4, y, true);
+        view.setFloat32(offset + 8, z, true);
+        view.setFloat32(offset + 12, intensity, true);
+      });
+      return {
+        topic: "/lidar/points",
+        receiveTime: fromNanoSec(timeNs),
+        schemaName: "foxglove.PointCloud",
+        sizeInBytes: buffer.byteLength,
+        message: {
+          timestamp: fromNanoSec(timeNs),
+          frame_id: "lidar",
+          pose: makePose(),
+          point_stride: stride,
+          fields: [
+            { name: "x", offset: 0, type: NumericType.FLOAT32 },
+            { name: "y", offset: 4, type: NumericType.FLOAT32 },
+            { name: "z", offset: 8, type: NumericType.FLOAT32 },
+            { name: "intensity", offset: 12, type: NumericType.FLOAT32 },
+          ],
+          data: new Uint8Array(buffer),
+        },
+      };
+    };
+
+    renderer.addCoordinateFrame("lidar");
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(1n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [
+        makeCloudEvent(
+          [
+            [0, 0, 0, 1],
+            [1, 2, 3, 10],
+            [4, 5, 6, 20],
+          ],
+          1n,
+        ),
+      ],
+    });
+    renderer.animationFrame();
+
+    const historyRenderable = pointClouds.renderables.get("/lidar/points")!;
+    const cloudRenderable = historyRenderable.children[0] as Renderable;
+
+    // Select point index 2
+    renderer.setSelectedRenderable({ renderable: cloudRenderable, instanceIndex: 2 });
+    const label = extension.getLabel()!;
+    const setTextSpy = jest.spyOn(label, "setText");
+    expect(label.visible).toBe(true);
+    expect(label.position.toArray()).toEqual([4, 5, 6]);
+
+    // Streaming update changes point index 2's coordinates & intensity in-place
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(2n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [
+        makeCloudEvent(
+          [
+            [0, 0, 0, 1],
+            [1, 2, 3, 10],
+            [7.5, -1.25, 2.5, 99.5],
+          ],
+          2n,
+        ),
+      ],
+    });
+    renderer.animationFrame();
+
+    expect(label.visible).toBe(true);
+    expect(label.position.toArray()).toEqual([7.5, -1.25, 2.5]);
+    expect(setTextSpy).toHaveBeenCalledWith("/lidar/points\n(7.50, -1.25, 2.50) I:99.5");
+
+    // Subsequent frame shrinks the point cloud so index 2 is now out of bounds
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(3n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [makeCloudEvent([[0, 0, 0, 1]], 3n)],
+    });
+    expect(() => {
+      renderer.animationFrame();
+    }).not.toThrow();
+    expect(cloudRenderable.instanceDetails(2)).toBeUndefined();
+    expect(label.visible).toBe(false);
+
+    // Defense-in-depth: even if a custom renderable throws from instanceDetails(), rendering stays safe
+    const throwingCloud = new MockPointCloudRenderable("/custom/points", renderer, {
+      x: 1,
+      y: 2,
+      z: 3,
+    });
+    renderer.setSelectedRenderable({ renderable: throwingCloud, instanceIndex: 5 });
+    expect(label.visible).toBe(true);
+    throwingCloud.enableThrowOnRead();
+    expect(() => {
+      renderer.animationFrame();
+    }).not.toThrow();
+    expect(label.visible).toBe(false);
 
     renderer.dispose();
   });

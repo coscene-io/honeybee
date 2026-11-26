@@ -124,12 +124,22 @@ class PointCloudRenderable extends PointsRenderable<PointCloudUserData> {
     const pointCloud = this.userData.pointCloud;
     const data = pointCloud.data;
     const stride = getStride(pointCloud);
+    if (
+      !Number.isInteger(instanceId) ||
+      instanceId < 0 ||
+      !Number.isFinite(stride) ||
+      stride <= 0
+    ) {
+      return undefined;
+    }
+    const pointOffset = instanceId * stride;
+    if (pointOffset + stride > data.byteLength) {
+      return undefined;
+    }
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const pointStep = getStride(pointCloud);
     const details: Record<string, RosValue> = {};
 
     for (const field of pointCloud.fields) {
-      const pointOffset = instanceId * pointStep;
       const reader = getReader(field, stride);
       if (reader) {
         details[field.name] = reader(view, pointOffset);
