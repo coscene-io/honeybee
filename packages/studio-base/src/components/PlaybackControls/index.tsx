@@ -41,6 +41,7 @@ import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
   useMessagePipeline,
+  useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -205,6 +206,7 @@ export default function PlaybackControls(props: {
     repeatEnabled,
     enableRepeatPlayback,
   } = props;
+  const getPipeline = useMessagePipelineGetter();
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
   const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
@@ -302,11 +304,13 @@ export default function PlaybackControls(props: {
     }
   }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
+  const seekGeneration = useRef(0);
   const seekIfAllowed = useCallback(
     (seekTo: Time) => {
       if (isKeyframeSearchActive) {
         return;
       }
+      seekGeneration.current++;
       seek(seekTo);
     },
     [isKeyframeSearchActive, seek],
@@ -352,16 +356,29 @@ export default function PlaybackControls(props: {
       if (!playbackStep) {
         return { handled: false as const, modifiers: ev };
       }
+      const generation = seekGeneration.current;
+      const start = getPipeline().playerState;
+      const isPlaybackCurrent = () => {
+        const live = getPipeline().playerState;
+        return (
+          generation === seekGeneration.current &&
+          live.playerId === start.playerId &&
+          live.activeData?.lastSeekTime === start.activeData?.lastSeekTime
+        );
+      };
       return playbackStep.step(
         direction,
         ev,
         (ns) => {
-          seekIfAllowed(fromNanoSec(ns));
+          if (isPlaybackCurrent()) {
+            seekIfAllowed(fromNanoSec(ns));
+          }
         },
         toNanoSec(currentTime),
+        isPlaybackCurrent,
       );
     },
-    [playbackStep, seekIfAllowed],
+    [getPipeline, playbackStep, seekIfAllowed],
   );
 
   const seekForwardAction = useCallback(

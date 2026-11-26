@@ -63,6 +63,27 @@ describe("cross canvas", () => {
     store.getState().dispose();
   });
 
+  it("claims the polygon's camera and frame before editing with Enter", async () => {
+    const store = await storeWithSeed();
+    testHost().session.setState({
+      open: true,
+      panelId: "left",
+      surfaces: {
+        left: { frameId: "frame-0", sourceReady: true },
+        right: { frameId: "side-0", sourceReady: true },
+      },
+    });
+    render(<SegmentationTree store={store} />);
+    const polygon = screen
+      .getByRole("treeitem", { name: "side · Polygon 1" })
+      .querySelector("[data-tree-primary]")!;
+    fireEvent.keyDown(polygon, { key: "Enter" });
+    expect(store.getState().currentFrameId).toBe("side-0");
+    expect(store.getState().editing).toBe(true);
+    expect(testHost().session.getState().panelId).toBe("right");
+    store.getState().dispose();
+  });
+
   it("uses current preview frames outside editing and clears unknown images instead of showing the old edit frame", async () => {
     const store = await storeWithSeed();
     testHost().session.setState({

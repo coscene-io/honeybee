@@ -272,7 +272,7 @@ function menuActions(c: CanvasContext): ContextMenuActions & DialogActions {
     confirmConversion: () => {
       const target = ui.conversion;
       ui.setConversion(undefined);
-      if (target) {
+      if (target && c.d.frameId === target.frameId && c.d.activeFrameId === target.frameId) {
         run(c, () => {
           state.convertToPolygons(target.instanceId);
         });

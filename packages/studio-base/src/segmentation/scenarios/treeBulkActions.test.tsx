@@ -60,6 +60,21 @@ describe("structure bulk acceptance", () => {
     );
   });
 
+  it("starts a bulk deletion on the current frame after canceling a record-wide deletion", async () => {
+    const { store } = await setup();
+    fireEvent.contextMenu(row("I").querySelector("[data-tree-row]")!);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete instance in all frames…" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Select" }));
+    check("I");
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await confirm("Delete");
+    const document = store.getState().document!;
+    expect(document.instances.some((item) => item.id === "I")).toBe(true);
+    expect(polygons(document, 0, "I")).toEqual([]);
+    expect(polygons(document, 1, "I")).not.toHaveLength(0);
+  });
+
   it("deduplicates selected class, instance and polygon into one retirement per instance", async () => {
     const { store } = await setup();
     const before = store.getState().document!;

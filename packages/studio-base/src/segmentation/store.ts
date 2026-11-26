@@ -47,6 +47,7 @@ import {
   SegmentationDocument,
   SegmentationPatch,
   SegmentationNodeRef,
+  SegmentationPolygon,
   SegmentationStore,
   StagedOperation,
 } from "./types";
@@ -259,6 +260,7 @@ export function createSegmentationStore(
       for (const id of evicted) {
         loadedFrames.delete(id);
       }
+      service.releaseFrames?.(evicted);
     }
     function rebuild() {
       if (!base) {
@@ -456,6 +458,84 @@ export function createSegmentationStore(
         throw new SegmentationError("errorDisposed");
       }
     }
+    async function initialize(mode: "open" | "reconcile" = "open"): Promise<boolean> {
+      if (isDisposed()) {
+        return false;
+      }
+      const reconcile = mode === "reconcile";
+      const epoch = ++loadEpoch;
+      if (reconcile) {
+        windowController?.abort();
+        windowController = undefined;
+        abortPrefetches();
+      }
+      const readStart = saveSeq;
+      set({ loading: true, error: undefined });
+      void get().refreshPropagationCapabilities();
+      try {
+        const loaded = await service.loadDocument();
+        // A read that raced a save may predate it; the acknowledged document is newer.
+        if (isDisposed() || epoch !== loadEpoch || readStart !== saveSeq) {
+          return false;
+        }
+        // A document read omits geometry. Keep redo, and loaded geometry as a placeholder until
+        // its window is read again, only when the authoritative metadata is unchanged. Every
+        // window is re-read either way: the server may have changed since it was loaded.
+        const metadata = (doc: SegmentationDocument) => {
+          // Summaries are derived: exact for loaded windows, timeline placeholders otherwise.
+          const {
+            annotations: _annotations,
+            unreadableObservations: _unreadable,
+            annotationSummaries: _summaries,
+            ...rest
+          } = doc;
+          return rest;
+        };
+        const sameBase = base != undefined && _.isEqual(metadata(base), metadata(loaded));
+        loadedFrames.clear();
+        if (!sameBase) {
+          redoStack = [];
+          ++documentEpoch;
+        }
+        base =
+          sameBase && !reconcile
+            ? {
+                ...loaded,
+                annotations: { ...base!.annotations, ...loaded.annotations },
+                ...(base!.unreadableObservations
+                  ? { unreadableObservations: base!.unreadableObservations }
+                  : {}),
+              }
+            : loaded;
+        const first =
+          (sameBase || reconcile
+            ? loaded.frames.find((frame) => frame.id === get().currentFrameId)
+            : undefined) ?? loaded.frames[0];
+        set({
+          currentFrameId: first?.id,
+          canRedo: redoStack.length > 0,
+        });
+        rebuild();
+        if (first && !loadedFrames.has(first.id)) {
+          const { startSec, endSec } = segmentationWindow(
+            first.timestampSec,
+            loaded.videos.find((video) => video.id === first.videoId)?.durationSec ??
+              SEGMENTATION_WINDOW_SEC,
+          );
+          await get().loadFrameWindow(first.videoId, startSec, endSec);
+        }
+        return !isDisposed() && epoch === loadEpoch && (!first || loadedFrames.has(first.id));
+      } catch (error) {
+        if (!isDisposed() && epoch === loadEpoch) {
+          set({ error: segmentationErrorText(error) });
+        }
+        return false;
+      } finally {
+        if (!isDisposed() && epoch === loadEpoch) {
+          set({ loading: false });
+        }
+      }
+    }
     const context: StoreInternals = {
       service,
       get,
@@ -470,6 +550,7 @@ export function createSegmentationStore(
       documentEpoch: () => documentEpoch,
       saveSeq: () => saveSeq,
       savedAfter,
+      reconcileFailedSubmission: async () => await initialize("reconcile"),
       recordSave: (keys) => {
         ++saveSeq;
         for (const key of keys) {
@@ -537,66 +618,38 @@ export function createSegmentationStore(
         }
       },
       async initialize() {
-        if (isDisposed()) {
+        await initialize();
+      },
+      invalidateVideoGeometry(videoIds) {
+        if (isDisposed() || !base) {
           return;
         }
-        const epoch = ++loadEpoch;
-        const readStart = saveSeq;
-        set({ loading: true, error: undefined });
-        void get().refreshPropagationCapabilities();
-        try {
-          const loaded = await service.loadDocument();
-          // A read that raced a save may predate it; the acknowledged document is newer.
-          if (isDisposed() || epoch !== loadEpoch || readStart !== saveSeq) {
-            return;
-          }
-          // A document read omits geometry. Keep redo, and loaded geometry as a placeholder until
-          // its window is read again, only when the authoritative metadata is unchanged. Every
-          // window is re-read either way: the server may have changed since it was loaded.
-          const metadata = (doc: SegmentationDocument) => {
-            const { annotations: _annotations, unreadableObservations: _unreadable, ...rest } = doc;
-            return rest;
-          };
-          const sameBase = base != undefined && _.isEqual(metadata(base), metadata(loaded));
-          loadedFrames.clear();
-          if (!sameBase) {
-            redoStack = [];
-            ++documentEpoch;
-          }
-          base = sameBase
-            ? {
-                ...loaded,
-                annotations: { ...base!.annotations, ...loaded.annotations },
-                ...(base!.unreadableObservations
-                  ? { unreadableObservations: base!.unreadableObservations }
-                  : {}),
-              }
-            : loaded;
-          const first =
-            (sameBase
-              ? loaded.frames.find((frame) => frame.id === get().currentFrameId)
-              : undefined) ?? loaded.frames[0];
-          set({
-            currentFrameId: first?.id,
-            canRedo: redoStack.length > 0,
-          });
-          rebuild();
-          if (first && !loadedFrames.has(first.id)) {
-            const { startSec, endSec } = segmentationWindow(
-              first.timestampSec,
-              loaded.videos.find((video) => video.id === first.videoId)?.durationSec ??
-                SEGMENTATION_WINDOW_SEC,
-            );
-            await get().loadFrameWindow(first.videoId, startSec, endSec);
-          }
-        } catch (error) {
-          if (!isDisposed() && epoch === loadEpoch) {
-            set({ error: segmentationErrorText(error) });
-          }
-        } finally {
-          if (!isDisposed() && epoch === loadEpoch) {
-            set({ loading: false });
-          }
+        const frames = sourceFrames();
+        const ids = new Set(
+          frames.filter(({ videoId }) => videoIds.has(videoId)).map(({ id }) => id),
+        );
+        ++documentEpoch;
+        windowController?.abort();
+        windowController = undefined;
+        abortPrefetches();
+        base = evictFrames(base, ids);
+        const annotationSummaries = Object.fromEntries(
+          Object.entries(base.annotationSummaries).filter(([key]) => !ids.has(frameOfKey(key))),
+        );
+        base = { ...base, annotationSummaries };
+        for (const id of ids) {
+          loadedFrames.delete(id);
+        }
+        service.releaseFrames?.(ids, { forgetSummaries: true });
+        const current = get().currentFrameId;
+        rebuild();
+        set({ loading: false, frameWindowError: undefined });
+        if (
+          current != undefined &&
+          !loadedFrames.has(current) &&
+          !["running", "stopping"].includes(get().propagation.status)
+        ) {
+          void get().retryCurrentFrameWindow();
         }
       },
       isFrameReady(id) {
@@ -923,7 +976,14 @@ export function createSegmentationStore(
         const id = uuidv4();
         stage("opLabelCreateInstance", {
           instances: {
-            [id]: { id, classId, name: name ?? nextInstanceName(document().instances) },
+            [id]: {
+              id,
+              classId,
+              name:
+                name == undefined
+                  ? nextInstanceName(document().instances)
+                  : checkedName(name, "Instance"),
+            },
           },
         });
         exitEditing();
@@ -1067,22 +1127,36 @@ export function createSegmentationStore(
         );
       },
       mergePolygons(polygonIds, targetInstanceId) {
-        const target = observation(targetInstanceId);
+        if (!document().instances.some((instance) => instance.id === targetInstanceId)) {
+          throw new SegmentationError("errorUnknownInstance");
+        }
+        const annotations = Object.values(document().annotations);
         const remaining = new Map<string, FrameInstance & { kind: "polygons" }>();
-        const moved: FrameInstance & { kind: "polygons" } = {
-          frameId: frameId(),
-          instanceId: targetInstanceId,
-          kind: "polygons",
-          polygons: [],
-        };
+        // Each polygon moves to the target instance on its own frame: the tree lists polygons of
+        // every visible camera, not only the current frame's.
+        const movedByFrame = new Map<string, SegmentationPolygon[]>();
         for (const id of polygonIds) {
-          const found = findPolygon(id);
-          if (found.instanceId === targetInstanceId) {
+          const owner =
+            annotations.find(
+              (item) =>
+                item.frameId === frameId() && polygonsOf(item).some((polygon) => polygon.id === id),
+            ) ??
+            annotations.find(
+              (item) =>
+                loadedFrames.has(item.frameId) &&
+                polygonsOf(item).some((polygon) => polygon.id === id),
+            );
+          if (owner?.kind !== "polygons") {
+            throw new SegmentationError("errorUnknownPolygon");
+          }
+          if (owner.instanceId === targetInstanceId) {
             continue;
           }
-          const key = frameInstanceKey(found.frameId, found.instanceId);
-          const source = remaining.get(key) ?? found;
-          moved.polygons.push(source.polygons.find((polygon) => polygon.id === id)!);
+          const key = frameInstanceKey(owner.frameId, owner.instanceId);
+          const source = remaining.get(key) ?? cloneSegmentation(owner);
+          const moved = movedByFrame.get(owner.frameId) ?? [];
+          moved.push(source.polygons.find((polygon) => polygon.id === id)!);
+          movedByFrame.set(owner.frameId, moved);
           source.polygons = source.polygons.filter((polygon) => polygon.id !== id);
           remaining.set(key, source);
         }
@@ -1090,11 +1164,13 @@ export function createSegmentationStore(
         for (const [key, source] of remaining) {
           changes[key] = polygonObservation(source.frameId, source.instanceId, source.polygons);
         }
-        if (moved.polygons.length > 0) {
+        for (const [movedFrameId, polygons] of movedByFrame) {
+          const targetKey = frameInstanceKey(movedFrameId, targetInstanceId);
+          const target = document().annotations[targetKey];
           // Polygons moved onto a mask are rasterized into it (one representation).
-          changes[frameInstanceKey(frameId(), targetInstanceId)] = mergeObservations(
-            target,
-            moved,
+          changes[targetKey] = mergeObservations(
+            target ? cloneSegmentation(target) : undefined,
+            { frameId: movedFrameId, instanceId: targetInstanceId, kind: "polygons", polygons },
             targetInstanceId,
           );
         }

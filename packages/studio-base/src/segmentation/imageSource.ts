@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { StoreApi } from "zustand/vanilla";
+
 import { toNanoSec, type Time } from "@foxglove/rostime";
 import type { MessageEvent } from "@foxglove/studio";
 import type { PlayerURLState } from "@foxglove/studio-base/players/types";
@@ -127,6 +129,7 @@ export type SegmentationMaskOverlaySource = {
   frame: (
     topic: string,
     logTimeNs: string,
+    controls?: MaskOverlayDisplay,
   ) => { geometry: SegmentationMaskGeometry; style: SegmentationMaskStyle } | undefined;
   /**
    * Geometry of the source frames after logTimeNs, for off-thread prefetch: at least minFrames,
@@ -138,6 +141,12 @@ export type SegmentationMaskOverlaySource = {
     range: { minFrames: number; maxFrames: number; horizonNs: bigint },
   ) => SegmentationMaskGeometry[];
 };
+
+/** Display settings of a single Image panel. */
+export type MaskOverlayDisplay = { opacity: number; peekOriginal: boolean };
+
+/** Canvas-local display controls mirrored for the GPU layer. */
+export type MaskOverlayControls = StoreApi<MaskOverlayDisplay>;
 
 /** The masks the editor publishes for every Image panel to draw. */
 export type SegmentationMaskOverlay = {
@@ -182,6 +191,8 @@ export function createSegmentationMaskOverlay(): SegmentationMaskOverlay {
 export type SegmentationPanelBridge = {
   /** Masks to draw, from the host. */
   maskOverlay: SegmentationMaskOverlay;
+  /** Local canvas settings mirrored to this panel's GPU layer. */
+  maskOverlayControls?: MaskOverlayControls;
   /** The CPU mask-plane cache shared by every panel of the host. */
   maskPlanes: SharedMaskPlanes;
   /** Renderer side: offer this panel's image and camera; the returned function withdraws them. */
@@ -195,7 +206,7 @@ export type SegmentationPanelBridge = {
 };
 
 export function createSegmentationPanelBridge(
-  shared: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">,
+  shared: Pick<SegmentationPanelBridge, "maskOverlay" | "maskOverlayControls" | "maskPlanes">,
 ): SegmentationPanelBridge {
   let current: SegmentationRendererSources | undefined;
   const frameListeners = new Set<() => void>();

@@ -86,6 +86,7 @@ export function createSegmentationRuntime(
     getPropagationCapabilities: service.getPropagationCapabilities?.bind(service),
     cancelPropagation: service.cancelPropagation?.bind(service),
     dispose: service.dispose?.bind(service),
+    releaseFrames: service.releaseFrames?.bind(service),
     segmentFrame: service.segmentFrame?.bind(service),
     loadFrameWindow: async (videoId, startSec, endSec, signal) =>
       await service.loadFrameWindow(videoId, startSec, endSec, signal),
@@ -193,8 +194,27 @@ export function createSegmentationRuntime(
         return;
       }
       const merged = mergeSourceMetadata(current, source);
-      metadata = { videos: merged.videos, frames: merged.frames };
-      service.updateSourceMetadata?.(metadata);
+      // Masks are bound to the size they were read at; a camera that now decodes at another size
+      // must have its loaded frames read and classified again.
+      const previous = new Map(current.videos.map((video) => [video.id, video]));
+      const resized = new Set(
+        merged.videos
+          .filter((video) => {
+            const before = previous.get(video.id);
+            return (
+              before?.width != undefined &&
+              before.height != undefined &&
+              (video.width !== before.width || video.height !== before.height)
+            );
+          })
+          .map(({ id }) => id),
+      );
+      const next = { videos: merged.videos, frames: merged.frames };
+      service.updateSourceMetadata?.(next);
+      metadata = next;
+      if (resized.size > 0) {
+        store.getState().invalidateVideoGeometry(resized);
+      }
       reproject();
     },
     dispose: () => {
@@ -239,7 +259,7 @@ export type SegmentationSessionState = {
   /** Read-only annotations for the open recording. Editing still uses `runtime`. */
   previewRuntime: SegmentationRuntime | undefined;
   previewLoading: boolean;
-  /** Exact displayed frame per topic for the read-only overview. */
+  /** Exact displayed frame per Image panel for the read-only overview. */
   previewFrames: Record<string, string | undefined>;
   open: boolean;
   /** Canvas that receives new edits. Other open canvases stay visible. */
@@ -283,7 +303,7 @@ export function openWorkflowPanel(session: SegmentationSession, target?: string)
 
 /** Leaves segmentation: every canvas closes; staged edits stay in the runtime. */
 export function endSegmentationSession(session: SegmentationSession): void {
-  session.setState({ open: false, sourceReady: false });
+  session.setState({ open: false, sourceReady: false, workflow: { open: false, nonce: 0 } });
 }
 
 export function activateSegmentationRuntime(
@@ -386,7 +406,9 @@ export function createSegmentationRegistry(session: SegmentationSession): Segmen
     const current = session.getState();
     if (current.runtime === held.runtime || current.previewRuntime === held.runtime) {
       session.setState({
-        ...(current.runtime === held.runtime ? { runtime: undefined, open: false } : {}),
+        ...(current.runtime === held.runtime
+          ? { runtime: undefined, open: false, workflow: { open: false, nonce: 0 } }
+          : {}),
         ...(current.previewRuntime === held.runtime ? { previewRuntime: undefined } : {}),
       });
     }

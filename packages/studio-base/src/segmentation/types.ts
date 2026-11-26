@@ -67,11 +67,12 @@ export type ObservationGeometry = PolygonGeometry | MaskGeometry;
 export type FrameInstance = { frameId: string; instanceId: string } & ObservationGeometry;
 /** A server observation the editor cannot show, e.g. a mask whose size does not match the frame. */
 export type UnreadableObservation = { frameId: string; instanceId: string; reason: string };
-/** Lightweight presence metadata; `maskArea` counts foreground pixels of a mask observation. */
+/** Lightweight presence metadata. */
 export type AnnotationSummary = {
   polygonCount: number;
   pointCount: number;
-  maskArea?: number;
+  /** Foreground pixel count, or unknown until the geometry of a staged merge is loaded. */
+  maskArea?: number | "unknown";
   /**
    * Presence known only from the service timeline (ListTimelineRanges): the frame has foreground
    * geometry, but its geometry is not loaded, so the counts are unknown (zero).
@@ -249,6 +250,8 @@ export type SegmentationStore = {
   refreshPropagationCapabilities: () => Promise<void>;
   propagation: PropagationState;
   initialize: () => Promise<void>;
+  /** Forget loaded geometry whose decoded source dimensions have changed. */
+  invalidateVideoGeometry: (videoIds: ReadonlySet<string>) => void;
   loadFrameWindow: (videoId: string, startSec: number, endSec: number) => Promise<void>;
   /**
    * Background read of a window for playback: never aborts the current window load, never shows

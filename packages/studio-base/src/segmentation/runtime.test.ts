@@ -385,3 +385,17 @@ it("forwards the service's methods to the store", async () => {
   expect(segmentFrame).toHaveBeenCalledTimes(1);
   runtime.dispose();
 });
+
+it("takes a camera's topic from a panel that binds it later", async () => {
+  const runtime = createMockSegmentationRuntime(createSeedDocument());
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  const original = runtime.store.getState().document!.videos[0]!;
+  const late = { ...original, id: "late-camera", topic: undefined };
+  runtime.registerSource({ videos: [late], frames: [] });
+  runtime.registerSource({ videos: [{ ...late, topic: "/camera/late" }], frames: [] });
+  expect(
+    runtime.store.getState().document!.videos.find((video) => video.id === late.id)?.topic,
+  ).toBe("/camera/late");
+  runtime.dispose();
+});

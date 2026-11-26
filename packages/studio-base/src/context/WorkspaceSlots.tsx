@@ -46,6 +46,8 @@ export type PlaybackStepOverride = {
     modifiers: PlaybackStepModifiers | undefined,
     seek: (logTimeNs: bigint) => void,
     clockNs: bigint,
+    /** False after another seek or a player change invalidates this step. */
+    isPlaybackCurrent: () => boolean,
   ) => { handled: true } | { handled: false; modifiers: PlaybackStepModifiers | undefined };
 };
 
@@ -117,13 +119,21 @@ export function useWorkspaceSlotsStore(): StoreApi<Slots> | undefined {
   return useContext(WorkspaceSlotsContext);
 }
 
-/** Registers `value` under `id` in `slot`; the returned function removes it again. */
+/**
+ * Registers `value` under `id` in `slot`; the returned function removes it again.
+ *
+ * Slots read back in registration order. Objects list integer-like keys first in numeric order, so
+ * such ids are rejected rather than silently reordered.
+ */
 export function registerWorkspaceSlot<K extends WorkspaceSlotName>(
   store: StoreApi<Slots>,
   slot: K,
   id: string,
   value: Slots[K][string],
 ): () => void {
+  if (/^(0|[1-9]\d*)$/.test(id)) {
+    throw new Error(`Workspace slot id "${id}" must not be an integer`);
+  }
   store.setState((slots) => ({ [slot]: { ...slots[slot], [id]: value } }));
   return () => {
     store.setState((slots) => {

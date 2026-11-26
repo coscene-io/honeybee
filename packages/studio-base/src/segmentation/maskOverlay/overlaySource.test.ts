@@ -20,8 +20,7 @@ import { createSeedDocument } from "../testing/mockService";
 
 describe("mask overlay source", () => {
   let host = createSegmentationHost();
-  const overlaySource = () =>
-    createMaskOverlaySource({ session: host.session, controls: host.maskOverlayControls });
+  const overlaySource = () => createMaskOverlaySource({ session: host.session });
   beforeEach(() => {
     host = createSegmentationHost();
   });
@@ -63,8 +62,14 @@ describe("mask overlay source", () => {
     expect(hidden?.style.visible).toEqual([false]);
     runtime.store.setState({ viewMode: "all", focus: { type: "instance", id: "instance-side" } });
     expect(source.frame(topic, frame.logTimeNs)?.style.selected).toEqual([true]);
-    host.maskOverlayControls.setState({ peekOriginal: true });
-    expect(source.frame(topic, frame.logTimeNs)?.style.visible).toEqual([false]);
+    const activePanel = createMaskOverlayControls();
+    const otherPanel = createMaskOverlayControls();
+    activePanel.setState({ opacity: 0.2, peekOriginal: true });
+    const active = source.frame(topic, frame.logTimeNs, activePanel.getState());
+    const other = source.frame(topic, frame.logTimeNs, otherPanel.getState());
+    expect(active?.style).toMatchObject({ opacity: 0.2, visible: [false] });
+    expect(other?.style).toMatchObject({ opacity: 0.5, visible: [true] });
+    expect(active?.geometry).toBe(other?.geometry);
 
     // Playback registers frames every frame: a new frame list must keep built planes (same id)...
     const id = source.frame(topic, frame.logTimeNs)!.geometry.id;
@@ -192,7 +197,7 @@ describe("installed mask overlay source", () => {
     expect(first.maskOverlay.get()).not.toBe(second.maskOverlay.get());
     const changed = jest.fn();
     first.maskOverlay.subscribe(changed);
-    first.maskOverlayControls.setState({ opacity: 0.2 });
+    first.session.setState({ open: true });
     expect(changed).toHaveBeenCalled();
     first.dispose();
     expect(first.maskOverlay.get()).toBeUndefined();
@@ -202,15 +207,13 @@ describe("installed mask overlay source", () => {
 
   it("stops watching the session once uninstalled", () => {
     const session = createSegmentationSession();
-    const controls = createMaskOverlayControls();
     const overlay = createSegmentationMaskOverlay();
-    const uninstall = installMaskOverlaySource({ session, overlay, controls });
+    const uninstall = installMaskOverlaySource({ session, overlay });
     const changed = jest.fn();
     overlay.subscribe(changed);
     uninstall();
     changed.mockClear();
     session.setState({ open: true });
-    controls.setState({ opacity: 0.1 });
     expect(changed).not.toHaveBeenCalled();
   });
 });

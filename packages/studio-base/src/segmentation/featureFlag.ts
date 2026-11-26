@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { useContext } from "react";
+
 import { useCoreData, type CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
 import { useOptionalFeatureIsOnWithConfig } from "@foxglove/studio-base/providers/GrowthBookProvider";
 
@@ -15,18 +17,43 @@ import { useOptionalFeatureIsOnWithConfig } from "@foxglove/studio-base/provider
  * AnnotationService backend is deployed.
  */
 import { isSegmentationRecordName } from "./recordName";
+import { SegmentationHostContext, useHostHasUnsavedWork } from "./segmentationHostContext";
 
 export const SEGMENTATION_FEATURE_FLAG = "honeybee_semantic_segmentation";
 
-const selectRecordName = (state: CoreDataStore) => state.record.value?.name;
+/**
+ * The record that is actually open. While another record is requested, Core Data keeps the
+ * previous one as the value until the new one is read (CoreDataSyncAdapter); annotating then would
+ * show and write the previous record's annotations over the new recording. So when a record is
+ * requested, only that record counts. Reloading the same record keeps it.
+ */
+export function openRecordName(
+  state: Pick<CoreDataStore, "record" | "externalInitConfig">,
+): string | undefined {
+  const name = state.record.value?.name;
+  const config = state.externalInitConfig;
+  if (config?.warehouseId && config.projectId && config.recordId) {
+    const requested = `warehouses/${config.warehouseId}/projects/${config.projectId}/records/${config.recordId}`;
+    return name === requested ? name : undefined;
+  }
+  return name;
+}
+
+const selectRecordName = (state: CoreDataStore) => openRecordName(state);
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 /** The data source whose records live in the cloud and can carry annotations. */
 const CLOUD_DATA_SOURCE_ID = "coscene-data-platform";
 
-/** The flag alone, default off. Works without a GrowthBookProvider (isolated tests). */
+/**
+ * The flag, default off. Works without a GrowthBookProvider (isolated tests). Turning it off
+ * remotely does not take effect while the workspace still holds unsaved annotation work: the
+ * editor stays until that work is saved or discarded, rather than dropping it unasked.
+ */
 export function useSegmentationFlag(): boolean {
-  return useOptionalFeatureIsOnWithConfig(SEGMENTATION_FEATURE_FLAG);
+  const remote = useOptionalFeatureIsOnWithConfig(SEGMENTATION_FEATURE_FLAG);
+  const unsaved = useHostHasUnsavedWork(useContext(SegmentationHostContext));
+  return remote || unsaved;
 }
 
 /**
