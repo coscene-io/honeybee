@@ -448,7 +448,7 @@ it("removes one active custom field filter and clears the rest", async () => {
   expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
 });
 
-it("validates and applies numeric and date ranges together", async () => {
+function renderRangeFilterEvents(initialFilters?: MomentCustomFieldFilters) {
   const score = create(PropertySchema, {
     id: "score",
     name: "Score",
@@ -464,6 +464,7 @@ it("validates and applies numeric and date ranges together", async () => {
     { name: "Matching moment", number: 0, minute: 1 },
     { name: "Too high", number: 3, minute: 1 },
     { name: "Too late", number: 0, minute: 2 },
+    { name: "Too high and too late", number: 3, minute: 2 },
   ].map(({ name, number, minute }, index) => {
     const entry = makeEvent({ name: `${FILTER_PROJECT}/events/${index}`, startSec: index + 1 });
     entry.event.displayName = name;
@@ -484,40 +485,54 @@ it("validates and applies numeric and date ranges together", async () => {
   });
   render(
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Wrapper events={events} consoleApi={makeConsoleApi()} schema={schema} />
+      <Wrapper
+        events={events}
+        consoleApi={makeConsoleApi()}
+        schema={schema}
+        initialFilters={initialFilters}
+      />
     </LocalizationProvider>,
   );
+}
+
+it("validates numeric bounds before applying a range", async () => {
+  renderRangeFilterEvents();
   fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
   fireEvent.click(screen.getByRole("menuitem", { name: "Filter by custom fields" }));
-  const dialog = within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
-  const add = (field: string) => {
-    fireEvent.mouseDown(dialog.getByRole("combobox", { name: "Add a condition" }));
-    fireEvent.click(screen.getByRole("option", { name: field }));
-  };
-  const setNumber = (name: string, value: string) => {
-    fireEvent.change(dialog.getByRole("textbox", { name }), { target: { value } });
-  };
-  const setDate = (name: string, value: string) => {
-    fireEvent.change(dialog.getByLabelText(name, { selector: "input" }), {
-      target: { value },
-    });
-  };
+  const dialog = getFilterDialog();
+  chooseOption(dialog.getByRole("combobox", { name: "Add a condition" }), "Score");
   const apply = dialog.getByRole<HTMLButtonElement>("button", { name: "Apply filters" });
+  const maximum = dialog.getByRole("textbox", { name: "Maximum" });
 
-  add("Score");
-  setNumber("Minimum", "0");
+  fireEvent.change(dialog.getByRole("textbox", { name: "Minimum" }), { target: { value: "0" } });
   expect(dialog.getByText("Enter both the minimum and maximum.")).toBeTruthy();
   expect(apply.disabled).toBe(true);
-  setNumber("Maximum", "-0.5");
+  fireEvent.change(maximum, { target: { value: "-0.5" } });
   expect(dialog.getByText("The minimum must be less than or equal to the maximum.")).toBeTruthy();
-  setNumber("Maximum", "2");
+  expect(apply.disabled).toBe(true);
+  fireEvent.change(maximum, { target: { value: "2" } });
+  expect(apply.disabled).toBe(false);
+  fireEvent.click(apply);
+  expect(await screen.findByRole("button", { name: "Score: 0 – 2" })).toBeTruthy();
+  expect(screen.queryByText("Too high")).toBeNull();
+  expect(screen.getByText("Too late")).toBeTruthy();
+});
 
-  add("Observed at");
-  setDate("Start Time", "2026-01-10 10:02");
-  setDate("End Time", "2026-01-10 10:01");
+it("validates a date range and applies it together with an active numeric range", async () => {
+  renderRangeFilterEvents(
+    new Map([["score", { case: "number", operator: "between", min: 0, max: 2 }]]),
+  );
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Score: 0 – 2" }));
+  const dialog = getFilterDialog();
+  chooseOption(dialog.getByRole("combobox", { name: "Add a condition" }), "Observed at");
+  const apply = dialog.getByRole<HTMLButtonElement>("button", { name: "Apply filters" });
+  const start = dialog.getByLabelText("Start Time", { selector: "input" });
+  const end = dialog.getByLabelText("End Time", { selector: "input" });
+  fireEvent.change(start, { target: { value: "2026-01-10 10:02" } });
+  fireEvent.change(end, { target: { value: "2026-01-10 10:01" } });
   expect(dialog.getByText("The start must be before or at the end.")).toBeTruthy();
   expect(apply.disabled).toBe(true);
-  setDate("Start Time", "2026-01-10 10:00");
+  fireEvent.change(start, { target: { value: "2026-01-10 10:00" } });
   expect(apply.disabled).toBe(false);
   fireEvent.click(apply);
   await waitFor(() => {
@@ -525,18 +540,33 @@ it("validates and applies numeric and date ranges together", async () => {
     expect(screen.queryByText("Too high")).toBeNull();
     expect(screen.queryByText("Too late")).toBeNull();
   });
+});
 
-  fireEvent.click(screen.getByRole("button", { name: "Score: 0 – 2" }));
-  const reopened = within(screen.getByRole("dialog", { name: "Filter by custom fields" }));
-  expect(reopened.getByRole<HTMLInputElement>("textbox", { name: "Minimum" }).value).toBe("0");
-  fireEvent.mouseDown(reopened.getByRole("combobox", { name: "Comparison" }));
-  fireEvent.click(screen.getByRole("option", { name: ">" }));
-  expect(reopened.queryByRole("textbox", { name: "Maximum" })).toBeNull();
-  fireEvent.click(reopened.getByRole("button", { name: "Apply filters" }));
+it("changes an applied numeric range to a comparison while keeping the date range", async () => {
+  renderRangeFilterEvents(
+    new Map<string, MomentCustomFieldFilter>([
+      ["score", { case: "number", operator: "between", min: 0, max: 2 }],
+      [
+        "observed",
+        {
+          case: "time",
+          start: new Date(2026, 0, 10, 10, 0).getTime(),
+          end: new Date(2026, 0, 10, 10, 1).getTime(),
+        },
+      ],
+    ]),
+  );
+  fireEvent.click(getActiveFilters().getByRole("button", { name: "Score: 0 – 2" }));
+  const dialog = getFilterDialog();
+  expect(dialog.getByRole<HTMLInputElement>("textbox", { name: "Minimum" }).value).toBe("0");
+  chooseOption(dialog.getByRole("combobox", { name: "Comparison" }), ">");
+  expect(dialog.queryByRole("textbox", { name: "Maximum" })).toBeNull();
+  fireEvent.click(dialog.getByRole("button", { name: "Apply filters" }));
   await waitFor(() => {
     expect(screen.queryByText("Matching moment")).toBeNull();
     expect(screen.queryByText("Too high")).not.toBeNull();
     expect(screen.queryByText("Too late")).toBeNull();
+    expect(screen.queryByText("Too high and too late")).toBeNull();
   });
 });
 
