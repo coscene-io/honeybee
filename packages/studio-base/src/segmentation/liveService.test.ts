@@ -91,6 +91,7 @@ type Server = {
   /** Same for ListTimelineRanges. */
   holdNextTimeline?: Promise<void>;
   timelineReads: number;
+  paginateTimeline: boolean;
   repeatClassPageToken?: boolean;
   /** SegmentFrame fails with this error. */
   segmentFrameError?: ConnectError;
@@ -115,6 +116,7 @@ function setup(document = sourceDocument()) {
     rawFrames: [],
     rawRanges: [],
     timelineReads: 0,
+    paginateTimeline: false,
   };
   const transport = createRouterTransport(({ service }) => {
     service(AnnotationService, {
@@ -146,7 +148,14 @@ function setup(document = sourceDocument()) {
         const hold = server.holdNextTimeline;
         server.holdNextTimeline = undefined;
         await hold;
-        return { timelineRanges: [...ranges, ...server.rawRanges] };
+        if (server.paginateTimeline && request.pageToken === "") {
+          return { timelineRanges: ranges, nextPageToken: "remaining" };
+        }
+        return {
+          timelineRanges: server.paginateTimeline
+            ? server.rawRanges
+            : [...ranges, ...server.rawRanges],
+        };
       },
       listFrames: async (request) => {
         server.listFrames.push(request);
@@ -357,6 +366,34 @@ describe("live annotation service", () => {
       polygonCount: 0,
       pointCount: 0,
       fromTimeline: true,
+    });
+  });
+
+  it("includes timeline summaries from subsequent pages for the same topic", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    server.paginateTimeline = true;
+    server.rawRanges.push({
+      instance: `${R}/instances/${OTHER_ID}`,
+      topic: TOPIC,
+      startTime: frameTimeOf(LOG_TIMES[2]!),
+      endTime: frameTimeOf(LOG_TIMES[2]!),
+    });
+
+    await service.loadDocument();
+
+    expect(server.timelineReads).toBe(2);
+    expect(service.timelineSummaries()).toEqual({
+      [frameInstanceKey(document.frames[1]!.id, OTHER_ID)]: {
+        polygonCount: 0,
+        pointCount: 0,
+        fromTimeline: true,
+      },
+      [frameInstanceKey(document.frames[2]!.id, OTHER_ID)]: {
+        polygonCount: 0,
+        pointCount: 0,
+        fromTimeline: true,
+      },
     });
   });
 
@@ -1011,6 +1048,33 @@ describe("live annotation service", () => {
       ],
     });
     expect(server.calls).toEqual(["deleteClass:true"]);
+  });
+
+  it("moves an instance to another class without deleting the source or saving frames", async () => {
+    const { server, service } = setup();
+    seedServer(server);
+    const targetClassId = uuidv4();
+    const targetClass = `${R}/classes/${targetClassId}`;
+    server.classes.set(targetClass, { name: targetClass, displayName: "glass", color: "#123456" });
+    await service.loadDocument();
+
+    await service.submit({
+      id: uuidv4(),
+      message: "",
+      operations: [
+        {
+          id: uuidv4(),
+          labelKey: "opLabelMoveInstance",
+          patch: {
+            instances: { [OTHER_ID]: { id: OTHER_ID, classId: targetClassId, name: "cup 1" } },
+          },
+        },
+      ],
+    });
+
+    expect(server.calls).toEqual(["updateInstance:class"]);
+    expect(server.classes.has(`${R}/classes/${CLASS_ID}`)).toBe(true);
+    expect(server.saves).toEqual([]);
   });
 
   it("streams propagation and clears selected instances a frame omits", async () => {
