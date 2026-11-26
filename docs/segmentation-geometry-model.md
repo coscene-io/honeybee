@@ -16,7 +16,7 @@ Drawing is a session: the store records only `drawing = { instanceId, frameId }`
 
 | Tool             | Keys                       | Result                                                                                                   |
 | ---------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Quick annotation | Q                          | Positive and negative SAM points, Enter saves a mask                                                     |
+| Quick annotation | Q                          | Positive and negative SAM points. Enter stages a mask.                                                   |
 | Polygon          | P                          | Click each vertex, Enter finishes                                                                        |
 | Brush / eraser   | B / E, `[` `]` change size | Edits a mask observation (or an instance with no observation on the frame); each stroke is one undo step |
 
@@ -24,12 +24,13 @@ The "+" of an instance in the tree starts drawing with the current tool; the too
 
 ## Merging and converting
 
-- When two observations of one instance on one frame are merged and either side is a mask, the result is a mask (`mergeObservations`): drawing a polygon on a mask, merging a quick annotation result into a polygon observation, and moving polygons onto an instance that has a mask all rasterize the polygons and take the union. Rasterizing loses only sub-pixel precision; the canvas says that the representation changed.
-- A mask becomes polygons only when the user asks for it ("Convert to polygons…" in the editing toolbar). A union of polygons cannot express holes or one-pixel slivers, so `maskConversionLoss` first computes the IoU, the pixels lost and added, the holes filled and the small regions dropped. A lossy conversion asks for confirmation; a lossless one converts directly. Undo restores the mask.
+- When either observation in a merge is a mask, `mergeObservations` rasterizes the polygons and takes the union. The canvas shows a notice when you finish a polygon on a mask or add a quick annotation mask to a polygon observation. Moving a polygon in the tree changes its instance on that polygon's own frame. If the target instance has a mask on that frame, the tree rasterizes the polygon as part of the merge without a canvas notice.
+- **Convert to polygons…** in the editing toolbar can preserve holes by representing the mask as a union of individually hole-free polygons. Simplification and small features can still change pixels. `maskConversionLoss` compares the rasterized result to the mask and measures intersection over union, pixels lost or added, holes filled, and foreground components dropped. The toolbar asks for confirmation when the conversion changes pixels. The confirmation applies only while the same frame is displayed and active for editing. Undo restores the mask.
+- A propagation result replaces the target observation on its frame. A polygon result can replace a mask through the staged propagation operation without the toolbar's conversion confirmation.
 - "Convert to mask" in the toolbar turns polygons into a mask, which the brush can then edit.
 - Double-clicking a mask starts editing that instance with the brush; it is no longer converted to polygons implicitly.
 
 ## Saving and reading (live service)
 
 - Before encoding, the editor applies the backend's rules plus the two the backend does not check: a mask's pixel count must equal the topic's decoded width × height, and polygon coordinates are clamped to the image. Anything that fails rejects the whole save before any write and names the observation.
-- An observation that cannot be decoded when read (a mask of the wrong size, for example) is not shown. It is recorded in the document's `unreadableObservations`, and the canvas says how many annotations of the frame cannot be shown. The adapter keeps the original wire data and sends it back unchanged when the frame is saved, so that a whole-frame snapshot does not delete it; once the user replaces or clears that instance on the frame, it is no longer sent back.
+- The document records observations it cannot decode in `unreadableObservations`. The canvas reports how many observations it cannot show on the current frame. When the adapter saves a whole-frame snapshot, it sends those observations back in their original wire format until you replace or clear that instance on the frame. If the store evicts the frame, the adapter releases its wire data and reads it again before any later save of that frame.
