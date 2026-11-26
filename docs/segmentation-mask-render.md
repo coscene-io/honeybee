@@ -15,31 +15,31 @@ document (RLE counts)            Worker                      GPU (each Image pan
   overlaySource:                 buildMaskPlanes             SegmentationMaskLayer
   topic + logTimeNs → geometry   RLE → transposed integer →  DataTexture R8/R16/R32UI
   stable geometry id             bit planes, cached with     texelFetch + highest visible bit
-  style: visible / selected      a byte limit (shared by     submitted with the image's frame
-                                 panels), prefetched by
-                                 time window
+  style: visible / selected      a shared target budget      submitted with the image's frame
+                                 prefetch by time window
 ```
 
 - **Transposed bit planes** (`maskOverlay/maskPlanes.ts`): each instance takes one bit. Up to 8 instances use R8UI, up to 16 R16UI, up to 32 R32UI, and up to 64 two R32UI textures. Pixel (x, y) is stored at row x, column y of the texture, so each run of the column-major RLE is contiguous memory and building costs O(runs + pixels).
 - **Overlap**: with one bit per instance, overlapping regions lose no instance. The shader prefers a selected instance and otherwise the highest slot. Outlines are about 1.5 screen pixels wide, and at least one image pixel at any zoom.
 - **Frame accuracy**: the overlay matches the displayed frame by `topic + logTimeNs`. While the planes of the current frame are not ready, nothing is drawn for that frame; a neighbouring frame's mask is never shown.
-- **Stable ids**: a geometry id changes only with the counts, so registering new frames during playback does not invalidate planes already built.
-- **Building and caching** (`maskOverlay/maskPlaneCache.ts`): planes are built in a Worker (through Comlink). The CPU cache has a byte limit and is shared by the panels; the segmentation host owns it and releases it when it is disposed. The frame each panel displays is pinned and never evicted. 75% of the budget is available to prefetch, shared among the panels that have masks nearby, and prefetch follows a time window rather than a fixed number of frames.
+- **Stable IDs.** For the same topic and log time, `overlaySource` reuses the previous geometry ID when the width, height, ordered instance IDs, and counts all match. If the previous geometry drops out of the bounded history, a later rebuild can issue a new ID.
+- **Building and caching.** A Worker builds the planes through Comlink. The segmentation host owns the shared CPU cache and releases it on disposal. The cache targets 96 MiB and pins the frame each panel displays. Pinned entries can push `cachedBytes` above the target. Prefetch uses a time window, with 75% of the budget shared among panels with masks nearby.
 
 ## Degraded cases
 
-Each is counted in the overlay's diagnostics; none happens silently.
+| Situation                                                         | Behaviour                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The Worker is unavailable or fails                                | The cache builds planes on the main thread outside the requesting render frame. Worker creation failures and abandonment produce a warning. The diagnostics have no fallback counter.                                                                                           |
+| The current frame's planes are still being built                  | The renderer withholds the mask and the cache counts a miss.                                                                                                                                                                                                                    |
+| More than 64 compatible masks on one frame                        | The overlay source keeps the first 64 slots and increments `truncatedFrames`. The GPU and cache limits still apply.                                                                                                                                                             |
+| A mask differs in size from the first mask on its frame           | The overlay source skips that mask and increments `sizeMismatches`. It uses the first mask's dimensions for all retained masks.                                                                                                                                                 |
+| The frame's planes need more than one quarter of the cache budget | The cache rejects the geometry and increments `errors`. With the default budget, the cutoff is 24 MiB. A 3840×2160 frame with 17–32 compatible masks needs about 31.6 MiB for one R32UI plane, so the renderer withholds all its masks even on a GPU that supports 4K textures. |
+| A mask side exceeds `MAX_TEXTURE_SIZE`                            | The renderer withholds the mask and logs a warning. This check has no diagnostics counter.                                                                                                                                                                                      |
+| No WebGL2                                                         | The Image panel itself requires WebGL2.                                                                                                                                                                                                                                         |
 
-| Situation                                           | Behaviour                                                            |
-| --------------------------------------------------- | -------------------------------------------------------------------- |
-| The Worker is unavailable or fails                  | Planes are built on the main thread (still outside the render frame) |
-| The current frame's planes are still being built    | No mask this frame; counted in the cache's `misses`                  |
-| More than 64 instances on one frame                 | Only the first 64 are drawn; counted in `truncatedFrames`            |
-| A mask's size differs from the topic's decoded size | That instance is skipped; counted in `sizeMismatches`                |
-| A mask side exceeds `MAX_TEXTURE_SIZE`              | Not drawn; an error is logged                                        |
-| No WebGL2                                           | The Image panel itself does not work; masks add no requirement       |
+The overlay draws on the image mesh. If the first mask's dimensions differ from the image's decoded dimensions, the mesh stretches the mask to fit. `sizeMismatches` compares masks on the same frame.
 
-Integer textures are read only with `texelFetch` (they cannot be filtered linearly), which is core WebGL2 and needs no extension. The specification guarantees only `MAX_TEXTURE_SIZE` ≥ 2048: a transposed 1280×720 frame is 720×1280 and fits, while a 4K source is refused and counted on a device limited to 2048.
+Integer textures use WebGL2's `texelFetch`. On a device with `MAX_TEXTURE_SIZE` of 2048, a transposed 1280×720 frame fits and a 4K mask exceeds the limit.
 
 ## Verified and not verified
 

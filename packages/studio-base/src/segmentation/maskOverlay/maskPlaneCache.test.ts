@@ -7,6 +7,7 @@
 
 import { MaskPlaneCache } from "./maskPlaneCache";
 import { planeBytes } from "./maskPlanes";
+import { encodeCounts } from "../maskCodec";
 import maskFixture from "../testing/fixtures/masks.json";
 
 function geometryOf(id: number, counts: readonly string[], logTimeNs = String(id)) {
@@ -154,6 +155,7 @@ describe("mask plane cache budget and failures", () => {
     for (const geometry of displayed) {
       expect(cache.get(geometry)).toBeDefined();
     }
+    expect(cache.stats.cachedBytes).toBeGreaterThan(4 * frame);
     cache.dispose();
   });
 
@@ -173,11 +175,19 @@ describe("mask plane cache budget and failures", () => {
     await settle(cache);
     expect(cache.stats.errors).toBe(errors + 1);
 
-    const huge = { ...geometryOf(2, counts), width: 100_000, height: 100_000 };
+    const huge = {
+      ...geometryOf(
+        2,
+        Array.from({ length: 17 }, () => encodeCounts([0, 3840 * 2160])),
+      ),
+      width: 3840,
+      height: 2160,
+    };
     cache.request(huge);
     now += 5000;
     cache.request(huge);
     expect(cache.error(huge)).toBe("Mask planes exceed the cache budget");
+    expect(cache.stats.errors).toBe(errors + 2);
     cache.dispose();
   });
 

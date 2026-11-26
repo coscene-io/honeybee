@@ -16,7 +16,7 @@ Drawing is a session: the store records only `drawing = { instanceId, frameId }`
 
 | Tool             | Keys                       | Result                                                                                                   |
 | ---------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Quick annotation | Q                          | Positive and negative SAM points, Enter saves a mask                                                     |
+| Quick annotation | Q                          | Positive and negative SAM points. Enter stages a mask.                                                   |
 | Polygon          | P                          | Click each vertex, Enter finishes                                                                        |
 | Brush / eraser   | B / E, `[` `]` change size | Edits a mask observation (or an instance with no observation on the frame); each stroke is one undo step |
 
@@ -24,8 +24,9 @@ The "+" of an instance in the tree starts drawing with the current tool; the too
 
 ## Merging and converting
 
-- When two observations of one instance on one frame are merged and either side is a mask, the result is a mask (`mergeObservations`): drawing a polygon on a mask, merging a quick annotation result into a polygon observation, and moving polygons onto an instance that has a mask all rasterize the polygons and take the union. Rasterizing loses only sub-pixel precision; the canvas says that the representation changed.
-- A mask becomes polygons only when the user asks for it ("Convert to polygons…" in the editing toolbar). A union of polygons cannot express holes or one-pixel slivers, so `maskConversionLoss` first computes the IoU, the pixels lost and added, the holes filled and the small regions dropped. A lossy conversion asks for confirmation; a lossless one converts directly. Undo restores the mask.
+- When either observation in a merge is a mask, `mergeObservations` rasterizes the polygons and takes the union. The canvas shows a representation-change notice when finishing a polygon on a mask or adding a quick annotation mask to a polygon observation. Moving polygons onto a mask-backed instance in the tree rasterizes them without that canvas notice.
+- **Convert to polygons…** in the editing toolbar can preserve holes by representing the mask as a union of individually hole-free polygons. Simplification and small features can still change pixels. `maskConversionLoss` compares the rasterized result to the mask and measures intersection over union, pixels lost or added, holes filled, and foreground components dropped. The toolbar asks for confirmation when the conversion changes pixels. Undo restores the mask.
+- A propagation result replaces the target observation on its frame. A polygon result can replace a mask through the staged propagation operation without the toolbar's conversion confirmation.
 - "Convert to mask" in the toolbar turns polygons into a mask, which the brush can then edit.
 - Double-clicking a mask starts editing that instance with the brush; it is no longer converted to polygons implicitly.
 
