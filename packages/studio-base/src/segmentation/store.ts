@@ -279,7 +279,11 @@ export function createSegmentationStore(
         patches.push(operation.patch);
       }
       const next = applySegmentationPatches(base, patches);
-      set({ document: next, ...prunedRefs(next) });
+      set({
+        document: next,
+        persistedTargets: { classes: base.classes, instances: base.instances },
+        ...prunedRefs(next),
+      });
     }
     function stage(
       labelKey: OperationLabelKey,
@@ -570,6 +574,7 @@ export function createSegmentationStore(
     const propagation = createPropagationRunner(context);
     return {
       document: undefined,
+      persistedTargets: undefined,
       currentFrameId: undefined,
       viewMode: "all",
       focus: undefined,

@@ -6,8 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore, type StoreApi } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 
 import {
   useWorkspaceSlot,
@@ -23,8 +25,14 @@ import { useSegmentationEnabled } from "../featureFlag";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { takeProfileSwitchNotice } from "../segmentationProfile";
 import { getSegmentationShortcuts } from "../shortcuts";
-import { ActiveMomentReference, SpatialReferenceValue } from "./ActiveMomentReference";
+import type { SegmentationStore } from "../types";
+import {
+  ActiveMomentReference,
+  selectMomentReferenceRuntime,
+  SpatialReferenceValue,
+} from "./ActiveMomentReference";
 import { GlobalPropagationLock } from "./GlobalPropagationLock";
+import { resolveSpatialReference } from "./MomentReferencePicker";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
 import { SegmentationSidebar } from "./SegmentationSidebar";
 
@@ -35,6 +43,24 @@ const renderMomentValue: MomentValueRenderer = ({ value, highlight }) =>
     <SpatialReferenceValue value={value} highlight={highlight} />
   ) : undefined;
 
+function MomentReferenceSearchLabels({ store }: { store: StoreApi<SegmentationStore> }): ReactNull {
+  const { t } = useTranslation("segmentation");
+  const targets = useStore(
+    store,
+    useShallow(({ document }) =>
+      document
+        ? { record: document.record, classes: document.classes, instances: document.instances }
+        : undefined,
+    ),
+  );
+  const labelForValue = useCallback(
+    (value: string) => resolveSpatialReference(value, targets, t),
+    [targets, t],
+  );
+  useWorkspaceSlot("momentValueSearchLabels", SLOT_ID, labelForValue);
+  return ReactNull;
+}
+
 /**
  * The slot registrations of the segmentation editor (app bar entry, "Space" tab, camera step
  * override, shortcut column) and the propagation lock. Loaded on demand by
@@ -44,6 +70,7 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
   const { t } = useTranslation("segmentation");
   const host = useSegmentationHost();
   const annotating = useSegmentationSession((state) => state.open);
+  const referenceRuntime = useSegmentationSession(selectMomentReferenceRuntime);
   // Annotations are read and saved only through the AnnotationService: a cloud record is needed.
   const annotatable = useSegmentationEnabled();
 
@@ -134,5 +161,10 @@ export function SegmentationWorkspaceSlots(): React.JSX.Element {
     };
   }, [unsaved]);
 
-  return <GlobalPropagationLock />;
+  return (
+    <>
+      {referenceRuntime && <MomentReferenceSearchLabels store={referenceRuntime.store} />}
+      <GlobalPropagationLock />
+    </>
+  );
 }

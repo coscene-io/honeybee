@@ -11,8 +11,8 @@ import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 
 import { createMuiTheme } from "@foxglove/theme";
 
-import { frameInstanceKey } from "../service";
 import { CameraFrameStrip } from "./CameraFrameStrip";
+import { frameInstanceKey } from "../service";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { allowSlowRunner } from "../testing/slowRunner";
 import type { SegmentationDocument, SegmentationFrame } from "../types";

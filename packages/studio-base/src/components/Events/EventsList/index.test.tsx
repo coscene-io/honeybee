@@ -44,11 +44,24 @@ import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { SegmentationWorkspaceSlots } from "@foxglove/studio-base/segmentation/components/SegmentationWorkspaceSlots";
+import {
+  TestHostProvider,
+  installSegmentationTestHost,
+  testHost,
+} from "@foxglove/studio-base/segmentation/testing/host";
+import { createMockSegmentationRuntime } from "@foxglove/studio-base/segmentation/testing/mockRuntime";
+import {
+  createSeedDocument,
+  setMockControls,
+} from "@foxglove/studio-base/segmentation/testing/mockService";
 import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api/moment-custom-field/types";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import { DOUBTFUL_FIELD_KEY } from "../momentDoubtful";
+
+installSegmentationTestHost();
 
 jest.mock("react-hot-toast", () => ({
   __esModule: true,
@@ -218,6 +231,7 @@ function Wrapper({
   recordArchived,
   seekPlayback,
   externalHoverEvent,
+  withReferences,
 }: {
   consoleApi: React.ContextType<typeof CoSceneConsoleApiContext>;
   view?: "sidebar" | "moments";
@@ -228,6 +242,7 @@ function Wrapper({
   recordArchived?: boolean;
   seekPlayback?: (time: { sec: number; nsec: number }) => void;
   externalHoverEvent?: TimelinePositionedEvent;
+  withReferences?: boolean;
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -249,6 +264,7 @@ function Wrapper({
                         recordArchived={recordArchived}
                       />
                       <SeedEvents events={events} schema={schema} initialFilters={initialFilters} />
+                      {withReferences === true && <SegmentationWorkspaceSlots />}
                       <EventFetchCountProbe />
                       <EventToModifyProbe />
                       <HoverProbe />
@@ -988,4 +1004,59 @@ it("offers sidebar focus and read-only details without seeking or opening an edi
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(seek).not.toHaveBeenCalled();
+});
+
+it("renders reference text verbatim in the Moment name and description", async () => {
+  const runtime = createMockSegmentationRuntime(createSeedDocument());
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  testHost().session.setState({ runtime });
+  try {
+    const value = "spatial://record-1/class/class-1";
+    const event = makeEvent({ name: "details", startSec: 1 });
+    event.event.displayName = value;
+    event.event.description = value;
+    event.event.customizedFields = { target: value };
+    render(
+      <Wrapper consoleApi={makeConsoleApi()} projectArchived events={[event]} withReferences />,
+      { wrapper: TestHostProvider },
+    );
+    fireEvent.click(await screen.findByTitle("View Moment"));
+    const details = within(screen.getByRole("dialog", { name: "View Moment" }));
+    expect(details.getAllByText(value)).toHaveLength(2);
+    expect(details.getByText("Class · Person · class-1")).toBeTruthy();
+  } finally {
+    runtime.dispose();
+  }
+});
+
+it("searches by the displayed target label and refreshes matches after a rename", async () => {
+  const runtime = createMockSegmentationRuntime(createSeedDocument());
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  testHost().session.setState({ runtime });
+  try {
+    const event = makeEvent({ name: "With annotation", startSec: 1 });
+    event.event.customizedFields = { target: "spatial://record-1/class/class-1" };
+    render(<Wrapper consoleApi={makeConsoleApi()} events={[event]} withReferences />, {
+      wrapper: TestHostProvider,
+    });
+    expect(await screen.findByText("Class · Person · class-1")).toBeTruthy();
+    const search = screen.getByPlaceholderText("Search moment");
+    fireEvent.change(search, { target: { value: "person" } });
+    expect(screen.getByText("With annotation")).toBeTruthy();
+    act(() => {
+      runtime.store.getState().renameClass("class-1", "Technician");
+    });
+    expect(screen.queryByText("With annotation")).toBeNull();
+    await act(async () => {
+      fireEvent.change(search, { target: { value: "technician" } });
+    });
+    expect(screen.getByText("With annotation")).toBeTruthy();
+    expect(screen.getByText("Technician").tagName).toBe("MARK");
+    fireEvent.change(search, { target: { value: "spatial://" } });
+    expect(screen.getByText("With annotation")).toBeTruthy();
+  } finally {
+    runtime.dispose();
+  }
 });
