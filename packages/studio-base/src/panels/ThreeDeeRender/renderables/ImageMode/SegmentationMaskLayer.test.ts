@@ -122,6 +122,8 @@ describe("SegmentationMaskLayer", () => {
     layer.update(image);
     expect(overlayOf(image)).toBeUndefined();
     expect(warn).toHaveBeenCalled();
+    expect(mockCache.stats.errors).toBe(0);
+    expect(mockCache.stats.misses).toBe(0);
     warn.mockRestore();
     layer.dispose();
   });
