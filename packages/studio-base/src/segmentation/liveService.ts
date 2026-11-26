@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { MessageInitShape } from "@bufbuild/protobuf";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { Code, ConnectError, type Client } from "@connectrpc/connect";
 
 import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
@@ -13,7 +13,7 @@ import {
   PropagateAnnotationRequest_PropagateAnnotation_Direction as PropagationDirection,
   AnnotationService,
   type Frame as WireFrame,
-  type FrameSchema,
+  FrameSchema,
   type FrameSnapshotSchema,
   type ListTimelineRangesResponse_TimelineRange as WireTimelineRange,
 } from "@foxglove/studio-base/services/api/spatial-annotation";
@@ -582,10 +582,7 @@ export function createSegmentationServiceForClient(options: {
         continue;
       }
       const instanceId = idOf(wire.instance);
-      if (
-        (onlyFrames && !onlyFrames.has(resolved.frameId)) ||
-        changedSince(resolved.frameId, instanceId)
-      ) {
+      if (!covered.has(resolved.frameId) || changedSince(resolved.frameId, instanceId)) {
         continue;
       }
       const observation = toObservation(wire, video, size!, resolved.frameId);
@@ -823,7 +820,10 @@ export function createSegmentationServiceForClient(options: {
       }
     }
     const framesById = new Map(candidate.frames.map((frame) => [frame.id, frame]));
-    const snapshots: WireFrameSnapshotInit[] = [];
+    const snapshots = new Map<
+      string,
+      { video: SegmentationVideo; snapshot: WireFrameSnapshotInit }
+    >();
     for (const frameId of frameIds) {
       const frame = framesById.get(frameId);
       if (!frame) {
@@ -841,7 +841,10 @@ export function createSegmentationServiceForClient(options: {
           observations.push(wire);
         }
       }
-      snapshots.push({ topic: video.topic, frameTime, annotations: observations });
+      snapshots.set(frameId, {
+        video,
+        snapshot: { topic: video.topic, frameTime, annotations: observations },
+      });
     }
     return snapshots;
   }
@@ -1132,52 +1135,65 @@ export function createSegmentationServiceForClient(options: {
       // 2. Catalog first: frames may only reference existing instances.
       const { removedClasses, removedInstances } = await syncCatalog(candidate);
       // 3. One atomic save of every changed frame.
-      if (snapshots.length > 0) {
-        await client.saveAnnotation({ record: recordName, frames: snapshots });
+      if (snapshots.size > 0) {
+        await client.saveAnnotation({
+          record: recordName,
+          frames: [...snapshots.values()].map(({ snapshot }) => snapshot),
+        });
         const epoch = ++saveEpoch;
-        const savedWires = new Map<string, WireFrameInit>();
-        let snapshotIndex = 0;
-        for (const frameId of touchedFrames) {
-          frameSavedAt.set(frameId, epoch);
-          for (const wire of snapshots[snapshotIndex++]!.annotations ?? []) {
-            if (wire.instance != undefined) {
-              savedWires.set(frameInstanceKey(frameId, idOf(wire.instance)), wire);
-            }
-          }
-        }
-        const retainedFrames = new Set([...touchedFrames].filter((id) => loadedFrames.has(id)));
-        // Acknowledge only the frames the RPC wrote. Other windows may have loaded or been
-        // released while the request was in flight, so keep their current state.
-        doc = mergeFrameWindow(
-          doc,
-          {
-            annotations: Object.fromEntries(
-              Object.entries(candidate.annotations).filter(([key]) => savedWires.has(key)),
-            ),
-            unreadable: Object.fromEntries(
-              Object.entries(candidate.unreadableObservations ?? {}).filter(([key]) =>
-                savedWires.has(key),
-              ),
-            ),
-          },
-          retainedFrames,
-        );
+        const retainedFrames = new Set<string>();
+        const annotations: Record<string, FrameInstance> = {};
+        const unreadable: Record<string, UnreadableObservation> = {};
         for (const key of occluded.keys()) {
-          if (touchedFrames.has(frameOfKey(key)) && !savedWires.has(key)) {
+          if (snapshots.has(frameOfKey(key))) {
             occluded.delete(key);
           }
         }
-        for (const [key, wire] of savedWires) {
-          if (retainedFrames.has(frameOfKey(key))) {
+        for (const [frameId, { video, snapshot }] of snapshots) {
+          frameSavedAt.set(frameId, epoch);
+          if (!loadedFrames.has(frameId)) {
+            continue;
+          }
+          retainedFrames.add(frameId);
+          const current = videoOf(video.id);
+          const resized = video.width !== current.width || video.height !== current.height;
+          for (const wire of snapshot.annotations ?? []) {
+            if (wire.instance == undefined) {
+              continue;
+            }
+            const instanceId = idOf(wire.instance);
+            const key = frameInstanceKey(frameId, instanceId);
             occluded.set(key, wire.occluded === true);
+            if (resized) {
+              // The frame was reloaded at a different size while this older snapshot was saving.
+              const saved = create(FrameSchema, wire);
+              const observation = toObservation(saved, current, sizeOf(current), frameId);
+              if ("unreadable" in observation) {
+                unreadable[key] = { frameId, instanceId, reason: observation.unreadable };
+                opaqueWires.set(key, saved);
+              } else {
+                annotations[key] = observation;
+              }
+            } else if (candidate.annotations[key]) {
+              annotations[key] = candidate.annotations[key];
+            } else {
+              const item = candidate.unreadableObservations?.[key];
+              if (item) {
+                unreadable[key] = item;
+                opaqueWires.set(key, create(FrameSchema, wire));
+              }
+            }
           }
         }
+        // Acknowledge only the frames the RPC wrote. Other windows may have loaded or been
+        // released while the request was in flight, so keep their current state.
+        doc = mergeFrameWindow(doc, { annotations, unreadable }, retainedFrames);
         for (const key of opaqueWires.keys()) {
           if (!(key in (doc.unreadableObservations ?? {}))) {
             opaqueWires.delete(key);
           }
         }
-        diagnostics.lastSave = { frames: snapshots.length, at: Date.now() };
+        diagnostics.lastSave = { frames: snapshots.size, at: Date.now() };
       }
       // 4. Deletes last. A class whose instances all go is removed atomically with force.
       const removedClassIds = new Set(removedClasses.map((item) => item.id));

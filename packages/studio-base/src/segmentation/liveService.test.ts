@@ -96,6 +96,7 @@ type Server = {
   segmentFrameError?: ConnectError;
   /** The next SaveAnnotation fails with this error. */
   failNextSave?: ConnectError;
+  deleteInstanceError?: ConnectError;
   beforeNextSave?: () => Promise<void>;
   listClassesError?: ConnectError;
   /** Sent with every ListFrames page / ListTimelineRanges response, unfiltered. */
@@ -207,6 +208,9 @@ function setup(document = sourceDocument()) {
         return request.instance!;
       },
       deleteInstance: (request) => {
+        if (server.deleteInstanceError) {
+          throw server.deleteInstanceError;
+        }
         server.calls.push(`deleteInstance:${request.name}`);
         server.instances.delete(request.name);
         server.frames = server.frames.filter((frame) => frame.instance !== request.name);
@@ -240,13 +244,14 @@ function setup(document = sourceDocument()) {
       },
     });
   });
+  const client = createClient(AnnotationService, transport);
   const service = createSegmentationServiceForClient({
-    client: createClient(AnnotationService, transport),
+    client,
     recordName: R,
     startNs: START_NS,
     document,
   });
-  return { server, service, document };
+  return { server, service, document, client };
 }
 
 function wireFrame(init: MessageInitShape<typeof FrameSchema>): Frame {
@@ -435,68 +440,74 @@ describe("live annotation service", () => {
     expect(service.diagnostics().misalignedTimes).toBeGreaterThan(0);
   });
 
-  it("does not let a window read that raced a save restore the frame's older state", async () => {
-    const { server, service, document } = setup();
-    seedServer(server);
-    await service.loadDocument();
-    const frameId = document.frames[1]!.id;
-    let release!: () => void;
-    server.holdNextListFrames = new Promise((resolve) => {
-      release = resolve;
-    });
-    // The read is answered from the state before the save below, and arrives after it.
-    const racing = service.loadFrameWindow("video", 0, 5);
-    const mine = uuidv4();
-    const triangle = [
-      { x: 0.5, y: 0.5 },
-      { x: 0.75, y: 0.5 },
-      { x: 0.75, y: 0.75 },
-    ];
-    await service.submit({
-      id: uuidv4(),
-      message: "",
-      operations: [
-        {
-          id: uuidv4(),
-          labelKey: "opLabelEditPolygon",
-          patch: {
-            instances: { [mine]: { id: mine, classId: CLASS_ID, name: "mug 2" } },
-            annotations: {
-              [frameInstanceKey(frameId, mine)]: {
-                frameId,
-                instanceId: mine,
-                kind: "polygons",
-                polygons: [{ id: "p1", points: triangle }],
+  it.each([false, true])(
+    "returns the whole saved frame when a read races a save (released: %s)",
+    async (released) => {
+      const { server, service, document } = setup();
+      seedServer(server);
+      await service.loadDocument();
+      const frameId = document.frames[1]!.id;
+      let release!: () => void;
+      server.holdNextListFrames = new Promise((resolve) => {
+        release = resolve;
+      });
+      // The read is answered from the state before the save below, and arrives after it.
+      const racing = service.loadFrameWindow("video", 0, 5);
+      const mine = uuidv4();
+      const triangle = [
+        { x: 0.5, y: 0.5 },
+        { x: 0.75, y: 0.5 },
+        { x: 0.75, y: 0.75 },
+      ];
+      await service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          {
+            id: uuidv4(),
+            labelKey: "opLabelEditPolygon",
+            patch: {
+              instances: { [mine]: { id: mine, classId: CLASS_ID, name: "mug 2" } },
+              annotations: {
+                [frameInstanceKey(frameId, mine)]: {
+                  frameId,
+                  instanceId: mine,
+                  kind: "polygons",
+                  polygons: [{ id: "p1", points: triangle }],
+                },
               },
             },
           },
-        },
-      ],
-    });
-    release();
-    const frameWindow = await racing;
-    // The saved frame answers with its whole post-save state, untouched observations included, so
-    // a caller that merges the window does not take the untouched one for a deletion.
-    expect(
-      Object.keys(frameWindow.annotations)
-        .filter((key) => JSON.parse(key)[0] === frameId)
-        .sort(),
-    ).toEqual([frameInstanceKey(frameId, OTHER_ID), frameInstanceKey(frameId, mine)].sort());
-    // The next save of that frame still carries what the first one wrote.
-    await service.submit({
-      id: uuidv4(),
-      message: "",
-      operations: [
-        {
-          id: uuidv4(),
-          labelKey: "opLabelEditPolygon",
-          patch: { annotations: { [frameInstanceKey(frameId, OTHER_ID)]: undefined } },
-        },
-      ],
-    });
-    const second = server.saves[1]!.frames[0]!.annotations.map((item) => item.instance);
-    expect(second).toEqual([`${R}/instances/${mine}`]);
-  });
+        ],
+      });
+      if (released) {
+        service.releaseFrames?.(new Set([frameId]));
+      }
+      release();
+      const frameWindow = await racing;
+      // The saved frame answers with its whole post-save state, untouched observations included, so
+      // a caller that merges the window does not take the untouched one for a deletion.
+      expect(
+        Object.keys(frameWindow.annotations)
+          .filter((key) => JSON.parse(key)[0] === frameId)
+          .sort(),
+      ).toEqual([frameInstanceKey(frameId, OTHER_ID), frameInstanceKey(frameId, mine)].sort());
+      // The next save of that frame still carries what the first one wrote.
+      await service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          {
+            id: uuidv4(),
+            labelKey: "opLabelEditPolygon",
+            patch: { annotations: { [frameInstanceKey(frameId, OTHER_ID)]: undefined } },
+          },
+        ],
+      });
+      const second = server.saves[1]!.frames[0]!.annotations.map((item) => item.instance);
+      expect(second).toEqual([`${R}/instances/${mine}`]);
+    },
+  );
 
   it("reads a save's unloaded frames in one window and does not re-read the timeline", async () => {
     const { server, service, document } = setup();
@@ -537,8 +548,14 @@ describe("live annotation service", () => {
     expect(server.listFrames).toHaveLength(1);
     expect(server.saves[0]!.frames).toHaveLength(3);
     expect(server.timelineReads).toBe(reads);
-    // Frame 1 was inside the read window, so its presence now comes from loaded geometry.
-    expect(service.timelineSummaries()).toEqual({});
+    // The save read skipped caching frame 1 between the requested frames.
+    expect(service.timelineSummaries()).toEqual({
+      [frameInstanceKey(document.frames[1]!.id, OTHER_ID)]: {
+        polygonCount: 0,
+        pointCount: 0,
+        fromTimeline: true,
+      },
+    });
   });
 
   it("drops an older timeline answer that arrives after a newer one", async () => {
@@ -729,6 +746,7 @@ describe("live annotation service", () => {
     );
     expect(replaced).toHaveLength(1);
     expect(replaced[0]!.geometry.case).toBe("polygons");
+    expect(replaced[0]!.occluded).toBe(true);
   });
 
   it("refuses a mask whose counts do not cover the source frame before any write", async () => {
@@ -1436,6 +1454,31 @@ describe("live adapter with the store", () => {
     store.getState().dispose();
   });
 
+  it("retains acknowledged geometry when discarding a batch whose delete failed", async () => {
+    const { server, store, first } = await liveStore();
+    const points = [
+      { x: 0.125, y: 0.125 },
+      { x: 0.25, y: 0.125 },
+      { x: 0.25, y: 0.25 },
+    ];
+    store.getState().setPolygonPoints(POLYGON_A, points);
+    store.getState().deleteInstance(B);
+    server.deleteInstanceError = new ConnectError("delete failed", Code.Unavailable);
+    const batch = store.getState().submit()!;
+    await store.getState().waitForSubmissions();
+    expect(server.saves).toHaveLength(1);
+    expect(store.getState().submissionQueue[0]).toMatchObject({ id: batch, status: "failed" });
+
+    store.getState().discardSubmission(batch);
+    await store.getState().waitForSubmissions();
+    const { annotations, instances } = store.getState().document!;
+    expect(store.getState().submissionQueue).toEqual([]);
+    expect(polygonsOf(annotations[frameInstanceKey(first.id, A)])[0]?.points).toEqual(points);
+    expect(instances.some(({ id }) => id === B)).toBe(true);
+    expect(annotations[frameInstanceKey(first.id, B)]).toBeUndefined();
+    store.getState().dispose();
+  });
+
   it("keeps redo when a reread document differs only in its summaries", async () => {
     const { store } = await liveStore();
     store.getState().setPolygonPoints(POLYGON_A, [
@@ -1469,6 +1512,7 @@ describe("live annotation service edge cases", () => {
     const key = frameInstanceKey(frame.id, OTHER_ID);
     expect(maskOf(runtime.store.getState().document!.annotations[key])?.width).toBe(640);
     const read = jest.spyOn(service, "loadFrameWindow");
+    const retry = jest.spyOn(runtime.store.getState(), "retryCurrentFrameWindow");
     const video = document.videos[0]!;
     runtime.registerSource({ videos: [video], frames: [] });
     expect(read).not.toHaveBeenCalled();
@@ -1486,7 +1530,7 @@ describe("live annotation service edge cases", () => {
     } finally {
       release();
     }
-    await read.mock.results[0]!.value;
+    await retry.mock.results[0]!.value;
     expect(runtime.store.getState().isFrameReady(frame.id)).toBe(true);
     expect(runtime.store.getState().document!.unreadableObservations?.[key]).toBeDefined();
     runtime.dispose();
@@ -1512,6 +1556,60 @@ describe("live annotation service edge cases", () => {
     ).toBeDefined();
   });
 
+  it("classifies an acknowledged snapshot at the newly loaded frame size", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    await service.loadDocument();
+    await service.loadFrameWindow("video", 0, 5);
+    const frameId = document.frames[1]!.id;
+    const key = frameInstanceKey(frameId, OTHER_ID);
+    const video = document.videos[0]!;
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const saving = new Promise<void>((resolve) => {
+      server.beforeNextSave = async () => {
+        resolve();
+        await hold;
+      };
+    });
+    const submission = service.submit({
+      id: uuidv4(),
+      message: "",
+      operations: [
+        {
+          id: uuidv4(),
+          labelKey: "opLabelEditPolygon",
+          patch: {
+            annotations: {
+              [key]: {
+                frameId,
+                instanceId: OTHER_ID,
+                kind: "mask",
+                mask: { counts: encodeCounts([0, 10, 640 * 480 - 10]), width: 640, height: 480 },
+              },
+            },
+          },
+        },
+      ],
+    });
+    await saving;
+    try {
+      service.updateSourceMetadata?.({
+        videos: [{ ...video, width: 1280, height: 960 }],
+        frames: [],
+      });
+      service.releaseFrames?.(new Set([frameId]));
+      await service.loadFrameWindow("video", 0, 5);
+    } finally {
+      release();
+    }
+    const saved = (await submission).document;
+    expect(saved.annotations[key]).toBeUndefined();
+    expect(saved.unreadableObservations?.[key]).toBeDefined();
+  });
+
   it("does not carry a deleted observation's occlusion to a redrawn one", async () => {
     const { server, service, document } = setup();
     seedServer(server);
@@ -1519,8 +1617,8 @@ describe("live annotation service edge cases", () => {
     await service.loadFrameWindow("video", 0, 5);
     const frameId = document.frames[1]!.id;
     const key = frameInstanceKey(frameId, OTHER_ID);
-    const edit = (annotation: StagedOperation["patch"]["annotations"]) =>
-      service.submit({
+    const edit = async (annotation: StagedOperation["patch"]["annotations"]) =>
+      await service.submit({
         id: uuidv4(),
         message: "",
         operations: [
@@ -1564,7 +1662,7 @@ describe("live annotation service edge cases", () => {
       fetch: jest.fn(async () => ({ blob: async () => new Blob(["frame"]) })),
     });
     try {
-      const { server, service } = setup();
+      const { client, server, service } = setup();
       const request = {
         topic: TOPIC,
         logTimeNs: LOG_TIMES[0]!.toString(),
@@ -1573,10 +1671,9 @@ describe("live annotation service edge cases", () => {
         imageUrl: "blob:frame",
         points: [{ x: 0.5, y: 0.5, positive: true }],
       };
-      server.segmentFrameError = new ConnectError("replaced", Code.Canceled);
-      const canceled = await service.segmentFrame!(request).catch((error: unknown) => error);
-      expect(canceled).toBeInstanceOf(ConnectError);
-      expect((canceled as ConnectError).code).toBe(Code.Canceled);
+      const canceled = new ConnectError("replaced", Code.Canceled);
+      jest.spyOn(client, "segmentFrame").mockRejectedValueOnce(canceled);
+      await expect(service.segmentFrame!(request)).rejects.toBe(canceled);
       server.segmentFrameError = new ConnectError("down", Code.Unavailable);
       await expect(service.segmentFrame!(request)).rejects.toMatchObject({
         rpcCode: "UNAVAILABLE",

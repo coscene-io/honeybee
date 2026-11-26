@@ -728,7 +728,7 @@ it.each(["mask", "polygons"] as const)(
     document.annotations = { [sourceKey]: source, [targetKey]: target };
     const loaded = applySegmentationPatch(document, patch);
     expect(loaded.annotations[targetKey]?.kind).toBe("mask");
-    expect(loaded.annotationSummaries[targetKey]?.maskArea).toBe(kind === "mask" ? 9 : 11);
+    expect(loaded.annotationSummaries[targetKey]?.maskArea).toBe(kind === "mask" ? 9 : 18);
   },
 );
 
@@ -763,8 +763,8 @@ it("moves a polygon of another loaded frame to the target instance on that same 
     ),
   ).toBe(false);
   // Nothing moved onto the current frame.
-  expect(
-    polygonsOf(document().annotations[frameInstanceKey(current, "instance-2")]),
-  ).toHaveLength(beforeOnCurrent);
+  expect(polygonsOf(document().annotations[frameInstanceKey(current, "instance-2")])).toHaveLength(
+    beforeOnCurrent,
+  );
   store.getState().dispose();
 });

@@ -506,7 +506,9 @@ it("rejects polygon seeds whose points changed after they were captured", async 
     captured.id,
     captured.points.map((point) => ({ x: point.x / 2, y: point.y / 2 })),
   );
-  await expect(store.getState().startPropagation({ ...request(), seeds })).rejects.toThrow();
+  await expect(store.getState().startPropagation({ ...request(), seeds })).rejects.toMatchObject({
+    code: "errorSeedMismatch",
+  });
   expect(propagate).not.toHaveBeenCalled();
   store.getState().dispose();
 });

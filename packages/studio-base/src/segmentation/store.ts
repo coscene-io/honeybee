@@ -455,10 +455,11 @@ export function createSegmentationStore(
         throw new SegmentationError("errorDisposed");
       }
     }
-    async function initialize(reconcile = false): Promise<boolean> {
+    async function initialize(mode: "open" | "reconcile" = "open"): Promise<boolean> {
       if (isDisposed()) {
         return false;
       }
+      const reconcile = mode === "reconcile";
       const epoch = ++loadEpoch;
       if (reconcile) {
         windowController?.abort();
@@ -546,7 +547,7 @@ export function createSegmentationStore(
       documentEpoch: () => documentEpoch,
       saveSeq: () => saveSeq,
       savedAfter,
-      reconcileFailedSubmission: async () => await initialize(true),
+      reconcileFailedSubmission: async () => await initialize("reconcile"),
       recordSave: (keys) => {
         ++saveSeq;
         for (const key of keys) {
