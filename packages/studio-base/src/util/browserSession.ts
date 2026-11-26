@@ -11,6 +11,7 @@ const TOKEN_KEY = "coScene_org_jwt";
 const INVALID_TOKEN_KEY = "coScene_invalid_org_jwt";
 const VERSION_KEY = "coscene.auth.session-version.v1";
 export type BrowserSessionStatus = "current" | "changed" | "logged-out" | "recover";
+export type BrowserSessionSnapshot = { credential: string; version: string | undefined };
 
 export function getBrowserAuthUrl(
   path: "/auth/login" | "/auth/logout" | "/auth/recover" | "/auth/logged-out",
@@ -97,6 +98,17 @@ export class BrowserSession {
       throw new Error("Invalid session boundary");
     }
     return value;
+  }
+
+  public readAccessSnapshot(): BrowserSessionSnapshot | undefined {
+    try {
+      return {
+        credential: localStorage.getItem(TOKEN_KEY) ?? "",
+        version: this.#readVersion()?.version,
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   public getStatus(): BrowserSessionStatus {
@@ -201,22 +213,26 @@ export class BrowserSession {
     markBrowserCredentialInvalid(credential);
     this.#stop("recover");
   }
-  public listen(): () => void {
+  public listen(onReconcile?: () => void): () => void {
+    const reconcile = () => {
+      this.reconcile();
+      onReconcile?.();
+    };
     const storage = (event: StorageEvent) => {
       if (event.key == undefined || event.key === TOKEN_KEY || event.key === VERSION_KEY) {
-        this.reconcile();
+        reconcile();
       }
     };
     window.addEventListener("storage", storage);
-    window.addEventListener("pageshow", this.reconcile);
-    window.addEventListener("coscene:session-version", this.reconcile);
-    document.addEventListener("visibilitychange", this.reconcile);
-    this.reconcile();
+    window.addEventListener("pageshow", reconcile);
+    window.addEventListener("coscene:session-version", reconcile);
+    document.addEventListener("visibilitychange", reconcile);
+    reconcile();
     return () => {
       window.removeEventListener("storage", storage);
-      window.removeEventListener("pageshow", this.reconcile);
-      window.removeEventListener("coscene:session-version", this.reconcile);
-      document.removeEventListener("visibilitychange", this.reconcile);
+      window.removeEventListener("pageshow", reconcile);
+      window.removeEventListener("coscene:session-version", reconcile);
+      document.removeEventListener("visibilitychange", reconcile);
     };
   }
 }
