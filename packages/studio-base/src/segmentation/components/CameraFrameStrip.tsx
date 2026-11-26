@@ -43,7 +43,10 @@ type CameraFrameStripProps = {
   instanceId: string;
   /** The frame this camera shows now. */
   frameId: string;
+  /** Short camera name, distinct among the cameras listed together. */
   camera: string;
+  /** The full topic `camera` stands for, shown on hover and announced with the strip. */
+  topic?: string;
   color: string;
   disabled: boolean;
   /** The host's frame loaders: they decide which cells are loaded. */
@@ -115,6 +118,7 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
   instanceId,
   frameId,
   camera,
+  topic,
   color,
   disabled,
   sourceFrames,
@@ -144,7 +148,7 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
       className={classes.root}
       data-testid={`camera-strip-${instanceId}-${camera}`}
     >
-      <Typography variant="caption" color="text.secondary" className={classes.camera}>
+      <Typography variant="caption" color="text.secondary" className={classes.camera} title={topic}>
         {camera}
       </Typography>
       <Stack
@@ -152,7 +156,7 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
         spacing="1px"
         className={classes.cells}
         role="group"
-        aria-label={t("stripLabel", { camera, radius: CAMERA_STRIP_RADIUS })}
+        aria-label={t("stripLabel", { camera: topic ?? camera, radius: CAMERA_STRIP_RADIUS })}
       >
         {cells.map((cell) => {
           const position =

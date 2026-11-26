@@ -8,8 +8,8 @@
 import { t } from "i18next";
 import { useStore } from "zustand";
 
+import { segmentationCameraLabel } from "./cameraLabels";
 import { segmentationErrorText } from "./errors";
-import { segmentationCanvasLabel } from "./segmentationChrome";
 import { useSegmentationHost, type SegmentationHost } from "./segmentationHostContext";
 import type { SegmentationFrame } from "./types";
 
@@ -158,10 +158,16 @@ function segmentationStepCamera(host: SegmentationHost): CameraStepCamera | unde
   if (!session.open || session.panelId == undefined || !session.runtime) {
     return undefined;
   }
-  const topic = host.chrome
-    .getState()
-    .canvases.find((canvas) => canvas.panelId === session.panelId)?.topic;
-  return { panelId: session.panelId, topic, label: segmentationCanvasLabel(topic) };
+  const { canvases } = host.chrome.getState();
+  const topic = canvases.find((canvas) => canvas.panelId === session.panelId)?.topic;
+  return {
+    panelId: session.panelId,
+    topic,
+    label: segmentationCameraLabel(
+      topic,
+      canvases.map((canvas) => canvas.topic),
+    ),
+  };
 }
 
 /**
@@ -355,9 +361,11 @@ export function useSegmentationStepLabel(): string | undefined {
   const panelId = useStore(host.session, (session) =>
     session.open && session.runtime ? session.panelId : undefined,
   );
-  const topic = useStore(
-    host.chrome,
-    (chrome) => chrome.canvases.find((canvas) => canvas.panelId === panelId)?.topic,
+  const label = useStore(host.chrome, (chrome) =>
+    segmentationCameraLabel(
+      chrome.canvases.find((canvas) => canvas.panelId === panelId)?.topic,
+      chrome.canvases.map((canvas) => canvas.topic),
+    ),
   );
-  return panelId == undefined ? undefined : segmentationCanvasLabel(topic);
+  return panelId == undefined ? undefined : label;
 }
