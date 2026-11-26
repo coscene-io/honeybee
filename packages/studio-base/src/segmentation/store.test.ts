@@ -7,12 +7,19 @@
 
 import { lineColors } from "@foxglove/studio-base/util/plotColors";
 
-import { countsFromRuns, runsFromIntervals } from "./maskCodec";
-import { maskArea, maskOf, polygonsOf, runsOfPolygons } from "./maskGeometry";
-import { frameInstanceKey } from "./service";
+import { countsFromRuns, encodeCounts, runsFromIntervals } from "./maskCodec";
+import {
+  maskArea,
+  maskOf,
+  polygonsOf,
+  runsOfPolygons,
+  summarizeObservation,
+  summaryHasGeometry,
+} from "./maskGeometry";
+import { applySegmentationPatch, frameInstanceKey } from "./service";
 import { createSegmentationStore } from "./store";
-import { createMockSegmentationService } from "./testing/mockService";
-import { NormalizedPoint } from "./types";
+import { createMockSegmentationService, createSeedDocument } from "./testing/mockService";
+import { type FrameInstance, NormalizedPoint } from "./types";
 
 /** Mock propagation moves points right/down by 10px per frame on a 960x540 frame. */
 const shifted = (points: NormalizedPoint[], steps: number): NormalizedPoint[] =>
@@ -676,6 +683,55 @@ it("trims a supplied instance name and rejects one the editor would not accept",
   store.getState().dispose();
 });
 
+it.each(["mask", "polygons"] as const)(
+  "keeps presence and waits for geometry before reporting the area of a mask merged with %s",
+  (kind) => {
+    const document = createSeedDocument();
+    const frameId = "frame-5";
+    const sourceKey = frameInstanceKey(frameId, "instance-1");
+    const targetKey = frameInstanceKey(frameId, "instance-2");
+    const source: FrameInstance =
+      kind === "polygons"
+        ? {
+            frameId,
+            instanceId: "instance-1",
+            kind,
+            polygons: [{ id: "polygon", points: triangle }],
+          }
+        : {
+            frameId,
+            instanceId: "instance-1",
+            kind,
+            mask: { counts: encodeCounts([0, 5, 95]), width: 10, height: 10 },
+          };
+    const target: FrameInstance = {
+      frameId,
+      instanceId: "instance-2",
+      kind: "mask",
+      mask: { counts: encodeCounts([3, 6, 91]), width: 10, height: 10 },
+    };
+    document.annotations = {};
+    document.annotationSummaries = {
+      [sourceKey]: summarizeObservation(source),
+      [targetKey]: summarizeObservation(target),
+    };
+    const patch = { instanceMerges: { "instance-1": "instance-2" } };
+    const staged = applySegmentationPatch(document, patch);
+    expect(staged.annotationSummaries[sourceKey]).toBeUndefined();
+    expect(staged.annotationSummaries[targetKey]).toEqual({
+      polygonCount: 0,
+      pointCount: 0,
+      maskArea: "unknown",
+    });
+    expect(summaryHasGeometry(staged.annotationSummaries[targetKey])).toBe(true);
+
+    document.annotations = { [sourceKey]: source, [targetKey]: target };
+    const loaded = applySegmentationPatch(document, patch);
+    expect(loaded.annotations[targetKey]?.kind).toBe("mask");
+    expect(loaded.annotationSummaries[targetKey]?.maskArea).toBe(kind === "mask" ? 9 : 18);
+  },
+);
+
 it("moves a polygon of another loaded frame to the target instance on that same frame", async () => {
   const service = createMockSegmentationService({ controls: { delayMs: 0, streamDelayMs: 0 } });
   const store = createSegmentationStore(service);
@@ -707,8 +763,8 @@ it("moves a polygon of another loaded frame to the target instance on that same 
     ),
   ).toBe(false);
   // Nothing moved onto the current frame.
-  expect(
-    polygonsOf(document().annotations[frameInstanceKey(current, "instance-2")]),
-  ).toHaveLength(beforeOnCurrent);
+  expect(polygonsOf(document().annotations[frameInstanceKey(current, "instance-2")])).toHaveLength(
+    beforeOnCurrent,
+  );
   store.getState().dispose();
 });
