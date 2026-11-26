@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import {
   BrowserSession,
@@ -14,6 +14,7 @@ import {
   initializeBrowserSession,
 } from "@foxglove/studio-base/util/browserSession";
 import { fetchOrganizationAccess } from "@foxglove/studio-web/src/OrganizationAccess";
+import type { OrganizationAccess } from "@foxglove/studio-web/src/OrganizationAccess";
 import { WebRoot } from "@foxglove/studio-web/src/WebRoot";
 
 jest.mock("@foxglove/studio-base", () => ({
@@ -174,34 +175,93 @@ it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expi
   }
 });
 
-it("checks access before mounting a private workspace and repeats the check after a session change", async () => {
+it("keeps the private viewer visible across repeated notifications for the same session", async () => {
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  const access = jest.mocked(fetchOrganizationAccess);
+  access.mockClear();
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  expect(screen.getByText("Opening visualization…")).not.toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByTestId("workspace")).toBeNull();
+
+  const workspace = await screen.findByTestId("workspace");
+  act(() => {
+    window.dispatchEvent(new Event("pageshow"));
+    window.dispatchEvent(new Event("coscene:session-version"));
+    window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(access).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId("workspace")).toBe(workspace);
+  expect(workspace.parentElement?.style.display).toBe("contents");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByText("Opening visualization…")).toBeNull();
+});
+
+it("hides old private content immediately and only opens the dialog when the new result arrives", async () => {
   const session = new BrowserSession();
   jest.mocked(initializeBrowserSession).mockReturnValue(session);
   const access = jest.mocked(fetchOrganizationAccess);
-  access.mockResolvedValueOnce({ status: "ready" }).mockResolvedValueOnce({
-    status: "organization-mismatch",
-    organization: { name: "organizations/a", displayName: "A" },
-    currentOrganization: { name: "organizations/b", displayName: "B" },
-  });
+  let finish!: (result: OrganizationAccess) => void;
+  access.mockResolvedValueOnce({ status: "ready" }).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
-  expect(screen.queryByTestId("workspace")).toBeNull();
-  await waitFor(() => {
-    expect(screen.getByTestId("workspace")).not.toBeNull();
-  });
+  const workspace = await screen.findByTestId("workspace");
   act(() => {
     localStorage.setItem("coScene_org_jwt", "Bearer replacement");
     session.reconcile();
   });
-  await screen.findByRole("dialog");
-  await screen.findByRole("button", { name: "Switch back and continue" });
   expect(session.controller.signal.aborted).toBe(true);
-  expect(screen.getByTestId("workspace").parentElement?.style.display).toBe("none");
+  expect(workspace.parentElement?.style.display).toBe("none");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Continue viewing" })).toBeNull();
   expect(access).toHaveBeenLastCalledWith(
     expect.any(String),
     "record",
     "Bearer replacement",
     expect.any(AbortSignal),
   );
+
+  await act(async () => {
+    finish({
+      status: "organization-mismatch",
+      organization: { name: "organizations/a", displayName: "A" },
+      currentOrganization: { name: "organizations/b", displayName: "B" },
+    });
+  });
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Switch back and continue" })).not.toBeNull();
+  expect(screen.queryByText("Opening visualization…")).toBeNull();
+});
+
+it("keeps the inline error in place while retrying the access check", async () => {
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  const access = jest.mocked(fetchOrganizationAccess);
+  let finish!: (result: OrganizationAccess) => void;
+  access.mockRejectedValueOnce(new Error("Network unavailable")).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  const alert = await screen.findByRole("alert");
+  const retry = screen.getByRole<HTMLButtonElement>("button", { name: "Try again" });
+  fireEvent.click(retry);
+  expect(screen.getByRole("alert")).toBe(alert);
+  expect(retry.disabled).toBe(true);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByText("Opening visualization…")).toBeNull();
+
+  await act(async () => {
+    finish({ status: "ready" });
+  });
+  expect(screen.getByTestId("workspace")).not.toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("does not mount private data or layout providers for a mismatched link", async () => {
