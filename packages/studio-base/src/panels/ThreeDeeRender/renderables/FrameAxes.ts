@@ -355,7 +355,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
     const maxDistance = transformsConfig?.labelMaxDistance;
     const minSpacingPx = transformsConfig?.labelMinSpacing;
-    const normalizedFilter = normalizeLabelFilter(transformsConfig?.labelFilter);
+    const normalizedFilter = this.#lastNormalizedFilter;
     const shouldCullLabels =
       showLabel &&
       ((maxDistance != undefined && maxDistance > 0) ||
@@ -643,10 +643,6 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
       if (setting === "editable") {
         this.#updateFrameAxes();
-      } else if (setting === "labelSize") {
-        this.#updateAllLabelSizing();
-      } else if (setting === "labelFilter") {
-        this.#updateAllLabelStyles();
       } else if (setting === "axisScale") {
         const axisScale = value as number | undefined;
         this.#setAxisScale(axisScale ?? DEFAULT_AXIS_SCALE);

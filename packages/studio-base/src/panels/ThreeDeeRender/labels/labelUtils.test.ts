@@ -120,6 +120,9 @@ describe("labelUtils", () => {
     setLabelContrastingColors(label, { r: 0.9, g: 0.9, b: 0.9, a: 1 });
     expect(mat.uniforms.uBackgroundColor?.value).toEqual([0, 0, 0, 1]);
 
+    setLabelContrastingColors(label, { r: 1, g: 1, b: 1, a: 0.25 }, undefined, 1);
+    expect(mat.uniforms.uBackgroundColor?.value).toEqual([0, 0, 0, 1]);
+
     // Explicit background color
     setLabelContrastingColors(label, { r: 1, g: 1, b: 1, a: 1 }, { r: 0, g: 0, b: 1, a: 0.5 });
     expect(mat.uniforms.uBackgroundColor?.value).toEqual([0, 0, 1, 0.5]);
@@ -142,8 +145,10 @@ describe("labelUtils", () => {
     });
     expect(label.renderOrder).toBe(HIGHLIGHT_LABEL_RENDER_ORDER);
     expect(label.mesh.renderOrder).toBe(HIGHLIGHT_LABEL_RENDER_ORDER);
+    expect(label.material.transparent).toBe(true);
     expect(label.material.depthTest).toBe(false);
     expect(label.material.depthWrite).toBe(false);
+    expect(label.pickingMaterial.depthTest).toBe(false);
 
     applyLabelHighlightStyle(label, {
       highlighted: false,
@@ -153,8 +158,10 @@ describe("labelUtils", () => {
     });
     expect(label.renderOrder).toBe(0);
     expect(label.mesh.renderOrder).toBe(0);
+    expect(label.material.transparent).toBe(false);
     expect(label.material.depthTest).toBe(true);
     expect(label.material.depthWrite).toBe(true);
+    expect(label.pickingMaterial.depthTest).toBe(true);
     expect(mat.uniforms.uColor?.value).toEqual([1, 1, 1, 1]);
     expect(mat.uniforms.uBackgroundColor?.value).toEqual([0.2, 0.3, 0.4, 1]);
 

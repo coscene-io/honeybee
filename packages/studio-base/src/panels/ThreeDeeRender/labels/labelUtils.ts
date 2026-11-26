@@ -101,6 +101,7 @@ export function setLabelContrastingColors(
   label: Label,
   foreground: LabelRgbaColor,
   background?: LabelRgbaColor,
+  autoBackgroundAlpha = foreground.a ?? 1,
 ): void {
   const alpha = foreground.a ?? 1;
   label.setColor(
@@ -122,9 +123,9 @@ export function setLabelContrastingColors(
 
   const foregroundIsDark = getLuminance(foreground.r, foreground.g, foreground.b) < 0.5;
   if (foregroundIsDark) {
-    label.setBackgroundColor(1, 1, 1, alpha);
+    label.setBackgroundColor(1, 1, 1, autoBackgroundAlpha);
   } else {
-    label.setBackgroundColor(0, 0, 0, alpha);
+    label.setBackgroundColor(0, 0, 0, autoBackgroundAlpha);
   }
 }
 
@@ -150,8 +151,12 @@ export function applyLabelHighlightStyle(label: Label, options: LabelHighlightOp
     label.setBackgroundColor(palette.bg[0], palette.bg[1], palette.bg[2], 1);
     label.renderOrder = HIGHLIGHT_LABEL_RENDER_ORDER;
     label.mesh.renderOrder = HIGHLIGHT_LABEL_RENDER_ORDER;
+    // Three.js draws transparent geometry after the entire opaque queue.
+    label.material.transparent = true;
     label.material.depthTest = false;
     label.material.depthWrite = false;
+    label.pickingMaterial.depthTest = false;
+    label.pickingMaterial.depthWrite = false;
     return;
   }
 
@@ -164,6 +169,8 @@ export function applyLabelHighlightStyle(label: Label, options: LabelHighlightOp
   );
   label.renderOrder = baseRenderOrder;
   label.mesh.renderOrder = baseRenderOrder;
+  label.pickingMaterial.depthTest = true;
+  label.pickingMaterial.depthWrite = true;
   label.material.depthTest = true;
   label.material.depthWrite = true;
 }

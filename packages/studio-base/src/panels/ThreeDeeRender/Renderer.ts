@@ -61,8 +61,7 @@ import {
 } from "./IRenderer";
 import { Input } from "./Input";
 import { DEFAULT_MESH_UP_AXIS, ModelCache } from "./ModelCache";
-import { PickedRenderable, Picker } from "./Picker";
-import type { Renderable } from "./Renderable";
+import { findPickedRenderable, PickedRenderable, Picker } from "./Picker";
 import { SceneExtension } from "./SceneExtension";
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ScreenOverlay } from "./ScreenOverlay";
@@ -1289,6 +1288,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       sceneExtension.startFrame(currentTime, renderFrameId, fixedFrameId);
     }
 
+    this.emit("beforeRender");
     this.gl.render(this.#scene, camera);
 
     if (this.#selectedRenderable) {
@@ -1555,23 +1555,15 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     // Traverse the scene looking for this objectId
     const pickedObject = this.#scene.getObjectById(objectId);
 
-    // Find the highest ancestor of the picked object that is a Renderable
-    let renderable: Renderable | undefined;
-    let maybeRenderable = pickedObject as Partial<Renderable> | undefined;
-    while (maybeRenderable) {
-      if (maybeRenderable.pickable === true) {
-        renderable = maybeRenderable as Renderable;
-      }
-      maybeRenderable = (maybeRenderable.parent ?? undefined) as Partial<Renderable> | undefined;
-    }
-
-    if (!renderable) {
+    const selection = findPickedRenderable(pickedObject);
+    if (!selection) {
       log.warn(
         `No Renderable found for objectId ${objectId} (name="${pickedObject?.name}" uuid=${pickedObject?.uuid})`,
       );
       return undefined;
     }
 
+    const { renderable } = selection;
     log.debug(`Picking pass returned ${renderable.id} (${renderable.name})`, renderable);
 
     let instanceIndex: number | undefined;
@@ -1587,7 +1579,8 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       log.debug("Instance picking pass on", renderable, "returned", instanceIndex);
     }
 
-    return { renderable, instanceIndex };
+    selection.instanceIndex = instanceIndex;
+    return selection;
   }
 
   #updateFrameErrors(): void {

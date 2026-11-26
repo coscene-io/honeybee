@@ -14,8 +14,9 @@ import { FrameAxisRenderable } from "./FrameAxes";
 import { DEFAULT_SHOW_SELECTED_OBJECT_LABEL } from "./SceneSettings";
 import { IRenderer, LAYER_SELECTED } from "../IRenderer";
 import type { PickedRenderable } from "../Picker";
-import type { Renderable } from "../Renderable";
-import { SceneExtension } from "../SceneExtension";
+import { Renderable } from "../Renderable";
+import { RemoveAllRenderablesOptions, SceneExtension } from "../SceneExtension";
+import { getMarkerId, RenderableMarker } from "./markers/RenderableMarker";
 import {
   acquirePooledLabel,
   applyLabelHighlightStyle,
@@ -38,12 +39,24 @@ function getFiniteNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function safeGetInstanceDetails(
+function isVisibleInScene(object: THREE.Object3D, scene: THREE.Object3D["parent"]): boolean {
+  for (let node: THREE.Object3D["parent"] = object; node != undefined; node = node.parent) {
+    if (!node.visible) {
+      return false;
+    }
+    if (node === scene) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function safeGetInstanceLabelDetails(
   renderable: Renderable,
   instanceIndex: number,
 ): Record<string, RosValue> | undefined {
   try {
-    return renderable.instanceDetails(instanceIndex);
+    return renderable.instanceLabelDetails(instanceIndex);
   } catch {
     return undefined;
   }
@@ -58,6 +71,10 @@ export function formatSelectedObjectLabel(
   resolvedInstanceDetails?: Record<string, RosValue>,
 ): string {
   const { renderable, instanceIndex } = selection;
+  if (renderable instanceof RenderableMarker) {
+    const { topic, marker } = renderable.userData;
+    return truncateLine(getMarkerId(topic, marker.ns, marker.id));
+  }
   const idFromMessage = renderable.idFromMessage();
   const baseName =
     idFromMessage != undefined && renderable.topic != undefined && renderable.topic.length > 0
@@ -69,14 +86,13 @@ export function formatSelectedObjectLabel(
           : renderable.userData.frameId;
 
   if (instanceIndex != undefined) {
-    const details = resolvedInstanceDetails ?? safeGetInstanceDetails(renderable, instanceIndex);
+    const details =
+      resolvedInstanceDetails ?? safeGetInstanceLabelDetails(renderable, instanceIndex);
     if (details == undefined) {
       return "";
     }
-    const x = getFiniteNumber(details.x);
-    const y = getFiniteNumber(details.y);
-    const z = getFiniteNumber(details.z);
-    if (x != undefined && y != undefined && z != undefined) {
+    const { x, y, z } = details;
+    if (typeof x === "number" && typeof y === "number" && typeof z === "number") {
       const intensity = getFiniteNumber(details.intensity);
       const header = truncateLine(
         renderable.topic != undefined && renderable.topic.length > 0 ? renderable.topic : baseName,
@@ -103,22 +119,28 @@ export function computeSelectedObjectWorldPosition(
 ): boolean {
   const { renderable, instanceIndex } = selection;
   if (instanceIndex != undefined) {
-    const details = resolvedInstanceDetails ?? safeGetInstanceDetails(renderable, instanceIndex);
+    const details =
+      resolvedInstanceDetails ?? safeGetInstanceLabelDetails(renderable, instanceIndex);
     if (details == undefined) {
       return false;
     }
-    const x = getFiniteNumber(details.x);
-    const y = getFiniteNumber(details.y);
-    const z = getFiniteNumber(details.z);
-    if (x != undefined && y != undefined && z != undefined) {
+    const { x, y, z } = details;
+    if (typeof x === "number" && typeof y === "number" && typeof z === "number") {
       renderable.updateWorldMatrix(true, false);
       out.set(x, y, z).applyMatrix4(renderable.matrixWorld);
       return Number.isFinite(out.x) && Number.isFinite(out.y) && Number.isFinite(out.z);
     }
   }
 
-  renderable.getWorldPosition(out);
-  return Number.isFinite(out.x) && Number.isFinite(out.y) && Number.isFinite(out.z);
+  const anchor = selection.pickedChild ?? renderable;
+  const position =
+    anchor instanceof Renderable ? anchor.getLabelWorldPosition(out) : anchor.getWorldPosition(out);
+  return (
+    position != undefined &&
+    Number.isFinite(out.x) &&
+    Number.isFinite(out.y) &&
+    Number.isFinite(out.z)
+  );
 }
 
 /**
@@ -140,25 +162,27 @@ export class SelectedObjectLabel extends SceneExtension {
     super(name, renderer);
     this.#colorScheme = renderer.colorScheme;
     renderer.on("selectedRenderable", this.#handleSelectedRenderable);
-    renderer.on("configApplied", this.#handleConfigApplied);
+    renderer.on("configApplied", this.#syncSelection);
+    renderer.on("beforeRender", this.#syncSelection);
   }
 
   public override dispose(): void {
     this.renderer.off("selectedRenderable", this.#handleSelectedRenderable);
-    this.renderer.off("configApplied", this.#handleConfigApplied);
+    this.renderer.off("configApplied", this.#syncSelection);
+    this.renderer.off("beforeRender", this.#syncSelection);
     if (this.#label) {
       releasePooledLabel(this.renderer.labelPool, this.#label);
       this.#label = undefined;
     }
-    this.#selected = undefined;
+    this.#handleSelectedRenderable(undefined);
     this.#lastText = undefined;
     super.dispose();
   }
 
-  public override removeAllRenderables(): void {
-    this.#selected = undefined;
-    if (this.#label) {
-      this.#label.visible = false;
+  public override removeAllRenderables({ reason }: RemoveAllRenderablesOptions = {}): void {
+    // A seek preserves custom layers such as URDFs and grids. Removed objects invalidate themselves.
+    if (reason !== "seek") {
+      this.#handleSelectedRenderable(undefined);
     }
   }
 
@@ -170,15 +194,6 @@ export class SelectedObjectLabel extends SceneExtension {
     if (this.#label) {
       this.#applyStyle(this.#label);
     }
-  }
-
-  public override startFrame(
-    currentTime: bigint,
-    renderFrameId: string,
-    fixedFrameId: string,
-  ): void {
-    super.startFrame(currentTime, renderFrameId, fixedFrameId);
-    this.#syncSelection();
   }
 
   /** Exposed for testing/inspection of the active pooled label instance. */
@@ -221,13 +236,13 @@ export class SelectedObjectLabel extends SceneExtension {
     });
   }
 
-  #syncSelection(): void {
+  #syncSelection = (): void => {
     const selection = this.#selected;
     if (
       !selection ||
       !this.#isEnabled() ||
       selection.renderable instanceof FrameAxisRenderable ||
-      !selection.renderable.visible
+      !isVisibleInScene(selection.pickedChild ?? selection.renderable, this.parent)
     ) {
       if (this.#label) {
         this.#label.visible = false;
@@ -237,7 +252,7 @@ export class SelectedObjectLabel extends SceneExtension {
 
     let instanceDetails: Record<string, RosValue> | undefined;
     if (selection.instanceIndex != undefined) {
-      instanceDetails = safeGetInstanceDetails(selection.renderable, selection.instanceIndex);
+      instanceDetails = safeGetInstanceLabelDetails(selection.renderable, selection.instanceIndex);
       if (instanceDetails == undefined) {
         if (this.#label) {
           this.#label.visible = false;
@@ -265,14 +280,16 @@ export class SelectedObjectLabel extends SceneExtension {
       instanceDetails,
     );
     label.visible = validPosition;
-  }
-
-  #handleSelectedRenderable = (selection: PickedRenderable | undefined): void => {
-    this.#selected = selection;
-    this.#syncSelection();
   };
 
-  #handleConfigApplied = (): void => {
+  #handleRemoved = (): void => {
+    this.#handleSelectedRenderable(undefined);
+  };
+
+  #handleSelectedRenderable = (selection: PickedRenderable | undefined): void => {
+    this.#selected?.renderable.removeEventListener("removed", this.#handleRemoved);
+    this.#selected = selection;
+    selection?.renderable.addEventListener("removed", this.#handleRemoved);
     this.#syncSelection();
   };
 }

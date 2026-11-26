@@ -49,7 +49,8 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   scaleInvariantLabels: "固定屏幕大小",
   scaleInvariantLabelsHelp: "在屏幕空间保持标签像素大小恒定，不随 3D 距离缩放",
   labelMaxDistance: "标签最大距离",
-  labelMaxDistanceHelp: "隐藏超出相机此距离（米）的坐标系标签（0 表示不限制）",
+  labelMaxDistanceHelp:
+    "隐藏与相机距离超过设定米数的坐标系标签。2D 视图按标签到视图中心的平面距离计算。设为 0 表示不限距离。",
   labelMinSpacing: "标签最小间距 (px)",
   labelMinSpacingHelp: "密集场景下隐藏屏幕间距小于该像素值的重叠标签（0 表示关闭密度控制）",
   labelHighlightFilter: "标签高亮搜索",

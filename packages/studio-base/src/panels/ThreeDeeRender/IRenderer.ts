@@ -53,6 +53,8 @@ import { InterfaceMode } from "./types";
 
 export type RendererEvents = {
   startFrame: (currentTime: bigint, renderer: IRenderer) => void;
+  /** After all scene extensions have updated their poses and visibility, before the first draw. */
+  beforeRender: () => void;
   endFrame: (currentTime: bigint, renderer: IRenderer) => void;
   cameraMove: (renderer: IRenderer) => void;
   renderablesClicked: (

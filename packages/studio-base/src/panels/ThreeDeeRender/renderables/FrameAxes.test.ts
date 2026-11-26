@@ -257,6 +257,32 @@ describe("FrameAxes unified @foxglove/three-text labels", () => {
     renderer.dispose();
   });
 
+  it("measures max distance from the view center after switching to orthographic projection", () => {
+    const renderer = createRenderer({ transforms: { labelMaxDistance: 20 } });
+    renderer.addCoordinateFrame("world");
+    renderer.addTransform(
+      "world",
+      "panned",
+      0n,
+      { x: 100, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0, w: 1 },
+    );
+    const axes = renderer.sceneExtensions.get(FrameAxes.extensionId) as FrameAxes;
+    const world = axes.renderables.get("world")!.userData.label;
+    const panned = axes.renderables.get("panned")!.userData.label;
+    renderer.updateConfig((draft) => {
+      draft.cameraState.perspective = false;
+      draft.cameraState.targetOffset = [100, 0, 0];
+    });
+    for (const far of [5000, 10000]) {
+      renderer.setCameraState({ ...renderer.config.cameraState, far });
+      renderer.animationFrame();
+      expect(world.visible).toBe(false);
+      expect(panned.visible).toBe(true);
+    }
+    renderer.dispose();
+  });
+
   it("resets LabelPool scaleFactor when SceneSettings resets the scene", () => {
     const renderer = createRenderer({ labelScaleFactor: 2.5 });
     const sceneSettings = renderer.sceneExtensions.get(SceneSettings.extensionId) as SceneSettings;

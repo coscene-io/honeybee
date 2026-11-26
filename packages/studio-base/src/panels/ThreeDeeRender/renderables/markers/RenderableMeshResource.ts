@@ -41,6 +41,10 @@ export class RenderableMeshResource extends RenderableMarker {
     this.update(marker, receiveTime, true);
   }
 
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    return this.#mesh?.getWorldPosition(out);
+  }
+
   public override dispose(): void {
     if (this.#mesh) {
       disposeMeshesRecursive(this.#mesh);

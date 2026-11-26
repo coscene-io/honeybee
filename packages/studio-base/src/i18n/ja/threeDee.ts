@@ -47,7 +47,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   scaleInvariantLabelsHelp: "3D距離に関係なく、ラベルを一定のスクリーンピクセルサイズで表示します",
   labelMaxDistance: "ラベル最大距離",
   labelMaxDistanceHelp:
-    "カメラから指定距離（メートル）を超えるフレームラベルを非表示にします（0で無効）",
+    "カメラからの距離が指定値（メートル）を超えるラベルを非表示にします。2D ビューでは表示中心からの平面距離を使用します。0 で無制限になります。",
   labelMinSpacing: "ラベル最小間隔 (px)",
   labelMinSpacingHelp: "密集シーンで指定ピクセル間隔未満の重なるラベルを非表示にします（0で無効）",
   labelHighlightFilter: "ハイライト検索",

@@ -5,12 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as THREE from "three";
+
 import { SceneEntity } from "@foxglove/schemas";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
 import { RosValue } from "@foxglove/studio-base/players/types";
 import { emptyPose } from "@foxglove/studio-base/util/Pose";
 
+import { PrimitiveType } from "./types";
 import { LayerSettingsEntity } from "../../settings";
 
 export type EntityRenderableUserData = BaseUserData & {
@@ -26,7 +29,40 @@ const PRIMITIVE_DEFAULT_SETTINGS: LayerSettingsEntity = {
   color: undefined,
   selectedIdVariable: undefined,
 };
+const tempOrientation = new THREE.Quaternion();
+
 export class RenderablePrimitive extends Renderable<EntityRenderableUserData> {
+  /** The picker selects the whole primitive batch. Anchor its callout to the first primitive. */
+  public primitiveKey?: Lowercase<PrimitiveType>;
+
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    const key = this.primitiveKey;
+    const entity = this.userData.entity;
+    if (!key || !entity) {
+      return undefined;
+    }
+    const primitive = entity[key].find((item) => {
+      if ("points" in item) {
+        const vertexCount = item.indices.length > 0 ? item.indices.length : item.points.length;
+        return vertexCount >= (key === "triangles" ? 3 : 2);
+      }
+      return !("text" in item) || item.text.length > 0;
+    });
+    if (!primitive) {
+      return undefined;
+    }
+    const vertex = "points" in primitive ? primitive.points[primitive.indices[0] ?? 0] : undefined;
+    if (vertex) {
+      out
+        .copy(vertex)
+        .applyQuaternion(tempOrientation.copy(primitive.pose.orientation))
+        .add(primitive.pose.position);
+    } else {
+      out.copy(primitive.pose.position);
+    }
+    return this.localToWorld(out);
+  }
+
   public constructor(
     name: string,
     renderer: IRenderer,

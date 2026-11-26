@@ -39,10 +39,9 @@ import { HUD } from "@foxglove/studio-base/panels/ThreeDeeRender/HUD";
 
 import { InteractionContextMenu, Interactions, SelectionObject, TabType } from "./Interactions";
 import type { PickedRenderable } from "./Picker";
-import { Renderable } from "./Renderable";
 import { useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
-import { DEFAULT_CAMERA_STATE, MouseEventObject } from "./camera";
+import { DEFAULT_CAMERA_STATE } from "./camera";
 import { PublishClickType } from "./renderables/PublishClickTool";
 import { InterfaceMode } from "./types";
 
@@ -235,27 +234,6 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
         </span>
       </Paper>
     ) : undefined;
-
-  // Convert the list of selected renderables (if any) into MouseEventObjects
-  // that can be passed to <InteractionContextMenu>, which shows a context menu
-  // of candidate objects to select
-  const clickedObjects = useMemo<MouseEventObject[]>(
-    () =>
-      selectedRenderables.map((selection) => ({
-        object: {
-          pose: selection.renderable.pose,
-          scale: selection.renderable.scale,
-          color: undefined,
-          interactionData: {
-            topic: selection.renderable.name,
-            highlighted: undefined,
-            renderable: selection.renderable,
-          },
-        },
-        instanceIndex: selection.instanceIndex,
-      })),
-    [selectedRenderables],
-  );
 
   // Once a single renderable is selected, convert it to the SelectionObject
   // format to populate the object inspection dialog (<Interactions>)
@@ -527,22 +505,16 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
           </Paper>
         )}
       </div>
-      {clickedObjects.length > 1 && !selectedObject && (
+      {selectedRenderables.length > 1 && !selectedObject && (
         <InteractionContextMenu
           onClose={() => {
             setSelectedRenderables([]);
           }}
           clickedPosition={clickedPosition}
-          clickedObjects={clickedObjects}
+          clickedObjects={selectedRenderables}
           selectObject={(selection) => {
-            if (selection) {
-              const renderable = (
-                selection.object as unknown as { interactionData: { renderable: Renderable } }
-              ).interactionData.renderable;
-              const instanceIndex = selection.instanceIndex;
-              setSelectedRenderables([]);
-              setSelectedRenderable({ renderable, instanceIndex });
-            }
+            setSelectedRenderables([]);
+            setSelectedRenderable(selection);
           }}
         />
       )}

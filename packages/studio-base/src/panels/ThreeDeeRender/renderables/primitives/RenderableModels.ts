@@ -245,6 +245,11 @@ export class RenderableModels extends RenderablePrimitive {
     this.#updateOutlineVisibility();
   }
 
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    // Only loaded model groups are attached to the scene.
+    return this.children[0]?.getWorldPosition(out);
+  }
+
   public override dispose(): void {
     for (const renderables of this.#renderablesByUrl.values()) {
       for (const renderable of renderables) {

@@ -23,8 +23,7 @@ export class SceneSettings extends SceneExtension {
   public constructor(renderer: IRenderer, name: string = SceneSettings.extensionId) {
     super(name, renderer);
 
-    renderer.labelPool.scaleFactor =
-      renderer.config.scene.labelScaleFactor ?? DEFAULT_LABEL_SCALE_FACTOR;
+    this.#handleConfigApplied();
     renderer.on("configApplied", this.#handleConfigApplied);
   }
 
@@ -105,6 +104,9 @@ export class SceneSettings extends SceneExtension {
       },
     };
 
+    if (this.renderer.interfaceMode !== "3d") {
+      delete fields.showSelectedObjectLabel;
+    }
     if (process.env.NODE_ENV === "production") {
       delete fields.debugPicking;
     }
@@ -127,7 +129,6 @@ export class SceneSettings extends SceneExtension {
       this.renderer.updateConfig((draft) => {
         draft.scene = {};
       });
-      this.renderer.labelPool.setScaleFactor(DEFAULT_LABEL_SCALE_FACTOR);
       this.renderer.setColorScheme(this.renderer.colorScheme, undefined);
       this.updateSettingsTree();
       return;
@@ -152,9 +153,6 @@ export class SceneSettings extends SceneExtension {
       if (path[1] === "backgroundColor") {
         const backgroundColor = value as string | undefined;
         this.renderer.setColorScheme(this.renderer.colorScheme, backgroundColor);
-      } else if (path[1] === "labelScaleFactor") {
-        const labelScaleFactor = value as number | undefined;
-        this.renderer.labelPool.setScaleFactor(labelScaleFactor ?? DEFAULT_LABEL_SCALE_FACTOR);
       }
     } else {
       return;

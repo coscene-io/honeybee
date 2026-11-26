@@ -32,7 +32,6 @@ type ActiveEntry = {
 };
 
 type GridCell = {
-  generation: number;
   points: number[];
   count: number;
 };
@@ -41,7 +40,6 @@ type GridCell = {
 // during small camera rotations or zoom increments.
 const DISTANCE_HYSTERESIS_FACTOR = 1.03;
 const PRIORITY_DISTANCE_HYSTERESIS_FACTOR = 0.97;
-const DISTANCE_TIE_EPSILON = 0.05;
 const GRID_OFFSET = 100000;
 const GRID_STRIDE = 200001;
 
@@ -56,7 +54,7 @@ export class LabelDensityCuller {
   #entryPool: ActiveEntry[] = [];
   #activeEntries: ActiveEntry[] = [];
   #grid = new Map<number, GridCell>();
-  #gridGeneration = 0;
+  #cellPool: GridCell[] = [];
 
   public evaluate(
     candidates: readonly LabelVisibilityCandidate[],
@@ -84,6 +82,7 @@ export class LabelDensityCuller {
     }
 
     camera.getWorldPosition(tempCameraPos);
+    const orthographic = camera instanceof THREE.OrthographicCamera;
     const maxDistSq = hasMaxDistance ? maxDistance * maxDistance : Infinity;
     const maxDistKeepSq = hasMaxDistance
       ? maxDistance * DISTANCE_HYSTERESIS_FACTOR * (maxDistance * DISTANCE_HYSTERESIS_FACTOR)
@@ -96,7 +95,13 @@ export class LabelDensityCuller {
 
       if (hasMaxDistance && !candidate.alwaysVisible) {
         const thresholdSq = candidate.wasVisible ? maxDistKeepSq : maxDistSq;
-        if (distSq > thresholdSq) {
+        // An orthographic camera's depth is chosen for clipping, independent of zoom.
+        let cutoffDistanceSq = distSq;
+        if (orthographic) {
+          tempProjected.copy(candidate.worldPosition).applyMatrix4(camera.matrixWorldInverse);
+          cutoffDistanceSq = tempProjected.x ** 2 + tempProjected.y ** 2;
+        }
+        if (cutoffDistanceSq > thresholdSq) {
           candidate.visible = false;
           continue;
         }
@@ -168,7 +173,7 @@ export class LabelDensityCuller {
 
     const cellSize = minSpacingPx;
     const minSpacingSq = minSpacingPx * minSpacingPx;
-    this.#gridGeneration++;
+    this.#grid.clear();
 
     for (let i = 0; i < activeCount; i++) {
       const entry = this.#activeEntries[i]!;
@@ -195,17 +200,11 @@ export class LabelDensityCuller {
     const key = cellKey(gx, gy);
     let cell = this.#grid.get(key);
     if (!cell) {
-      cell = {
-        generation: this.#gridGeneration,
-        points: [screenX, screenY],
-        count: 2,
-      };
-      this.#grid.set(key, cell);
-      return;
-    }
-    if (cell.generation !== this.#gridGeneration) {
-      cell.generation = this.#gridGeneration;
+      const index = this.#grid.size;
+      cell = this.#cellPool[index] ?? { points: [], count: 0 };
       cell.count = 0;
+      this.#cellPool[index] = cell;
+      this.#grid.set(key, cell);
     }
     cell.points[cell.count] = screenX;
     cell.points[cell.count + 1] = screenY;
@@ -222,7 +221,7 @@ export class LabelDensityCuller {
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         const cell = this.#grid.get(cellKey(gx + dx, gy + dy));
-        if (cell?.generation !== this.#gridGeneration) {
+        if (!cell) {
           continue;
         }
         const points = cell.points;
@@ -258,7 +257,7 @@ function compareActiveEntries(a: ActiveEntry, b: ActiveEntry): number {
     ? b.distance * PRIORITY_DISTANCE_HYSTERESIS_FACTOR
     : b.distance;
 
-  if (Math.abs(aEffectiveDist - bEffectiveDist) > DISTANCE_TIE_EPSILON) {
+  if (aEffectiveDist !== bEffectiveDist) {
     return aEffectiveDist - bEffectiveDist;
   }
 

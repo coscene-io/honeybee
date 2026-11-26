@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type * as THREE from "three";
+
 import { Label } from "@foxglove/three-text";
 
 import { RenderableMarker } from "./RenderableMarker";
@@ -32,6 +34,10 @@ export class RenderableTextViewFacing extends RenderableMarker {
 
     this.add(this.#label);
     this.update(marker, receiveTime);
+  }
+
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    return this.#label.mesh.count > 0 ? this.getWorldPosition(out) : undefined;
   }
 
   public override dispose(): void {

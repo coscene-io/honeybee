@@ -114,7 +114,12 @@ export class RenderableTextAnnotation extends Renderable<BaseUserData, /*TRender
 
     if (this.#annotationNeedsUpdate) {
       this.#label.setText(text);
-      setLabelContrastingColors(this.#label, textColor, backgroundColor);
+      setLabelContrastingColors(
+        this.#label,
+        textColor,
+        backgroundColor,
+        /* autoBackgroundAlpha */ 1,
+      );
     }
 
     if (this.#annotationNeedsUpdate || this.#cameraModelNeedsUpdate) {

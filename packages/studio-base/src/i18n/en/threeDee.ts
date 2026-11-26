@@ -51,7 +51,7 @@ export const threeDee = {
     "Keep frame labels at a fixed screen-space pixel size instead of scaling with 3D distance",
   labelMaxDistance: "Max label distance",
   labelMaxDistanceHelp:
-    "Hide frame labels farther than this distance in meters from the camera (0 disables culling)",
+    "Maximum distance in meters from the camera, or from the view center in the 2D plane. Set to 0 for unlimited distance.",
   labelMinSpacing: "Label min spacing (px)",
   labelMinSpacingHelp:
     "Hide overlapping frame labels closer than this pixel spacing in dense scenes (0 disables culling)",
