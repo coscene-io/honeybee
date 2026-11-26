@@ -308,6 +308,10 @@ describe("workspace binding", () => {
       configurable: true,
       value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
     });
+    // This test draws a polygon; the default tool is quick annotation.
+    act(() => {
+      runtime.store.getState().setCreationTool("polygon");
+    });
     fireEvent.click(screen.getByRole("button", { name: "New" }));
     fireEvent.change(screen.getByLabelText("Class name"), { target: { value: "Bound camera" } });
     fireEvent.keyDown(screen.getByLabelText("Class name"), { key: "Enter" });

@@ -39,6 +39,8 @@ async function setup(configure?: (document: SegmentationDocument) => void) {
     createMockSegmentationService({ document, controls: { delayMs: 0 } }),
   );
   await store.getState().initialize();
+  // These tests draw polygons; the default tool is quick annotation.
+  store.getState().setCreationTool("polygon");
   Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
     configurable: true,
     value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),

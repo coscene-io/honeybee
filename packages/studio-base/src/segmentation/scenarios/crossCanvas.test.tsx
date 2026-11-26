@@ -27,6 +27,8 @@ async function storeWithSeed() {
     createMockSegmentationService({ document, controls: { delayMs: 0 } }),
   );
   await store.getState().initialize();
+  // These tests draw polygons; the default tool is quick annotation.
+  store.getState().setCreationTool("polygon");
   store.getState().setCurrentFrame("frame-0");
   await store.getState().loadFrameWindow("video-side", 0, 0.8);
   return store;
@@ -78,6 +80,28 @@ describe("cross canvas", () => {
     fireEvent.keyDown(polygon, { key: "Enter" });
     expect(store.getState().currentFrameId).toBe("side-0");
     expect(store.getState().editing).toBe(true);
+    expect(testHost().session.getState().panelId).toBe("right");
+    store.getState().dispose();
+  });
+
+  it("still switches camera and frame while the edited image is pending, with edits held back", async () => {
+    const store = await storeWithSeed();
+    testHost().session.setState({
+      open: true,
+      panelId: "left",
+      surfaces: {
+        left: { frameId: "frame-0", sourceReady: false },
+        right: { frameId: "side-0", sourceReady: true },
+      },
+    });
+    render(<SegmentationTree store={store} editLocked />);
+    expect(screen.getByRole("button", { name: "New" }).hasAttribute("disabled")).toBe(true);
+    const polygon = screen
+      .getByRole("treeitem", { name: "side · Polygon 1" })
+      .querySelector<HTMLButtonElement>("[data-tree-primary]")!;
+    expect(polygon.disabled).toBe(false);
+    fireEvent.click(polygon);
+    expect(store.getState().currentFrameId).toBe("side-0");
     expect(testHost().session.getState().panelId).toBe("right");
     store.getState().dispose();
   });

@@ -103,6 +103,8 @@ export type TreeRowProps = {
   selecting: boolean;
   locked: boolean;
   disabled: boolean;
+  /** Hover text for the label, such as the full topic a short camera name stands for. */
+  labelTitle?: string;
   presence?: "present" | "absent";
   /** Cells of the single-video presence strip, for instance rows, and the name it announces. */
   strip?: string;
@@ -191,6 +193,7 @@ type RowBodyProps = Pick<
   TreeRowProps,
   | "node"
   | "label"
+  | "labelTitle"
   | "color"
   | "detail"
   | "presence"
@@ -204,6 +207,7 @@ type RowBodyProps = Pick<
 function RowBody({
   node,
   label,
+  labelTitle,
   color,
   detail,
   presence,
@@ -238,7 +242,7 @@ function RowBody({
         className={classes.rowButton}
       >
         <Stack className={classes.labelStack}>
-          <Typography variant="body2" noWrap className={classes.label}>
+          <Typography variant="body2" noWrap className={classes.label} title={labelTitle}>
             <RowLabel node={node} label={label} presence={presence} />
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -260,6 +264,7 @@ function RowBody({
 export const TreeRow = memo(function TreeRow({
   node,
   label,
+  labelTitle,
   color,
   detail,
   level,
@@ -357,6 +362,7 @@ export const TreeRow = memo(function TreeRow({
           <RowBody
             node={node}
             label={label}
+            labelTitle={labelTitle}
             color={color}
             detail={detail}
             presence={presence}

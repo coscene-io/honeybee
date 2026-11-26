@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { t } from "i18next";
 import { createStore } from "zustand/vanilla";
 import type { StoreApi } from "zustand/vanilla";
 
@@ -53,12 +52,6 @@ export function registerSegmentationCanvas(
       canvases: state.canvases.filter((canvas) => canvas !== entry),
     }));
   };
-}
-
-/** Short camera name from a topic path. The full topic stays on the button title. */
-export function segmentationCanvasLabel(topic: string | undefined): string {
-  const parts = topic?.split("/").filter((part) => part.length > 0) ?? [];
-  return parts[1] ?? parts[0] ?? t("segmentation:image");
 }
 
 /** The largest canvas on screen, where a new session starts. The first one wins a tie. */

@@ -72,6 +72,8 @@ async function setup(fitScale = 0.5) {
     createMockSegmentationService({ document, controls: { delayMs: 0 } }),
   );
   await store.getState().initialize();
+  // These tests draw polygons; the default tool is quick annotation.
+  store.getState().setCreationTool("polygon");
   store.getState().setFocus({ type: "instance", id: "instance-1" });
   store.getState().setEditing(true);
   // Model the real SVG viewBox's fit matrix, including letterbox offset and the current content transform.

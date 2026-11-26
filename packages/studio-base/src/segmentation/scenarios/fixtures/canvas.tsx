@@ -61,6 +61,8 @@ export async function setup(document = fixture()): Promise<{
   });
   const store = createSegmentationStore(service);
   await store.getState().initialize();
+  // These tests draw polygons; the default tool is quick annotation.
+  store.getState().setCreationTool("polygon");
   return { service, store };
 }
 

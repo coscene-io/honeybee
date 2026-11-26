@@ -12,9 +12,9 @@ import { TreeRow } from "./TreeRow";
 import { presenceCellsOf } from "./treeLogic";
 import type { TreeRowActions } from "./treeRowActions";
 import type { FlatTreeRow } from "./treeTypes";
+import { segmentationCameraLabel } from "../../cameraLabels";
 import { nodeWithinFocus, selectionStatus } from "../../editorTree";
 import { polygonsOf, summaryHasGeometry } from "../../maskGeometry";
-import { segmentationCanvasLabel } from "../../segmentationChrome";
 import type { FrameIndex } from "../../segmentationTreeIndex";
 import { instancesByClass } from "../../segmentationTreeIndex";
 import { frameInstanceKey } from "../../service";
@@ -52,6 +52,8 @@ export type RowContext = {
 type RowSpec = {
   node: SegmentationNodeRef;
   label: string;
+  /** Hover text for the label, such as the full topic a short camera name stands for. */
+  labelTitle?: string;
   color: string;
   detail: string;
   level: number;
@@ -164,10 +166,15 @@ function pushFrameRows(
   owner: { classRow: number; instanceRow: number },
 ): void {
   const { document, index, t, treeFrameIds } = ctx;
-  for (const id of treeFrameIds) {
+  const topicOf = (id: string): string | undefined => {
     const frame = index.frameById.get(id);
     const video = frame ? index.videoById.get(frame.videoId) : undefined;
-    const camera = segmentationCanvasLabel(video?.topic ?? video?.name);
+    return video?.topic ?? video?.name;
+  };
+  const shownTopics = treeFrameIds.map(topicOf);
+  for (const id of treeFrameIds) {
+    const topic = topicOf(id);
+    const camera = segmentationCameraLabel(topic, shownTopics);
     const polygons = polygonsOf(document.annotations[frameInstanceKey(id, instance.id)]);
     polygons.forEach((polygon, position) => {
       rows.push({
@@ -182,6 +189,7 @@ function pushFrameRows(
               treeFrameIds.length > 1
                 ? t("cameraPolygonLabel", { camera, positionNumber: position + 1 })
                 : t("polygonLabel", { positionNumber: position + 1 }),
+            labelTitle: treeFrameIds.length > 1 ? topic : undefined,
             color: category.color,
             detail: t("vertexCount", { pointsCount: polygon.points.length }),
             level: 3,
@@ -200,6 +208,7 @@ function pushFrameRows(
             instanceId={instance.id}
             frameId={id}
             camera={camera}
+            topic={topic}
             color={category.color}
             disabled={ctx.disabled || ctx.drawing}
             sourceFrames={ctx.sourceFrames}
