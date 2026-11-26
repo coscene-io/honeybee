@@ -10,7 +10,7 @@ import { TypeOptions } from "i18next";
 export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   useAnotherAccount: "使用其他账号",
   sessionChanged: "会话已变更，请使用当前会话继续查看。",
-  checkingOrganization: "正在检查访问权限…",
+  openingVisualization: "正在打开可视化…",
   organizationChanged: "当前组织已变更",
   switchOrganizationTitle: "切换组织以继续访问",
   linkOrganization: "链接所属组织：{{organization}}",
