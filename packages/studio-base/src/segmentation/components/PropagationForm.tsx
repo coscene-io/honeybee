@@ -16,7 +16,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
@@ -135,6 +135,13 @@ export function PropagationForm({
   const [checked, setChecked] = useState<string[] | undefined>();
   const [localError, setLocalError] = useState<string>();
   const [busy, setBusy] = useState<"idle" | "preparing" | "starting">("idle");
+  const preparation = useRef<AbortController | undefined>(undefined);
+  useLayoutEffect(
+    () => () => {
+      preparation.current?.abort();
+    },
+    [store, scope?.frameId],
+  );
   useEffect(() => {
     setLocalError(undefined);
   }, [store, document?.record.id, interactionResetVersion]);
@@ -222,9 +229,18 @@ export function PropagationForm({
   };
 
   const start = () => {
-    if (!frame || !firstSeed) {
+    if (!frame || !firstSeed || preparation.current != undefined) {
       return;
     }
+    const requestLifetime = new AbortController();
+    const isCancelled = () => requestLifetime.signal.aborted;
+    preparation.current = requestLifetime;
+    const session = host.session.getState();
+    const unsubscribe = host.session.subscribe((live) => {
+      if (live.open !== session.open || live.runtime !== session.runtime) {
+        requestLifetime.abort();
+      }
+    });
     setLocalError(undefined);
     setBusy("preparing");
     void (async () => {
@@ -239,6 +255,9 @@ export function PropagationForm({
         sides.includes("backward") ? seedNs - rangeNs : seedNs,
         sides.includes("forward") ? seedNs + rangeNs : seedNs,
       );
+      if (isCancelled()) {
+        return;
+      }
       // The end of each run: the last frame forward, the earliest frame backward.
       const runs = sides.flatMap((side) => {
         const targets = framesTowards(side);
@@ -257,7 +276,7 @@ export function PropagationForm({
       setBusy("starting");
       for (const [index, run] of runs.entries()) {
         // A stopped or failed run ends the sequence; its received frames stay as drafts.
-        if (index > 0 && store.getState().propagation.status !== "completed") {
+        if (isCancelled() || (index > 0 && store.getState().propagation.status !== "completed")) {
           break;
         }
         const request: PropagationRequest = {
@@ -269,15 +288,23 @@ export function PropagationForm({
         };
         const running = store.getState().startPropagation(request);
         if (index === 0) {
+          // The popover can close after launch while a second direction is still scheduled.
+          preparation.current = undefined;
           onStarted?.();
         }
         await running;
       }
     })()
       .catch((error: unknown) => {
-        setLocalError(segmentationErrorText(error));
+        if (!isCancelled()) {
+          setLocalError(segmentationErrorText(error));
+        }
       })
       .finally(() => {
+        unsubscribe();
+        if (preparation.current === requestLifetime) {
+          preparation.current = undefined;
+        }
         setBusy("idle");
       });
   };

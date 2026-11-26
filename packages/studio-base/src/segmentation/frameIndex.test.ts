@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { frameAt, polygonsOnFrame, topicFrameIndex } from "./frameIndex";
+import { frameAt, polygonsOnFrame, topicFrameIndex, videoFrameAt } from "./frameIndex";
 import { frameInstanceKey } from "./service";
 import type { FrameInstance, SegmentationDocument, SegmentationFrame } from "./types";
 
@@ -98,7 +98,8 @@ function readsToShowLastFrames(seconds: number) {
   const last = (seconds * 30 - 1) * 33_333_333;
   let polygons = 0;
   for (const camera of CAMERAS) {
-    const frame = frameAt(document, `/${camera}`, (START_NS + BigInt(last)).toString());
+    // What the polygon preview looks up: its video and the exact displayed log time.
+    const frame = videoFrameAt(document, camera, (START_NS + BigInt(last)).toString());
     expect(frame?.videoId).toBe(camera);
     polygons += polygonsOnFrame(document, frame!.id).length;
   }
@@ -131,5 +132,24 @@ describe("frameIndex", () => {
     expect(topicFrameIndex(document)).not.toBe(index);
     expect(frameAt(document, "/front", logTimeNs)?.id).toBe(`front:${logTimeNs}`);
     expect(frameAt(document, "/front", "1")).toBeUndefined();
+  });
+
+  it("tells apart media files of one record that share a camera topic", () => {
+    const document = recording(1);
+    const logTimeNs = START_NS.toString();
+    document.videos.push({ ...document.videos[0]!, id: "front-second-file" });
+    document.frames.push({
+      id: `front-second-file:${logTimeNs}`,
+      videoId: "front-second-file",
+      index: 0,
+      timestampSec: 0,
+      logTimeNs,
+      imageUrl: "",
+    });
+    expect(videoFrameAt(document, "front", logTimeNs)?.id).toBe(`front:${logTimeNs}`);
+    expect(videoFrameAt(document, "front-second-file", logTimeNs)?.id).toBe(
+      `front-second-file:${logTimeNs}`,
+    );
+    expect(videoFrameAt(document, "missing", logTimeNs)).toBeUndefined();
   });
 });

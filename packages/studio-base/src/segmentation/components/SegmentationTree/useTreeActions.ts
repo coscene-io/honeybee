@@ -42,7 +42,7 @@ function dragActionsOf({ env, dlg, drag }: Deps) {
         env.setError(env.t("selectBeforeDrag"));
         return;
       }
-      drag.dragContext.current = { key: env.contextKey, document: env.document };
+      drag.dragContext.current = env.contextKey;
       drag.setDragSource(node);
       event.dataTransfer.setData("application/x-segmentation-node", JSON.stringify(node) ?? "");
       event.dataTransfer.effectAllowed = "move";
@@ -158,6 +158,9 @@ export function useRowActions(deps: Deps): TreeRowActions {
       } else if (!state.editing && node.type === "polygon") {
         event.preventDefault();
         event.stopPropagation();
+        if (!claimFrame(env, node)) {
+          return;
+        }
         env.run(() => {
           beginPolygonEdit(env.store.getState(), node.id);
         });
@@ -183,6 +186,7 @@ export function useToolbarActions(deps: Deps): TreeToolbarActions {
       dlg.open({ type: "merge", nodes: env.selection });
     },
     openDelete: () => {
+      dlg.setScope("frame");
       dlg.open({ type: "delete", nodes: env.selection });
     },
     toggleSelecting: () => {

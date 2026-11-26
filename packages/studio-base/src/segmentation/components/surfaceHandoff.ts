@@ -29,6 +29,7 @@ export function removeSegmentationSurface(
       return owned
         ? {
             open: false,
+            workflow: { open: false, nonce: 0 },
             imageUrl: undefined,
             decodedFrame: undefined,
             panelId: undefined,

@@ -245,6 +245,7 @@ export function WindowedList({
   // Only a list with sticky rows renders again as it scrolls.
   const [position, setPosition] = useState({ startIndex: 0, scrollOffset: 0 });
   const hasStickyRows = stickyRows != undefined;
+  const [measurementVersion, setMeasurementVersion] = useState(0);
   const follow = (change: Partial<{ startIndex: number; scrollOffset: number }>) => {
     if (hasStickyRows) {
       setPosition((old) => {
@@ -303,6 +304,9 @@ export function WindowedList({
       previousMeasurement.current.resetKey !== resetKey
     ) {
       sizes.current.clear();
+      if (hasStickyRows) {
+        setMeasurementVersion((version) => version + 1);
+      }
     }
     previousMeasurement.current = { width: bounds.width, resetKey };
     for (const key of sizes.current.keys()) {
@@ -345,7 +349,7 @@ export function WindowedList({
       const withinRow = typeof oldPosition === "number" ? offset - oldPosition : 0;
       anchorSnapshot.current = { anchorIndex, anchorKey: anchor?.key, withinRow, offset };
     };
-  }, [bounds.width, resetKey, indices, items, horizontal]);
+  }, [bounds.width, resetKey, indices, items, horizontal, hasStickyRows]);
   const measure = useCallback(
     (index: number, size: number) => {
       const item = items[index];
@@ -357,6 +361,9 @@ export function WindowedList({
         return;
       }
       sizes.current.set(item.key, size);
+      if (hasStickyRows) {
+        setMeasurementVersion((version) => version + 1);
+      }
       list.current?.resetAfterIndex(index);
       const targetIndex =
         scrollTarget.current == undefined ? undefined : indices.get(scrollTarget.current.key);
@@ -369,7 +376,7 @@ export function WindowedList({
         list.current?.scrollTo(scrollOffset.current);
       }
     },
-    [indices, items],
+    [hasStickyRows, indices, items],
   );
   const pin = useCallback(
     (index: number) => {
@@ -382,14 +389,19 @@ export function WindowedList({
     scrollTarget.current = undefined;
     list.current?.scrollToItem(index, "smart");
   }, []);
-  let sticky: readonly number[] = [];
-  if (stickyRows != undefined) {
+  const stickyOffsets = useMemo(() => {
     const offsets = [0];
-    for (const item of items) {
-      offsets.push(offsets.at(-1)! + (sizes.current.get(item.key) ?? item.estimatedSize));
+    if (hasStickyRows) {
+      for (const item of items) {
+        offsets.push(offsets.at(-1)! + (sizes.current.get(item.key) ?? item.estimatedSize));
+      }
     }
-    sticky = stickyRows.select({ ...position, offsetOf: (index) => offsets[index]! });
-  }
+    return offsets;
+    // Measurements live in a ref; the version changes when their values change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasStickyRows, items, measurementVersion]);
+  const sticky =
+    stickyRows?.select({ ...position, offsetOf: (index) => stickyOffsets[index]! }) ?? [];
   // Stable while the same rows are sticky, so scrolling does not re-render every row.
   const stickyKey = sticky.join();
   const data = useMemo<RowData>(

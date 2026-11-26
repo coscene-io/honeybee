@@ -128,6 +128,34 @@ describe("ensureSegmentationProfile", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  it.each(["", "720p15"])(
+    "ignores a pending profile check after changing sources (profile %j)",
+    async (profileId) => {
+      const source = manifest("https://m/stale.json");
+      source.parameters.profile = profileId;
+      let resolveManifest: ((profiles: typeof record) => void) | undefined;
+      globalThis.fetch = jest.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          profiles: await new Promise<typeof record>((resolve) => {
+            resolveManifest = resolve;
+          }),
+        }),
+      })) as unknown as typeof fetch;
+      let current = true;
+      const response = ensureSegmentationProfile(source, {
+        signal: new AbortController().signal,
+        isCurrent: () => current,
+      });
+      await Promise.resolve();
+      current = false;
+      resolveManifest!(record);
+      await expect(response).resolves.toBe("cancelled");
+      expect(reload).not.toHaveBeenCalled();
+      expect(takeProfileSwitchNotice()).toBeUndefined();
+    },
+  );
+
   it("round-trips the notice and ignores garbage", () => {
     rememberProfileSwitch({ height: 480, exact: false });
     expect(takeProfileSwitchNotice()).toEqual({ height: 480, exact: false });

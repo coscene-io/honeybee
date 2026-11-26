@@ -14,6 +14,7 @@ import {
   type SegmentationPanelBridge,
 } from "@foxglove/studio-base/segmentation/imageSource";
 import { MaskPlaneCache } from "@foxglove/studio-base/segmentation/maskOverlay/maskPlaneCache";
+import { planeBytes } from "@foxglove/studio-base/segmentation/maskOverlay/maskPlanes";
 import maskFixture from "@foxglove/studio-base/segmentation/testing/fixtures/masks.json";
 
 import { SegmentationMaskLayer } from "./SegmentationMaskLayer";
@@ -125,6 +126,72 @@ describe("SegmentationMaskLayer", () => {
     expect(mockCache.stats.misses).toBe(0);
     warn.mockRestore();
     layer.dispose();
+  });
+
+  it("rebuilds the displayed texture from cached pixels when the GL context is restored", async () => {
+    const frame = geometry(1, "10");
+    bridge.maskOverlay.set(source(new Map([["10", frame]])));
+    const canvas = new EventTarget();
+    const onChange = jest.fn();
+    const layer = new SegmentationMaskLayer(
+      bridge,
+      () => 4096,
+      onChange,
+      (listener) => {
+        canvas.addEventListener("webglcontextrestored", listener);
+        return () => {
+          canvas.removeEventListener("webglcontextrestored", listener);
+        };
+      },
+    );
+    const image = renderable(10n);
+    const ready = new Promise<void>((resolve) => mockCache.onReady(resolve));
+    layer.update(image);
+    await ready;
+    layer.update(image);
+    const overlay = overlayOf(image);
+    if (!(overlay instanceof THREE.Mesh) || !(overlay.material instanceof THREE.ShaderMaterial)) {
+      throw new Error("Expected a shader mesh for the displayed mask");
+    }
+    const plane = overlay.material.uniforms.uPlane0!;
+    const original: unknown = plane.value;
+    if (!(original instanceof THREE.DataTexture)) {
+      throw new Error("Expected a mask plane texture");
+    }
+    original.onUpdate();
+    expect(original.image.data).toBeNull();
+
+    onChange.mockClear();
+    canvas.dispatchEvent(new Event("webglcontextrestored"));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    layer.update(image);
+    const restored: unknown = plane.value;
+    expect(restored).not.toBe(original);
+    expect(restored).toBeInstanceOf(THREE.DataTexture);
+    expect(restored).toHaveProperty("image.data", mockCache.get(frame)?.planes[0]);
+    expect(overlay.visible).toBe(true);
+
+    layer.dispose();
+    onChange.mockClear();
+    canvas.dispatchEvent(new Event("webglcontextrestored"));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("budgets prefetch for the largest plane among the upcoming frames", () => {
+    const small = geometry(1, "11");
+    const large = { ...geometry(2, "12"), counts: Array<string>(17).fill(small.counts[0]!) };
+    const cache = new MaskPlaneCache(undefined, 12 * planeBytes(small.width, small.height, 1));
+    const request = jest.spyOn(cache, "request");
+    bridge.maskOverlay.set({ frame: () => undefined, upcoming: () => [small, large] });
+    const layer = new SegmentationMaskLayer(
+      { ...bridge, maskPlanes: { get: () => cache, dispose: () => {} } },
+      () => 4096,
+      jest.fn(),
+    );
+    layer.update(renderable(10n));
+    expect(request.mock.calls).toEqual([[small]]);
+    layer.dispose();
+    cache.dispose();
   });
 
   it("detaches and leaves the shared cache on dispose", async () => {

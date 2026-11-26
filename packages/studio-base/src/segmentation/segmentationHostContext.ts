@@ -12,7 +12,6 @@ import { useGuaranteedContext } from "@foxglove/hooks";
 
 import type { CameraStepState } from "./cameraFrames";
 import type { SegmentationMaskOverlay } from "./imageSource";
-import type { MaskOverlayControls } from "./maskOverlay/overlaySource";
 import type { SharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import type {
   SegmentationRegistry,
@@ -39,8 +38,6 @@ export type SegmentationHost = {
   sourceFrames: SourceFrameLoaders;
   /** Masks the editor publishes for every Image panel to draw. */
   maskOverlay: SegmentationMaskOverlay;
-  /** Display controls of the editor's overlay, mirrored for the GPU layer. */
-  maskOverlayControls: MaskOverlayControls;
   /** The mask-plane cache and worker shared by the host's Image panels. */
   maskPlanes: SharedMaskPlanes;
   /** Releases every runtime and listener the host holds. Called when its owner unmounts. */

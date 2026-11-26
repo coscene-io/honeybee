@@ -11,7 +11,6 @@ import { useStore } from "zustand";
 import { segmentationErrorText } from "./errors";
 import { segmentationCanvasLabel } from "./segmentationChrome";
 import { useSegmentationHost, type SegmentationHost } from "./segmentationHostContext";
-import { SOURCE_FRAME_WINDOW_NS } from "./sourceFrames";
 import type { SegmentationFrame } from "./types";
 
 /** Frames shown on each side of the current frame in a camera's mini timeline. */
@@ -215,6 +214,7 @@ export function segmentationCameraStep(
    * it showed, which may be far away.
    */
   clockNs?: bigint,
+  isPlaybackCurrent?: () => boolean,
 ): Promise<bigint | undefined> | undefined {
   const camera = segmentationStepCamera(host);
   if (!camera) {
@@ -240,16 +240,17 @@ export function segmentationCameraStep(
   const shownNs = shown ? BigInt(shown.logTimeNs) : undefined;
   const { cameraStep } = host;
   const pending =
-    cameraStep.pending?.videoId === videoId && cameraStep.pending.fromNs === shownNs
+    cameraStep.pending?.videoId === videoId &&
+    cameraStep.pending.fromNs === shownNs &&
+    (clockNs == undefined ||
+      clockNs === cameraStep.pending.ns ||
+      clockNs === cameraStep.pending.clockNs)
       ? cameraStep.pending
       : undefined;
   let currentNs: bigint;
   if (fromClock) {
     // A step still decoding keeps going from its target; any other clock is a seek elsewhere.
-    currentNs =
-      pending != undefined && (clockNs === pending.ns || clockNs === pending.clockNs)
-        ? pending.ns
-        : clockNs;
+    currentNs = pending?.ns ?? clockNs;
   } else {
     currentNs = pending?.ns ?? shownNs!;
   }
@@ -259,26 +260,34 @@ export function segmentationCameraStep(
   const ready = loader
     ? direction > 0
       ? loader.ensureFollowing(currentNs, count)
-      : loader.ensureRange(currentNs - SOURCE_FRAME_WINDOW_NS, currentNs)
+      : loader.ensurePreceding(currentNs, count)
     : Promise.resolve();
+  const stillCurrent = () => {
+    const live = host.session.getState();
+    const shownSurface = live.surfaces[camera.panelId];
+    return (
+      request === cameraStep.latest &&
+      live.open &&
+      live.runtime === runtime &&
+      live.panelId === camera.panelId &&
+      shownSurface?.frameId === shownFrameId &&
+      shownSurface?.sourceReady === surface?.sourceReady &&
+      isPlaybackCurrent?.() !== false &&
+      !busyEditing(host)
+    );
+  };
   return ready
     .catch((error: unknown) => {
       // Step within the frames read so far, but say why it may stop short.
-      reportStepError(host, error);
+      if (stillCurrent()) {
+        reportStepError(host, error);
+      }
     })
     .then(() => {
       // The read can take a while. Drop the step when anything it was based on moved meanwhile:
       // a newer step, another session, runtime or edited camera, another shown frame (playback
       // or a seek), or an edit that holds the editor. A late jump would surprise the user.
-      const live = host.session.getState();
-      if (
-        request !== cameraStep.latest ||
-        !live.open ||
-        live.runtime !== runtime ||
-        live.panelId !== camera.panelId ||
-        live.surfaces[camera.panelId]?.frameId !== shownFrameId ||
-        busyEditing(host)
-      ) {
+      if (!stillCurrent()) {
         return undefined;
       }
       const frames = (runtime.store.getState().document?.frames ?? []).filter(
@@ -314,6 +323,7 @@ export function segmentationPlaybackStep(
   event: StepModifiers | undefined,
   seek: (logTimeNs: bigint) => void,
   clockNs?: bigint,
+  isPlaybackCurrent?: () => boolean,
 ): { handled: true } | { handled: false; modifiers: StepModifiers | undefined } {
   if (segmentationStepCamera(host) == undefined) {
     return { handled: false, modifiers: event };
@@ -321,9 +331,15 @@ export function segmentationPlaybackStep(
   if (event?.altKey === true) {
     return { handled: false, modifiers: { altKey: false, shiftKey: event.shiftKey } };
   }
-  void segmentationCameraStep(host, direction, event?.shiftKey === true ? 10 : 1, clockNs)
+  void segmentationCameraStep(
+    host,
+    direction,
+    event?.shiftKey === true ? 10 : 1,
+    clockNs,
+    isPlaybackCurrent,
+  )
     ?.then((target) => {
-      if (target != undefined) {
+      if (target != undefined && isPlaybackCurrent?.() !== false) {
         seek(target);
       }
     })

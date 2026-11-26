@@ -11,12 +11,13 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useStore } from "zustand";
 
-import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
-import { WorkflowControls } from "./WorkflowControls";
 import { segmentationErrorText } from "../errors";
+import type { MaskOverlayControls } from "../imageSource";
 import type { LiveSegmentationService } from "../liveService";
 import type { SegmentationRuntime, DecodedSegmentationFrame } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
+import { SegmentationCanvas } from "./SegmentationCanvas/SegmentationCanvas";
+import { WorkflowControls } from "./WorkflowControls";
 
 const useStyles = makeStyles()((theme) => ({
   // An overlay on the Image panel: the panel owns the pixels, so nothing here is opaque.
@@ -93,6 +94,7 @@ export type SegmentationWorkbenchProps = {
   /** False when another canvas holds the edit. Omitted means this is the only canvas. */
   focused?: boolean;
   onClaimFocus?: () => void;
+  maskOverlayControls?: MaskOverlayControls;
 };
 
 export function SegmentationWorkbench({
@@ -103,6 +105,7 @@ export function SegmentationWorkbench({
   frameId,
   focused,
   onClaimFocus,
+  maskOverlayControls,
 }: SegmentationWorkbenchProps): React.JSX.Element {
   const { classes, cx } = useStyles();
   const { t } = useTranslation("segmentation");
@@ -177,12 +180,6 @@ export function SegmentationWorkbench({
       cancelAnimationFrame(handle);
     };
   }, [workflow.open, workflow.target, workflow.nonce]);
-  useEffect(
-    () => () => {
-      host.session.setState({ workflow: { open: false, nonce: 0 } });
-    },
-    [host],
-  );
   return (
     <div
       ref={rootRef}
@@ -263,6 +260,7 @@ export function SegmentationWorkbench({
                 disabled={locked || !frameReady || loading}
                 frameId={frameId}
                 onClaimFocus={onClaimFocus}
+                maskOverlayControls={maskOverlayControls}
                 active={active}
               />
             </div>

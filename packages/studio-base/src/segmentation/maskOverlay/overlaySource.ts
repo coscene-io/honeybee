@@ -6,10 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createStore } from "zustand/vanilla";
-import type { StoreApi } from "zustand/vanilla";
 
 import { type TopicFrames, topicFrameIndex } from "../frameIndex";
 import {
+  type MaskOverlayControls,
+  type MaskOverlayDisplay,
   type SegmentationMaskGeometry,
   type SegmentationMaskOverlay,
   type SegmentationMaskOverlaySource,
@@ -27,14 +28,13 @@ const PREVIEW_OPACITY = 0.45;
 /** Initial opacity of the editor's mask slider. */
 export const DEFAULT_EDITOR_OPACITY = 0.5;
 
-/** Canvas-local display controls mirrored for the GPU layer (the SVG owns the same values). */
-export type MaskOverlayControls = StoreApi<{ opacity: number; peekOriginal: boolean }>;
+const DEFAULT_CONTROLS: MaskOverlayDisplay = {
+  opacity: DEFAULT_EDITOR_OPACITY,
+  peekOriginal: false,
+};
 
 export function createMaskOverlayControls(): MaskOverlayControls {
-  return createStore<{ opacity: number; peekOriginal: boolean }>(() => ({
-    opacity: DEFAULT_EDITOR_OPACITY,
-    peekOriginal: false,
-  }));
+  return createStore<MaskOverlayDisplay>(() => DEFAULT_CONTROLS);
 }
 
 /** Index of the first time strictly after `time`, by binary search (times.length when none). */
@@ -75,10 +75,8 @@ export type MaskOverlaySourceStats = {
  */
 export function createMaskOverlaySource({
   session: sessionStore,
-  controls: controlsStore,
 }: {
   session: SegmentationSession;
-  controls: MaskOverlayControls;
 }): SegmentationMaskOverlaySource & {
   stats: MaskOverlaySourceStats;
 } {
@@ -192,32 +190,36 @@ export function createMaskOverlaySource({
    * frame's style on every render frame; without this each call rebuilt two Maps and four arrays.
    */
   const styles = new WeakMap<
-    SegmentationMaskGeometry,
-    { inputs: readonly unknown[]; style: SegmentationMaskStyle }
+    MaskOverlayDisplay,
+    WeakMap<SegmentationMaskGeometry, { inputs: readonly unknown[]; style: SegmentationMaskStyle }>
   >();
 
   function styleOf(
     store: SegmentationStore,
     doc: SegmentationDocument,
     geometry: SegmentationMaskGeometry,
+    controls: MaskOverlayDisplay,
   ): SegmentationMaskStyle {
     const session = sessionStore.getState();
-    const controls = controlsStore.getState();
+    let panelStyles = styles.get(controls);
+    if (panelStyles == undefined) {
+      panelStyles = new WeakMap();
+      styles.set(controls, panelStyles);
+    }
     const inputs = [
       session.open,
-      controls,
       store.viewMode,
       store.focus,
       store.selection,
       doc.classes,
       doc.instances,
     ] as const;
-    const cached = styles.get(geometry);
+    const cached = panelStyles.get(geometry);
     if (cached?.inputs.every((value, index) => value === inputs[index]) === true) {
       return cached.style;
     }
     const style = computeStyle(store, doc, geometry, { editing: session.open, controls });
-    styles.set(geometry, { inputs, style });
+    panelStyles.set(geometry, { inputs, style });
     return style;
   }
 
@@ -225,10 +227,7 @@ export function createMaskOverlaySource({
     store: SegmentationStore,
     doc: SegmentationDocument,
     geometry: SegmentationMaskGeometry,
-    {
-      editing,
-      controls,
-    }: { editing: boolean; controls: { opacity: number; peekOriginal: boolean } },
+    { editing, controls }: { editing: boolean; controls: MaskOverlayDisplay },
   ): SegmentationMaskStyle {
     const hiddenAll = editing && (store.viewMode === "original" || controls.peekOriginal);
     let classes = classTables.get(doc.classes);
@@ -263,7 +262,7 @@ export function createMaskOverlaySource({
 
   return {
     stats,
-    frame(topic, logTimeNs) {
+    frame(topic, logTimeNs, controls = DEFAULT_CONTROLS) {
       const store = state();
       const doc = store?.document;
       if (!store || !doc) {
@@ -273,7 +272,7 @@ export function createMaskOverlaySource({
       const position = entry?.byLogTime.get(logTimeNs);
       const frame = position == undefined ? undefined : entry!.frames[position];
       const geometry = frame ? geometryOf(doc, topic, frame) : undefined;
-      return geometry ? { geometry, style: styleOf(store, doc, geometry) } : undefined;
+      return geometry ? { geometry, style: styleOf(store, doc, geometry, controls) } : undefined;
     },
     upcoming(topic, logTimeNs, { minFrames, maxFrames, horizonNs }) {
       const doc = state()?.document;
@@ -310,13 +309,11 @@ export function createMaskOverlaySource({
 export function installMaskOverlaySource({
   session,
   overlay,
-  controls,
 }: {
   session: SegmentationSession;
   overlay: SegmentationMaskOverlay;
-  controls: MaskOverlayControls;
 }): () => void {
-  overlay.set(createMaskOverlaySource({ session, controls }));
+  overlay.set(createMaskOverlaySource({ session }));
   let unsubscribeRuntime: (() => void) | undefined;
   let watched: SegmentationRuntime | undefined;
   const invalidate = () => {
@@ -355,10 +352,8 @@ export function installMaskOverlaySource({
       watch();
     }
   });
-  const unsubscribeControls = controls.subscribe(invalidate);
   return () => {
     unsubscribeSession();
-    unsubscribeControls();
     unsubscribeRuntime?.();
     unsubscribeRuntime = undefined;
     overlay.set(undefined);

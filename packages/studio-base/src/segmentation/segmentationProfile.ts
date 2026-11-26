@@ -142,13 +142,17 @@ export function needsSegmentationProfileCheck(
  */
 export async function ensureSegmentationProfile(
   urlState: { parameters?: Record<string, string | undefined> } | undefined,
-): Promise<"ready" | "reloading"> {
+  check?: { signal: AbortSignal; isCurrent: () => boolean },
+): Promise<"ready" | "reloading" | "cancelled"> {
   const parameters = urlState?.parameters;
   const manifestUrl = parameters?.[MANIFEST_URL_PARAM];
   if (parameters?.[SHARD_MODE_PARAM] !== SHARD_MODE_MANIFEST || !manifestUrl) {
     return "ready";
   }
-  const profiles = await loadManifestProfiles(manifestUrl);
+  const profiles = await loadManifestProfiles(manifestUrl, check?.signal);
+  if (check && (check.signal.aborted || !check.isCurrent())) {
+    return "cancelled";
+  }
   if (!profiles) {
     return "ready";
   }
