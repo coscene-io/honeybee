@@ -74,6 +74,11 @@ export interface SegmentationService {
     signal?: AbortSignal,
   ): Promise<FrameWindow>;
   submit(request: SubmitRequest): Promise<SubmitResult>;
+  /**
+   * The store no longer holds these frames' geometry (it evicted them). A service that caches
+   * frames may forget them too; it must read a frame again before it next saves it.
+   */
+  releaseFrames?(frameIds: ReadonlySet<string>): void;
   /** True means every result must echo the full request context. */
   supportsPropagationContext?: boolean;
   supportsMultiInstanceSeeds?: boolean;
@@ -285,14 +290,19 @@ function applyPatchToCopy(next: SegmentationDocument, patch: SegmentationPatch):
       }
       const targetKey = frameInstanceKey(frameId, targetId);
       const target = next.annotationSummaries[targetKey];
-      const maskTotal = (summary.maskArea ?? 0) + (target?.maskArea ?? 0);
-      next.annotationSummaries[targetKey] = {
-        polygonCount: summary.polygonCount + (target?.polygonCount ?? 0),
-        pointCount: summary.pointCount + (target?.pointCount ?? 0),
-        ...(summary.maskArea != undefined || target?.maskArea != undefined
-          ? { maskArea: maskTotal }
-          : {}),
-      };
+      // Merging with a mask on either side yields a mask (mergeObservations). Without the
+      // geometry the union's area is unknown; the larger side is a lower bound that keeps presence.
+      next.annotationSummaries[targetKey] =
+        summary.maskArea != undefined || target?.maskArea != undefined
+          ? {
+              polygonCount: 0,
+              pointCount: 0,
+              maskArea: Math.max(summary.maskArea ?? 0, target?.maskArea ?? 0),
+            }
+          : {
+              polygonCount: summary.polygonCount + (target?.polygonCount ?? 0),
+              pointCount: summary.pointCount + (target?.pointCount ?? 0),
+            };
       delete next.annotationSummaries[key];
     }
     for (const [key, annotation] of Object.entries(next.annotations)) {
@@ -407,6 +417,7 @@ export function sourceMetadataChanges(
     if (
       existing?.recordId !== video.recordId ||
       !(video.durationSec <= existing.durationSec) ||
+      (video.topic != undefined && video.topic !== "" && video.topic !== existing.topic) ||
       (video.width != undefined &&
         video.height != undefined &&
         (video.width !== existing.width || video.height !== existing.height))
@@ -453,6 +464,8 @@ export function mergeSourceMetadata(
         ? {
             ...existing,
             durationSec: Math.max(existing.durationSec, video.durationSec),
+            // A panel that binds the camera later supplies its topic.
+            ...(video.topic != undefined && video.topic !== "" ? { topic: video.topic } : {}),
             // A newly decoded frame is the authority for the topic's source size.
             ...(video.width != undefined && video.height != undefined
               ? { width: video.width, height: video.height }

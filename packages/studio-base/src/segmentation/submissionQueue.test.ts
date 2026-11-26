@@ -100,7 +100,11 @@ describe("a failed submission", () => {
       store.getState().discardSubmission("unknown");
     }).toThrow("Only failed");
 
+    const reread = jest.spyOn(service, "loadDocument");
     store.getState().discardSubmission(failed);
+    // A live submission may have written part of the batch: the store reads the state again.
+    expect(reread).toHaveBeenCalledTimes(1);
+    await store.getState().waitForSubmissions();
     expect(store.getState().submissionQueue).toEqual([]);
     expect(store.getState().stagedOperations.map((operation) => operation.labelKey)).toEqual([
       "opLabelCreatePolygon",

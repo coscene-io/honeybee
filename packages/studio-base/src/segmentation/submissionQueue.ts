@@ -172,6 +172,9 @@ export function createSubmissionQueue(
         error: undefined,
       });
       rebuild();
+      // A live submission is not atomic: steps before the failure may be on the server already.
+      // Read the authoritative state again rather than show the pre-submit base as current.
+      void get().initialize();
     },
   };
 }
