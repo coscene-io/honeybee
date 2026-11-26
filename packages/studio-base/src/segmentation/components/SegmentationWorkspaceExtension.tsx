@@ -8,8 +8,10 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { reportError } from "@foxglove/studio-base/reportError";
+
 import { useSegmentationFlag } from "../featureFlag";
-import { SegmentationHostContext } from "../segmentationHostContext";
+import { SegmentationHostContext, useHostHasUnsavedWork } from "../segmentationHostContext";
 import type { SegmentationHost } from "../segmentationHostContext";
 
 // The editor is loaded only once the rollout flag is on, so with it off nothing of it is
@@ -35,20 +37,28 @@ export function SegmentationWorkspaceExtension({
 }: {
   children?: ReactNode;
 }): React.JSX.Element {
-  const flagOn = useSegmentationFlag();
   const [host, setHost] = useState<SegmentationHost>();
+  // A flag turned off remotely keeps the host while it holds unsaved work; disposing it would drop
+  // that work, and the before-unload guard with it. It goes once the work is saved or discarded.
+  const flag = useSegmentationFlag();
+  const unsaved = useHostHasUnsavedWork(host);
+  const flagOn = flag || unsaved;
   useEffect(() => {
     if (!flagOn) {
       return;
     }
     let cancelled = false;
     let created: SegmentationHost | undefined;
-    void import("../segmentationHost").then(({ createSegmentationHost }) => {
-      if (!cancelled) {
-        created = createSegmentationHost();
-        setHost(created);
-      }
-    });
+    void import("../segmentationHost")
+      .then(({ createSegmentationHost }) => {
+        if (!cancelled) {
+          created = createSegmentationHost();
+          setHost(created);
+        }
+      })
+      .catch((error: unknown) => {
+        reportError(error instanceof Error ? error : new Error(String(error)));
+      });
     return () => {
       cancelled = true;
       created?.dispose();

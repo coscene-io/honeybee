@@ -250,6 +250,29 @@ describe("leaving the page", () => {
     return runtime;
   }
 
+  it("keeps the host and its unsaved work when the flag is turned off, until the work is gone", async () => {
+    const view = renderExtension();
+    const host = await registered();
+    const runtime = await withUnsavedWork(host);
+    const dispose = jest.spyOn(runtime, "dispose");
+    flag("off");
+    view.rerender(tree());
+    // Still provided, still registered, and leaving the page still asks first.
+    expect(seenHost).toBe(host);
+    expect(Object.keys(slots.getState().appBarItems)).toEqual(["segmentation"]);
+    expect(unload()).toBe(true);
+    expect(dispose).not.toHaveBeenCalled();
+    // Once the work is discarded (undone here), the flag takes effect.
+    act(() => {
+      runtime.store.getState().undo();
+    });
+    await waitFor(() => {
+      expect(seenHost).toBeUndefined();
+    });
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(unload()).toBe(false);
+  });
+
   it("asks first only while there is unsaved annotation work", async () => {
     renderExtension();
     const host = await registered();

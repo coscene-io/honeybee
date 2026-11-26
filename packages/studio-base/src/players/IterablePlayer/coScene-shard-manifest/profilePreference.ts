@@ -23,6 +23,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value != undefined && !Array.isArray(value);
 }
 
+function isManifestProfile(value: unknown): value is ManifestProfile {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    ("modality" in value && typeof value.modality !== "string") ||
+    ("label" in value && typeof value.label !== "string")
+  ) {
+    return false;
+  }
+  const params = value.params;
+  return (
+    !("params" in value) ||
+    (isRecord(params) &&
+      (!("h" in params) || typeof params.h === "number") &&
+      (!("height" in params) || typeof params.height === "number") &&
+      (!("fps" in params) || typeof params.fps === "number") &&
+      (!("codec" in params) || typeof params.codec === "string"))
+  );
+}
+
 export function profileToOption(p: ManifestProfile): ShardProfileOption {
   if (p.label != undefined && p.label.length > 0 && p.label !== p.id) {
     return { value: p.id, label: p.label };
@@ -56,14 +76,22 @@ export function manifestProfileOptions(profiles: readonly ManifestProfile[]): Sh
 /** The profiles a shard manifest offers; undefined when it cannot be read. */
 export async function loadManifestProfiles(
   manifestUrl: string,
+  signal?: AbortSignal,
 ): Promise<ManifestProfile[] | undefined> {
   try {
-    const response = await fetch(manifestUrl);
+    const response = await (signal ? fetch(manifestUrl, { signal }) : fetch(manifestUrl));
     if (!response.ok) {
       return undefined;
     }
-    const manifest = (await response.json()) as { profiles?: ManifestProfile[] };
-    return manifest.profiles ?? [];
+    const manifest: unknown = await response.json();
+    if (!isRecord(manifest)) {
+      return undefined;
+    }
+    const { profiles } = manifest;
+    if (!("profiles" in manifest)) {
+      return [];
+    }
+    return Array.isArray(profiles) && profiles.every(isManifestProfile) ? profiles : undefined;
   } catch {
     return undefined;
   }

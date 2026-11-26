@@ -488,3 +488,27 @@ describe("propagation stream", () => {
     },
   );
 });
+
+it("rejects polygon seeds whose points changed after they were captured", async () => {
+  const { service, store } = await fixture();
+  const propagate = jest.spyOn(service, "propagate");
+  const captured = polygonsOf(
+    store.getState().document!.annotations[frameInstanceKey("frame-5", "instance-1")],
+  )[0]!;
+  const seeds = [
+    {
+      instanceId: "instance-1",
+      kind: "polygons" as const,
+      polygons: [cloneSegmentation(captured)],
+    },
+  ];
+  store.getState().setPolygonPoints(
+    captured.id,
+    captured.points.map((point) => ({ x: point.x / 2, y: point.y / 2 })),
+  );
+  await expect(store.getState().startPropagation({ ...request(), seeds })).rejects.toMatchObject({
+    code: "errorSeedMismatch",
+  });
+  expect(propagate).not.toHaveBeenCalled();
+  store.getState().dispose();
+});

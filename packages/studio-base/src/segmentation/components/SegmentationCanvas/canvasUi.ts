@@ -130,7 +130,7 @@ function useEditState() {
   const [notice, setNotice] = useState<string>();
   const [brush, setBrush] = useState<Brush>({ mode: "paint", radius: 12 });
   const [conversion, setConversion] = useState<
-    { instanceId: string; loss: MaskConversionLoss } | undefined
+    { instanceId: string; frameId: string; loss: MaskConversionLoss } | undefined
   >();
   return {
     selectedVertices,

@@ -12,7 +12,7 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 import { GlobalPropagationLock } from "../components/GlobalPropagationLock";
 import { SegmentationActionMenu } from "../components/SegmentationActionMenu";
 import { SegmentationWorkbench } from "../components/SegmentationWorkbench";
-import { openWorkflowPanel } from "../runtime";
+import { endSegmentationSession, openWorkflowPanel } from "../runtime";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
 import { setMockControls } from "../testing/mockService";
@@ -45,6 +45,30 @@ afterEach(() => {
 });
 
 describe("workbench workflow integration", () => {
+  it("keeps the focused canvas workflow open when an unrelated canvas unmounts", async () => {
+    const runtime = await initializedRuntime();
+    const session = testHost().session;
+    session.setState({ open: true, runtime });
+    const view = (panels: "focused-only" | "both") => (
+      <>
+        <SegmentationWorkbench runtime={runtime} focused />
+        {panels === "both" && <SegmentationWorkbench runtime={runtime} focused={false} />}
+      </>
+    );
+    const { rerender } = render(view("both"));
+    act(() => {
+      openWorkflowPanel(session);
+    });
+    expect(screen.getByRole("complementary", { name: "Workflow" })).toBeTruthy();
+    rerender(view("focused-only"));
+    expect(screen.getByRole("complementary", { name: "Workflow" })).toBeTruthy();
+    act(() => {
+      endSegmentationSession(session);
+    });
+    expect(screen.queryByRole("complementary", { name: "Workflow" })).toBeNull();
+    runtime.dispose();
+  });
+
   it("retries only the failed frame window without resetting drafts or queued work", async () => {
     const runtime = await initializedRuntime();
     const reads = jest

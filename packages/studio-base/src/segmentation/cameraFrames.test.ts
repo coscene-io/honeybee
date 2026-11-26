@@ -206,6 +206,7 @@ describe("segmentationPlaybackStep", () => {
       testHost().sourceFrames.register({
         videoId,
         ensureRange: async () => {},
+        ensurePreceding: async () => {},
         ensureFollowing: async (from: bigint, count: number) => {
           ensured.push([videoId, from, count]);
         },
@@ -336,6 +337,7 @@ describe("segmentationPlaybackStep", () => {
       testHost().sourceFrames.register({
         videoId: "head",
         ensureRange: async () => {},
+        ensurePreceding: async () => {},
         ensureFollowing: async () => {
           await new Promise<void>((resolve, reject) => {
             release = (error) => {
@@ -370,6 +372,14 @@ describe("segmentationPlaybackStep", () => {
         },
       ],
       [
+        "a seek makes the retained frame unavailable",
+        () => {
+          testHost().session.setState({
+            surfaces: { "Image!head": { frameId: head[10]!.id, sourceReady: false } },
+          });
+        },
+      ],
+      [
         "the canvas shows another frame",
         () => {
           testHost().session.setState({
@@ -385,6 +395,15 @@ describe("segmentationPlaybackStep", () => {
       release();
       await settle();
       expect(seek).not.toHaveBeenCalled();
+    });
+
+    it("drops a step when the playback seek generation changes before the surface updates", async () => {
+      openSession("Image!head", { "Image!head": head[10]!.id });
+      let playbackCurrent = true;
+      const step = segmentationCameraStep(testHost(), 1, 1, undefined, () => playbackCurrent);
+      playbackCurrent = false;
+      release();
+      await expect(step).resolves.toBeUndefined();
     });
 
     it("does not jump late once propagation holds the editor", async () => {

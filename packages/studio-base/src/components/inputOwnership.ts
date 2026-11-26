@@ -9,10 +9,10 @@
  * Generic hook point for a region that owns its keyboard and context-menu input, so global
  * shortcuts (KeyListener) and the panel context menu stay out of its way.
  *
- * Mark the region with `data-owns-input`. Its value is an optional space-separated list of
- * `KeyboardEvent.key` values that still reach global shortcut listeners when the event comes from
- * the region's own surface (not from a native control inside it), and the region did not consume
- * the event first.
+ * Mark the region with `data-owns-input`, through `inputOwnerProps`. Its value is a JSON array of
+ * `KeyboardEvent.key` values (JSON, because `" "` is itself a key) that still reach global shortcut
+ * listeners when the event comes from the region's own surface (not from a native control inside
+ * it), and the region did not consume the event first.
  *
  * Shared code depends only on this module, never on the feature that owns the region.
  */
@@ -24,7 +24,16 @@ const NATIVE_CONTROL_SELECTOR = 'input, textarea, select, button, a[href], [role
 export function inputOwnerProps(passKeys: readonly string[] = []): {
   [INPUT_OWNER_ATTRIBUTE]: string;
 } {
-  return { [INPUT_OWNER_ATTRIBUTE]: passKeys.join(" ") };
+  return { [INPUT_OWNER_ATTRIBUTE]: JSON.stringify(passKeys) ?? "[]" };
+}
+
+function passedKeys(owner: Element): readonly string[] {
+  try {
+    const parsed: unknown = JSON.parse(owner.getAttribute(INPUT_OWNER_ATTRIBUTE) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 // eslint-disable-next-line no-restricted-syntax -- DOM Event.target is nullable.
@@ -67,6 +76,5 @@ export function inputOwnerPassesKey(target: EventTarget | null, key: string): bo
   if (owner == undefined || !isInputOwnerSurfaceTarget(target)) {
     return false;
   }
-  const passKeys = owner.getAttribute(INPUT_OWNER_ATTRIBUTE)?.split(" ") ?? [];
-  return passKeys.includes(key);
+  return passedKeys(owner).includes(key);
 }

@@ -12,10 +12,10 @@ import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { createMuiTheme } from "@foxglove/theme";
 
 import { frameInstanceKey } from "../service";
-import type { SegmentationDocument, SegmentationFrame } from "../types";
 import { CameraFrameStrip } from "./CameraFrameStrip";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { allowSlowRunner } from "../testing/slowRunner";
+import type { SegmentationDocument, SegmentationFrame } from "../types";
 
 allowSlowRunner();
 
@@ -62,10 +62,13 @@ describe("CameraFrameStrip", () => {
     const seek = jest.fn();
     testHost().session.setState({ seek });
     const readUpTo = BigInt(frames[35]!.logTimeNs);
+    const ensurePreceding = jest.fn(async () => {});
+    const ensureFollowing = jest.fn(async () => {});
     testHost().sourceFrames.register({
       videoId: "head",
       ensureRange: async () => {},
-      ensureFollowing: async () => {},
+      ensurePreceding,
+      ensureFollowing,
       isLoaded: (_from, to) => to <= readUpTo,
       subscribe: () => () => {},
       dispose: () => {},
@@ -86,6 +89,8 @@ describe("CameraFrameStrip", () => {
     const group = screen.getByRole("group", { name: "front, 20 frames on each side" });
     const cells = group.querySelectorAll("button");
     expect(cells).toHaveLength(41);
+    expect(ensurePreceding).toHaveBeenCalledWith(BigInt(frames[30]!.logTimeNs), 20);
+    expect(ensureFollowing).toHaveBeenCalledWith(BigInt(frames[30]!.logTimeNs), 20);
     expect(cells[23]!.dataset.state).toBe("annotated");
     expect(cells[26]!.dataset.state).toBe("unloaded");
     expect(cells[26]!.disabled).toBe(true);
@@ -119,6 +124,7 @@ describe("CameraFrameStrip", () => {
     testHost().sourceFrames.register({
       videoId: "head",
       ensureRange: async () => {},
+      ensurePreceding: async () => {},
       ensureFollowing: async () => {},
       isLoaded: (_from, to) => to <= readUpTo,
       subscribe: (listener) => {

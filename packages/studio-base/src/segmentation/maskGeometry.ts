@@ -212,7 +212,10 @@ export function summarizeObservation(annotation: FrameInstance): AnnotationSumma
 export function summaryHasGeometry(summary: AnnotationSummary | undefined): boolean {
   return (
     summary != undefined &&
-    (summary.fromTimeline === true || summary.pointCount > 0 || (summary.maskArea ?? 0) > 0)
+    (summary.fromTimeline === true ||
+      summary.pointCount > 0 ||
+      summary.maskArea === "unknown" ||
+      (summary.maskArea ?? 0) > 0)
   );
 }
 

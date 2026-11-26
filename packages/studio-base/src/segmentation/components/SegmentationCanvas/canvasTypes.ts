@@ -9,10 +9,12 @@ import type { RefObject } from "react";
 import type { StoreApi } from "zustand";
 
 import type { EditorPoint } from "../../editorGeometry";
+import type { MaskOverlayControls } from "../../imageSource";
 import type { DecodedSegmentationFrame } from "../../runtime";
 import type { SegmentationMask, SegmentationStore } from "../../types";
 
 export type SegmentationCanvasProps = {
+  maskOverlayControls?: MaskOverlayControls;
   /** False on canvases that do not hold the edit: they show no errors or drawing help. */
   active?: boolean;
   store: StoreApi<SegmentationStore>;

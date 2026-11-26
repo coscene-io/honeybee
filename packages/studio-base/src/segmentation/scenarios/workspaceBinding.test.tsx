@@ -23,6 +23,7 @@ import WorkspaceContextProvider, {
 } from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
+import { deferred } from "./fixtures/canvas";
 import { SegmentationCanvas } from "../components/SegmentationCanvas/SegmentationCanvas";
 import { SegmentationImageEntry } from "../components/SegmentationImageEntry";
 import { SegmentationSidebar } from "../components/SegmentationSidebar";
@@ -52,7 +53,10 @@ const pipeline = {
   playerState: {
     playerId: "image-player",
     name: "Remote camera",
-    urlState: { sourceId: "remote-mp4", parameters: { url: "fixture.mp4" } },
+    urlState: {
+      sourceId: "remote-mp4",
+      parameters: { url: "fixture.mp4" } as Record<string, string>,
+    },
     progress: {},
     activeData: {
       startTime: fromNanoSec(0n),
@@ -221,6 +225,10 @@ beforeEach(() => {
   mockUserId = "fixture-user";
   mockFile = undefined;
   pipeline.playerState.playerId = "image-player";
+  pipeline.playerState.urlState = {
+    sourceId: "remote-mp4",
+    parameters: { url: "fixture.mp4" },
+  };
   pipeline.playerState.activeData.endTime = fromNanoSec(1_000_000_000n);
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
   pipeline.playerState.activeData.lastSeekTime = 0;
@@ -234,6 +242,38 @@ beforeEach(() => {
 });
 
 describe("workspace binding", () => {
+  it("does not enter annotation when a ready profile response arrives for the previous player", async () => {
+    Object.assign(pipeline.playerState.urlState.parameters, {
+      shardMode: "manifest",
+      manifestUrl: "https://manifest.example/fixture.json",
+      profile: "720p",
+    });
+    fixture();
+    const previousFetch = globalThis.fetch;
+    const manifest = deferred<Response>();
+    globalThis.fetch = jest.fn(async () => await manifest.promise);
+    try {
+      act(() => {
+        enterSegmentation("maximize");
+      });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      // The pipeline can switch players before the entry has rerendered.
+      pipeline.playerState.playerId = "another-player";
+      await act(async () => {
+        manifest.resolve({
+          ok: true,
+          json: async () => ({ profiles: [{ id: "720p", params: { h: 720 } }] }),
+        } as Response);
+        await manifest.promise;
+      });
+      expect(pipeline.pausePlayback).not.toHaveBeenCalled();
+      expect(maximize).not.toHaveBeenCalled();
+      expect(testHost().session.getState().open).toBe(false);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("actual Workspace sidebar actions select adjacent Space from Moment and bind sidebar edits to decoded video/frame", async () => {
     mockFile = {
       dataAssetName: "workspace-binding-record",

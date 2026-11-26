@@ -31,6 +31,8 @@ export type StoreInternals = {
   savedAfter: (seq: number) => (key: string) => boolean;
   /** Record one acknowledged save and the annotation keys it rewrote. */
   recordSave: (keys: Iterable<string>) => void;
+  /** Read the current server state before removing a failed batch's optimistic overlay. */
+  reconcileFailedSubmission: () => Promise<boolean>;
   /** Publish base + queued + staged operations as the document. */
   rebuild: () => void;
   /** Selection, focus and drawing that survive `document`. */

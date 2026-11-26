@@ -30,7 +30,9 @@ import {
 import { createSegmentationServiceForClient, createLiveSegmentationService } from "./liveService";
 import { encodeCounts } from "./maskCodec";
 import { maskOf, polygonsOf } from "./maskGeometry";
+import { createSegmentationRuntime } from "./runtime";
 import { frameInstanceKey } from "./service";
+import { createSegmentationStore } from "./store";
 import type { PropagationResult, SegmentationDocument, StagedOperation } from "./types";
 
 const R = "warehouses/w/projects/p/records/r";
@@ -90,6 +92,13 @@ type Server = {
   holdNextTimeline?: Promise<void>;
   timelineReads: number;
   repeatClassPageToken?: boolean;
+  /** SegmentFrame fails with this error. */
+  segmentFrameError?: ConnectError;
+  /** The next SaveAnnotation fails with this error. */
+  failNextSave?: ConnectError;
+  deleteInstanceError?: ConnectError;
+  beforeNextSave?: () => Promise<void>;
+  listClassesError?: ConnectError;
   /** Sent with every ListFrames page / ListTimelineRanges response, unfiltered. */
   rawFrames: Frame[];
   rawRanges: MessageInitShape<typeof ListTimelineRangesResponse_TimelineRangeSchema>[];
@@ -109,10 +118,15 @@ function setup(document = sourceDocument()) {
   };
   const transport = createRouterTransport(({ service }) => {
     service(AnnotationService, {
-      listClasses: () => ({
-        classes: [...server.classes.values()],
-        nextPageToken: server.repeatClassPageToken === true ? "again" : "",
-      }),
+      listClasses: () => {
+        if (server.listClassesError) {
+          throw server.listClassesError;
+        }
+        return {
+          classes: [...server.classes.values()],
+          nextPageToken: server.repeatClassPageToken === true ? "again" : "",
+        };
+      },
       listInstances: () => ({ instances: [...server.instances.values()] }),
       listTimelineRanges: async (request) => {
         server.timelineReads++;
@@ -194,12 +208,23 @@ function setup(document = sourceDocument()) {
         return request.instance!;
       },
       deleteInstance: (request) => {
+        if (server.deleteInstanceError) {
+          throw server.deleteInstanceError;
+        }
         server.calls.push(`deleteInstance:${request.name}`);
         server.instances.delete(request.name);
         server.frames = server.frames.filter((frame) => frame.instance !== request.name);
         return {};
       },
-      saveAnnotation: (request) => {
+      saveAnnotation: async (request) => {
+        const beforeSave = server.beforeNextSave;
+        server.beforeNextSave = undefined;
+        await beforeSave?.();
+        const failure = server.failNextSave;
+        server.failNextSave = undefined;
+        if (failure) {
+          throw failure;
+        }
         server.calls.push("saveAnnotation");
         server.saves.push(request);
         for (const snapshot of request.frames) {
@@ -211,18 +236,22 @@ function setup(document = sourceDocument()) {
         }
         return {};
       },
+      segmentFrame: () => {
+        throw server.segmentFrameError ?? new ConnectError("not set up", Code.Unimplemented);
+      },
       async *propagateAnnotation(request) {
         yield* server.propagate!(request) as AsyncIterable<never>;
       },
     });
   });
+  const client = createClient(AnnotationService, transport);
   const service = createSegmentationServiceForClient({
-    client: createClient(AnnotationService, transport),
+    client,
     recordName: R,
     startNs: START_NS,
     document,
   });
-  return { server, service, document };
+  return { server, service, document, client };
 }
 
 function wireFrame(init: MessageInitShape<typeof FrameSchema>): Frame {
@@ -411,62 +440,74 @@ describe("live annotation service", () => {
     expect(service.diagnostics().misalignedTimes).toBeGreaterThan(0);
   });
 
-  it("does not let a window read that raced a save restore the frame's older state", async () => {
-    const { server, service, document } = setup();
-    seedServer(server);
-    await service.loadDocument();
-    const frameId = document.frames[1]!.id;
-    let release!: () => void;
-    server.holdNextListFrames = new Promise((resolve) => {
-      release = resolve;
-    });
-    // The read is answered from the state before the save below, and arrives after it.
-    const racing = service.loadFrameWindow("video", 0, 5);
-    const mine = uuidv4();
-    const triangle = [
-      { x: 0.5, y: 0.5 },
-      { x: 0.75, y: 0.5 },
-      { x: 0.75, y: 0.75 },
-    ];
-    await service.submit({
-      id: uuidv4(),
-      message: "",
-      operations: [
-        {
-          id: uuidv4(),
-          labelKey: "opLabelEditPolygon",
-          patch: {
-            instances: { [mine]: { id: mine, classId: CLASS_ID, name: "mug 2" } },
-            annotations: {
-              [frameInstanceKey(frameId, mine)]: {
-                frameId,
-                instanceId: mine,
-                kind: "polygons",
-                polygons: [{ id: "p1", points: triangle }],
+  it.each([false, true])(
+    "returns the whole saved frame when a read races a save (released: %s)",
+    async (released) => {
+      const { server, service, document } = setup();
+      seedServer(server);
+      await service.loadDocument();
+      const frameId = document.frames[1]!.id;
+      let release!: () => void;
+      server.holdNextListFrames = new Promise((resolve) => {
+        release = resolve;
+      });
+      // The read is answered from the state before the save below, and arrives after it.
+      const racing = service.loadFrameWindow("video", 0, 5);
+      const mine = uuidv4();
+      const triangle = [
+        { x: 0.5, y: 0.5 },
+        { x: 0.75, y: 0.5 },
+        { x: 0.75, y: 0.75 },
+      ];
+      await service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          {
+            id: uuidv4(),
+            labelKey: "opLabelEditPolygon",
+            patch: {
+              instances: { [mine]: { id: mine, classId: CLASS_ID, name: "mug 2" } },
+              annotations: {
+                [frameInstanceKey(frameId, mine)]: {
+                  frameId,
+                  instanceId: mine,
+                  kind: "polygons",
+                  polygons: [{ id: "p1", points: triangle }],
+                },
               },
             },
           },
-        },
-      ],
-    });
-    release();
-    const frameWindow = await racing;
-    expect(frameWindow.annotations[frameInstanceKey(frameId, OTHER_ID)]).toBeUndefined();
-    // The next save of that frame still carries what the first one wrote.
-    await service.submit({
-      id: uuidv4(),
-      message: "",
-      operations: [
-        {
-          id: uuidv4(),
-          labelKey: "opLabelEditPolygon",
-          patch: { annotations: { [frameInstanceKey(frameId, OTHER_ID)]: undefined } },
-        },
-      ],
-    });
-    const second = server.saves[1]!.frames[0]!.annotations.map((item) => item.instance);
-    expect(second).toEqual([`${R}/instances/${mine}`]);
-  });
+        ],
+      });
+      if (released) {
+        service.releaseFrames?.(new Set([frameId]));
+      }
+      release();
+      const frameWindow = await racing;
+      // The saved frame answers with its whole post-save state, untouched observations included, so
+      // a caller that merges the window does not take the untouched one for a deletion.
+      expect(
+        Object.keys(frameWindow.annotations)
+          .filter((key) => JSON.parse(key)[0] === frameId)
+          .sort(),
+      ).toEqual([frameInstanceKey(frameId, OTHER_ID), frameInstanceKey(frameId, mine)].sort());
+      // The next save of that frame still carries what the first one wrote.
+      await service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          {
+            id: uuidv4(),
+            labelKey: "opLabelEditPolygon",
+            patch: { annotations: { [frameInstanceKey(frameId, OTHER_ID)]: undefined } },
+          },
+        ],
+      });
+      const second = server.saves[1]!.frames[0]!.annotations.map((item) => item.instance);
+      expect(second).toEqual([`${R}/instances/${mine}`]);
+    },
+  );
 
   it("reads a save's unloaded frames in one window and does not re-read the timeline", async () => {
     const { server, service, document } = setup();
@@ -507,8 +548,14 @@ describe("live annotation service", () => {
     expect(server.listFrames).toHaveLength(1);
     expect(server.saves[0]!.frames).toHaveLength(3);
     expect(server.timelineReads).toBe(reads);
-    // Frame 1 was inside the read window, so its presence now comes from loaded geometry.
-    expect(service.timelineSummaries()).toEqual({});
+    // The save read skipped caching frame 1 between the requested frames.
+    expect(service.timelineSummaries()).toEqual({
+      [frameInstanceKey(document.frames[1]!.id, OTHER_ID)]: {
+        polygonCount: 0,
+        pointCount: 0,
+        fromTimeline: true,
+      },
+    });
   });
 
   it("drops an older timeline answer that arrives after a newer one", async () => {
@@ -699,6 +746,7 @@ describe("live annotation service", () => {
     );
     expect(replaced).toHaveLength(1);
     expect(replaced[0]!.geometry.case).toBe("polygons");
+    expect(replaced[0]!.occluded).toBe(true);
   });
 
   it("refuses a mask whose counts do not cover the source frame before any write", async () => {
@@ -1181,5 +1229,457 @@ describe("createLiveSegmentationService", () => {
       }),
     ).toBeUndefined();
     expect(rpcClient).not.toHaveBeenCalled();
+  });
+});
+
+describe("live adapter with the store", () => {
+  const A = "33333333-3333-4333-8333-333333333333";
+  const B = "44444444-4444-4444-8444-444444444444";
+  const POLYGON_A = "55555555-5555-4555-8555-555555555555";
+  // One frame per second for 30 s; 1 s windows keep the arithmetic readable.
+  const times = Array.from(
+    { length: 30 },
+    (_, index) => START_NS + BigInt(index + 1) * 1_000_000_000n,
+  );
+  const polygon = (id: string, x: number) => ({
+    geometry: {
+      case: "polygons" as const,
+      value: {
+        polygons: [
+          {
+            id,
+            points: [
+              { x, y: 48 },
+              { x: x + 100, y: 48 },
+              { x: x + 100, y: 240 },
+            ],
+          },
+        ],
+      },
+    },
+  });
+
+  async function liveStore() {
+    const document = sourceDocument(times);
+    const { server, service } = setup(document);
+    server.classes.set(`${R}/classes/${CLASS_ID}`, {
+      name: `${R}/classes/${CLASS_ID}`,
+      displayName: "cup",
+      color: "#ff0000",
+    });
+    for (const id of [A, B]) {
+      server.instances.set(`${R}/instances/${id}`, {
+        name: `${R}/instances/${id}`,
+        class: `${R}/classes/${CLASS_ID}`,
+        displayName: id === A ? "a" : "b",
+      });
+    }
+    // A on every frame; B only on the first, next to A.
+    for (const [index, ns] of times.entries()) {
+      server.frames.push(
+        wireFrame({
+          ...polygon(index === 0 ? POLYGON_A : uuidv4(), 64),
+          instance: `${R}/instances/${A}`,
+          frameTime: frameTimeOf(ns),
+        }),
+      );
+    }
+    server.frames.push(
+      wireFrame({
+        ...polygon(uuidv4(), 300),
+        instance: `${R}/instances/${B}`,
+        frameTime: frameTimeOf(times[0]!),
+      }),
+    );
+    const store = createSegmentationStore(service, { maxLoadedFrames: 8 });
+    await store.getState().initialize();
+    const first = document.frames[0]!;
+    const far = document.frames[25]!;
+    const goFar = async () => {
+      store.getState().setCurrentFrame(far.id);
+      await store.getState().loadFrameWindow("video", far.timestampSec - 4, far.timestampSec + 4);
+    };
+    const comeBack = async () => {
+      store.getState().setCurrentFrame(first.id);
+      await store.getState().loadFrameWindow("video", 0, first.timestampSec + 1);
+    };
+    const savedInstances = (save: SaveAnnotationRequest) =>
+      save.frames
+        .find((frame) => timestampToMicros(frame.frameTime!) === truncateToMicros(times[0]!))!
+        .annotations.map((item) => item.instance)
+        .sort();
+    return { server, service, store, first, goFar, comeBack, savedInstances };
+  }
+
+  it("forgets the frames the store evicted and saves a re-read frame completely", async () => {
+    const { server, service, store, first, goFar, comeBack, savedInstances } = await liveStore();
+    expect(store.getState().isFrameReady(first.id)).toBe(true);
+
+    await goFar();
+    expect(store.getState().isFrameReady(first.id)).toBe(false);
+    // The adapter holds what the store holds, not every window ever read.
+    expect(service.diagnostics().loadedFrames).toBe(8);
+
+    await comeBack();
+    store.getState().setPolygonPoints(POLYGON_A, [
+      { x: 0.1, y: 0.1 },
+      { x: 0.3, y: 0.1 },
+      { x: 0.3, y: 0.3 },
+    ]);
+    store.getState().submit("move a");
+    await store.getState().waitForSubmissions();
+    expect(store.getState().submissionQueue.map((batch) => batch.status)).toEqual(["succeeded"]);
+    // Only A changed; B on the same frame is still saved with it.
+    expect(savedInstances(server.saves[0]!)).toEqual([
+      `${R}/instances/${A}`,
+      `${R}/instances/${B}`,
+    ]);
+    store.getState().dispose();
+  });
+
+  it("keeps the complete state of frames with drafts or a batch waiting for retry", async () => {
+    const { server, service, store, first, goFar, savedInstances } = await liveStore();
+    store.getState().setPolygonPoints(POLYGON_A, [
+      { x: 0.1, y: 0.1 },
+      { x: 0.3, y: 0.1 },
+      { x: 0.3, y: 0.3 },
+    ]);
+    // A staged draft protects the frame.
+    await goFar();
+    expect(store.getState().isFrameReady(first.id)).toBe(true);
+
+    // So does a batch that failed and waits for retry.
+    server.failNextSave = new ConnectError("busy", Code.Unavailable);
+    store.getState().submit("move a");
+    await store.getState().waitForSubmissions();
+    expect(store.getState().submissionQueue.map((batch) => batch.status)).toEqual(["failed"]);
+    await store.getState().loadFrameWindow("video", 10, 18);
+    expect(store.getState().isFrameReady(first.id)).toBe(true);
+
+    const reads = server.listFrames.length;
+    store.getState().retrySubmission(store.getState().submissionQueue[0]!.id);
+    await store.getState().waitForSubmissions();
+    expect(store.getState().submissionQueue.map((batch) => batch.status)).toEqual(["succeeded"]);
+    // The adapter still had the frame: the retry saved it without reading it again.
+    expect(server.listFrames).toHaveLength(reads);
+    expect(savedInstances(server.saves[0]!)).toEqual([
+      `${R}/instances/${A}`,
+      `${R}/instances/${B}`,
+    ]);
+    expect(service.diagnostics().loadedFrames).toBeGreaterThan(0);
+    store.getState().dispose();
+  });
+
+  it("keeps the summaries of untouched loaded observations after a save", async () => {
+    const { store, first } = await liveStore();
+    store.getState().renameClass(CLASS_ID, "renamed");
+    store.getState().submit("rename");
+    await store.getState().waitForSubmissions();
+    const summaries = store.getState().document!.annotationSummaries;
+    expect(summaries[frameInstanceKey(first.id, B)]).toMatchObject({ polygonCount: 1 });
+    expect(summaries[frameInstanceKey(first.id, A)]).toMatchObject({ polygonCount: 1 });
+    store.getState().dispose();
+  });
+
+  it("keeps windows read during a save and leaves released geometry evicted", async () => {
+    const { server, store, goFar } = await liveStore();
+    const frames = store.getState().document!.frames;
+    const evicted = frameInstanceKey(frames[1]!.id, A);
+    const readDuringSave = frameInstanceKey(frames[25]!.id, A);
+    expect(store.getState().document!.annotations[evicted]).toBeDefined();
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const saving = new Promise<void>((resolve) => {
+      server.beforeNextSave = async () => {
+        resolve();
+        await hold;
+      };
+    });
+    store.getState().setPolygonPoints(POLYGON_A, [
+      { x: 0.1, y: 0.1 },
+      { x: 0.3, y: 0.1 },
+      { x: 0.3, y: 0.3 },
+    ]);
+    store.getState().submit();
+    await saving;
+    try {
+      await goFar();
+      expect(store.getState().document!.annotations[readDuringSave]).toBeDefined();
+      expect(store.getState().document!.annotations[evicted]).toBeUndefined();
+    } finally {
+      release();
+    }
+    await store.getState().waitForSubmissions();
+    expect(store.getState().submissionQueue[0]?.status).toBe("succeeded");
+    expect(store.getState().document!.annotations[readDuringSave]).toBeDefined();
+    expect(store.getState().document!.annotations[evicted]).toBeUndefined();
+    store.getState().dispose();
+  });
+
+  it("keeps a failed batch until the server confirms which changes persisted", async () => {
+    const { server, store, first } = await liveStore();
+    store.getState().renameClass(CLASS_ID, "persisted");
+    store.getState().setPolygonPoints(POLYGON_A, [
+      { x: 0.1, y: 0.1 },
+      { x: 0.3, y: 0.1 },
+      { x: 0.3, y: 0.3 },
+    ]);
+    server.failNextSave = new ConnectError("write failed", Code.Unavailable);
+    const batch = store.getState().submit()!;
+    await store.getState().waitForSubmissions();
+    expect(server.classes.get(`${R}/classes/${CLASS_ID}`)?.displayName).toBe("persisted");
+
+    server.listClassesError = new ConnectError("read failed", Code.Unavailable);
+    store.getState().discardSubmission(batch);
+    await store.getState().waitForSubmissions();
+    expect(store.getState().submissionQueue[0]).toMatchObject({ id: batch, status: "failed" });
+    expect(store.getState().error).toContain("read failed");
+
+    server.listClassesError = undefined;
+    store.getState().discardSubmission(batch);
+    await store.getState().waitForSubmissions();
+    expect(store.getState().submissionQueue).toEqual([]);
+    expect(store.getState().document!.classes.find(({ id }) => id === CLASS_ID)?.name).toBe(
+      "persisted",
+    );
+    expect(
+      polygonsOf(store.getState().document!.annotations[frameInstanceKey(first.id, A)])[0]?.points,
+    ).toEqual([
+      { x: 0.1, y: 0.1 },
+      { x: 164 / 640, y: 0.1 },
+      { x: 164 / 640, y: 0.5 },
+    ]);
+    store.getState().dispose();
+  });
+
+  it("retains acknowledged geometry when discarding a batch whose delete failed", async () => {
+    const { server, store, first } = await liveStore();
+    const points = [
+      { x: 0.125, y: 0.125 },
+      { x: 0.25, y: 0.125 },
+      { x: 0.25, y: 0.25 },
+    ];
+    store.getState().setPolygonPoints(POLYGON_A, points);
+    store.getState().deleteInstance(B);
+    server.deleteInstanceError = new ConnectError("delete failed", Code.Unavailable);
+    const batch = store.getState().submit()!;
+    await store.getState().waitForSubmissions();
+    expect(server.saves).toHaveLength(1);
+    expect(store.getState().submissionQueue[0]).toMatchObject({ id: batch, status: "failed" });
+
+    store.getState().discardSubmission(batch);
+    await store.getState().waitForSubmissions();
+    const { annotations, instances } = store.getState().document!;
+    expect(store.getState().submissionQueue).toEqual([]);
+    expect(polygonsOf(annotations[frameInstanceKey(first.id, A)])[0]?.points).toEqual(points);
+    expect(instances.some(({ id }) => id === B)).toBe(true);
+    expect(annotations[frameInstanceKey(first.id, B)]).toBeUndefined();
+    store.getState().dispose();
+  });
+
+  it("keeps redo when a reread document differs only in its summaries", async () => {
+    const { store } = await liveStore();
+    store.getState().setPolygonPoints(POLYGON_A, [
+      { x: 0.1, y: 0.1 },
+      { x: 0.3, y: 0.1 },
+      { x: 0.3, y: 0.3 },
+    ]);
+    store.getState().undo();
+    expect(store.getState().canRedo).toBe(true);
+    // The read carries timeline placeholders where the base has exact summaries.
+    await store.getState().initialize();
+    expect(store.getState().canRedo).toBe(true);
+    store.getState().dispose();
+  });
+});
+
+describe("live annotation service edge cases", () => {
+  it("immediately invalidates old-sized masks and classifies them on the next read", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    const frame = document.frames[0]!;
+    server.frames.push(
+      wireFrame({
+        instance: `${R}/instances/${OTHER_ID}`,
+        frameTime: frameTimeOf(LOG_TIMES[0]!),
+        geometry: { case: "mask", value: { counts: encodeCounts([0, 10, 640 * 480 - 10]) } },
+      }),
+    );
+    const runtime = createSegmentationRuntime(service, document);
+    await runtime.initialize();
+    const key = frameInstanceKey(frame.id, OTHER_ID);
+    expect(maskOf(runtime.store.getState().document!.annotations[key])?.width).toBe(640);
+    const read = jest.spyOn(service, "loadFrameWindow");
+    const retry = jest.spyOn(runtime.store.getState(), "retryCurrentFrameWindow");
+    const video = document.videos[0]!;
+    runtime.registerSource({ videos: [video], frames: [] });
+    expect(read).not.toHaveBeenCalled();
+
+    let release!: () => void;
+    server.holdNextListFrames = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    runtime.registerSource({ videos: [{ ...video, width: 1280, height: 960 }], frames: [] });
+    try {
+      expect(runtime.store.getState().currentFrameId).toBe(frame.id);
+      expect(runtime.store.getState().isFrameReady(frame.id)).toBe(false);
+      expect(runtime.store.getState().document!.annotations[key]).toBeUndefined();
+      expect(read).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+    }
+    await retry.mock.results[0]!.value;
+    expect(runtime.store.getState().isFrameReady(frame.id)).toBe(true);
+    expect(runtime.store.getState().document!.unreadableObservations?.[key]).toBeDefined();
+    runtime.dispose();
+  });
+
+  it("records a malformed mask as unreadable without failing the window", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    server.frames.push(
+      wireFrame({
+        instance: `${R}/instances/${OTHER_ID}`,
+        frameTime: frameTimeOf(LOG_TIMES[2]!),
+        geometry: { case: "mask", value: { counts: "not rle \u0001" } },
+      }),
+    );
+    await service.loadDocument();
+    const frameWindow = await service.loadFrameWindow("video", 0, 5);
+    expect(
+      frameWindow.unreadable?.[frameInstanceKey(document.frames[2]!.id, OTHER_ID)],
+    ).toBeDefined();
+    expect(
+      frameWindow.annotations[frameInstanceKey(document.frames[1]!.id, OTHER_ID)],
+    ).toBeDefined();
+  });
+
+  it("classifies an acknowledged snapshot at the newly loaded frame size", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    await service.loadDocument();
+    await service.loadFrameWindow("video", 0, 5);
+    const frameId = document.frames[1]!.id;
+    const key = frameInstanceKey(frameId, OTHER_ID);
+    const video = document.videos[0]!;
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const saving = new Promise<void>((resolve) => {
+      server.beforeNextSave = async () => {
+        resolve();
+        await hold;
+      };
+    });
+    const submission = service.submit({
+      id: uuidv4(),
+      message: "",
+      operations: [
+        {
+          id: uuidv4(),
+          labelKey: "opLabelEditPolygon",
+          patch: {
+            annotations: {
+              [key]: {
+                frameId,
+                instanceId: OTHER_ID,
+                kind: "mask",
+                mask: { counts: encodeCounts([0, 10, 640 * 480 - 10]), width: 640, height: 480 },
+              },
+            },
+          },
+        },
+      ],
+    });
+    await saving;
+    try {
+      service.updateSourceMetadata?.({
+        videos: [{ ...video, width: 1280, height: 960 }],
+        frames: [],
+      });
+      service.releaseFrames?.(new Set([frameId]));
+      await service.loadFrameWindow("video", 0, 5);
+    } finally {
+      release();
+    }
+    const saved = (await submission).document;
+    expect(saved.annotations[key]).toBeUndefined();
+    expect(saved.unreadableObservations?.[key]).toBeDefined();
+  });
+
+  it("does not carry a deleted observation's occlusion to a redrawn one", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    await service.loadDocument();
+    await service.loadFrameWindow("video", 0, 5);
+    const frameId = document.frames[1]!.id;
+    const key = frameInstanceKey(frameId, OTHER_ID);
+    const edit = async (annotation: StagedOperation["patch"]["annotations"]) =>
+      await service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          { id: uuidv4(), labelKey: "opLabelEditPolygon", patch: { annotations: annotation } },
+        ],
+      });
+    await edit({ [key]: undefined });
+    await edit({
+      [key]: {
+        frameId,
+        instanceId: OTHER_ID,
+        kind: "polygons",
+        polygons: [
+          {
+            id: "p1",
+            points: [
+              { x: 0.5, y: 0.5 },
+              { x: 0.75, y: 0.5 },
+              { x: 0.75, y: 0.75 },
+            ],
+          },
+        ],
+      },
+    });
+    expect(server.saves[1]!.frames[0]!.annotations[0]!.occluded).toBe(false);
+  });
+
+  it("passes a canceled quick annotation through as a cancellation", async () => {
+    const globals = ["createImageBitmap", "OffscreenCanvas", "fetch"] as const;
+    const saved = globals.map((name) => Reflect.get(globalThis, name));
+    Object.assign(globalThis, {
+      createImageBitmap: jest.fn(async () => ({ width: 640, height: 480, close: () => undefined })),
+      OffscreenCanvas: class {
+        public getContext() {
+          return { drawImage: () => undefined };
+        }
+        public async convertToBlob() {
+          return { arrayBuffer: async () => new TextEncoder().encode("jpeg").buffer };
+        }
+      },
+      fetch: jest.fn(async () => ({ blob: async () => new Blob(["frame"]) })),
+    });
+    try {
+      const { client, server, service } = setup();
+      const request = {
+        topic: TOPIC,
+        logTimeNs: LOG_TIMES[0]!.toString(),
+        width: 640,
+        height: 480,
+        imageUrl: "blob:frame",
+        points: [{ x: 0.5, y: 0.5, positive: true }],
+      };
+      const canceled = new ConnectError("replaced", Code.Canceled);
+      jest.spyOn(client, "segmentFrame").mockRejectedValueOnce(canceled);
+      await expect(service.segmentFrame!(request)).rejects.toBe(canceled);
+      server.segmentFrameError = new ConnectError("down", Code.Unavailable);
+      await expect(service.segmentFrame!(request)).rejects.toMatchObject({
+        rpcCode: "UNAVAILABLE",
+      });
+    } finally {
+      globals.forEach((name, index) => Reflect.set(globalThis, name, saved[index]));
+    }
   });
 });

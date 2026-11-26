@@ -6,10 +6,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+
 
 import {
+  openRecordName,
   SEGMENTATION_FEATURE_FLAG,
   segmentationAvailable,
   useSegmentationFlag,
@@ -66,5 +69,42 @@ describe("segmentation rollout flag", () => {
       false,
     );
     expect(available({ flagOn: true, recordName: RECORD, dataSourceId: undefined })).toBe(false);
+  });
+
+  it("updates when GrowthBook's value changes after the first render", async () => {
+    const growthbook = new GrowthBook({
+      features: { [SEGMENTATION_FEATURE_FLAG]: { defaultValue: false } },
+    });
+    const { result } = renderHook(() => useSegmentationFlag(), {
+      wrapper: ({ children }) => (
+        <GrowthBookProvider growthbook={growthbook}>{children}</GrowthBookProvider>
+      ),
+    });
+    expect(result.current).toBe(false);
+    await act(async () => {
+      await growthbook.setPayload({
+        features: { [SEGMENTATION_FEATURE_FLAG]: { defaultValue: true } },
+      });
+    });
+    expect(result.current).toBe(true);
+  });
+
+  it("names no record while another record is being opened", () => {
+    const previous = { name: "warehouses/w/projects/p/records/a" } as Record;
+    const config = { warehouseId: "w", projectId: "p", recordId: "b" };
+    // Switching to b: Core Data still holds a while b is read.
+    expect(
+      openRecordName({ record: { loading: true, value: previous }, externalInitConfig: config }),
+    ).toBeUndefined();
+    const next = { name: "warehouses/w/projects/p/records/b" } as Record;
+    expect(
+      openRecordName({ record: { loading: false, value: next }, externalInitConfig: config }),
+    ).toBe(next.name);
+    // Reloading the open record keeps it, so an open session is not torn down.
+    expect(
+      openRecordName({ record: { loading: true, value: next }, externalInitConfig: config }),
+    ).toBe(next.name);
+    // Without a requested record (no external config), the value is the record.
+    expect(openRecordName({ record: { loading: false, value: previous } })).toBe(previous.name);
   });
 });

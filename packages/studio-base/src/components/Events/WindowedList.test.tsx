@@ -637,11 +637,13 @@ it.each([false, true])(
 );
 
 it("draws sticky rows over the top of the list and leaves their slots empty", () => {
+  const estimateOffscreen = jest.fn(() => 100);
   const items = Array.from({ length: 100 }, (_, index) => ({
     key: `row-${index}`,
     estimatedSize: 100,
     content: <button>row-{index}</button>,
   }));
+  Object.defineProperty(items[99]!, "estimatedSize", { get: estimateOffscreen });
   const { container } = render(
     <WindowedList
       items={items}
@@ -660,7 +662,10 @@ it("draws sticky rows over the top of the list and leaves their slots empty", ()
     clientHeight: { value: 600 },
     scrollHeight: { value: 10000 },
   });
+  expect(estimateOffscreen).toHaveBeenCalled();
+  estimateOffscreen.mockClear();
   fireEvent.scroll(viewport, { target: { scrollTop: 150 } });
+  expect(estimateOffscreen).not.toHaveBeenCalled();
   // Row 0 is still in the render window, but its content is only in the sticky layer.
   expect(screen.getAllByText("row-0")).toHaveLength(1);
   expect(viewport.contains(screen.getByText("row-0"))).toBe(false);
