@@ -13,7 +13,11 @@ import { ANNOTATION_RENDER_ORDER } from "./annotationRenderOrder";
 import { getAnnotationAtPath } from "./normalizeAnnotations";
 import { TextAnnotation as NormalizedTextAnnotation } from "./types";
 import { BaseUserData, Renderable } from "../../../Renderable";
-import { SRGBToLinear, getLuminance } from "../../../color";
+import {
+  acquirePooledLabel,
+  releasePooledLabel,
+  setLabelContrastingColors,
+} from "../../../labels/labelUtils";
 
 /**
  * Handles rendering of 2D text annotations.
@@ -45,7 +49,7 @@ export class RenderableTextAnnotation extends Renderable<BaseUserData, /*TRender
     });
 
     this.#labelPool = labelPool;
-    this.#label = labelPool.acquire();
+    this.#label = acquirePooledLabel(labelPool);
     this.#label.mesh.renderOrder = ANNOTATION_RENDER_ORDER.TEXT;
     this.#label.setAnchorPoint(0, 0);
     this.#label.setBillboard(true);
@@ -55,9 +59,7 @@ export class RenderableTextAnnotation extends Renderable<BaseUserData, /*TRender
   }
 
   public override dispose(): void {
-    // reset render order back for label pool
-    this.#label.mesh.renderOrder = 0;
-    this.#labelPool.release(this.#label);
+    releasePooledLabel(this.#labelPool, this.#label);
     super.dispose();
   }
 
@@ -112,28 +114,7 @@ export class RenderableTextAnnotation extends Renderable<BaseUserData, /*TRender
 
     if (this.#annotationNeedsUpdate) {
       this.#label.setText(text);
-      this.#label.setColor(
-        SRGBToLinear(textColor.r),
-        SRGBToLinear(textColor.g),
-        SRGBToLinear(textColor.b),
-        textColor.a,
-      );
-
-      if (backgroundColor) {
-        this.#label.setBackgroundColor(
-          SRGBToLinear(backgroundColor.r),
-          SRGBToLinear(backgroundColor.g),
-          SRGBToLinear(backgroundColor.b),
-          backgroundColor.a,
-        );
-      } else {
-        const foregroundIsDark = getLuminance(textColor.r, textColor.g, textColor.b) < 0.5;
-        if (foregroundIsDark) {
-          this.#label.setBackgroundColor(1, 1, 1);
-        } else {
-          this.#label.setBackgroundColor(0, 0, 0);
-        }
-      }
+      setLabelContrastingColors(this.#label, textColor, backgroundColor);
     }
 
     if (this.#annotationNeedsUpdate || this.#cameraModelNeedsUpdate) {

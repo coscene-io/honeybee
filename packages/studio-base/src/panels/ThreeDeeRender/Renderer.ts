@@ -50,6 +50,8 @@ import { LabelMaterial, LabelPool } from "@foxglove/three-text";
 import {
   IRenderer,
   InstancedLineMaterial,
+  LAYER_DEFAULT,
+  LAYER_SELECTED,
   RendererConfig,
   RendererEvents,
   RendererMessageEvents,
@@ -121,10 +123,6 @@ const MAX_SELECTIONS = 10;
 // affected by gamma correction
 const LIGHT_BACKDROP = new THREE.Color(palette.light.background?.default);
 const DARK_BACKDROP = new THREE.Color(palette.dark.background?.default);
-
-// Define rendering layers for multipass rendering used for the selection effect
-const LAYER_DEFAULT = 0;
-const LAYER_SELECTED = 1;
 
 const FOLLOW_TF_PATH = ["general", "followTf"];
 const NO_FRAME_SELECTED = "NO_FRAME_SELECTED";
@@ -427,11 +425,16 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     }
 
     this.#watchDevicePixelRatio();
+    this.labelPool.addEventListener("error", this.#handleLabelPoolError);
     document.addEventListener("visibilitychange", this.#onVisibilityChange);
 
     this.setCameraState(config.cameraState);
     this.animationFrame();
   }
+
+  #handleLabelPoolError = (event: { error: Error }): void => {
+    log.warn(`3D label font atlas error: ${event.error.message}`);
+  };
 
   #onHUDItemsChange = () => {
     this.hudItems = this.hud.getHUDItems();
@@ -484,6 +487,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.sharedGeometry.dispose();
     this.modelCache.dispose();
 
+    this.labelPool.removeEventListener("error", this.#handleLabelPoolError);
     this.labelPool.dispose();
     this.markerPool.dispose();
     this.#transformPool.clear();
@@ -1634,6 +1638,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       if ((object as Partial<THREE.Mesh>).material) {
         const mesh = object as THREE.Mesh;
         const material = mesh.material as Partial<THREE.ShaderMaterial>;
+
+        // @foxglove/three-text LabelMaterial manages its own physical-pixel `resolution` and
+        // `uPixelRatio` uniforms via onBeforeRender(renderer.getCurrentViewport()).
+        if (material instanceof LabelMaterial) {
+          return;
+        }
 
         // Update render resolution uniforms
         if (material.uniforms?.resolution) {

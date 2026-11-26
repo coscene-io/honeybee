@@ -50,9 +50,15 @@ export class RenderableTopicAnnotations extends THREE.Object3D {
     for (const points of this.#points) {
       points.dispose();
     }
+    this.#points.length = 0;
     for (const lineList of this.#lines) {
       lineList.dispose();
     }
+    this.#lines.length = 0;
+    for (const text of this.#texts) {
+      text.dispose();
+    }
+    this.#texts.length = 0;
   }
 
   public setScale(

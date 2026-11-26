@@ -111,6 +111,9 @@ export type ImageModeConfig = Partial<ColorModeSettings> & {
   /** Maximum (white) value for single-channel images */
   maxValue?: number;
 };
+export const LAYER_DEFAULT = 0;
+export const LAYER_SELECTED = 1;
+
 export type RendererConfig = {
   /** Camera settings for the currently rendering scene */
   cameraState: CameraState;
@@ -125,6 +128,8 @@ export type RendererConfig = {
     backgroundColor?: string;
     /* Scale factor to apply to all labels */
     labelScaleFactor?: number;
+    /** Show an SDF label on the currently selected 3D object or point */
+    showSelectedObjectLabel?: boolean;
     /** Ignore the <up_axis> tag in COLLADA files (matching rviz behavior) */
     ignoreColladaUpAxis?: boolean;
     meshUpAxis?: MeshUpAxis;
@@ -133,8 +138,16 @@ export type RendererConfig = {
       editable?: boolean;
       /** Toggles visibility of frame axis labels */
       showLabel?: boolean;
-      /** Size of frame axis labels */
+      /** Keep frame axis labels at a constant screen-space pixel size */
+      scaleInvariantLabels?: boolean;
+      /** Size of frame axis labels (meters in world mode, pixels in screen-space mode) */
       labelSize?: number;
+      /** Hide frame axis labels farther than this distance from the camera (meters; 0 = unlimited) */
+      labelMaxDistance?: number;
+      /** Minimum screen-space spacing between frame axis labels (px; 0 = disabled) */
+      labelMinSpacing?: number;
+      /** Highlight frame axis labels matching this case-insensitive substring */
+      labelFilter?: string;
       /** Size of coordinate frame axes */
       axisScale?: number;
       /** Width of the connecting line between child and parent frames */

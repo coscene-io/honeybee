@@ -11,11 +11,16 @@ import { Label } from "@foxglove/three-text";
 import type { IRenderer } from "../IRenderer";
 import { Renderable } from "../Renderable";
 import { SceneExtension } from "../SceneExtension";
+import {
+  acquirePooledLabel,
+  LATE_LABEL_RENDER_ORDER,
+  releasePooledLabel,
+} from "../labels/labelUtils";
 
 type MeasurementState = "idle" | "place-first-point" | "place-second-point";
 
 /** A renderOrder value that should result in rendering after most/all other objects in the scene */
-const LATE_RENDER_ORDER = 9999999;
+const LATE_RENDER_ORDER = LATE_LABEL_RENDER_ORDER;
 
 /**
  * A material that interprets the input mesh coordinates in pixel space, regardless of the camera
@@ -113,7 +118,7 @@ export class MeasurementTool extends SceneExtension<Renderable, MeasurementToolE
     this.#circle1.userData.picking = false;
     this.#circle2.userData.picking = false;
 
-    this.#label = renderer.labelPool.acquire();
+    this.#label = acquirePooledLabel(renderer.labelPool);
     this.#label.visible = false;
     this.#label.setBillboard(true);
     this.#label.setSizeAttenuation(false);
@@ -122,9 +127,12 @@ export class MeasurementTool extends SceneExtension<Renderable, MeasurementToolE
 
     // Make the label appear on top of other objects in the scene so it doesn't get clipped/occluded
     this.#label.renderOrder = LATE_RENDER_ORDER;
+    this.#label.mesh.renderOrder = LATE_RENDER_ORDER;
     this.#label.material.depthTest = false;
     this.#label.material.depthWrite = false;
     this.#label.material.transparent = true;
+    this.#label.userData.picking = false;
+    this.#label.mesh.userData.picking = false;
 
     this.#lineOccluded.renderOrder = LATE_RENDER_ORDER;
     this.#circle1.renderOrder = LATE_RENDER_ORDER;
@@ -146,7 +154,7 @@ export class MeasurementTool extends SceneExtension<Renderable, MeasurementToolE
 
   public override dispose(): void {
     super.dispose();
-    this.renderer.labelPool.release(this.#label);
+    releasePooledLabel(this.renderer.labelPool, this.#label);
     this.#circleGeometry.dispose();
     this.#circleMaterial.dispose();
     this.#line.geometry.dispose();
