@@ -64,6 +64,7 @@ export class MaskPlaneCache {
   readonly #pending = new Map<number, Pending>();
   readonly #errors = new Map<number, Failure>();
   readonly #listeners = new Set<() => void>();
+  readonly #retryTimers = new Set<ReturnType<typeof setTimeout>>();
   /** Recently evicted ids, only to classify misses. Bounded. */
   readonly #evictedIds = new Set<number>();
   readonly #consumers = new Map<object, MaskPlaneConsumerState>();
@@ -191,6 +192,10 @@ export class MaskPlaneCache {
   }
 
   public dispose(): void {
+    for (const timer of this.#retryTimers) {
+      clearTimeout(timer);
+    }
+    this.#retryTimers.clear();
     this.#builder?.dispose();
     this.#builder = undefined;
     this.#entries.clear();
@@ -323,9 +328,7 @@ export class MaskPlaneCache {
       }
     }
     this.stats.cachedBytes = this.#bytes;
-    for (const listener of this.#listeners) {
-      listener();
-    }
+    this.#notify();
   }
 
   #fail(id: number, message: string, { permanent = false }: { permanent?: boolean } = {}): void {
@@ -333,6 +336,18 @@ export class MaskPlaneCache {
     const attempts = (this.#errors.get(id)?.attempts ?? 0) + 1;
     this.#errors.set(id, { message, attempts, at: this.now(), permanent });
     this.stats.errors++;
+    if (!permanent && attempts < MAX_BUILD_ATTEMPTS) {
+      // A paused panel renders only when asked: wake it when the retry becomes possible.
+      const timer = setTimeout(() => {
+        this.#retryTimers.delete(timer);
+        this.#notify();
+      }, BUILD_RETRY_MS);
+      this.#retryTimers.add(timer);
+    }
+    this.#notify();
+  }
+
+  #notify(): void {
     for (const listener of this.#listeners) {
       listener();
     }

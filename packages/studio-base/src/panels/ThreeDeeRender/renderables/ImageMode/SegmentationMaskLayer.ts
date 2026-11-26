@@ -118,7 +118,7 @@ const FRAGMENT_SHADER = /* glsl */ `
       slot = topSlot(pick);
       alpha = (here & sel) != uvec2(0u) ? min(1.0, uOpacity * ${SELECTED_FILL_GAIN.toFixed(2)}) : uOpacity;
     }
-    // Class colours are sRGB and a raw ShaderMaterial (no colorspace_fragment include) writes them
+    // Class colours are sRGB and the ShaderMaterial (no colorspace_fragment include) writes them
     // unconverted to the sRGB canvas, so they match the hex colours shown in the editor UI.
     gl_FragColor = vec4(uColors[slot], alpha);
   }
@@ -193,6 +193,11 @@ export class SegmentationMaskLayer {
     private readonly bridge: Pick<SegmentationPanelBridge, "maskOverlay" | "maskPlanes">,
     private readonly maxTextureSize: () => number,
     onChange: () => void,
+    /**
+     * Subscribes to GL context restoration. Uploaded planes drop their CPU copy, so the next
+     * frame must rebuild the textures from the cache even if the geometry has not changed.
+     */
+    subscribeContextRestored?: (listener: () => void) => () => void,
   ) {
     this.#cache = bridge.maskPlanes.get();
     this.#dummy = new THREE.DataTexture(
@@ -230,6 +235,14 @@ export class SegmentationMaskLayer {
       this.#cache.onReady(onChange),
       this.#cache.addConsumer(this),
     ];
+    if (subscribeContextRestored) {
+      this.#unsubscribe.push(
+        subscribeContextRestored(() => {
+          this.#disposeTextures();
+          onChange();
+        }),
+      );
+    }
   }
 
   /** Call after the image renderable committed this frame's image. */
@@ -263,11 +276,11 @@ export class SegmentationMaskLayer {
     });
     if (upcoming.length > 0) {
       // Never more than this panel's share of the shared cache (see MaskPlaneCache.framesAhead).
-      const sample = upcoming[0]!;
-      const ahead = this.#cache.framesAhead(
-        planeBytes(sample.width, sample.height, sample.counts.length),
-        upcoming.length,
+      // Plane storage jumps at 9, 17 and 33 slots: budget for the largest upcoming frame.
+      const frameBytes = Math.max(
+        ...upcoming.map((item) => planeBytes(item.width, item.height, item.counts.length)),
       );
+      const ahead = this.#cache.framesAhead(frameBytes, upcoming.length);
       for (const geometry of upcoming.slice(0, ahead)) {
         this.#cache.request(geometry);
       }

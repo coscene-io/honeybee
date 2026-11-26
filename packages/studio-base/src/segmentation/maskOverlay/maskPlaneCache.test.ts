@@ -181,6 +181,39 @@ describe("mask plane cache budget and failures", () => {
     cache.dispose();
   });
 
+  it("wakes paused consumers for each eligible retry and clears pending wake-ups on disposal", () => {
+    jest.useFakeTimers();
+    const cache = new MaskPlaneCache(undefined);
+    try {
+      const bad = geometryOf(1, ["not RLE \u0000"]);
+      const redraw = jest.fn(() => {
+        cache.get(bad);
+      });
+      cache.onReady(redraw);
+      cache.get(bad);
+
+      // Each failed build tells consumers about the error. The immediate redraw cannot retry.
+      jest.advanceTimersToNextTimer();
+      expect(cache.stats.errors).toBe(1);
+      expect(redraw).toHaveBeenCalledTimes(1);
+
+      // With no external render, the next timer wakes consumers so their redraw retries.
+      jest.advanceTimersToNextTimer();
+      expect(redraw).toHaveBeenCalledTimes(2);
+      jest.advanceTimersToNextTimer();
+      expect(cache.stats.errors).toBe(2);
+      expect(redraw).toHaveBeenCalledTimes(3);
+
+      cache.dispose();
+      jest.runOnlyPendingTimers();
+      expect(redraw).toHaveBeenCalledTimes(3);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      cache.dispose();
+      jest.useRealTimers();
+    }
+  });
+
   it("falls back to main-thread builds when the worker cannot deliver a reply", async () => {
     const worker = {
       postMessage: jest.fn(),

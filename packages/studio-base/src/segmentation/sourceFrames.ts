@@ -64,8 +64,9 @@ export type SourceFrameLoader = {
 export type SourceFrameLoaders = {
   get: (videoId: string) => SourceFrameLoader | undefined;
   /**
-   * Binds the loader to its video, replacing any other. The returned function unbinds it, and does
-   * nothing once another loader has taken its place.
+   * Binds the loader to its video. The latest registration answers `get`; the returned function
+   * unbinds it, and the loader registered before it (another panel showing the same video) answers
+   * again.
    */
   register: (loader: SourceFrameLoader) => () => void;
   /** Changes whenever `get`, or a bound loader's `isLoaded`, may answer differently. */
@@ -75,7 +76,8 @@ export type SourceFrameLoaders = {
 };
 
 export function createSourceFrameLoaders(): SourceFrameLoaders {
-  const bound = new Map<string, { loader: SourceFrameLoader; unwatch: () => void }>();
+  /** Per video, every registered loader in registration order; only the last one is watched. */
+  const bound = new Map<string, { loader: SourceFrameLoader; unwatch?: () => void }[]>();
   const listeners = new Set<() => void>();
   let version = 0;
   const changed = () => {
@@ -85,18 +87,39 @@ export function createSourceFrameLoaders(): SourceFrameLoaders {
     }
   };
   return {
-    get: (videoId) => bound.get(videoId)?.loader,
+    get: (videoId) => bound.get(videoId)?.at(-1)?.loader,
     register(loader) {
-      bound.get(loader.videoId)?.unwatch();
-      const entry = { loader, unwatch: loader.subscribe(changed) };
-      bound.set(loader.videoId, entry);
+      const stack = bound.get(loader.videoId) ?? [];
+      const top = stack.at(-1);
+      top?.unwatch?.();
+      if (top) {
+        top.unwatch = undefined;
+      }
+      const entry: { loader: SourceFrameLoader; unwatch?: () => void } = {
+        loader,
+        unwatch: loader.subscribe(changed),
+      };
+      stack.push(entry);
+      bound.set(loader.videoId, stack);
       changed();
       return () => {
-        if (bound.get(loader.videoId) === entry) {
-          entry.unwatch();
-          bound.delete(loader.videoId);
-          changed();
+        const index = stack.indexOf(entry);
+        if (index < 0) {
+          return;
         }
+        stack.splice(index, 1);
+        if (!entry.unwatch) {
+          return;
+        }
+        entry.unwatch();
+        entry.unwatch = undefined;
+        const next = stack.at(-1);
+        if (next) {
+          next.unwatch = next.loader.subscribe(changed);
+        } else {
+          bound.delete(loader.videoId);
+        }
+        changed();
       };
     },
     version: () => version,
@@ -180,11 +203,17 @@ export function createSourceFrameLoader({
     }
   };
   const windowOf = (ns: bigint) => (ns <= startNs ? 0n : (ns - startNs) / SOURCE_FRAME_WINDOW_NS);
+  const overlapsRecording = (fromNs: bigint, toNs: bigint) =>
+    fromNs <= toNs && fromNs <= endNs && toNs >= startNs;
   return {
     videoId,
     ensureRange: async (fromNs, toNs) => {
+      if (!overlapsRecording(fromNs, toNs)) {
+        return;
+      }
       const loads: Promise<void>[] = [];
-      for (let index = windowOf(fromNs); index <= windowOf(toNs); index++) {
+      const last = toNs > endNs ? lastWindow : windowOf(toNs);
+      for (let index = windowOf(fromNs); index <= last; index++) {
         loads.push(loadWindow(index));
       }
       await Promise.all(loads);
@@ -200,16 +229,23 @@ export function createSourceFrameLoader({
         if (abort.signal.aborted) {
           return;
         }
-        const after = knownLogTimes().filter((time) => time > fromNs).length;
+        // Only frames up to the end of this window count: every window from the first to this one
+        // is read, while frames known further on (a part visited earlier) may follow a gap.
+        const readUntil = startNs + (index + 1n) * SOURCE_FRAME_WINDOW_NS;
+        const after = knownLogTimes().filter(
+          (time) => time > fromNs && time >= startNs && time <= endNs && time < readUntil,
+        ).length;
         if (after >= count) {
           return;
         }
       }
     },
     isLoaded: (fromNs, toNs) => {
-      const first = fromNs < startNs ? 0n : windowOf(fromNs);
+      if (!overlapsRecording(fromNs, toNs)) {
+        return true;
+      }
       const last = toNs > endNs ? lastWindow : windowOf(toNs);
-      for (let index = first; index <= last; index++) {
+      for (let index = windowOf(fromNs); index <= last; index++) {
         if (!loaded.has(index)) {
           return false;
         }

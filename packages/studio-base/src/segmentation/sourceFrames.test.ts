@@ -134,6 +134,37 @@ it("reads later windows until enough following frames are known", async () => {
   ).toBeGreaterThanOrEqual(100);
 });
 
+it("reads through a gap even when later frames are already known", async () => {
+  const adjacent = START + 2n * SOURCE_FRAME_WINDOW_NS + 1n;
+  const distant = START + 3n * SOURCE_FRAME_WINDOW_NS + 1n;
+  const { loader, registered } = loaderFor([START, adjacent, distant]);
+  await loader.ensureRange(distant, distant);
+  expect(loader.isLoaded(START, adjacent)).toBe(false);
+
+  await loader.ensureFollowing(START, 1);
+  expect(loader.isLoaded(START, adjacent)).toBe(true);
+  expect([...registered.values()].map((frame) => frame.logTimeNs)).toContain(String(adjacent));
+  loader.dispose();
+});
+
+it("considers ranges outside the recording loaded without reading any windows", async () => {
+  const times = cameraTimes(3);
+  const end = times.at(-1)! + 1n;
+  const { loader, reads } = loaderFor(times);
+  expect(loader.isLoaded(START - 10n, START - 1n)).toBe(true);
+  expect(loader.isLoaded(end + 1n, end + 10n)).toBe(true);
+  expect(loader.isLoaded(START - 10n, START)).toBe(false);
+  expect(loader.isLoaded(end, end + 10n)).toBe(false);
+
+  await loader.ensureRange(START - 10n, START - 1n);
+  await loader.ensureRange(end + 1n, end + 10n);
+  expect(reads).toEqual([]);
+  await loader.ensureRange(START - 10n, START);
+  expect(loader.isLoaded(START - 10n, START)).toBe(true);
+  expect(reads).toEqual([[START, end]]);
+  loader.dispose();
+});
+
 it("stops at the end of the recording", async () => {
   const times = cameraTimes(100);
   const { loader, registered } = loaderFor(times);
@@ -221,6 +252,34 @@ describe("source frame loader registry", () => {
     await first.ensureRange(START, START);
     expect(loaders.get("head")).toBe(second);
     expect(loaders.version()).toBe(version);
+    first.dispose();
+    second.dispose();
+  });
+
+  it("restores and watches the previous loader when the latest one unbinds", async () => {
+    const loaders = createSourceFrameLoaders();
+    const first = loaderOf("head", []);
+    const second = loaderOf("head", []);
+    const unbindFirst = loaders.register(first);
+    const unbindSecond = loaders.register(second);
+    const listener = jest.fn();
+    const unsubscribe = loaders.subscribe(listener);
+
+    expect(loaders.get("head")).toBe(second);
+    unbindSecond();
+    expect(loaders.get("head")).toBe(first);
+    expect(listener).toHaveBeenCalledTimes(1);
+    await second.ensureRange(START, START);
+    expect(listener).toHaveBeenCalledTimes(1);
+    await first.ensureRange(START, START);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unbindSecond();
+    expect(listener).toHaveBeenCalledTimes(2);
+    unbindFirst();
+    expect(loaders.get("head")).toBeUndefined();
+    expect(listener).toHaveBeenCalledTimes(3);
+    unsubscribe();
     first.dispose();
     second.dispose();
   });
