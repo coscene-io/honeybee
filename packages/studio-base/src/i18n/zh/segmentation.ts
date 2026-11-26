@@ -336,7 +336,7 @@ export const segmentation: Partial<TypeOptions["resources"]["segmentation"]> = {
   referenceHint: "{{record}} · 引用保存稳定 ID，改名后仍指向同一目标",
   referenceInstance: "实例 · {{name}} · {{id}}",
   referenceInstanceClosed: "空间引用 · 实例 {{id}}（记录未打开）",
-  referenceNoTargets: "暂无可引用目标，请先在空间侧栏创建类别或实例。",
+  referenceNoTargets: "暂无已保存的目标，请先在空间侧栏创建并提交类别或实例。",
   referenceSelect: "选择类别或实例",
   referenceTarget: "引用已标注类别或实例",
   renameClass: "修改类别名称",

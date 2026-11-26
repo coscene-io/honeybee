@@ -79,15 +79,15 @@ export function EventDetails({
     }),
     [anchorPosition],
   );
-  const fields = [
-    [t("name"), event.event.displayName],
-    [t("startTime"), formatTime(event.startTime)],
-    [t("end"), formatTime(event.endTime)],
-    [t("duration"), `${durationToSeconds(event.event.duration).toFixed(3)} s`],
-    [t("description"), event.event.description],
+  const fields: { label: string; value: string; metadata?: boolean }[] = [
+    { label: t("name"), value: event.event.displayName },
+    { label: t("startTime"), value: formatTime(event.startTime) },
+    { label: t("end"), value: formatTime(event.endTime) },
+    { label: t("duration"), value: `${durationToSeconds(event.event.duration).toFixed(3)} s` },
+    { label: t("description"), value: event.event.description },
     ...Object.entries(event.event.customizedFields)
       .filter(([key]) => key !== DOUBTFUL_FIELD_KEY)
-      .map(([key, value]) => [key, value]),
+      .map(([label, value]) => ({ label, value, metadata: true })),
   ];
   return (
     <Popper
@@ -124,14 +124,14 @@ export function EventDetails({
           <Stack spacing={1}>
             <Typography variant="h4">{t("viewMoment")}</Typography>
             {fields
-              .filter(([, value]) => value)
-              .map(([label, value], index) => (
+              .filter(({ value }) => value !== "")
+              .map(({ label, value, metadata }, index) => (
                 <Stack key={index}>
                   <Typography variant="caption" className={classes.layout1}>
                     {label}
                   </Typography>
                   <Typography className={classes.value}>
-                    {typeof value === "string" ? <MomentMetadataValue value={value} /> : value}
+                    {metadata === true ? <MomentMetadataValue value={value} /> : value}
                   </Typography>
                 </Stack>
               ))}

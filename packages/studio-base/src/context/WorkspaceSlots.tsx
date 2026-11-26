@@ -62,7 +62,7 @@ export type MomentValueRenderer = (props: {
 
 /** An end adornment for a moment metadata value field. */
 export type MomentValueAdornment = React.ComponentType<{
-  /** The record that is actually open; undefined when none is. */
+  /** The record owning the Moment; undefined when none is known. */
   recordName?: string;
   value: string;
   onChange: (value: string) => void;
@@ -77,6 +77,8 @@ export type Slots = {
   playbackStep: Readonly<Record<string, PlaybackStepOverride>>;
   shortcutColumns: Readonly<Record<string, ShortcutColumn>>;
   momentValueRenderers: Readonly<Record<string, MomentValueRenderer>>;
+  /** Adds the display label of a feature-owned metadata value to Moment search. */
+  momentValueSearchLabels: Readonly<Record<string, (value: string) => string | undefined>>;
   momentValueAdornments: Readonly<Record<string, MomentValueAdornment>>;
 };
 
@@ -89,6 +91,7 @@ export function createWorkspaceSlotsStore(): StoreApi<Slots> {
     playbackStep: {},
     shortcutColumns: {},
     momentValueRenderers: {},
+    momentValueSearchLabels: {},
     momentValueAdornments: {},
   }));
 }

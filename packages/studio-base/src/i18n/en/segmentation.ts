@@ -360,7 +360,7 @@ export const segmentation = {
   referenceInstance: "Instance · {{name}} · {{id}}",
   referenceInstanceClosed: "Spatial reference · instance {{id}} (record not open)",
   referenceNoTargets:
-    "Nothing to reference yet. Create a class or instance in the Space sidebar first.",
+    "No saved targets yet. Create and save a class or instance in the Space sidebar first.",
   referenceSelect: "Choose a class or instance",
   referenceTarget: "Reference an annotated class or instance",
   renameClass: "Rename class",
