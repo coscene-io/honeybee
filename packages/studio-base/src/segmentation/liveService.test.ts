@@ -1208,7 +1208,10 @@ describe("live adapter with the store", () => {
   const B = "44444444-4444-4444-8444-444444444444";
   const POLYGON_A = "55555555-5555-4555-8555-555555555555";
   // One frame per second for 30 s; 1 s windows keep the arithmetic readable.
-  const times = Array.from({ length: 30 }, (_, index) => START_NS + BigInt(index + 1) * 1_000_000_000n);
+  const times = Array.from(
+    { length: 30 },
+    (_, index) => START_NS + BigInt(index + 1) * 1_000_000_000n,
+  );
   const polygon = (id: string, x: number) => ({
     geometry: {
       case: "polygons" as const,
@@ -1382,8 +1385,12 @@ describe("live annotation service edge cases", () => {
     );
     await service.loadDocument();
     const frameWindow = await service.loadFrameWindow("video", 0, 5);
-    expect(frameWindow.unreadable?.[frameInstanceKey(document.frames[2]!.id, OTHER_ID)]).toBeDefined();
-    expect(frameWindow.annotations[frameInstanceKey(document.frames[1]!.id, OTHER_ID)]).toBeDefined();
+    expect(
+      frameWindow.unreadable?.[frameInstanceKey(document.frames[2]!.id, OTHER_ID)],
+    ).toBeDefined();
+    expect(
+      frameWindow.annotations[frameInstanceKey(document.frames[1]!.id, OTHER_ID)],
+    ).toBeDefined();
   });
 
   it("does not carry a deleted observation's occlusion to a redrawn one", async () => {
@@ -1393,11 +1400,13 @@ describe("live annotation service edge cases", () => {
     await service.loadFrameWindow("video", 0, 5);
     const frameId = document.frames[1]!.id;
     const key = frameInstanceKey(frameId, OTHER_ID);
-    const edit = (annotation: StagedOperation["patch"]["annotations"]) =>
-      service.submit({
+    const edit = async (annotation: StagedOperation["patch"]["annotations"]) =>
+      await service.submit({
         id: uuidv4(),
         message: "",
-        operations: [{ id: uuidv4(), labelKey: "opLabelEditPolygon", patch: { annotations: annotation } }],
+        operations: [
+          { id: uuidv4(), labelKey: "opLabelEditPolygon", patch: { annotations: annotation } },
+        ],
       });
     await edit({ [key]: undefined });
     await edit({
@@ -1450,7 +1459,9 @@ describe("live annotation service edge cases", () => {
       expect(canceled).toBeInstanceOf(ConnectError);
       expect((canceled as ConnectError).code).toBe(Code.Canceled);
       server.segmentFrameError = new ConnectError("down", Code.Unavailable);
-      await expect(service.segmentFrame!(request)).rejects.toMatchObject({ rpcCode: "UNAVAILABLE" });
+      await expect(service.segmentFrame!(request)).rejects.toMatchObject({
+        rpcCode: "UNAVAILABLE",
+      });
     } finally {
       globals.forEach((name, index) => Reflect.set(globalThis, name, saved[index]));
     }
