@@ -195,20 +195,26 @@ export function createSegmentationRuntime(
       const merged = mergeSourceMetadata(current, source);
       // Masks are bound to the size they were read at; a camera that now decodes at another size
       // must have its loaded frames read and classified again.
-      const resized = current.videos.some((video) => {
-        const next = merged.videos.find((item) => item.id === video.id);
-        return (
-          video.width != undefined &&
-          video.height != undefined &&
-          (next?.width !== video.width || next.height !== video.height)
-        );
-      });
-      metadata = { videos: merged.videos, frames: merged.frames };
-      service.updateSourceMetadata?.(metadata);
-      reproject();
-      if (resized && store.getState().document != undefined) {
-        void store.getState().initialize();
+      const previous = new Map(current.videos.map((video) => [video.id, video]));
+      const resized = new Set(
+        merged.videos
+          .filter((video) => {
+            const before = previous.get(video.id);
+            return (
+              before?.width != undefined &&
+              before.height != undefined &&
+              (video.width !== before.width || video.height !== before.height)
+            );
+          })
+          .map(({ id }) => id),
+      );
+      const next = { videos: merged.videos, frames: merged.frames };
+      service.updateSourceMetadata?.(next);
+      metadata = next;
+      if (resized.size > 0) {
+        store.getState().invalidateVideoGeometry(resized);
       }
+      reproject();
     },
     dispose: () => {
       detachFollow();
