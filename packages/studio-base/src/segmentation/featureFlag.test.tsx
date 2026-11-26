@@ -10,7 +10,6 @@ import type { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/
 import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
 import { act, renderHook } from "@testing-library/react";
 
-
 import {
   openRecordName,
   SEGMENTATION_FEATURE_FLAG,
