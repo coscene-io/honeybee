@@ -27,7 +27,11 @@ function BoundTree({
     store,
     (state) => state.loading || ["running", "stopping"].includes(state.propagation.status),
   );
-  return <SegmentationTree store={store} disabled={!open || !sourceReady || unavailable} />;
+  // Waiting for the edited camera's image only holds back edits. Choosing rows and switching
+  // frames stay available, so a new seek or frame switch can replace the wait.
+  return (
+    <SegmentationTree store={store} disabled={!open || unavailable} editLocked={!sourceReady} />
+  );
 }
 
 const useStyles = makeStyles()((theme) => ({

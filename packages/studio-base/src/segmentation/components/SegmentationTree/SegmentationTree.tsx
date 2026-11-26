@@ -42,17 +42,24 @@ const useStyles = makeStyles()((theme) => ({
 
 export type SegmentationTreeProps = {
   store: StoreApi<SegmentationStore>;
+  /** Turns the whole tree off, navigation included. */
   disabled?: boolean;
+  /**
+   * Locks edits but keeps navigation: rows can still be chosen and camera strips still switch
+   * frames, for example while the edited camera is still waiting for its image.
+   */
+  editLocked?: boolean;
   onPointerActivate?: () => void;
 };
 
 export function SegmentationTree({
   store,
   disabled = false,
+  editLocked = false,
   onPointerActivate,
 }: SegmentationTreeProps): React.JSX.Element {
   const { classes } = useStyles();
-  const shell = useTreeShell({ store, disabled });
+  const shell = useTreeShell({ store, disabled, editLocked });
   const { env, hintId, collapsed, setCollapsed, setSelecting, error, setError } = shell;
   const { state, document, selection, selecting, locked, t } = env;
   const dlg = useTreeDialog(env);

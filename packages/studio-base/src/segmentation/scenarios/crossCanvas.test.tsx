@@ -84,6 +84,28 @@ describe("cross canvas", () => {
     store.getState().dispose();
   });
 
+  it("still switches camera and frame while the edited image is pending, with edits held back", async () => {
+    const store = await storeWithSeed();
+    testHost().session.setState({
+      open: true,
+      panelId: "left",
+      surfaces: {
+        left: { frameId: "frame-0", sourceReady: false },
+        right: { frameId: "side-0", sourceReady: true },
+      },
+    });
+    render(<SegmentationTree store={store} editLocked />);
+    expect(screen.getByRole("button", { name: "New" }).hasAttribute("disabled")).toBe(true);
+    const polygon = screen
+      .getByRole("treeitem", { name: "side · Polygon 1" })
+      .querySelector<HTMLButtonElement>("[data-tree-primary]")!;
+    expect(polygon.disabled).toBe(false);
+    fireEvent.click(polygon);
+    expect(store.getState().currentFrameId).toBe("side-0");
+    expect(testHost().session.getState().panelId).toBe("right");
+    store.getState().dispose();
+  });
+
   it("uses current preview frames outside editing and clears unknown images instead of showing the old edit frame", async () => {
     const store = await storeWithSeed();
     testHost().session.setState({

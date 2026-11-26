@@ -35,9 +35,11 @@ export type TreeShell = {
 export function useTreeShell({
   store,
   disabled,
+  editLocked = false,
 }: {
   store: StoreApi<SegmentationStore>;
   disabled: boolean;
+  editLocked?: boolean;
 }): TreeShell {
   const { t } = useTranslation("segmentation");
   const host = useSegmentationHost();
@@ -45,7 +47,8 @@ export function useTreeShell({
   const { document, index, surfaces, treeFrameIds, overview, selection, contextKey } =
     useTreeIndex(state);
   const hintId = useId();
-  const locked = disabled || ["running", "stopping"].includes(state.propagationStatus);
+  const locked =
+    disabled || editLocked || ["running", "stopping"].includes(state.propagationStatus);
   const [selecting, setSelecting] = useState(false);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [error, setError] = useState<string>();
