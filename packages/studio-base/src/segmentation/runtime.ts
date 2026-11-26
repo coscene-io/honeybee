@@ -86,6 +86,7 @@ export function createSegmentationRuntime(
     getPropagationCapabilities: service.getPropagationCapabilities?.bind(service),
     cancelPropagation: service.cancelPropagation?.bind(service),
     dispose: service.dispose?.bind(service),
+    releaseFrames: service.releaseFrames?.bind(service),
     segmentFrame: service.segmentFrame?.bind(service),
     loadFrameWindow: async (videoId, startSec, endSec, signal) =>
       await service.loadFrameWindow(videoId, startSec, endSec, signal),
@@ -193,9 +194,22 @@ export function createSegmentationRuntime(
         return;
       }
       const merged = mergeSourceMetadata(current, source);
+      // Masks are bound to the size they were read at; a camera that now decodes at another size
+      // must have its loaded frames read and classified again.
+      const resized = current.videos.some((video) => {
+        const next = merged.videos.find((item) => item.id === video.id);
+        return (
+          video.width != undefined &&
+          video.height != undefined &&
+          (next?.width !== video.width || next.height !== video.height)
+        );
+      });
       metadata = { videos: merged.videos, frames: merged.frames };
       service.updateSourceMetadata?.(metadata);
       reproject();
+      if (resized && store.getState().document != undefined) {
+        void store.getState().initialize();
+      }
     },
     dispose: () => {
       detachFollow();

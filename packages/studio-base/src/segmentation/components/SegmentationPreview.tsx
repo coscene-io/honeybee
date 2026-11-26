@@ -19,8 +19,8 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 
 import { polygonPath } from "../editorGeometry";
+import { frameAt, polygonsOnFrame } from "../frameIndex";
 import type { SegmentationImageMetadata, SegmentationPanelBridge } from "../imageSource";
-import { polygonsOf } from "../maskGeometry";
 import { OVERLAY_COLORS } from "../overlayColors";
 import type { SegmentationRuntime } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
@@ -105,14 +105,12 @@ function PreviewPolygons({
     return bridge.subscribeFrames(sync);
   }, [bridge, containerRef, currentTime, getPipeline, topic]);
 
-  const video = document?.videos.find((item) => item.topic === topic);
+  // Indexed by camera and exact log time, shared with the mask layer: the cost of finding the
+  // displayed frame does not grow with the frames seen so far.
   const shown =
-    captured &&
-    document?.frames.find(
-      (frame) =>
-        frame.videoId === video?.id &&
-        frame.logTimeNs === toNanoSec(captured.receiveTime).toString(),
-    );
+    captured && document
+      ? frameAt(document, topic, toNanoSec(captured.receiveTime).toString())
+      : undefined;
   useLayoutEffect(() => {
     host.session.setState((session) => ({
       previewFrames: { ...session.previewFrames, [topic]: shown?.id },
@@ -125,9 +123,7 @@ function PreviewPolygons({
       });
     };
   }, [host, topic, shown?.id]);
-  const polygons = Object.values(document?.annotations ?? {})
-    .filter((annotation) => annotation.frameId === shown?.id)
-    .flatMap((annotation) => polygonsOf(annotation));
+  const polygons = document && shown ? polygonsOnFrame(document, shown.id) : [];
   const view = captured?.nativeView;
   if (!box || !view || polygons.length === 0) {
     return undefined;

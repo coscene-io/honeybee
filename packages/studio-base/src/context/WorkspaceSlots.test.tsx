@@ -59,6 +59,17 @@ describe("WorkspaceSlots", () => {
     expect(store.getState().shortcutColumns).toEqual({});
   });
 
+  it("rejects integer-like ids, which would not read back in registration order", () => {
+    const store = createWorkspaceSlotsStore();
+    registerWorkspaceSlot(store, "shortcutColumns", "b", column);
+    registerWorkspaceSlot(store, "shortcutColumns", "a", column);
+    expect(Object.keys(store.getState().shortcutColumns)).toEqual(["b", "a"]);
+    expect(() => registerWorkspaceSlot(store, "shortcutColumns", "10", column)).toThrow(
+      /must not be an integer/,
+    );
+    expect(Object.keys(store.getState().shortcutColumns)).toEqual(["b", "a"]);
+  });
+
   it("creates a store of its own when none is passed", () => {
     const { result } = renderHook(
       () => {

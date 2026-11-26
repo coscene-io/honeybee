@@ -8,6 +8,7 @@
 import { createStore } from "zustand/vanilla";
 import type { StoreApi } from "zustand/vanilla";
 
+import { type TopicFrames, topicFrameIndex } from "../frameIndex";
 import {
   type SegmentationMaskGeometry,
   type SegmentationMaskOverlay,
@@ -35,13 +36,6 @@ export function createMaskOverlayControls(): MaskOverlayControls {
     peekOriginal: false,
   }));
 }
-
-type TopicIndex = {
-  frames: SegmentationFrame[];
-  /** BigInt(frames[i].logTimeNs), parsed once per index build, ascending. */
-  times: bigint[];
-  byLogTime: Map<string, number>;
-};
 
 /** Index of the first time strictly after `time`, by binary search (times.length when none). */
 function firstAfter(times: readonly bigint[], time: bigint): number {
@@ -89,13 +83,7 @@ export function createMaskOverlaySource({
   stats: MaskOverlaySourceStats;
 } {
   let nextId = 1;
-  let indexedFrames: SegmentationDocument["frames"] | undefined;
-  let indexedVideos: SegmentationDocument["videos"] | undefined;
-  // The runtime grows its source tables in place (registerSource splices them), so identity alone
-  // would miss frames listed later. Frames and videos are only ever added, never removed.
-  let indexedFrameCount = 0;
-  let indexedVideoCount = 0;
-  let topics = new Map<string, TopicIndex>();
+  let topics: Map<string, TopicFrames> | undefined;
   const geometries = new Map<
     string,
     { doc: SegmentationDocument; geometry?: SegmentationMaskGeometry }
@@ -121,43 +109,13 @@ export function createMaskOverlaySource({
     return runtime?.store.getState();
   }
 
-  function index(doc: SegmentationDocument): Map<string, TopicIndex> {
-    if (
-      doc.frames === indexedFrames &&
-      doc.videos === indexedVideos &&
-      doc.frames.length === indexedFrameCount &&
-      doc.videos.length === indexedVideoCount
-    ) {
-      return topics;
+  /** The shared frame index; geometry cached for an older index is dropped with it. */
+  function index(doc: SegmentationDocument): Map<string, TopicFrames> {
+    const next = topicFrameIndex(doc);
+    if (next !== topics) {
+      topics = next;
+      geometries.clear();
     }
-    const byVideo = new Map<string, SegmentationFrame[]>();
-    for (const frame of doc.frames) {
-      const list = byVideo.get(frame.videoId) ?? [];
-      list.push(frame);
-      byVideo.set(frame.videoId, list);
-    }
-    topics = new Map();
-    for (const video of doc.videos) {
-      if (video.topic == undefined) {
-        continue;
-      }
-      const keyed = (byVideo.get(video.id) ?? []).map((frame) => ({
-        frame,
-        time: BigInt(frame.logTimeNs),
-      }));
-      keyed.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
-      const frames = keyed.map((item) => item.frame);
-      topics.set(video.topic, {
-        frames,
-        times: keyed.map((item) => item.time),
-        byLogTime: new Map(frames.map((frame, position) => [frame.logTimeNs, position])),
-      });
-    }
-    indexedFrames = doc.frames;
-    indexedVideos = doc.videos;
-    indexedFrameCount = doc.frames.length;
-    indexedVideoCount = doc.videos.length;
-    geometries.clear();
     return topics;
   }
 

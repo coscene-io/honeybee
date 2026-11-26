@@ -664,3 +664,51 @@ it("asks the service to cancel a running propagation when the store is disposed"
   expect(cancel).toHaveBeenCalledTimes(1);
   expect(cancel.mock.calls[0]![0].instanceId).toBe("instance-1");
 });
+
+it("trims a supplied instance name and rejects one the editor would not accept", async () => {
+  const service = createMockSegmentationService({ controls: { delayMs: 0, streamDelayMs: 0 } });
+  const store = createSegmentationStore(service);
+  await store.getState().initialize();
+  expect(() => store.getState().addInstance("class-2", "   ")).toThrow();
+  expect(() => store.getState().addInstance("class-2", "x".repeat(101))).toThrow();
+  const id = store.getState().addInstance("class-2", "  Named  ");
+  expect(store.getState().document!.instances.find((item) => item.id === id)?.name).toBe("Named");
+  store.getState().dispose();
+});
+
+it("moves a polygon of another loaded frame to the target instance on that same frame", async () => {
+  const service = createMockSegmentationService({ controls: { delayMs: 0, streamDelayMs: 0 } });
+  const store = createSegmentationStore(service);
+  await store.getState().initialize();
+  const document = () => store.getState().document!;
+  const current = store.getState().currentFrameId!;
+  const other = Object.values(document().annotations).find(
+    (item) =>
+      item.frameId !== current &&
+      item.instanceId === "instance-1" &&
+      store.getState().isFrameReady(item.frameId) &&
+      polygonsOf(item).length > 0,
+  )!;
+  const polygonId = polygonsOf(other)[0]!.id;
+  const beforeOnCurrent = polygonsOf(
+    document().annotations[frameInstanceKey(current, "instance-2")],
+  ).length;
+
+  store.getState().mergePolygons([polygonId], "instance-2");
+
+  expect(
+    polygonsOf(document().annotations[frameInstanceKey(other.frameId, "instance-2")]).some(
+      (polygon) => polygon.id === polygonId,
+    ),
+  ).toBe(true);
+  expect(
+    polygonsOf(document().annotations[frameInstanceKey(other.frameId, "instance-1")]).some(
+      (polygon) => polygon.id === polygonId,
+    ),
+  ).toBe(false);
+  // Nothing moved onto the current frame.
+  expect(
+    polygonsOf(document().annotations[frameInstanceKey(current, "instance-2")]),
+  ).toHaveLength(beforeOnCurrent);
+  store.getState().dispose();
+});

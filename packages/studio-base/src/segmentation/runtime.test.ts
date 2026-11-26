@@ -10,7 +10,7 @@
 import { polygonsOf } from "./maskGeometry";
 import { createSegmentationRuntime } from "./runtime";
 import { createSegmentationHost } from "./segmentationHost";
-import { frameInstanceKey } from "./service";
+import { applySegmentationPatches, frameInstanceKey } from "./service";
 import { createMockSegmentationRuntime } from "./testing/mockRuntime";
 import {
   createMockSegmentationService,
@@ -384,4 +384,58 @@ it("forwards the service's methods to the store", async () => {
     .segmentFrame({ topic: "t", logTimeNs: "1", width: 1, height: 1, imageUrl: "", points: [] });
   expect(segmentFrame).toHaveBeenCalledTimes(1);
   runtime.dispose();
+});
+
+it("takes a camera's topic from a panel that binds it later", async () => {
+  const runtime = createMockSegmentationRuntime(createSeedDocument());
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  const original = runtime.store.getState().document!.videos[0]!;
+  const late = { ...original, id: "late-camera", topic: undefined };
+  runtime.registerSource({ videos: [late], frames: [] });
+  runtime.registerSource({ videos: [{ ...late, topic: "/camera/late" }], frames: [] });
+  expect(
+    runtime.store.getState().document!.videos.find((video) => video.id === late.id)?.topic,
+  ).toBe("/camera/late");
+  runtime.dispose();
+});
+
+it("reads loaded geometry again when a camera decodes at another size", async () => {
+  const runtime = createMockSegmentationRuntime(createSeedDocument());
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  const load = jest.spyOn(runtime.service, "loadDocument");
+  const video = runtime.store.getState().document!.videos[0]!;
+  // The same size again changes nothing.
+  runtime.registerSource({ videos: [{ ...video }], frames: [] });
+  expect(load).not.toHaveBeenCalled();
+  runtime.registerSource({
+    videos: [{ ...video, width: video.width! * 2, height: video.height! * 2 }],
+    frames: [],
+  });
+  expect(load).toHaveBeenCalledTimes(1);
+  runtime.dispose();
+});
+
+it("summarizes an unloaded merge with a mask as a mask, without double counting", () => {
+  const document = createSeedDocument();
+  const frame = "frame-9";
+  document.annotationSummaries = {
+    [frameInstanceKey(frame, "instance-1")]: { polygonCount: 2, pointCount: 6, maskArea: 50 },
+    [frameInstanceKey(frame, "instance-2")]: { polygonCount: 0, pointCount: 0, maskArea: 40 },
+  };
+  for (const key of Object.keys(document.annotations)) {
+    if (JSON.parse(key)[0] === frame) {
+      delete document.annotations[key];
+    }
+  }
+  const merged = applySegmentationPatches(document, [
+    { instanceMerges: { "instance-1": "instance-2" } },
+  ]);
+  expect(merged.annotationSummaries[frameInstanceKey(frame, "instance-2")]).toEqual({
+    polygonCount: 0,
+    pointCount: 0,
+    // The union is at least the larger side; the sum would count the overlap twice.
+    maskArea: 50,
+  });
 });
