@@ -6,6 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const userScriptEditor = {
+  selectScript: "Select a script…",
+  openInSidebar: "Open User Scripts in the right sidebar",
+  openLayout: "Open a layout to edit user scripts.",
   autoFormatOnSave: "Auto-format on save",
   welcomeDescription:
     "Welcome to User Scripts!<br/>Get started by reading the <link>docs</link>, or just create a new script.",
@@ -16,6 +19,9 @@ export const userScriptEditor = {
   scriptsTabTooltip: "Scripts ({{count}})",
   utilitiesTabTooltip: "Utilities",
   templatesTabTooltip: "Templates",
+  rotationSetting: "Selected script",
+  switchToStandardRotation: "Switch rotate() to right-hand rotation",
+  switchToLegacyRotation: "Switch rotate() to legacy rotation",
   scriptsHeader: "Scripts",
   untitledScript: "Untitled script",
   rename: "Rename",
@@ -28,7 +34,13 @@ export const userScriptEditor = {
   utilitiesSubheader:
     'You can import any of these modules into your script using the following syntax: <pre>import { ... } from "./pointClouds.ts".</pre>',
   alertsTab: "Alerts",
+  timingTab: "Timing",
+  noTimings: "No compiled scripts in this data source.",
+  timingSummary: "{{calls}} calls · mean {{mean}} ms · max {{max}} ms · compile {{compile}} ms",
   logsTab: "Logs",
+  confirmDeleteScript: "Delete “{{name}}”?",
+  cancel: "Cancel",
+  copyLogs: "Copy all logs",
   clearLogs: "Clear logs",
   saveShortcutHint: "Ctrl/Cmd + S",
   saved: "Saved",

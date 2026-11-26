@@ -160,6 +160,7 @@ function MockExtensionCatalogProvider(props: PropsWithChildren<ExtensionCatalogP
           loadState: "ready",
           loadErrors: [],
           installedExtensions: [],
+          installedUserScriptUtilities: [],
           installedMessageConverters: props.messageConverters ?? [],
           installedPanels: {},
           installedTopicAliasFunctions: [],

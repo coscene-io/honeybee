@@ -107,7 +107,7 @@ export const PanelCatalog = forwardRef<HTMLDivElement, Props>(function PanelCata
 
   const namespacedPanels = useMemo(() => {
     // Remove namespace if panel title is unique.
-    const panels = panelCatalog.getPanels();
+    const panels = panelCatalog.getPanels().filter((panel) => panel.legacy !== true);
     const countByTitle = _.countBy(panels, (panel) => panel.title);
     return panels.map((panel) => {
       if ((countByTitle[panel.title] ?? 0) > 1) {

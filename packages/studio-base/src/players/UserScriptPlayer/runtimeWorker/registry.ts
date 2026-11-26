@@ -82,18 +82,36 @@ const getArgsToPrint = (args: unknown[]) => {
 
 // Exported for tests.
 export const requireImplementation = (id: string, projectCode: Map<string, string>): unknown => {
-  const requestedFile = `${path.join(DEFAULT_STUDIO_SCRIPT_PREFIX, id)}.js`;
-  for (const [file, source] of projectCode.entries()) {
-    if (requestedFile.endsWith(file)) {
-      const sourceExports = {};
-      const require = (reqId: string) => requireImplementation(reqId, projectCode);
+  return createRequire(projectCode)(id);
+};
+
+// CommonJS modules share exports within one registration, including circular imports.
+function createRequire(projectCode: Map<string, string>) {
+  const modules = new Map<string, Record<string, unknown>>();
+  function require(id: string): unknown {
+    const file = path.join(DEFAULT_STUDIO_SCRIPT_PREFIX, id.endsWith(".js") ? id : id + ".js");
+    const cached = modules.get(file);
+    if (cached) {
+      return cached;
+    }
+    const source =
+      projectCode.get(file) ?? projectCode.get(path.relative(DEFAULT_STUDIO_SCRIPT_PREFIX, file));
+    if (source == undefined) {
+      throw new Error(`User script required unknown module: '${id}'`);
+    }
+    const exports = {};
+    modules.set(file, exports);
+    try {
       // eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
-      new Function("exports", "require", source)(sourceExports, require);
-      return sourceExports;
+      new Function("exports", "require", source)(exports, require);
+      return exports;
+    } catch (error) {
+      modules.delete(file);
+      throw error;
     }
   }
-  throw new Error(`User script required unknown module: '${id}'`);
-};
+  return require;
+}
 
 export const registerScript = ({
   scriptCode,
@@ -119,7 +137,7 @@ export const registerScript = ({
   try {
     const nodeExports: { default?: typeof nodeCallback } = {};
 
-    const require = (id: string) => requireImplementation(id, projectCode);
+    const require = createRequire(projectCode);
 
     // Using new Function in order to execute user-input text in User Scripts as code
     // eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
@@ -161,9 +179,16 @@ export const processMessage = ({
     }
     userScriptLogs.push(...args.map((value) => ({ source: "processMessage" as const, value })));
   };
+  const start = performance.now();
   try {
     const newMessage = nodeCallback(message, globalVariables);
-    return { message: newMessage, error: undefined, userScriptLogs, userScriptDiagnostics };
+    return {
+      elapsedMs: performance.now() - start,
+      message: newMessage,
+      error: undefined,
+      userScriptLogs,
+      userScriptDiagnostics,
+    };
   } catch (err: unknown) {
     const error: string = (err as Error).toString();
     const diagnostic: Diagnostic = {
@@ -174,6 +199,7 @@ export const processMessage = ({
     };
 
     return {
+      elapsedMs: performance.now() - start,
       message: undefined,
       error: undefined,
       userScriptLogs,

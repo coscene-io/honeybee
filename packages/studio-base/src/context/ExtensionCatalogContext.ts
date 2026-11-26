@@ -15,6 +15,7 @@ import type {
   Immutable,
   PanelSettings,
   RegisterMessageConverterArgs,
+  UserScriptUtility,
 } from "@foxglove/studio";
 import type { TopicAliasFunctions } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
 import type { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
@@ -48,6 +49,7 @@ export type ExtensionCatalog = Immutable<{
   installedPanels: undefined | Record<string, RegisteredPanel>;
   installedMessageConverters:
     undefined | Omit<RegisterMessageConverterArgs<unknown>, "panelSettings">[];
+  installedUserScriptUtilities: UserScriptUtility[];
   installedTopicAliasFunctions: undefined | TopicAliasFunctions;
   panelSettings: undefined | Record<string, Record<string, PanelSettings<unknown>>>;
 }>;

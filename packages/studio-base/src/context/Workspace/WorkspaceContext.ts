@@ -14,6 +14,7 @@ import type { AppSettingsTab } from "@foxglove/studio-base/components/AppSetting
 import type { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
 import type { MomentTimelineSettings } from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import type { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type UserScriptEditorConfig from "@foxglove/studio-base/panels/UserScriptEditor/Config";
 import type { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
 export type MomentSubtitlePosition = {
@@ -40,6 +41,7 @@ export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
 export const RightSidebarItemKeys = [
   "extensions",
   "variables",
+  "user-scripts",
   "studio-logs-settings",
   "performance",
   "record-info",
@@ -78,6 +80,7 @@ export type WorkspaceContextStore = {
     };
     right: {
       item: undefined | RightSidebarItemKey;
+      userScriptEditor?: UserScriptEditorConfig;
       open: boolean;
       size: undefined | number;
     };

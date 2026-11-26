@@ -5,12 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { UserScriptUtility } from "@foxglove/studio";
 import { Topic } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+import type { UserScript } from "@foxglove/studio-base/types/panels";
 
 export type TransformArgs = {
   name: string;
   sourceCode: string;
+  utilities?: readonly UserScriptUtility[];
+  rotationConvention?: UserScript["rotationConvention"];
   topics: Topic[];
   rosLib: string;
   typesLib: string;

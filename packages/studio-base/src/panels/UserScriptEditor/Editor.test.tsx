@@ -57,13 +57,14 @@ function mockCreateModel(value: string, _language: string, uri: ReturnType<typeo
       currentValue = next;
     }),
     updateOptions: jest.fn(),
+    dispose: () => mockModels.delete(uri.path),
     uri,
   };
   mockModels.set(uri.path, model);
   return model;
 }
 
-const mockMonaco = {
+const mockMonacoApi = {
   editor: {
     createModel: mockCreateModel,
     defineTheme: jest.fn(),
@@ -73,6 +74,8 @@ const mockMonaco = {
     registerDocumentFormattingEditProvider: jest.fn(),
   },
 };
+
+let mockMonaco = { ...mockMonacoApi };
 
 jest.mock("@mui/material", () => ({
   useTheme: () => ({ palette: { mode: "dark" } }),
@@ -142,6 +145,7 @@ jest.mock("monaco-editor/esm/vs/language/typescript/monaco.contribution.js", () 
 describe("UserScriptEditor Editor", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockMonaco = { ...mockMonacoApi };
     mockModels.clear();
     mockMountEditor = undefined;
     mockAddExtraLibSpy.mockClear();
@@ -181,6 +185,35 @@ describe("UserScriptEditor Editor", () => {
     });
     expect(editor.setModel.mock.calls[0]![0].getValue()).toBe("latest");
     expect(editor.setSelection).toHaveBeenCalledWith(selection);
+  });
+
+  it("replaces extension models on refresh and removes them on uninstall", () => {
+    const props = {
+      autoFormatOnSave: false,
+      rosLib: "",
+      typesLib: "",
+      save: jest.fn(),
+      setScriptCode: jest.fn(),
+      setScriptOverride: jest.fn(),
+      script: { code: "", filePath: "script.ts", readOnly: false },
+    };
+    const uri = mockUriParse("file:///studio_script/team.ts");
+    const { rerender } = render(
+      <Editor
+        {...props}
+        files={[{ fileName: "team.ts", sourceCode: "export const value = 1;" }]}
+      />,
+    );
+    expect(mockGetModel(uri)?.getValue()).toContain("= 1");
+    rerender(
+      <Editor
+        {...props}
+        files={[{ fileName: "team.ts", sourceCode: "export const value = 2;" }]}
+      />,
+    );
+    expect(mockGetModel(uri)?.getValue()).toContain("= 2");
+    rerender(<Editor {...props} files={[]} />);
+    expect(mockGetModel(uri)).toBeUndefined();
   });
 
   it("configures Monaco TypeScript resolution for virtual user script modules", () => {

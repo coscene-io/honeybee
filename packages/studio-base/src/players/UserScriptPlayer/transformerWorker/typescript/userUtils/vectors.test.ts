@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { vectorAddition, dot, cross, rotate } from "./vectors";
+import { vectorAddition, dot, cross, rotateVector, rotateLegacy } from "./vectors";
 
 describe("vectors", () => {
   it("dot", () => {
@@ -22,8 +22,13 @@ describe("vectors", () => {
       ]),
     ).toEqual([2, 2, 2]);
   });
-  it("rotate", () => {
-    expect(rotate({ x: 1, y: 1, z: 1, w: 1 }, { x: 1, y: 1, z: 1 })).toEqual({
+  it("distinguishes forward and historical rotations", () => {
+    const q = { x: 0, y: 0, z: Math.SQRT1_2, w: Math.SQRT1_2 };
+    expect(rotateVector(q, { x: 1, y: 0, z: 0 }).y).toBeCloseTo(1);
+    expect(rotateLegacy(q, { x: 1, y: 0, z: 0 }).y).toBeCloseTo(-1);
+  });
+  it("preserves historical non-unit quaternion results", () => {
+    expect(rotateLegacy({ x: 1, y: 1, z: 1, w: 1 }, { x: 1, y: 1, z: 1 })).toEqual({
       x: 4,
       y: 4,
       z: 4,

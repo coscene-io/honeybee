@@ -42,6 +42,7 @@ function makeExtensionCatalogStore(panel: RegisteredPanel) {
     loadErrors: [],
     installedExtensions: [],
     installedPanels: { "sample-extension.sample-panel": panel },
+    installedUserScriptUtilities: [],
     installedMessageConverters: [],
     installedTopicAliasFunctions: [],
     panelSettings: {},

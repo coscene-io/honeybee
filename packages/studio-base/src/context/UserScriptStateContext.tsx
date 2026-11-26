@@ -15,6 +15,7 @@ import { ros_lib_dts } from "@foxglove/studio-base/players/UserScriptPlayer/tran
 import type {
   Diagnostic,
   UserScriptLog,
+  UserScriptTiming,
 } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 
 type UserScriptState = {
@@ -29,8 +30,13 @@ type UserScriptState = {
 };
 
 export type UserScriptStore = {
+  // Drafts interrupted by a layout switch are restored when that layout is reopened.
+  // Scoped to the workspace session and never executed by the player until saved.
+  interruptedDrafts: Map<string, { sourceCode: string; editedCode: string }>;
   state: UserScriptState;
+  timings?: ReadonlyMap<string, UserScriptTiming>;
   actions: {
+    setTimings: (timings?: ReadonlyMap<string, UserScriptTiming>) => void;
     setUserScriptDiagnostics: (scriptId: string, diagnostics: readonly Diagnostic[]) => void;
     addUserScriptLogs: (scriptId: string, logs: readonly UserScriptLog[]) => void;
     clearUserScriptLogs: (scriptId: string) => void;
@@ -45,12 +51,16 @@ UserScriptStateContext.displayName = "UserScriptStateContext";
 function create() {
   return createStore<UserScriptStore>((set) => {
     return {
+      interruptedDrafts: new Map(),
       state: {
         rosLib: ros_lib_dts,
         typesLib: generateEmptyTypesLib(),
         scriptStates: {},
       },
       actions: {
+        setTimings: (timings) => {
+          set({ timings });
+        },
         setUserScriptDiagnostics: (scriptId: string, diagnostics: readonly Diagnostic[]) => {
           set((prevState) => ({
             state: {

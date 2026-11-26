@@ -26,6 +26,7 @@ import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalC
 import UserScriptPlayer from ".";
 import { DIAGNOSTIC_SEVERITY, SOURCES, ERROR_CODES } from "./constants";
 import exampleDatatypes from "./transformerWorker/fixtures/example-datatypes";
+import markerTemplate from "./transformerWorker/typescript/templates/marker.ts.template";
 
 const nodeId = "nodeId";
 
@@ -152,6 +153,85 @@ UserScriptPlayer.CreateTransformWorker = () => {
 };
 
 describe("UserScriptPlayer", () => {
+  it.each(["./markers", "./markers.ts"])(
+    "publishes the Marker template with %s",
+    async (modulePath) => {
+      const source = new FakePlayer();
+      const player = new UserScriptPlayer(source, defaultUserScriptActions);
+      const [emitted] = setListenerHelper(player);
+      const output = "/studio_script/my_custom_topic";
+      player.setSubscriptions([{ topic: output }]);
+      await player.setUserScripts({
+        marker: {
+          name: "Markers",
+          sourceCode: markerTemplate.replace('"./markers"', `"${modulePath}"`),
+        },
+      });
+      await source.emit({
+        activeData: {
+          ...basicPlayerState,
+          topics: [{ name: "/input/topic", schemaName: "std_msgs/ColorRGBA" }],
+          datatypes: exampleDatatypes,
+          messages: [{ ...upstreamFirst, topic: "/input/topic", schemaName: "std_msgs/ColorRGBA" }],
+        },
+      });
+      expect((await emitted)?.messages.find((msg) => msg.topic === output)?.message).toMatchObject({
+        id: 0,
+        frame_locked: false,
+      });
+      expect(player.timings.get("marker")?.calls).toBe(1);
+      await player.close();
+      expect(player.timings.size).toBe(0);
+    },
+  );
+
+  it("recompiles extension dependencies and preserves the saved script's rotation convention", async () => {
+    const fake = new FakePlayer();
+    const player = new UserScriptPlayer(fake, defaultUserScriptActions);
+    const [first, updated, migrated, removed] = setListenerHelper(player, 4);
+    const output = "/derived";
+    const script = {
+      name: "rotation",
+      sourceCode: `
+      import { value } from "./team.ts";
+      import { rotate } from "./vectors";
+      export const inputs = ["/np_input"];
+      export const output = "/derived";
+      export default function script(): { y: number } {
+        return { y: value * rotate({ x:0,y:0,z:Math.SQRT1_2,w:Math.SQRT1_2 }, {x:1,y:0,z:0}).y };
+      }`,
+    };
+    const utilities = (scale: number) => [
+      { name: "team.ts", source: 'export { value } from "./scale.ts";' },
+      { name: "scale.ts", source: `export const value = ${scale};` },
+    ];
+    player.setSubscriptions([{ topic: output }]);
+    const activeData = {
+      ...basicPlayerState,
+      messages: [upstreamFirst],
+      topics: [{ name: "/np_input", schemaName: "std_msgs/ColorRGBA" }],
+      datatypes: exampleDatatypes,
+    };
+    await player.setUserScripts({ id: script }, utilities(1));
+    await fake.emit({ activeData });
+    const y = (messages?: readonly MessageEvent[]) =>
+      (messages?.find((msg) => msg.topic === output)?.message as { y?: number } | undefined)?.y;
+    expect(y((await first)?.messages)).toBeCloseTo(-1);
+    await player.setUserScripts({ id: script }, utilities(2));
+    await fake.emit({ activeData: { ...activeData, messages: [upstreamSecond] } });
+    expect(y((await updated)?.messages)).toBeCloseTo(-2);
+    await player.setUserScripts(
+      { id: { ...script, rotationConvention: "standard" } },
+      utilities(2),
+    );
+    await fake.emit({ activeData: { ...activeData, messages: [upstreamFirst] } });
+    expect(y((await migrated)?.messages)).toBeCloseTo(2);
+    await player.setUserScripts({ id: script }, []);
+    await fake.emit({ activeData: { ...activeData, messages: [upstreamSecond] } });
+    expect((await removed)?.topicNames).not.toContain(output);
+    await player.close();
+  });
+
   describe("default player behavior", () => {
     it("waits for the underlying player to finish closing and is idempotent", async () => {
       const fakePlayer = new FakePlayer();
@@ -688,7 +768,7 @@ describe("UserScriptPlayer", () => {
       let { topicNames, messages } = await done2!;
 
       expect(messages.length).toEqual(0);
-      expect(topicNames).toEqual([`${DEFAULT_STUDIO_SCRIPT_PREFIX}1`]);
+      expect(topicNames).toEqual(["/np_input", `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`]);
 
       ({ topicNames, messages } = await done3!);
       expect(messages.length).toEqual(0);
@@ -1844,7 +1924,7 @@ describe("UserScriptPlayer", () => {
 
       await userScriptPlayer.setUserScripts({});
       const { topicNames: secondTopicNames }: any = await secondDone;
-      expect(secondTopicNames).toEqual(["/np_input", `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`]);
+      expect(secondTopicNames).toEqual(["/np_input"]);
 
       await fakePlayer.emit({
         activeData: {

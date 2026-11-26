@@ -18,6 +18,7 @@ import {
   PanelSettings,
   RegisterMessageConverterArgs,
   TopicAliasFunction,
+  UserScriptUtility,
 } from "@foxglove/studio";
 import {
   ExtensionCatalog,
@@ -26,6 +27,7 @@ import {
   RegisteredPanel,
 } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { TopicAliasFunctions } from "@foxglove/studio-base/players/TopicAliasingPlayer/aliasing";
+import { reservedUtilityNames } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/rawUserUtils";
 import { ExtensionLoader } from "@foxglove/studio-base/services/ExtensionLoader";
 import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
 
@@ -142,6 +144,7 @@ type MessageConverter = RegisterMessageConverterArgs<unknown> & {
 type ContributionPoints = {
   panels: Record<string, RegisteredPanel>;
   messageConverters: MessageConverter[];
+  utilities: UserScriptUtility[];
   topicAliasFunctions: TopicAliasFunctions;
   panelSettings: Record<string, Record<string, PanelSettings<unknown>>>;
 };
@@ -186,6 +189,7 @@ function activateExtension(
   // the fully qualified id is the extension name + panel name
   const panels: Record<string, RegisteredPanel> = {};
 
+  const utilities: UserScriptUtility[] = [];
   const messageConverters: RegisterMessageConverterArgs<unknown>[] = [];
 
   const panelSettings: Record<string, Record<string, PanelSettings<unknown>>> = {};
@@ -241,6 +245,20 @@ function activateExtension(
       _.merge(panelSettings, converterSettings);
     },
 
+    registerUserScriptUtility: ({ name, source }) => {
+      if (
+        !/^[a-zA-Z0-9_-]+\.ts$/.test(name) ||
+        typeof source !== "string" ||
+        reservedUtilityNames.has(name.toLowerCase()) ||
+        name.toLowerCase().startsWith("user-script-")
+      ) {
+        throw new Error(`Invalid or reserved user script utility: ${name}`);
+      }
+      if (utilities.some((utility) => utility.name.toLowerCase() === name.toLowerCase())) {
+        throw new Error(`Duplicate user script utility: ${name}`);
+      }
+      utilities.push({ name, source });
+    },
     registerTopicAliases: (aliasFunction: TopicAliasFunction) => {
       topicAliasFunctions.push({ aliasFunction, extensionId: extension.id });
     },
@@ -261,6 +279,7 @@ function activateExtension(
       contributionPoints: {
         panels,
         messageConverters,
+        utilities,
         topicAliasFunctions,
         panelSettings,
       },
@@ -272,6 +291,7 @@ function activateExtension(
     contributionPoints: {
       panels,
       messageConverters,
+      utilities,
       topicAliasFunctions,
       panelSettings,
     },
@@ -433,14 +453,32 @@ function createExtensionRegistryStore(
       const allContributionPoints: ContributionPoints = {
         panels: {},
         messageConverters: [],
+        utilities: [],
         topicAliasFunctions: [],
         panelSettings: {},
       };
+      const utilityNames = new Set<string>();
       for (const entry of listedExtensions) {
         extensionList.push(entry.extension);
         const contributionPoints = entry.snapshot?.contributionPoints;
         if (contributionPoints == undefined) {
           continue;
+        }
+        for (const utility of contributionPoints.utilities) {
+          const key = utility.name.toLowerCase();
+          if (utilityNames.has(key)) {
+            loadErrors.push(
+              makeLoadError(
+                entry.loader,
+                "activate",
+                new Error(`Duplicate user script utility: ${utility.name}`),
+                entry.extension.id,
+              ),
+            );
+            continue;
+          }
+          utilityNames.add(key);
+          allContributionPoints.utilities.push(utility);
         }
         Object.assign(allContributionPoints.panels, contributionPoints.panels);
         _.merge(allContributionPoints.panelSettings, contributionPoints.panelSettings);
@@ -483,6 +521,12 @@ function createExtensionRegistryStore(
           loadErrors: result.loadErrors,
           installedExtensions: result.extensionList,
           installedPanels: result.contributionPoints.panels,
+          installedUserScriptUtilities: _.isEqual(
+            result.contributionPoints.utilities,
+            get().installedUserScriptUtilities,
+          )
+            ? get().installedUserScriptUtilities
+            : result.contributionPoints.utilities,
           installedMessageConverters: result.contributionPoints.messageConverters,
           installedTopicAliasFunctions: result.contributionPoints.topicAliasFunctions,
           panelSettings: result.contributionPoints.panelSettings,
@@ -543,6 +587,7 @@ function createExtensionRegistryStore(
 
       installedPanels: {},
 
+      installedUserScriptUtilities: [],
       installedMessageConverters: mockMessageConverters ?? [],
 
       installedTopicAliasFunctions: [],

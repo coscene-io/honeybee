@@ -30,9 +30,9 @@ export function cross(vec1: vec3, vec2: vec3): vec3 {
 }
 
 /*
- * Performs a rotation transformation on a point.
+ * Historical Honeybee rotation. Kept for saved layouts and scripts using non-unit inputs.
  */
-export function rotate(rotation: Rotation, point: Point): Point {
+export function rotateLegacy(rotation: Rotation, point: Point): Point {
   const v: vec3 = [point.x, point.y, point.z];
 
   // Extract the vector part of the quaternion
@@ -51,6 +51,19 @@ export function rotate(rotation: Rotation, point: Point): Point {
     x: d[0]!,
     y: d[1]!,
     z: d[2]!,
+  };
+}
+
+/** Rotate a point by a unit quaternion using the right-hand convention. */
+export function rotateVector(rotation: Rotation, point: Point): Point {
+  const { x, y, z, w } = rotation;
+  const tx = 2 * (y * point.z - z * point.y);
+  const ty = 2 * (z * point.x - x * point.z);
+  const tz = 2 * (x * point.y - y * point.x);
+  return {
+    x: point.x + w * tx + y * tz - z * ty,
+    y: point.y + w * ty + z * tx - x * tz,
+    z: point.z + w * tz + x * ty - y * tx,
   };
 }
 

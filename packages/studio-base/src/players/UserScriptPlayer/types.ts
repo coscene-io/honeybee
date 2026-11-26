@@ -51,7 +51,16 @@ export type ScriptData = {
   globalVariables: readonly string[];
 };
 
+export type UserScriptTiming = {
+  name: string;
+  compileMs: number;
+  calls: number;
+  totalMs: number;
+  maxMs: number;
+};
+
 export type ScriptRegistration = {
+  timing: UserScriptTiming;
   scriptId: string;
   scriptData: ScriptData;
   inputs: readonly string[];
@@ -81,6 +90,7 @@ export type RegistrationOutput = {
 };
 
 export type ProcessMessageOutput = {
+  elapsedMs: number;
   message: Record<string, unknown> | undefined;
   error?: string;
   userScriptLogs: UserScriptLog[];
