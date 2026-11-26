@@ -1,6 +1,6 @@
 # The segmentation editor and the AnnotationService
 
-The editor reads and writes the annotations of cloud recordings through the live `AnnotationService` (cosceneapis #866, gRPC-Web). Only cloud recordings can be annotated. The feature is behind the rollout flag `honeybee_semantic_segmentation` (see [Enabling and release order](#enabling-and-release-order)). With the flag off, or with anything but a cloud record open, the "Edit spatial annotation" entry is **hidden** (not disabled) and no `AnnotationService` request is made. See [segmentation-geometry-model.md](segmentation-geometry-model.md) for the geometry model (one observation has exactly one geometry) and [segmentation-mask-render.md](segmentation-mask-render.md) for how masks are drawn on the GPU.
+The editor reads and writes annotations for eligible cloud recordings through the live `AnnotationService` (cosceneapis #866, gRPC-Web). The **Edit spatial annotation** entry and annotation requests require an eligible recording and an effective rollout flag. See [Enabling and release order](#enabling-and-release-order), [the geometry model](segmentation-geometry-model.md), and [GPU mask rendering](segmentation-mask-render.md).
 
 ## Terms
 
@@ -9,7 +9,7 @@ The editor reads and writes the annotations of cloud recordings through the live
 | segmentation       | This feature: the `segmentation/` source folder, `Segmentation*` types and components, and the `segmentation` i18n namespace.                                          |
 | spatial annotation | The backend API only: `services/api/spatial-annotation`, the `AnnotationService` protocol, and the persisted `spatial://` reference URIs.                              |
 | flag name          | `honeybee_semantic_segmentation`. It is already in use outside the code, so it keeps its original wording, as does the `spatial://` URI format.                        |
-| host               | The objects one Workspace shares between its Image panels and sidebar (session, runtime registry, caches), created while the flag is on and provided by React context. |
+| host               | The session, runtime registry, and caches that one workspace provides to its Image panels and sidebar through React context.                                            |
 | runtime            | The store and service of one recording. Panels that annotate the same recording share it.                                                                              |
 | panel bridge       | What one Image panel's renderer, which lives in its own React root, exchanges with the editor.                                                                         |
 
@@ -41,12 +41,15 @@ The order of one submission (`submit`):
 
 The adapter's cache is updated after each successful catalog request, so a retry does not create anything twice. A create that returns `ALREADY_EXISTS` (the previous response was lost) converges by updating, as the contract prescribes.
 
+When the store evicts distant frames, `releaseFrames` also drops their loaded markers, geometry, unreadable wire observations, and `occluded` values from the adapter. Ordinary eviction keeps annotation summaries and protects frames with staged edits or pending submissions, including failed batches awaiting retry. If a later submission needs an evicted frame, the adapter reads it again before building the whole-frame snapshot.
+
 ## Geometry mapping
 
 - The adapter reads polygon coordinates by dividing them by the topic's decoded dimensions. Server coordinates outside the image can produce values outside `[0, 1]` in the editor document. On write, the adapter scales and clamps them to `[0, width] × [0, height]` before validation. This can change an existing polygon on a whole-frame save. A polygon ID in another format gets a deterministic UUID derived from the record, instance, and ID.
 - Masks: only `counts` is sent and received; width and height are bound to the topic's decoded size. Before saving, the mask is decoded at that size and the whole save is rejected if the pixel count is not width × height (the backend does not check this).
 - The canvas reports unreadable observations. The adapter counts failed mask decodes in `maskSizeMismatches` and keeps unreadable observations as received. It sends them back unchanged on save until the user replaces or clears the instance on that frame.
-- `occluded`: the editor has no such field. The adapter remembers the server's value and sends it back unchanged.
+- The editor keeps the server's `occluded` value for existing observations and sends it back on save. New observations default to `false`. After a successful frame save, the adapter drops values for observations absent from the confirmed snapshot.
+- When a registered camera's decoded dimensions change, the runtime invalidates loaded geometry and summaries for that camera and reclassifies observations when it reads those frames again. The current frame stays selected. The store reloads its window if the current frame needs geometry and propagation is neither running nor stopping.
 
 ## frame_time: truncation to microseconds
 
@@ -60,7 +63,7 @@ Implemented in `segmentation/frameTime.ts`.
 ## Save semantics and concurrency
 
 - The backend keeps only the current state, without versions. Undo and redo apply only to local operations that have not been submitted; a deleted id cannot be reused, so a submitted deletion cannot be restored under the same id.
-- One `SaveAnnotation` saves all of its frames atomically. Catalog requests and the frame save are independent: a failure half way does not roll back the requests that succeeded. The store marks the batch as failed, keeps the local changes, and a retry continues from the state already reached.
+- One `SaveAnnotation` saves all of its frames atomically. If a later request fails, any successful catalog requests or frame save still apply. The store keeps the failed batch for retry. Discarding a failed batch first reloads the server catalog and current frame window so that any writes that succeeded remain visible.
 - The last save of a frame wins and replaces the **whole frame** (the snapshot includes other people's instances). When two people edit the same frame, the later save overwrites the earlier one; different frames do not affect each other. The catalog is overwritten field by field (`update_mask` names only the changed fields). The editor does not fetch other people's changes on its own.
 - Operations that have not been submitted exist only in memory and are lost on reload.
 - A snapshot includes editor observations with foreground geometry and preserves any unreadable observations that the user has yet to replace or clear, including empty masks and observations with no geometry. The adapter sends empty `annotations` once the frame has neither foreground geometry nor preserved observations.
@@ -99,6 +102,7 @@ The published `@coscene-io/cosceneapis-es-v2` has no `services/annotation_pb` ye
 ## Enabling and release order
 
 - The feature is controlled by the GrowthBook flag `honeybee_semantic_segmentation`, off by default. Without a GrowthBook provider it falls back to `FEATURE_FLAG_GROWTHBOOK.honeybee_semantic_segmentation` in cos-config.
-- With the flag off, the workspace leaves its lazy segmentation host and slots unloaded. With the flag on, it loads both even for local sources. The Image panel adapter, annotation controls, and `AnnotationService` requests require an eligible cloud record (a valid record name in Core Data and the `coscene-data-platform` data source).
+- The workspace lazily loads the segmentation host and slots when the flag is on, including for local sources. The Image panel adapter, annotation controls, and `AnnotationService` requests also require an eligible cloud recording. The data source must be `coscene-data-platform` and Core Data must hold a valid record name. During a switch to a different cloud recording, the editor waits until Core Data matches the requested record.
+- If GrowthBook turns the flag off while the host holds unsaved work, the editor and the browser's leave-page guard stay active. The flag change takes effect after the work is saved or discarded and any running propagation has ended.
 - Release order: deploy the `AnnotationService` to the target environment first (backend #2403, currently only on dev), then turn the flag on there.
 - Operations that have not been submitted exist only in memory. While there is unsaved annotation work the browser asks before leaving the page (the desktop app does not). After switching to another record, the runtime with unsaved work stays in memory; retry or discard it by returning to the original record.
