@@ -151,8 +151,12 @@ export function createPropagationRunner(shared: StoreInternals): Pick<
           !initial.instances.some((instance) => instance.id === seed.instanceId) ||
           (seed.kind === "mask"
             ? maskOf(annotation)?.counts !== seed.mask.counts
-            : seed.polygons.some(
-                (polygon) => !polygonsOf(annotation).some((item) => item.id === polygon.id),
+            : // The same polygon id can hold edited points: compare the geometry, not only ids.
+              seed.polygons.some(
+                (polygon) =>
+                  !polygonsOf(annotation).some(
+                    (item) => item.id === polygon.id && _.isEqual(item.points, polygon.points),
+                  ),
               ))
         ) {
           throw new SegmentationError("errorSeedMismatch");

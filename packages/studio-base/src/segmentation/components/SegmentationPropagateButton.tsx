@@ -13,10 +13,10 @@ import { useStore } from "zustand";
 
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 
+import { buildCanvasPropagationScope } from "../propagationSeeds";
 import type { SegmentationRuntime, SegmentationSurface } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import { PropagationForm } from "./PropagationForm";
-import { buildCanvasPropagationScope } from "../propagationSeeds";
 
 /**
  * Propagation for one image panel. The service takes every instance of one canvas in a single
@@ -57,6 +57,8 @@ function CanvasPropagate({
   const locked = useStore(runtime.store, (state) =>
     ["running", "stopping"].includes(state.propagation.status),
   );
+  const drawing = useStore(runtime.store, (state) => state.drawing != undefined);
+  const strokeInProgress = useSegmentationSession((state) => state.strokeFrameId != undefined);
   const frameReady = useStore(
     runtime.store,
     (state) =>
@@ -71,11 +73,13 @@ function CanvasPropagate({
   );
   const reason = locked
     ? t("propagationBusy")
-    : !frameReady
-      ? t("frameLoading")
-      : !scope || scope.seeds.length === 0
-        ? t("noSeedsOnFrame")
-        : undefined;
+    : !focused && (drawing || strokeInProgress)
+      ? t("finishDrawingBeforeSwitch")
+      : !frameReady
+        ? t("frameLoading")
+        : !scope || scope.seeds.length === 0
+          ? t("noSeedsOnFrame")
+          : undefined;
   const open = anchor != undefined;
   return (
     <>
@@ -89,9 +93,14 @@ function CanvasPropagate({
             disabled={reason != undefined && !(locked && open)}
             onClick={(event) => {
               const target = event.currentTarget;
-              if (!focused && surface.frameId != undefined) {
+              const session = host.session.getState();
+              const state = runtime.store.getState();
+              if (session.panelId !== panelId && surface.frameId != undefined) {
+                if (state.drawing != undefined || session.strokeFrameId != undefined) {
+                  return;
+                }
                 host.session.setState({ panelId });
-                runtime.store.getState().setCurrentFrame(surface.frameId);
+                state.setCurrentFrame(surface.frameId);
               }
               setAnchor(target);
             }}

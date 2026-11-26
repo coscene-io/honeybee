@@ -99,7 +99,6 @@ function loaderFor(times: bigint[]) {
         registered.set(frame.id, frame);
       }
     },
-    knownLogTimes: () => [...registered.values()].map((frame) => BigInt(frame.logTimeNs)),
   });
   return { loader, reads, registered };
 }
@@ -134,6 +133,59 @@ it("reads later windows until enough following frames are known", async () => {
   ).toBeGreaterThanOrEqual(100);
 });
 
+it("scans earlier windows through a gap even if an older window was read first", async () => {
+  const previous = START + 1_000_000_000n;
+  const current = START + 3n * SOURCE_FRAME_WINDOW_NS + 1_000_000_000n;
+  const { loader, registered } = loaderFor([previous, current]);
+  await loader.ensureRange(previous, previous);
+  await loader.ensurePreceding(current, 1);
+  expect(loader.isLoaded(previous, current)).toBe(true);
+  expect([...registered.values()].map((frame) => frame.logTimeNs)).toContain(String(previous));
+});
+
+it("fills both sides of a 1 fps strip across multiple source windows", async () => {
+  const times = Array.from({ length: 61 }, (_, index) => START + BigInt(index) * 1_000_000_000n);
+  const { loader, registered } = loaderFor(times);
+  await Promise.all([
+    loader.ensurePreceding(times[30]!, 20),
+    loader.ensureFollowing(times[30]!, 20),
+  ]);
+  expect(loader.isLoaded(times[10]!, times[50]!)).toBe(true);
+  const registeredTimes = new Set([...registered.values()].map((frame) => frame.logTimeNs));
+  expect(times.slice(10, 51).filter((time) => !registeredTimes.has(String(time)))).toEqual([]);
+});
+
+it("reads through a gap even when later frames are already known", async () => {
+  const adjacent = START + 2n * SOURCE_FRAME_WINDOW_NS + 1n;
+  const distant = START + 3n * SOURCE_FRAME_WINDOW_NS + 1n;
+  const { loader, registered } = loaderFor([START, adjacent, distant]);
+  await loader.ensureRange(distant, distant);
+  expect(loader.isLoaded(START, adjacent)).toBe(false);
+
+  await loader.ensureFollowing(START, 1);
+  expect(loader.isLoaded(START, adjacent)).toBe(true);
+  expect([...registered.values()].map((frame) => frame.logTimeNs)).toContain(String(adjacent));
+  loader.dispose();
+});
+
+it("considers ranges outside the recording loaded without reading any windows", async () => {
+  const times = cameraTimes(3);
+  const end = times.at(-1)! + 1n;
+  const { loader, reads } = loaderFor(times);
+  expect(loader.isLoaded(START - 10n, START - 1n)).toBe(true);
+  expect(loader.isLoaded(end + 1n, end + 10n)).toBe(true);
+  expect(loader.isLoaded(START - 10n, START)).toBe(false);
+  expect(loader.isLoaded(end, end + 10n)).toBe(false);
+
+  await loader.ensureRange(START - 10n, START - 1n);
+  await loader.ensureRange(end + 1n, end + 10n);
+  expect(reads).toEqual([]);
+  await loader.ensureRange(START - 10n, START);
+  expect(loader.isLoaded(START - 10n, START)).toBe(true);
+  expect(reads).toEqual([[START, end]]);
+  loader.dispose();
+});
+
 it("stops at the end of the recording", async () => {
   const times = cameraTimes(100);
   const { loader, registered } = loaderFor(times);
@@ -159,7 +211,6 @@ it("clears a failed window's retry timer when disposed", async () => {
       startNs: START,
       endNs: START + 1_000_000_000n,
       register: () => {},
-      knownLogTimes: () => [],
     });
     await expect(loader.ensureRange(START, START + 1n)).rejects.toThrow("read failed");
     expect(jest.getTimerCount()).toBe(1);
@@ -182,7 +233,6 @@ describe("source frame loader registry", () => {
       register: (frames) => {
         registered.push(...frames);
       },
-      knownLogTimes: () => registered.map((frame) => BigInt(frame.logTimeNs)),
     });
   }
 
@@ -221,6 +271,34 @@ describe("source frame loader registry", () => {
     await first.ensureRange(START, START);
     expect(loaders.get("head")).toBe(second);
     expect(loaders.version()).toBe(version);
+    first.dispose();
+    second.dispose();
+  });
+
+  it("restores and watches the previous loader when the latest one unbinds", async () => {
+    const loaders = createSourceFrameLoaders();
+    const first = loaderOf("head", []);
+    const second = loaderOf("head", []);
+    const unbindFirst = loaders.register(first);
+    const unbindSecond = loaders.register(second);
+    const listener = jest.fn();
+    const unsubscribe = loaders.subscribe(listener);
+
+    expect(loaders.get("head")).toBe(second);
+    unbindSecond();
+    expect(loaders.get("head")).toBe(first);
+    expect(listener).toHaveBeenCalledTimes(1);
+    await second.ensureRange(START, START);
+    expect(listener).toHaveBeenCalledTimes(1);
+    await first.ensureRange(START, START);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unbindSecond();
+    expect(listener).toHaveBeenCalledTimes(2);
+    unbindFirst();
+    expect(loaders.get("head")).toBeUndefined();
+    expect(listener).toHaveBeenCalledTimes(3);
+    unsubscribe();
     first.dispose();
     second.dispose();
   });

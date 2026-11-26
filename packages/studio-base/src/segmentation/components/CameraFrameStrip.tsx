@@ -13,7 +13,7 @@ import { makeStyles } from "tss-react/mui";
 import { CAMERA_STRIP_RADIUS, type CameraStripCell } from "../cameraFrames";
 import { useSegmentationSession } from "../segmentationHostContext";
 import { cameraStripCells, frameIndexOf } from "../segmentationTreeIndex";
-import type { SourceFrameLoaders } from "../sourceFrames";
+import type { SourceFrameLoader, SourceFrameLoaders } from "../sourceFrames";
 import type { SegmentationDocument } from "../types";
 
 const useStyles = makeStyles()((theme) => ({
@@ -30,9 +30,6 @@ const useStyles = makeStyles()((theme) => ({
     "&:disabled": { cursor: "default" },
   },
 }));
-
-/** Read this far around the shown frame, so a strip far from the focused camera fills in too. */
-const PRELOAD_NS = 1_000_000_000n;
 
 const STATE_KEYS = {
   annotated: "stripAnnotated",
@@ -79,8 +76,14 @@ export function preloadCameraStrip(
   if (!current || !loader) {
     return;
   }
-  const center = BigInt(current.logTimeNs);
-  void loader.ensureRange(center - PRELOAD_NS, center + PRELOAD_NS).catch(() => undefined);
+  preloadNeighbors(loader, BigInt(current.logTimeNs));
+}
+
+function preloadNeighbors(loader: SourceFrameLoader, center: bigint): void {
+  void Promise.all([
+    loader.ensurePreceding(center, CAMERA_STRIP_RADIUS),
+    loader.ensureFollowing(center, CAMERA_STRIP_RADIUS),
+  ]).catch(() => undefined);
 }
 
 /**
@@ -120,18 +123,15 @@ export const CameraFrameStrip = memo(function CameraFrameStrip({
   const { t } = useTranslation("segmentation");
   const seek = useSegmentationSession((session) => session.seek);
   // A read window or a newly bound loader changes which cells are known.
-  const loaderVersion = useSyncExternalStore(sourceFrames.subscribe, sourceFrames.version);
+  useSyncExternalStore(sourceFrames.subscribe, sourceFrames.version);
   const current = frameIndexOf(document).frameById.get(frameId);
-  const videoId = current?.videoId;
-  const centerNs = current?.logTimeNs;
+  const loader = current ? sourceFrames.get(current.videoId) : undefined;
+  const logTimeNs = current?.logTimeNs;
   useEffect(() => {
-    const loader = videoId == undefined ? undefined : sourceFrames.get(videoId);
-    if (!loader || centerNs == undefined) {
-      return;
+    if (loader && logTimeNs != undefined) {
+      preloadNeighbors(loader, BigInt(logTimeNs));
     }
-    const center = BigInt(centerNs);
-    void loader.ensureRange(center - PRELOAD_NS, center + PRELOAD_NS).catch(() => undefined);
-  }, [videoId, centerNs, sourceFrames, loaderVersion]);
+  }, [loader, logTimeNs]);
   const cells = cameraStripCells(document, instanceId, frameId, sourceFrames);
   // A camera where this instance never appears nearby would only add noise.
   if (!cells.some((cell) => cell.state === "annotated")) {

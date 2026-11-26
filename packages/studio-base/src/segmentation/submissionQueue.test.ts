@@ -101,6 +101,7 @@ describe("a failed submission", () => {
     }).toThrow("Only failed");
 
     store.getState().discardSubmission(failed);
+    await store.getState().waitForSubmissions();
     expect(store.getState().submissionQueue).toEqual([]);
     expect(store.getState().stagedOperations.map((operation) => operation.labelKey)).toEqual([
       "opLabelCreatePolygon",

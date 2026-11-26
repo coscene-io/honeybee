@@ -161,6 +161,26 @@ describe("mask edit", () => {
     expect(maskOf(store.getState().document!.annotations[key])?.counts).toBe(counts);
   });
 
+  it("rejects a lossy mask confirmation when playback changes the source frame", async () => {
+    const { document } = withMask([[100, 400, 100, 300]], [[200, 250, 150, 200]]);
+    const original = document.annotations[key]!;
+    const next = frameInstanceKey("frame-1", "instance-1");
+    document.annotations[next] = { ...original, frameId: "frame-1" };
+    document.annotationSummaries[next] = document.annotationSummaries[key]!;
+    const { store } = await editor(document);
+    act(() => {
+      pointer(canvas(), "dblclick", 120, 120);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Convert to polygons/ }));
+    act(() => {
+      store.getState().setCurrentFrame("frame-1");
+    });
+    fireEvent.click(screen.getByTestId("confirm-mask-conversion"));
+    expect(store.getState().document?.annotations[key]).toEqual(original);
+    expect(store.getState().document?.annotations[next]).toEqual(document.annotations[next]);
+    expect(store.getState().stagedOperations).toHaveLength(0);
+  });
+
   it("keeps editing a converted mask when one of its polygons is picked", async () => {
     // Two separate rectangles: two connected components, so two polygons.
     const { document } = withMask([

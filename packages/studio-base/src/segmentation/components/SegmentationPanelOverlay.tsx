@@ -12,6 +12,7 @@ import { useShallow } from "zustand/react/shallow";
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 
 import { SegmentationWorkbench } from "./SegmentationWorkbench";
+import type { MaskOverlayControls } from "../imageSource";
 import type { DecodedSegmentationFrame, SegmentationRuntime } from "../runtime";
 import { useSegmentationHost } from "../segmentationHostContext";
 
@@ -29,6 +30,7 @@ function ActiveWorkbench({
   frameId,
   focused,
   onClaimFocus,
+  maskOverlayControls,
 }: {
   runtime: SegmentationRuntime;
   imageUrl?: string;
@@ -38,6 +40,7 @@ function ActiveWorkbench({
   frameId?: string;
   focused: boolean;
   onClaimFocus: () => void;
+  maskOverlayControls?: MaskOverlayControls;
 }): React.JSX.Element {
   const { classes } = useStyles();
   const loading = useStore(runtime.store, (state) => state.loading);
@@ -61,6 +64,7 @@ function ActiveWorkbench({
         frameId={frameId}
         focused={focused}
         onClaimFocus={onClaimFocus}
+        maskOverlayControls={maskOverlayControls}
       />
     </div>
   );
@@ -69,8 +73,10 @@ function ActiveWorkbench({
 /** Lives inside the existing Image Panel, so the panel's own maximize and real timeline stay authoritative. */
 export function SegmentationPanelOverlay({
   panelId,
+  maskOverlayControls,
 }: {
   panelId: string;
+  maskOverlayControls?: MaskOverlayControls;
 }): React.JSX.Element | undefined {
   // Only the fields read here: a whole-store subscription re-rendered every panel's workspace for
   // any panel's surface change.
@@ -97,6 +103,7 @@ export function SegmentationPanelOverlay({
       decodedFrame={surface.decodedFrame}
       frameId={surface.frameId}
       focused={focused}
+      maskOverlayControls={maskOverlayControls}
       onClaimFocus={() => {
         const live = host.session.getState();
         if (live.panelId !== panelId) {

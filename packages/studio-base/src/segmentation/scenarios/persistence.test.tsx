@@ -117,7 +117,11 @@ describe("persistence", () => {
     const held = cloneSegmentation(store.getState().submissionQueue[1]!.operations);
     render(<WorkflowControls store={store} />);
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-    expect(store.getState().submissionQueue).toEqual([]);
+    // Discarding first reads the authoritative state again: a failed live batch may have written
+    // part of itself before failing.
+    await waitFor(() => {
+      expect(store.getState().submissionQueue).toEqual([]);
+    });
     expect(store.getState().stagedOperations).toEqual(held);
     expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
     expect(submit).toHaveBeenCalledTimes(1);

@@ -30,10 +30,15 @@ type Props = {
 };
 
 // Several global listeners intentionally share a shortcut. Their default prevention must not hide
-// it from peers; inside an input-owning region, prevention by the region still owns the event.
+// it from peers; inside an input-owning region, prevention by the region (including a local
+// KeyListener inside it) still owns the event, so only global listeners mark it.
 const preventedByKeyListener = new WeakSet<KeyboardEvent>();
 
-function callHandlers(handlers: KeyHandlers | undefined, event: KeyboardEvent): void {
+function callHandlers(
+  handlers: KeyHandlers | undefined,
+  event: KeyboardEvent,
+  { global }: { global: boolean },
+): void {
   if (!handlers) {
     return;
   }
@@ -46,7 +51,9 @@ function callHandlers(handlers: KeyHandlers | undefined, event: KeyboardEvent): 
       preventDefault = handler(event) ?? true;
     } finally {
       if (preventDefault) {
-        preventedByKeyListener.add(event);
+        if (global) {
+          preventedByKeyListener.add(event);
+        }
         event.preventDefault();
       }
     }
@@ -86,13 +93,13 @@ export default function KeyListener(props: Props): ReactElement {
 
       switch (type) {
         case "keydown":
-          callHandlers(props.keyDownHandlers, event);
+          callHandlers(props.keyDownHandlers, event, { global: props.global === true });
           break;
         case "keypress":
-          callHandlers(props.keyPressHandlers, event);
+          callHandlers(props.keyPressHandlers, event, { global: props.global === true });
           break;
         case "keyup":
-          callHandlers(props.keyUpHandlers, event);
+          callHandlers(props.keyUpHandlers, event, { global: props.global === true });
           break;
         default:
           break;
