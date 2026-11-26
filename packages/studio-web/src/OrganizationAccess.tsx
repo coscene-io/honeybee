@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { keyframes } from "@emotion/react";
 import {
   Alert,
   Box,
@@ -21,6 +22,8 @@ import { makeStyles } from "tss-react/mui";
 
 import { getDomainConfig, getWebBasePathname } from "@foxglove/studio-base/util/appConfig";
 import { getBrowserAuthUrl } from "@foxglove/studio-base/util/browserSession";
+
+const revealOpeningStatus = keyframes({ to: { visibility: "visible" } });
 
 const useStyles = makeStyles()((theme) => ({
   row: {
@@ -45,6 +48,13 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.default,
     color: theme.palette.text.primary,
     padding: theme.spacing(3),
+  },
+
+  openingStatus: {
+    alignItems: "center",
+    visibility: "hidden",
+    animation: `${revealOpeningStatus} 0s 250ms forwards`,
+    color: theme.palette.text.secondary,
   },
 
   layout1: {
@@ -137,12 +147,14 @@ export function OrganizationAccessView({
   changed,
   modal,
   recovery,
+  retrying = false,
   onRetry,
 }: {
   access: OrganizationAccess;
   changed: boolean;
   modal: boolean;
   recovery?: "recover" | "logged-out";
+  retrying?: boolean;
   onRetry: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
@@ -161,16 +173,24 @@ export function OrganizationAccessView({
   }, []);
   const mismatch = access.status === "organization-mismatch";
   const login = recovery != undefined || access.status === "login";
-  const loading = access.status === "loading" && !login;
+  if (access.status === "loading" && !login) {
+    return (
+      <Box component="main" className={classes.page}>
+        <Stack role="status" spacing={1.5} className={classes.openingStatus}>
+          <CircularProgress size={20} aria-hidden />
+          <Typography variant="body2">{t("openingVisualization")}</Typography>
+        </Stack>
+      </Box>
+    );
+  }
+
   const title = login
     ? t(recovery === "logged-out" ? "sessionLoggedOut" : "sessionRecoveryRequired")
-    : loading
-      ? t("checkingOrganization")
-      : mismatch
-        ? t(changed ? "organizationChanged" : "switchOrganizationTitle")
-        : changed && access.status === "ready"
-          ? t("sessionChanged")
-          : t("linkUnavailableTitle");
+    : mismatch
+      ? t(changed ? "organizationChanged" : "switchOrganizationTitle")
+      : changed && access.status === "ready"
+        ? t("sessionChanged")
+        : t("linkUnavailableTitle");
   const home = getWebBasePathname() === "/" ? `https://${getDomainConfig().webDomain}/` : "/";
   const accountUrl = new URL(getBrowserAuthUrl("/auth/login"), window.location.href);
   accountUrl.pathname = "/auth/change-account";
@@ -217,14 +237,13 @@ export function OrganizationAccessView({
           </Box>
         </Stack>
       )}
-      {loading && <CircularProgress size={24} />}
       {access.status === "organization-unavailable" && (
         <Typography>{t("organizationUnavailable")}</Typography>
       )}
       {access.status === "denied" && <Typography>{t("resourceDenied")}</Typography>}
       {access.status === "unavailable" && <Typography>{t("linkUnavailable")}</Typography>}
       {access.status === "error" && <Alert severity="error">{t("accessCheckFailed")}</Alert>}
-      {!loading && (!mismatch || login) && (
+      {(!mismatch || login) && (
         <Stack direction="row" className={classes.layout2}>
           {login ? (
             <Button
@@ -237,7 +256,7 @@ export function OrganizationAccessView({
               {t("openSessionRecovery")}
             </Button>
           ) : access.status === "error" ? (
-            <Button variant="contained" onClick={onRetry}>
+            <Button variant="contained" loading={retrying} onClick={onRetry}>
               {t("retryAccessCheck")}
             </Button>
           ) : changed && access.status === "ready" ? (
@@ -272,19 +291,15 @@ export function OrganizationAccessView({
       )}
     </Stack>
   );
-  return modal ? (
-    <Dialog
-      open
-
-      aria-labelledby="organization-access-title"
-      maxWidth="sm"
-      fullWidth
-    >
-      <DialogContent>{content}</DialogContent>
-    </Dialog>
-  ) : (
+  return (
     <Box component="main" className={classes.page}>
-      {content}
+      {modal ? (
+        <Dialog open aria-labelledby="organization-access-title" maxWidth="sm" fullWidth>
+          <DialogContent>{content}</DialogContent>
+        </Dialog>
+      ) : (
+        content
+      )}
     </Box>
   );
 }
