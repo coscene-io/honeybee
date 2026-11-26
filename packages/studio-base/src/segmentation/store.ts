@@ -454,6 +454,83 @@ export function createSegmentationStore(
         throw new SegmentationError("errorDisposed");
       }
     }
+    async function initialize(reconcile = false): Promise<boolean> {
+      if (isDisposed()) {
+        return false;
+      }
+      const epoch = ++loadEpoch;
+      if (reconcile) {
+        windowController?.abort();
+        windowController = undefined;
+        abortPrefetches();
+      }
+      const readStart = saveSeq;
+      set({ loading: true, error: undefined });
+      void get().refreshPropagationCapabilities();
+      try {
+        const loaded = await service.loadDocument();
+        // A read that raced a save may predate it; the acknowledged document is newer.
+        if (isDisposed() || epoch !== loadEpoch || readStart !== saveSeq) {
+          return false;
+        }
+        // A document read omits geometry. Keep redo, and loaded geometry as a placeholder until
+        // its window is read again, only when the authoritative metadata is unchanged. Every
+        // window is re-read either way: the server may have changed since it was loaded.
+        const metadata = (doc: SegmentationDocument) => {
+          // Summaries are derived: exact for loaded windows, timeline placeholders otherwise.
+          const {
+            annotations: _annotations,
+            unreadableObservations: _unreadable,
+            annotationSummaries: _summaries,
+            ...rest
+          } = doc;
+          return rest;
+        };
+        const sameBase = base != undefined && _.isEqual(metadata(base), metadata(loaded));
+        loadedFrames.clear();
+        if (!sameBase) {
+          redoStack = [];
+          ++documentEpoch;
+        }
+        base =
+          sameBase && !reconcile
+            ? {
+                ...loaded,
+                annotations: { ...base!.annotations, ...loaded.annotations },
+                ...(base!.unreadableObservations
+                  ? { unreadableObservations: base!.unreadableObservations }
+                  : {}),
+              }
+            : loaded;
+        const first =
+          (sameBase || reconcile
+            ? loaded.frames.find((frame) => frame.id === get().currentFrameId)
+            : undefined) ?? loaded.frames[0];
+        set({
+          currentFrameId: first?.id,
+          canRedo: redoStack.length > 0,
+        });
+        rebuild();
+        if (first && !loadedFrames.has(first.id)) {
+          const { startSec, endSec } = segmentationWindow(
+            first.timestampSec,
+            loaded.videos.find((video) => video.id === first.videoId)?.durationSec ??
+              SEGMENTATION_WINDOW_SEC,
+          );
+          await get().loadFrameWindow(first.videoId, startSec, endSec);
+        }
+        return !isDisposed() && epoch === loadEpoch && (!first || loadedFrames.has(first.id));
+      } catch (error) {
+        if (!isDisposed() && epoch === loadEpoch) {
+          set({ error: segmentationErrorText(error) });
+        }
+        return false;
+      } finally {
+        if (!isDisposed() && epoch === loadEpoch) {
+          set({ loading: false });
+        }
+      }
+    }
     const context: StoreInternals = {
       service,
       get,
@@ -468,6 +545,7 @@ export function createSegmentationStore(
       documentEpoch: () => documentEpoch,
       saveSeq: () => saveSeq,
       savedAfter,
+      reconcileFailedSubmission: async () => await initialize(true),
       recordSave: (keys) => {
         ++saveSeq;
         for (const key of keys) {
@@ -535,72 +613,38 @@ export function createSegmentationStore(
         }
       },
       async initialize() {
-        if (isDisposed()) {
+        await initialize();
+      },
+      invalidateVideoGeometry(videoIds) {
+        if (isDisposed() || !base) {
           return;
         }
-        const epoch = ++loadEpoch;
-        const readStart = saveSeq;
-        set({ loading: true, error: undefined });
-        void get().refreshPropagationCapabilities();
-        try {
-          const loaded = await service.loadDocument();
-          // A read that raced a save may predate it; the acknowledged document is newer.
-          if (isDisposed() || epoch !== loadEpoch || readStart !== saveSeq) {
-            return;
-          }
-          // A document read omits geometry. Keep redo, and loaded geometry as a placeholder until
-          // its window is read again, only when the authoritative metadata is unchanged. Every
-          // window is re-read either way: the server may have changed since it was loaded.
-          const metadata = (doc: SegmentationDocument) => {
-            // Summaries are derived: exact for loaded windows, timeline placeholders otherwise.
-            const {
-              annotations: _annotations,
-              unreadableObservations: _unreadable,
-              annotationSummaries: _summaries,
-              ...rest
-            } = doc;
-            return rest;
-          };
-          const sameBase = base != undefined && _.isEqual(metadata(base), metadata(loaded));
-          loadedFrames.clear();
-          if (!sameBase) {
-            redoStack = [];
-            ++documentEpoch;
-          }
-          base = sameBase
-            ? {
-                ...loaded,
-                annotations: { ...base!.annotations, ...loaded.annotations },
-                ...(base!.unreadableObservations
-                  ? { unreadableObservations: base!.unreadableObservations }
-                  : {}),
-              }
-            : loaded;
-          const first =
-            (sameBase
-              ? loaded.frames.find((frame) => frame.id === get().currentFrameId)
-              : undefined) ?? loaded.frames[0];
-          set({
-            currentFrameId: first?.id,
-            canRedo: redoStack.length > 0,
-          });
-          rebuild();
-          if (first && !loadedFrames.has(first.id)) {
-            const { startSec, endSec } = segmentationWindow(
-              first.timestampSec,
-              loaded.videos.find((video) => video.id === first.videoId)?.durationSec ??
-                SEGMENTATION_WINDOW_SEC,
-            );
-            await get().loadFrameWindow(first.videoId, startSec, endSec);
-          }
-        } catch (error) {
-          if (!isDisposed() && epoch === loadEpoch) {
-            set({ error: segmentationErrorText(error) });
-          }
-        } finally {
-          if (!isDisposed() && epoch === loadEpoch) {
-            set({ loading: false });
-          }
+        const frames = sourceFrames();
+        const ids = new Set(
+          frames.filter(({ videoId }) => videoIds.has(videoId)).map(({ id }) => id),
+        );
+        ++documentEpoch;
+        windowController?.abort();
+        windowController = undefined;
+        abortPrefetches();
+        base = evictFrames(base, ids);
+        const annotationSummaries = Object.fromEntries(
+          Object.entries(base.annotationSummaries).filter(([key]) => !ids.has(frameOfKey(key))),
+        );
+        base = { ...base, annotationSummaries };
+        for (const id of ids) {
+          loadedFrames.delete(id);
+        }
+        service.releaseFrames?.(ids, { forgetSummaries: true });
+        const current = get().currentFrameId;
+        rebuild();
+        set({ loading: false, frameWindowError: undefined });
+        if (
+          current != undefined &&
+          !loadedFrames.has(current) &&
+          !["running", "stopping"].includes(get().propagation.status)
+        ) {
+          void get().retryCurrentFrameWindow();
         }
       },
       isFrameReady(id) {

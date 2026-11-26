@@ -496,7 +496,11 @@ it("rejects polygon seeds whose points changed after they were captured", async 
     store.getState().document!.annotations[frameInstanceKey("frame-5", "instance-1")],
   )[0]!;
   const seeds = [
-    { instanceId: "instance-1", kind: "polygons" as const, polygons: [cloneSegmentation(captured)] },
+    {
+      instanceId: "instance-1",
+      kind: "polygons" as const,
+      polygons: [cloneSegmentation(captured)],
+    },
   ];
   store.getState().setPolygonPoints(
     captured.id,

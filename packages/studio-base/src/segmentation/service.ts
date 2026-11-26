@@ -78,7 +78,7 @@ export interface SegmentationService {
    * The store no longer holds these frames' geometry (it evicted them). A service that caches
    * frames may forget them too; it must read a frame again before it next saves it.
    */
-  releaseFrames?(frameIds: ReadonlySet<string>): void;
+  releaseFrames?(frameIds: ReadonlySet<string>, options?: { forgetSummaries: true }): void;
   /** True means every result must echo the full request context. */
   supportsPropagationContext?: boolean;
   supportsMultiInstanceSeeds?: boolean;
@@ -290,19 +290,16 @@ function applyPatchToCopy(next: SegmentationDocument, patch: SegmentationPatch):
       }
       const targetKey = frameInstanceKey(frameId, targetId);
       const target = next.annotationSummaries[targetKey];
-      // Merging with a mask on either side yields a mask (mergeObservations). Without the
-      // geometry the union's area is unknown; the larger side is a lower bound that keeps presence.
       next.annotationSummaries[targetKey] =
-        summary.maskArea != undefined || target?.maskArea != undefined
-          ? {
-              polygonCount: 0,
-              pointCount: 0,
-              maskArea: Math.max(summary.maskArea ?? 0, target?.maskArea ?? 0),
-            }
-          : {
-              polygonCount: summary.polygonCount + (target?.polygonCount ?? 0),
-              pointCount: summary.pointCount + (target?.pointCount ?? 0),
-            };
+        target == undefined
+          ? summary
+          : summary.maskArea != undefined || target.maskArea != undefined
+            ? { polygonCount: 0, pointCount: 0, maskArea: "unknown" }
+            : {
+                polygonCount: summary.polygonCount + target.polygonCount,
+                pointCount: summary.pointCount + target.pointCount,
+                ...(summary.fromTimeline || target.fromTimeline ? { fromTimeline: true } : {}),
+              };
       delete next.annotationSummaries[key];
     }
     for (const [key, annotation] of Object.entries(next.annotations)) {
