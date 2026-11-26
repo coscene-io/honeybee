@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { MessageInitShape } from "@bufbuild/protobuf";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { Code, ConnectError, type Client } from "@connectrpc/connect";
 
 import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
@@ -13,7 +13,7 @@ import {
   PropagateAnnotationRequest_PropagateAnnotation_Direction as PropagationDirection,
   AnnotationService,
   type Frame as WireFrame,
-  type FrameSchema,
+  FrameSchema,
   type FrameSnapshotSchema,
   type ListTimelineRangesResponse_TimelineRange as WireTimelineRange,
 } from "@foxglove/studio-base/services/api/spatial-annotation";
@@ -33,7 +33,7 @@ import {
   windowBoundaryMicros,
   wireFrameTimeMicros,
 } from "./frameTime";
-import { frameOfKey } from "./frameWindows";
+import { frameOfKey, mergeFrameWindow } from "./frameWindows";
 import { inferMaskFrameSize, maskCountsCoverage, maskRunsFromCounts } from "./maskCodec";
 import {
   maskObservation,
@@ -508,11 +508,12 @@ export function createSegmentationServiceForClient(options: {
     fromMicros: bigint,
     toMicros: bigint,
     signal?: AbortSignal,
+    onlyFrames?: ReadonlySet<string>,
   ): Promise<{
     annotations: Record<string, FrameInstance>;
     unreadable: Record<string, UnreadableObservation>;
   }> {
-    const video = videoOf(videoId);
+    const { topic } = videoOf(videoId);
     const startedAt = saveEpoch;
     const changedSince = (frameId: string, instanceId?: string) =>
       (frameSavedAt.get(frameId) ?? 0) > startedAt ||
@@ -525,7 +526,7 @@ export function createSegmentationServiceForClient(options: {
           const response = await client.listFrames(
             {
               parent: recordName,
-              topic: video.topic,
+              topic,
               startTime: microsToTimestamp(start),
               endTime: microsToTimestamp(end),
               pageSize: PAGE_SIZE,
@@ -538,6 +539,27 @@ export function createSegmentationServiceForClient(options: {
       );
     }
     throwIfAborted(signal);
+    const covered = new Set<string>();
+    const saved = new Set<string>();
+    for (const frame of doc.frames) {
+      if (frame.videoId !== videoId || (onlyFrames && !onlyFrames.has(frame.id))) {
+        continue;
+      }
+      const micros = truncateToMicros(frame.logTimeNs);
+      if (micros < fromMicros || micros >= toMicros) {
+        continue;
+      }
+      if (changedSince(frame.id)) {
+        if (!loadedFrames.has(frame.id)) {
+          // The post-save state was evicted while the read was pending.
+          return await readRange(videoId, fromMicros, toMicros, signal, onlyFrames);
+        }
+        saved.add(frame.id);
+      } else {
+        covered.add(frame.id);
+      }
+    }
+    const video = videoOf(videoId);
     const index = indexOf(videoId);
     const annotations: Record<string, FrameInstance> = {};
     const unreadable: Record<string, UnreadableObservation> = {};
@@ -560,7 +582,7 @@ export function createSegmentationServiceForClient(options: {
         continue;
       }
       const instanceId = idOf(wire.instance);
-      if (changedSince(resolved.frameId, instanceId)) {
+      if (!covered.has(resolved.frameId) || changedSince(resolved.frameId, instanceId)) {
         continue;
       }
       const observation = toObservation(wire, video, size!, resolved.frameId);
@@ -573,38 +595,22 @@ export function createSegmentationServiceForClient(options: {
         annotations[key] = observation;
       }
     }
-    // The read is the complete state of every registered frame in the range.
-    const covered = new Set<string>();
-    for (const frame of doc.frames) {
-      const micros = truncateToMicros(frame.logTimeNs);
-      if (frame.videoId !== videoId || micros < fromMicros || micros >= toMicros) {
-        continue;
-      }
-      if (!changedSince(frame.id)) {
-        covered.add(frame.id);
-      } else if (loadedFrames.has(frame.id)) {
-        // A frame saved during the read already holds its newer state: answer with that whole
-        // state, so the caller does not mistake its untouched observations for deletions.
-        for (const [key, annotation] of Object.entries(doc.annotations)) {
-          if (annotation.frameId === frame.id) {
-            annotations[key] = annotation;
-          }
-        }
-        for (const [key, item] of Object.entries(doc.unreadableObservations ?? {})) {
-          if (item.frameId === frame.id) {
-            unreadable[key] = item;
-          }
-        }
-      }
-    }
+    // A frame saved during the read already holds its newer state. Return the whole frame.
     for (const [key, annotation] of Object.entries(doc.annotations)) {
       if (covered.has(annotation.frameId)) {
         delete doc.annotations[key];
+      } else if (saved.has(annotation.frameId)) {
+        annotations[key] = annotation;
       }
     }
     for (const key of Object.keys(doc.annotationSummaries)) {
       if (covered.has(frameOfKey(key))) {
         delete doc.annotationSummaries[key];
+      }
+    }
+    for (const key of occluded.keys()) {
+      if (covered.has(frameOfKey(key)) && !(key in annotations) && !(key in unreadable)) {
+        occluded.delete(key);
       }
     }
     for (const [key, annotation] of Object.entries(annotations)) {
@@ -618,6 +624,9 @@ export function createSegmentationServiceForClient(options: {
         if (covered.has(item.frameId)) {
           opaqueWires.delete(key);
           return false;
+        }
+        if (saved.has(item.frameId)) {
+          unreadable[key] = item;
         }
         return true;
       },
@@ -648,7 +657,7 @@ export function createSegmentationServiceForClient(options: {
    * it again first (ensureFramesLoaded), so its snapshot is complete. Summaries stay, as the store
    * keeps them for its evicted frames.
    */
-  function releaseFrames(frameIds: ReadonlySet<string>): void {
+  function releaseFrames(frameIds: ReadonlySet<string>, options?: { forgetSummaries: true }): void {
     for (const [key, annotation] of Object.entries(doc.annotations)) {
       if (frameIds.has(annotation.frameId)) {
         delete doc.annotations[key];
@@ -673,6 +682,13 @@ export function createSegmentationServiceForClient(options: {
     for (const id of frameIds) {
       loadedFrames.delete(id);
     }
+    if (options?.forgetSummaries) {
+      for (const key of Object.keys(doc.annotationSummaries)) {
+        if (frameIds.has(frameOfKey(key))) {
+          delete doc.annotationSummaries[key];
+        }
+      }
+    }
     diagnostics.loadedFrames = loadedFrames.size;
   }
 
@@ -682,7 +698,7 @@ export function createSegmentationServiceForClient(options: {
    */
   async function ensureFramesLoaded(frameIds: Iterable<string>): Promise<void> {
     const framesById = new Map(doc.frames.map((frame) => [frame.id, frame]));
-    const byVideo = new Map<string, bigint[]>();
+    const byVideo = new Map<string, { frameId: string; micros: bigint }[]>();
     for (const frameId of frameIds) {
       if (loadedFrames.has(frameId)) {
         continue;
@@ -692,21 +708,25 @@ export function createSegmentationServiceForClient(options: {
         throw new Error(`Frame ${frameId} is not in the media index`);
       }
       const list = byVideo.get(frame.videoId) ?? [];
-      list.push(indexOf(frame.videoId).frameTimeOf(frame.id));
+      list.push({ frameId, micros: indexOf(frame.videoId).frameTimeOf(frame.id) });
       byVideo.set(frame.videoId, list);
     }
     await Promise.all(
-      [...byVideo].map(async ([videoId, micros]) => {
-        micros.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
-        for (let i = 0; i < micros.length;) {
-          const from = micros[i]!;
+      [...byVideo].map(async ([videoId, frames]) => {
+        frames.sort((left, right) =>
+          left.micros < right.micros ? -1 : left.micros > right.micros ? 1 : 0,
+        );
+        for (let i = 0; i < frames.length;) {
+          const from = frames[i]!.micros;
           let last = from;
+          const requested = new Set<string>();
           // One window holds every frame within MAX_WINDOW_MICROS of the first.
-          while (i < micros.length && micros[i]! - from < MAX_WINDOW_MICROS) {
-            last = micros[i]!;
+          while (i < frames.length && frames[i]!.micros - from < MAX_WINDOW_MICROS) {
+            last = frames[i]!.micros;
+            requested.add(frames[i]!.frameId);
             i++;
           }
-          await readRange(videoId, from, last + 1n);
+          await readRange(videoId, from, last + 1n, undefined, requested);
         }
       }),
     );
@@ -800,7 +820,10 @@ export function createSegmentationServiceForClient(options: {
       }
     }
     const framesById = new Map(candidate.frames.map((frame) => [frame.id, frame]));
-    const snapshots: WireFrameSnapshotInit[] = [];
+    const snapshots = new Map<
+      string,
+      { video: SegmentationVideo; snapshot: WireFrameSnapshotInit }
+    >();
     for (const frameId of frameIds) {
       const frame = framesById.get(frameId);
       if (!frame) {
@@ -818,7 +841,10 @@ export function createSegmentationServiceForClient(options: {
           observations.push(wire);
         }
       }
-      snapshots.push({ topic: video.topic, frameTime, annotations: observations });
+      snapshots.set(frameId, {
+        video,
+        snapshot: { topic: video.topic, frameTime, annotations: observations },
+      });
     }
     return snapshots;
   }
@@ -1033,8 +1059,10 @@ export function createSegmentationServiceForClient(options: {
       }));
       // A fresh document read starts geometry over: windows are re-read from the service.
       doc.annotations = {};
+      doc.annotationSummaries = {};
       delete doc.unreadableObservations;
       loadedFrames.clear();
+      diagnostics.loadedFrames = 0;
       occluded.clear();
       opaqueWires.clear();
       await refreshTimeline(signal);
@@ -1107,31 +1135,65 @@ export function createSegmentationServiceForClient(options: {
       // 2. Catalog first: frames may only reference existing instances.
       const { removedClasses, removedInstances } = await syncCatalog(candidate);
       // 3. One atomic save of every changed frame.
-      if (snapshots.length > 0) {
-        await client.saveAnnotation({ record: recordName, frames: snapshots });
+      if (snapshots.size > 0) {
+        await client.saveAnnotation({
+          record: recordName,
+          frames: [...snapshots.values()].map(({ snapshot }) => snapshot),
+        });
         const epoch = ++saveEpoch;
-        for (const frameId of touchedFrames) {
+        const retainedFrames = new Set<string>();
+        const annotations: Record<string, FrameInstance> = {};
+        const unreadable: Record<string, UnreadableObservation> = {};
+        for (const key of occluded.keys()) {
+          if (snapshots.has(frameOfKey(key))) {
+            occluded.delete(key);
+          }
+        }
+        for (const [frameId, { video, snapshot }] of snapshots) {
           frameSavedAt.set(frameId, epoch);
+          if (!loadedFrames.has(frameId)) {
+            continue;
+          }
+          retainedFrames.add(frameId);
+          const current = videoOf(video.id);
+          const resized = video.width !== current.width || video.height !== current.height;
+          for (const wire of snapshot.annotations ?? []) {
+            if (wire.instance == undefined) {
+              continue;
+            }
+            const instanceId = idOf(wire.instance);
+            const key = frameInstanceKey(frameId, instanceId);
+            occluded.set(key, wire.occluded === true);
+            if (resized) {
+              // The frame was reloaded at a different size while this older snapshot was saving.
+              const saved = create(FrameSchema, wire);
+              const observation = toObservation(saved, current, sizeOf(current), frameId);
+              if ("unreadable" in observation) {
+                unreadable[key] = { frameId, instanceId, reason: observation.unreadable };
+                opaqueWires.set(key, saved);
+              } else {
+                annotations[key] = observation;
+              }
+            } else if (candidate.annotations[key]) {
+              annotations[key] = candidate.annotations[key];
+            } else {
+              const item = candidate.unreadableObservations?.[key];
+              if (item) {
+                unreadable[key] = item;
+                opaqueWires.set(key, create(FrameSchema, wire));
+              }
+            }
+          }
         }
-        for (const frameId of touchedFrames) {
-          for (const [key, annotation] of Object.entries(doc.annotations)) {
-            if (annotation.frameId === frameId) {
-              delete doc.annotations[key];
-            }
-          }
-          // An observation the snapshot left out is gone, with the occlusion it had.
-          for (const key of occluded.keys()) {
-            if (frameOfKey(key) === frameId && !(key in candidate.annotations)) {
-              occluded.delete(key);
-            }
-          }
-          for (const [key, annotation] of Object.entries(candidate.annotations)) {
-            if (annotation.frameId === frameId && observationHasGeometry(annotation)) {
-              doc.annotations[key] = cloneSegmentation(annotation);
-            }
+        // Acknowledge only the frames the RPC wrote. Other windows may have loaded or been
+        // released while the request was in flight, so keep their current state.
+        doc = mergeFrameWindow(doc, { annotations, unreadable }, retainedFrames);
+        for (const key of opaqueWires.keys()) {
+          if (!(key in (doc.unreadableObservations ?? {}))) {
+            opaqueWires.delete(key);
           }
         }
-        diagnostics.lastSave = { frames: snapshots.length, at: Date.now() };
+        diagnostics.lastSave = { frames: snapshots.size, at: Date.now() };
       }
       // 4. Deletes last. A class whose instances all go is removed atomically with force.
       const removedClassIds = new Set(removedClasses.map((item) => item.id));
@@ -1172,20 +1234,21 @@ export function createSegmentationServiceForClient(options: {
         doc.classes = doc.classes.filter((entry) => entry.id !== item.id);
         doc.instances = doc.instances.filter((entry) => entry.classId !== item.id);
       }
-      doc = {
-        ...candidate,
-        classes: doc.classes,
-        instances: doc.instances,
-        annotations: Object.fromEntries(
-          Object.entries(candidate.annotations).filter(([, annotation]) =>
-            surviving.has(annotation.instanceId),
-          ),
-        ),
-      };
+      if (removedInstances.length > 0) {
+        // A delete cascades to every observation of the instance, including evicted frames.
+        doc = applySegmentationPatches(doc, [
+          { instances: Object.fromEntries(removedInstances.map(({ id }) => [id, undefined])) },
+        ]);
+      }
       // Superseded or cascaded-away unreadable observations are gone from the server too.
       for (const key of opaqueWires.keys()) {
         if (!(key in (doc.unreadableObservations ?? {}))) {
           opaqueWires.delete(key);
+        }
+      }
+      for (const key of occluded.keys()) {
+        if (!surviving.has((JSON.parse(key) as [string, string])[1])) {
+          occluded.delete(key);
         }
       }
       // Timeline presence only matters for unloaded frames. A save writes loaded frames only, so

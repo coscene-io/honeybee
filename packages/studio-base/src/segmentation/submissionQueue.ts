@@ -28,6 +28,7 @@ export function createSubmissionQueue(
 > {
   const { service, get, set, isDisposed, rebuild, assertEditable } = context;
   let pumpPromise: Promise<void> | undefined;
+  let reconciliation: Promise<void> | undefined;
   function updateBatch(id: string, changes: Partial<SubmissionBatch>) {
     set({
       submissionQueue: get().submissionQueue.map((batch) =>
@@ -139,8 +140,12 @@ export function createSubmissionQueue(
       return id;
     },
     async waitForSubmissions() {
-      while (pumpPromise) {
-        await pumpPromise;
+      for (
+        let pending = reconciliation ?? pumpPromise;
+        pending;
+        pending = reconciliation ?? pumpPromise
+      ) {
+        await pending;
       }
     },
     retrySubmission(id) {
@@ -149,32 +154,41 @@ export function createSubmissionQueue(
       if (batch?.status !== "failed") {
         throw new SegmentationError("errorRetryNotFailed");
       }
+      if (reconciliation) {
+        return;
+      }
       updateBatch(id, { status: "queued", error: undefined });
       startPump();
     },
     discardSubmission(id) {
       assertEditable();
-      const queue = get().submissionQueue;
-      const index = queue.findIndex((item) => item.id === id);
-      if (queue[index]?.status !== "failed") {
+      if (get().submissionQueue.find((item) => item.id === id)?.status !== "failed") {
         throw new SegmentationError("errorDiscardNotFailed");
       }
-      // The batches after it were never sent and may build on it. They return to staging, ahead
-      // of newer edits, to be reviewed (or undone) and submitted again.
-      const unsent = queue.slice(index + 1).flatMap((batch) => batch.operations);
-      context.clearRedo();
-      set({
-        submissionQueue: queue.slice(0, index),
-        stagedOperations: [...unsent, ...get().stagedOperations],
-        canRedo: false,
-        editing: false,
-        drawing: undefined,
-        error: undefined,
-      });
-      rebuild();
-      // A live submission is not atomic: steps before the failure may be on the server already.
-      // Read the authoritative state again rather than show the pre-submit base as current.
-      void get().initialize();
+      reconciliation ??= Promise.resolve()
+        .then(async () => {
+          // Some changes may already have persisted. Keep the failed batch and block retries
+          // until reconciliation succeeds so the pre-submit base is never shown as current.
+          if (!(await context.reconcileFailedSubmission()) || isDisposed()) {
+            return;
+          }
+          const queue = get().submissionQueue;
+          const index = queue.findIndex((item) => item.id === id);
+          // The later batches were never sent. Return them to staging ahead of newer edits.
+          const unsent = queue.slice(index + 1).flatMap((batch) => batch.operations);
+          context.clearRedo();
+          set({
+            submissionQueue: queue.slice(0, index),
+            stagedOperations: [...unsent, ...get().stagedOperations],
+            canRedo: false,
+            editing: false,
+            drawing: undefined,
+          });
+          rebuild();
+        })
+        .finally(() => {
+          reconciliation = undefined;
+        });
     },
   };
 }
