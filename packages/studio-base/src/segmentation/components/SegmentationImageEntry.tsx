@@ -57,6 +57,7 @@ import {
 } from "../sourceFrames";
 import type { SegmentationDocument } from "../types";
 import { SegmentationPreview } from "./SegmentationPreview";
+import { removeSegmentationSurface } from "./surfaceHandoff";
 
 export type SegmentationImageEntryActions = {
   enterInline: () => void;
@@ -546,34 +547,7 @@ export function SegmentationImageEntry({
     ) {
       binding.runtime.store.setState({ drawing: undefined });
     }
-    if (!ownsSession && host.session.getState().surfaces[panelId] == undefined) {
-      return;
-    }
-    host.session.setState((session) => {
-      const surfaces = { ...session.surfaces };
-      delete surfaces[panelId];
-      const successor = Object.keys(surfaces)[0];
-      if (!ownsSession || successor == undefined) {
-        return ownsSession
-          ? {
-              open: false,
-              imageUrl: undefined,
-              decodedFrame: undefined,
-              panelId: undefined,
-              sourceReady: false,
-              surfaces: {},
-            }
-          : { surfaces };
-      }
-      const next = surfaces[successor]!;
-      return {
-        surfaces,
-        panelId: successor,
-        imageUrl: next.imageUrl,
-        decodedFrame: next.decodedFrame,
-        sourceReady: next.sourceReady,
-      };
-    });
+    removeSegmentationSurface(host.session, panelId, ownsSession ? binding.runtime : undefined);
   }, [host, panelId]);
 
   // Fence before paint: no new-source callback may write into the previous record's runtime.
