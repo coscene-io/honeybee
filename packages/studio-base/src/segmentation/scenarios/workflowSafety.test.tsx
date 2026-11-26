@@ -123,7 +123,7 @@ describe("workflow safety", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
     expect(
       screen.getByText(
-        "Nothing to reference yet. Create a class or instance in the Space sidebar first.",
+        "No saved targets yet. Create and save a class or instance in the Space sidebar first.",
       ),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Insert reference" })).toHaveProperty(

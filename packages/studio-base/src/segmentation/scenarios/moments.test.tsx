@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { useState } from "react";
 
 import { fixture } from "./fixtures/canvas";
@@ -23,7 +23,12 @@ installSegmentationTestHost();
 
 afterEach(() => {
   cleanup();
-  testHost().session.setState({ runtime: undefined, open: false, sourceReady: true });
+  testHost().session.setState({
+    runtime: undefined,
+    previewRuntime: undefined,
+    open: false,
+    sourceReady: true,
+  });
 });
 
 function ReferenceField({ recordName }: { recordName: string }): React.JSX.Element {
@@ -38,6 +43,117 @@ function ReferenceField({ recordName }: { recordName: string }): React.JSX.Eleme
 }
 
 describe("moments", () => {
+  it("offers classes and instances only after their annotation save is acknowledged", async () => {
+    const runtime = createMockSegmentationRuntime(fixture());
+    setMockControls(runtime.service, { delayMs: 0 });
+    await runtime.initialize();
+    testHost().session.setState({ runtime });
+    const store = runtime.store.getState();
+    const classId = store.addClass("New class");
+    store.addInstance(classId, "New instance");
+    const onChange = jest.fn();
+    render(<ActiveMomentReference recordName="record-1" value="" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    const choices = within(screen.getByRole("combobox", { name: "Choose a class or instance" }));
+    expect(choices.getByRole("option", { name: "Person" })).toBeTruthy();
+    expect(choices.queryByRole("option", { name: "New class" })).toBeNull();
+    expect(choices.queryByRole("option", { name: "New class New instance" })).toBeNull();
+
+    setMockControls(runtime.service, { failNext: true });
+    await act(async () => {
+      store.submit();
+      await store.waitForSubmissions();
+    });
+    const failed = runtime.store
+      .getState()
+      .submissionQueue.find(({ status }) => status === "failed");
+    if (!failed) {
+      throw new Error("Expected the first annotation save to fail");
+    }
+    expect(choices.queryByRole("option", { name: "New class" })).toBeNull();
+
+    await act(async () => {
+      store.retrySubmission(failed.id);
+      await store.waitForSubmissions();
+    });
+    expect(choices.getByRole("option", { name: "New class" })).toBeTruthy();
+    expect(choices.getByRole("option", { name: "New class New instance" })).toBeTruthy();
+    runtime.dispose();
+  });
+
+  it("keeps the selected target when the current camera changes", async () => {
+    const document = fixture();
+    document.frames.push({ ...document.frames[0]!, id: "side", videoId: "video-side" });
+    const runtime = createMockSegmentationRuntime(document);
+    setMockControls(runtime.service, { delayMs: 0 });
+    await runtime.initialize();
+    testHost().session.setState({ runtime });
+    const onChange = jest.fn();
+    render(<ActiveMomentReference recordName="record-1" value="" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
+      target: { value: "class/class-1" },
+    });
+    act(() => {
+      runtime.store.getState().setCurrentFrame("side");
+    });
+    expect(runtime.store.getState().currentFrameId).toBe("side");
+    fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
+    expect(onChange).toHaveBeenCalledWith("spatial://record-1/class/class-1");
+    runtime.dispose();
+  });
+
+  it("resolves a reference in playback using the preview record", async () => {
+    const previewRuntime = createMockSegmentationRuntime(fixture());
+    setMockControls(previewRuntime.service, { delayMs: 0 });
+    await previewRuntime.initialize();
+    testHost().session.setState({ previewRuntime });
+    render(
+      <>
+        <SpatialReferenceValue value="spatial://record-1/class/class-1" />
+        <SpatialReferenceValue value="spatial://other-record/class/class-1" />
+      </>,
+    );
+    expect(screen.getByText("Class · Person · class-1")).toBeTruthy();
+    expect(screen.getByText("Spatial reference · class class-1 (record not open)")).toBeTruthy();
+    previewRuntime.dispose();
+  });
+
+  it("inserts a saved reference during playback without an editing session", async () => {
+    const previewRuntime = createMockSegmentationRuntime(fixture());
+    setMockControls(previewRuntime.service, { delayMs: 0 });
+    await previewRuntime.initialize();
+    testHost().session.setState({ previewRuntime, sourceReady: false });
+    const onChange = jest.fn();
+    render(<ActiveMomentReference recordName="record-1" value="" onChange={onChange} />);
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Reference a spatial class or instance",
+      }).disabled,
+    ).toBe(false);
+    const priorDocument = fixture();
+    priorDocument.record.id = "previous-record";
+    priorDocument.videos = priorDocument.videos.map((video) => ({
+      ...video,
+      recordId: priorDocument.record.id,
+    }));
+    const priorRuntime = createMockSegmentationRuntime(priorDocument);
+    setMockControls(priorRuntime.service, { delayMs: 0 });
+    await priorRuntime.initialize();
+    act(() => {
+      // A closed editing session can retain its runtime for unsaved work.
+      testHost().session.setState({ runtime: priorRuntime });
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
+      target: { value: "class/class-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
+    expect(onChange).toHaveBeenCalledWith("spatial://record-1/class/class-1");
+    priorRuntime.dispose();
+    previewRuntime.dispose();
+  });
+
   it.each(["class", "instance"] as const)(
     "a moment attribute stores a spatial %s id and list/details follow rename and retirement",
     async (type) => {

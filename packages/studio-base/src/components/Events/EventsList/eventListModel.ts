@@ -7,25 +7,27 @@
 
 import { type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
+import type { Slots } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 export function eventListDetails(
   event: TimelinePositionedEvent,
   formatTime: (time: Time) => string,
+  searchLabels: readonly Slots["momentValueSearchLabels"][string][] = [],
 ): { triggerTime: string; duration: string; search: string[] } {
   const triggerTime = formatTime(event.startTime);
   const duration = `${durationToSeconds(event.event.duration).toFixed(3)} s`;
-  return {
-    triggerTime,
-    duration,
-    search: [
-      event.event.displayName,
-      triggerTime,
-      duration,
-      event.event.description,
-      ...Object.entries(event.event.customizedFields).flat(),
-    ].map((field) => field.toLowerCase()),
-  };
+  const search = [event.event.displayName, triggerTime, duration, event.event.description];
+  for (const [key, value] of Object.entries(event.event.customizedFields)) {
+    search.push(key, value);
+    for (const labelForValue of searchLabels) {
+      const label = labelForValue(value);
+      if (label != undefined) {
+        search.push(label);
+      }
+    }
+  }
+  return { triggerTime, duration, search: search.map((field) => field.toLowerCase()) };
 }
 
 /** Preserve insertion order and group names while appending in linear time. */

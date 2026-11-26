@@ -256,7 +256,7 @@ describe("workbench workflow integration", () => {
     runtime.store.getState().dispose();
   });
 
-  it("closes the Moment picker on same-record video switches and source readiness changes", async () => {
+  it("closes the Moment picker when its record becomes unavailable", async () => {
     const runtime = await initializedRuntime();
     const onChange = jest.fn();
     const { rerender } = render(
@@ -266,35 +266,11 @@ describe("workbench workflow integration", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
       target: { value: "instance/instance-1" },
     });
-    act(() => {
-      const document = runtime.store.getState().document!;
-      runtime.store.setState({
-        document: {
-          ...document,
-          videos: [...document.videos, { ...document.videos[0]!, id: "video-2" }],
-          frames: [
-            ...document.frames,
-            { ...document.frames[0]!, id: "rear-frame", videoId: "video-2" },
-          ],
-        },
-        currentFrameId: "rear-frame",
-      });
-    });
-    expect(
-      screen.queryByRole("dialog", { name: "Reference an annotated class or instance" }),
-    ).toBeNull();
-    expect(onChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
-      target: { value: "instance/instance-1" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
-    expect(onChange).toHaveBeenLastCalledWith("spatial://record-1/instance/instance-1");
-    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
     rerender(<MomentReferencePicker store={runtime.store} value="" onChange={onChange} disabled />);
     expect(
       screen.queryByRole("dialog", { name: "Reference an annotated class or instance" }),
     ).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
     runtime.store.getState().dispose();
   });
 });

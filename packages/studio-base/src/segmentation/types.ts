@@ -222,6 +222,8 @@ export type MaskConversionLoss = {
 };
 export type SegmentationStore = {
   document: SegmentationDocument | undefined;
+  /** Targets acknowledged by the annotation service, before applying local edits. */
+  persistedTargets: Pick<SegmentationDocument, "classes" | "instances"> | undefined;
   currentFrameId: string | undefined;
   viewMode: "original" | "instance" | "all";
   focus: SegmentationNodeRef | undefined;

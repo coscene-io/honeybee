@@ -65,7 +65,7 @@ export function parseSpatialReference(value: string): SpatialReference | undefin
 /** A readable label for a `spatial://` reference, or undefined when `value` is not one. */
 export function resolveSpatialReference(
   value: string,
-  document: SegmentationDocument | undefined,
+  document: Pick<SegmentationDocument, "record" | "classes" | "instances"> | undefined,
   t: TFunction<"segmentation">,
 ): string | undefined {
   const reference = parseSpatialReference(value);
@@ -107,39 +107,41 @@ export function MomentReferencePicker({
 }): React.JSX.Element {
   const { t } = useTranslation("segmentation");
   const document = useStore(store, (state) => state.document);
-  const currentFrameId = useStore(store, (state) => state.currentFrameId);
-  const unavailable = useStore(
-    store,
-    (state) => state.loading || ["running", "stopping"].includes(state.propagation.status),
+  const persistedTargets = useStore(store, (state) => state.persistedTargets);
+  const unavailable = useStore(store, (state) =>
+    ["running", "stopping"].includes(state.propagation.status),
   );
   const recordId = document?.record.id;
-  const currentVideoId =
-    document?.frames.find((frame) => frame.id === currentFrameId)?.videoId ??
-    document?.videos[0]?.id;
-  const [openedScope, setOpenedScope] = useState<{ recordId: string; videoId: string }>();
-  const [open, setOpen] = useState(false);
+  const [openedRecordId, setOpenedRecordId] = useState<string>();
   const [target, setTarget] = useState("");
   useEffect(() => {
-    setOpen(false);
-  }, [store, recordId, currentVideoId, disabled, unavailable]);
+    setOpenedRecordId(undefined);
+  }, [recordId, disabled, unavailable]);
+  const savedClassIds = new Set(persistedTargets?.classes.map((item) => item.id));
+  const savedInstanceIds = new Set(persistedTargets?.instances.map((item) => item.id));
   const classOf = (classId: string) => document?.classes.find((item) => item.id === classId);
-  const classOptions = (document?.classes ?? []).map((item) => ({
-    key: `class/${item.id}`,
-    type: "class" as const,
-    id: item.id,
-    label: item.name || t("unnamed"),
-  }));
-  const instanceOptions = (document?.instances ?? []).map((item) => ({
-    key: `instance/${item.id}`,
-    type: "instance" as const,
-    id: item.id,
-    label: `${classOf(item.classId)?.name ?? t("unclassified")} ${item.name || t("unnamed")}`,
-  }));
+  const classOptions = (document?.classes ?? [])
+    .filter((item) => savedClassIds.has(item.id))
+    .map((item) => ({
+      key: `class/${item.id}`,
+      type: "class" as const,
+      id: item.id,
+      label: item.name || t("unnamed"),
+    }));
+  const instanceOptions = (document?.instances ?? [])
+    .filter((item) => savedInstanceIds.has(item.id))
+    .map((item) => ({
+      key: `instance/${item.id}`,
+      type: "instance" as const,
+      id: item.id,
+      label: `${classOf(item.classId)?.name ?? t("unclassified")} ${item.name || t("unnamed")}`,
+    }));
   const options = [...classOptions, ...instanceOptions];
+  const selected = options.find((item) => item.key === target);
   const display = resolveSpatialReference(value, document, t);
-  const blocked = disabled || unavailable || !document || !currentVideoId;
+  const blocked = disabled || unavailable || recordId == undefined;
   const close = () => {
-    setOpen(false);
+    setOpenedRecordId(undefined);
   };
   return (
     <>
@@ -152,12 +154,8 @@ export function MomentReferencePicker({
             color={display ? "primary" : "default"}
             disabled={blocked}
             onClick={() => {
-              if (!recordId || !currentVideoId) {
-                return;
-              }
               setTarget("");
-              setOpenedScope({ recordId, videoId: currentVideoId });
-              setOpen(true);
+              setOpenedRecordId(recordId);
             }}
           >
             <LinkIcon fontSize="small" />
@@ -165,7 +163,7 @@ export function MomentReferencePicker({
         </span>
       </Tooltip>
       {/* Unmounted at once on close: a context change must leave no stale picker behind. */}
-      {open && (
+      {!blocked && openedRecordId != undefined && openedRecordId === recordId && (
         <Dialog
           open
           onClose={close}
@@ -173,8 +171,8 @@ export function MomentReferencePicker({
           maxWidth="xs"
           aria-label={t("referenceTarget")}
           onKeyDown={(event) => {
-            // Keep Escape inside the dialog: the surrounding Moment form must stay open.
-            if (event.key === "Escape") {
+            // Keep the dialog's keyboard actions from reaching the Moment form through the portal.
+            if (event.key === "Escape" || event.key === "Enter") {
               event.stopPropagation();
             }
           }}
@@ -233,22 +231,10 @@ export function MomentReferencePicker({
             <Button onClick={close}>{t("cancel")}</Button>
             <Button
               variant="contained"
-              disabled={!target || unavailable || disabled}
+              disabled={selected == undefined}
               onClick={() => {
-                const selected = options.find((item) => item.key === target);
-                if (
-                  openedScope?.recordId !== recordId ||
-                  openedScope?.videoId !== currentVideoId ||
-                  unavailable ||
-                  disabled
-                ) {
-                  close();
-                  return;
-                }
-                if (selected && document && openedScope) {
-                  onChange(
-                    encodeSpatialReference(openedScope.recordId, selected.type, selected.id),
-                  );
+                if (selected) {
+                  onChange(encodeSpatialReference(openedRecordId, selected.type, selected.id));
                   close();
                 }
               }}

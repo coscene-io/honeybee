@@ -11,6 +11,7 @@ import type { StoreApi } from "zustand";
 
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 
+import type { SegmentationRuntime, SegmentationSessionState } from "../runtime";
 import { useSegmentationHost, useSegmentationSession } from "../segmentationHostContext";
 import type { SegmentationStore } from "../types";
 import {
@@ -18,6 +19,11 @@ import {
   parseSpatialReference,
   resolveSpatialReference,
 } from "./MomentReferencePicker";
+
+export const selectMomentReferenceRuntime = (
+  state: SegmentationSessionState,
+): SegmentationRuntime | undefined =>
+  state.open ? (state.runtime ?? state.previewRuntime) : (state.previewRuntime ?? state.runtime);
 
 /** Added beside the real Moment attribute value; its string is persisted by the existing form. */
 export function ActiveMomentReference({
@@ -30,15 +36,13 @@ export function ActiveMomentReference({
   /** Record belonging to the actual Moment form, independent of the global annotation session. */
   recordName?: string;
 }): React.JSX.Element | undefined {
-  const runtime = useSegmentationSession((state) => state.runtime);
-  const sourceReady = useSegmentationSession((state) => state.sourceReady);
+  const runtime = useSegmentationSession(selectMomentReferenceRuntime);
   return runtime ? (
     <ScopedMomentReference
       store={runtime.store}
       value={value}
       onChange={onChange}
       recordName={recordName}
-      sourceReady={sourceReady}
     />
   ) : undefined;
 }
@@ -48,13 +52,11 @@ function ScopedMomentReference({
   value,
   onChange,
   recordName,
-  sourceReady,
 }: {
   store: StoreApi<SegmentationStore>;
   value: string;
   onChange: (value: string) => void;
   recordName?: string;
-  sourceReady: boolean;
 }): React.JSX.Element {
   const host = useSegmentationHost();
   const activeRecordId = useStore(store, (state) => state.document?.record.id);
@@ -63,15 +65,20 @@ function ScopedMomentReference({
     <MomentReferencePicker
       store={store}
       value={value}
-      disabled={!sourceReady || !sameRecord}
+      disabled={!sameRecord}
       onChange={(next) => {
         const session = host.session.getState();
+        const reference = parseSpatialReference(next);
+        const { document, persistedTargets } = store.getState();
         if (
           recordName != undefined &&
-          session.runtime?.store === store &&
-          session.sourceReady &&
-          store.getState().document?.record.id === recordName &&
-          parseSpatialReference(next)?.recordId === recordName
+          selectMomentReferenceRuntime(session)?.store === store &&
+          document?.record.id === recordName &&
+          reference?.recordId === recordName &&
+          (reference.targetType === "class"
+            ? persistedTargets?.classes
+            : persistedTargets?.instances
+          )?.some((item) => item.id === reference.targetId) === true
         ) {
           onChange(next);
         }
@@ -111,7 +118,7 @@ export function SpatialReferenceValue({
   highlight?: string;
 }): React.JSX.Element {
   const { t } = useTranslation("segmentation");
-  const runtime = useSegmentationSession((state) => state.runtime);
+  const runtime = useSegmentationSession(selectMomentReferenceRuntime);
   return runtime ? (
     <ResolvedValue store={runtime.store} value={value} highlight={highlight} />
   ) : (
