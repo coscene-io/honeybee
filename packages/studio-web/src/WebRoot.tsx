@@ -29,6 +29,7 @@ import {
   initializeBrowserSession,
   markBrowserCredentialInvalid,
 } from "@foxglove/studio-base/util/browserSession";
+import type { BrowserSessionSnapshot } from "@foxglove/studio-base/util/browserSession";
 import { windowShareManifestParseResult } from "@foxglove/studio-base/util/shareManifest";
 
 import { useCoSceneInit } from "./CoSceneInit";
@@ -37,6 +38,13 @@ import type { OrganizationAccess } from "./OrganizationAccess";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const isDevelopment = process.env.NODE_ENV === "development";
+
+function sameAccessSession(
+  previous: BrowserSessionSnapshot | undefined,
+  current: BrowserSessionSnapshot | undefined,
+): boolean {
+  return previous?.credential === current?.credential && previous?.version === current?.version;
+}
 
 export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
@@ -53,86 +61,96 @@ export function WebRoot(props: {
   });
   const [deepLinks] = useState(() => [window.location.href]);
   const [, setRevision] = useState(0);
-  const [access, setAccess] = useState<OrganizationAccess>({ status: "loading" });
+  const [accessSession, setAccessSession] = useState(() => session.readAccessSnapshot());
   const [attempt, setAttempt] = useState(0);
   const [opened, setOpened] = useState(false);
   const status = session.getStatus();
   const preservesPlayback = session.preservesPlayback();
   const urlState = parseAppURLState(new URL(window.location.href));
   const key = urlState?.ds === "coscene-data-platform" ? urlState.dsParams?.key : undefined;
+  const bffUrl = appConfig.VITE_APP_BFF_URL ?? "";
+  const check = useMemo(() => {
+    if (
+      preservesPlayback ||
+      !key ||
+      !accessSession ||
+      status === "recover" ||
+      status === "logged-out"
+    ) {
+      return undefined;
+    }
+    return { key, bffUrl, accessSession, status };
+  }, [accessSession, bffUrl, key, preservesPlayback, status]);
+  const [completed, setCompleted] = useState<{
+    check: NonNullable<typeof check>;
+    attempt: number;
+    result: OrganizationAccess;
+  }>();
+  const access = check != undefined && completed?.check === check ? completed.result : undefined;
+  const retrying = access?.status === "error" && completed?.attempt !== attempt;
+  const ready = preservesPlayback || (status === "current" && (!key || access?.status === "ready"));
+
   useEffect(() => {
-    // Status remains "changed" across subsequent replacements. Recheck each
-    // boundary without adopting its credential in the mounted workspace.
-    const refresh = () => {
-      setAttempt((value) => value + 1);
+    // Deduplicate notifications without missing a second replacement while already "changed".
+    const refreshAccessSession = () => {
+      const latest = session.readAccessSnapshot();
+      setAccessSession((previous) => (sameAccessSession(previous, latest) ? previous : latest));
     };
-    const onStorage = (event: StorageEvent) => {
-      if (
-        event.key == undefined ||
-        event.key === "coScene_org_jwt" ||
-        event.key === "coscene.auth.session-version.v1"
-      ) {
-        refresh();
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("pageshow", refresh);
-    window.addEventListener("coscene:session-version", refresh);
+    const unsubscribe = session.subscribe(() => {
+      setRevision((value) => value + 1);
+      refreshAccessSession();
+    });
+    const stopListening = session.listen(refreshAccessSession);
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("pageshow", refresh);
-      window.removeEventListener("coscene:session-version", refresh);
+      unsubscribe();
+      stopListening();
     };
-  }, []);
+  }, [session]);
+
   useEffect(() => {
-    if (preservesPlayback || !key) {
-      setAccess({ status: "ready" });
-      return;
-    }
-    if (status === "recover" || status === "logged-out") {
-      return;
-    }
-    if (status === "current" && !session.credential) {
-      // A first visit is a login, not recovery from an expired session. The
-      // access gate owns this redirect because StudioApp is not mounted yet.
-      window.location.assign(getBrowserAuthUrl("/auth/login"));
+    if (!check) {
       return;
     }
     const controller = new AbortController();
-    setAccess({ status: "loading" });
-    let credential = session.credential;
-    try {
-      if (status === "changed") {
-        credential = localStorage.getItem("coScene_org_jwt") ?? "";
-      }
-    } catch {
-      setAccess({ status: "login" });
+    const isCurrent = () =>
+      !controller.signal.aborted &&
+      check.status === session.getStatus() &&
+      sameAccessSession(check.accessSession, session.readAccessSnapshot());
+    if (!isCurrent()) {
       return;
     }
+    if (check.status === "current" && !session.credential) {
+      // A first visit goes to login with the complete return URL.
+      window.location.assign(getBrowserAuthUrl("/auth/login"));
+      return;
+    }
+    const credential =
+      check.status === "current" ? session.credential : check.accessSession.credential;
+    const complete = (result: OrganizationAccess) => {
+      setCompleted({ check, attempt, result });
+    };
     const timeout = window.setTimeout(() => {
+      if (isCurrent()) {
+        complete({ status: "error" });
+      }
       controller.abort();
-      setAccess({ status: "error" });
     }, 20_000);
-    void fetchOrganizationAccess(
-      appConfig.VITE_APP_BFF_URL ?? "",
-      key,
-      credential,
-      controller.signal,
-    )
+    void fetchOrganizationAccess(check.bffUrl, check.key, credential, controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) {
-          if (result.status === "login" && credential) {
-            markBrowserCredentialInvalid(credential);
-            if (status === "current") {
-              session.rejectCredential(credential);
-            }
-          }
-          setAccess(result);
+        if (!isCurrent()) {
+          return;
         }
+        if (result.status === "login" && credential) {
+          markBrowserCredentialInvalid(credential);
+          if (check.status === "current") {
+            session.rejectCredential(credential);
+          }
+        }
+        complete(result);
       })
       .catch(() => {
-        if (!controller.signal.aborted) {
-          setAccess({ status: "error" });
+        if (isCurrent()) {
+          complete({ status: "error" });
         }
       })
       .finally(() => {
@@ -142,23 +160,14 @@ export function WebRoot(props: {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [appConfig.VITE_APP_BFF_URL, key, session, status, preservesPlayback, attempt]);
+  }, [attempt, check, session]);
+
   useEffect(() => {
-    if (access.status === "ready" && status === "current") {
+    if (ready) {
       setOpened(true);
     }
-  }, [access.status, status]);
+  }, [ready]);
   const jwt = session.credential;
-  useEffect(() => {
-    const unsubscribe = session.subscribe(() => {
-      setRevision((value) => value + 1);
-    });
-    const stopListening = session.listen();
-    return () => {
-      unsubscribe();
-      stopListening();
-    };
-  }, [session]);
 
   useCoSceneInit();
 
@@ -207,8 +216,7 @@ export function WebRoot(props: {
   const changed = status === "changed" && !preservesPlayback;
   const recovery =
     !preservesPlayback && (status === "recover" || status === "logged-out") ? status : undefined;
-  const blocked = !preservesPlayback && (status !== "current" || access.status !== "ready");
-  const showWorkspace = opened || !blocked;
+  const showWorkspace = opened || ready;
 
   return (
     <>
@@ -224,16 +232,17 @@ export function WebRoot(props: {
       >
         <>
           {showWorkspace && (
-            <div style={{ display: blocked ? "none" : "contents" }}>
+            <div style={{ display: ready ? "contents" : "none" }}>
               <StudioApp />
             </div>
           )}
-          {blocked && (
+          {!ready && (
             <OrganizationAccessView
-              access={access}
+              access={access ?? { status: key ? "loading" : "ready" }}
               changed={changed}
               modal={opened}
               recovery={recovery}
+              retrying={retrying}
               onRetry={() => {
                 setAttempt((value) => value + 1);
               }}
