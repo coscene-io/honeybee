@@ -256,6 +256,7 @@ export function createSegmentationStore(
       for (const id of evicted) {
         loadedFrames.delete(id);
       }
+      service.releaseFrames?.(evicted);
     }
     function rebuild() {
       if (!base) {
@@ -551,7 +552,13 @@ export function createSegmentationStore(
           // its window is read again, only when the authoritative metadata is unchanged. Every
           // window is re-read either way: the server may have changed since it was loaded.
           const metadata = (doc: SegmentationDocument) => {
-            const { annotations: _annotations, unreadableObservations: _unreadable, ...rest } = doc;
+            // Summaries are derived: exact for loaded windows, timeline placeholders otherwise.
+            const {
+              annotations: _annotations,
+              unreadableObservations: _unreadable,
+              annotationSummaries: _summaries,
+              ...rest
+            } = doc;
             return rest;
           };
           const sameBase = base != undefined && _.isEqual(metadata(base), metadata(loaded));
@@ -920,7 +927,14 @@ export function createSegmentationStore(
         const id = uuidv4();
         stage("opLabelCreateInstance", {
           instances: {
-            [id]: { id, classId, name: name ?? nextInstanceName(document().instances) },
+            [id]: {
+              id,
+              classId,
+              name:
+                name == undefined
+                  ? nextInstanceName(document().instances)
+                  : checkedName(name, "Instance"),
+            },
           },
         });
         exitEditing();

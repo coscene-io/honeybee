@@ -173,6 +173,38 @@ describe("<KeyListener />", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it("passes Space through when the owner lists it", () => {
+    const handler = jest.fn();
+    render(
+      <>
+        <KeyListener global keyDownHandlers={{ " ": handler }} />
+        <div {...inputOwnerProps([" "])} data-testid="owner" />
+      </>,
+    );
+
+    fireEvent.keyDown(screen.getByTestId("owner"), { key: " " });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a passed-through key that a local listener inside the owner consumed", () => {
+    const global = jest.fn();
+    const local = jest.fn();
+    render(
+      <>
+        <KeyListener global keyDownHandlers={{ ArrowRight: global }} />
+        <div {...ownerWithArrows} data-testid="owner">
+          <KeyListener keyDownHandlers={{ ArrowRight: local }} />
+        </div>
+      </>,
+    );
+
+    fireEvent.keyDown(screen.getByTestId("owner"), { key: "ArrowRight", cancelable: true });
+
+    expect(local).toHaveBeenCalledTimes(1);
+    expect(global).not.toHaveBeenCalled();
+  });
+
   it("keeps local KeyListener handlers inside an input owner available", () => {
     const handler = jest.fn();
     render(

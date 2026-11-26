@@ -33,8 +33,14 @@ import {
   windowBoundaryMicros,
   wireFrameTimeMicros,
 } from "./frameTime";
+import { frameOfKey } from "./frameWindows";
 import { inferMaskFrameSize, maskCountsCoverage, maskRunsFromCounts } from "./maskCodec";
-import { maskObservation, observationHasGeometry, polygonObservation } from "./maskGeometry";
+import {
+  maskObservation,
+  observationHasGeometry,
+  polygonObservation,
+  summarizeObservation,
+} from "./maskGeometry";
 import { describeViolation, toContractPolygon } from "./polygonContract";
 import { quickSegment } from "./quickSegment";
 import { isSegmentationRecordName } from "./recordName";
@@ -420,6 +426,15 @@ export function createSegmentationServiceForClient(options: {
     }
   }
 
+  /** The frame size a mask of another size was drawn at; undefined when its counts are malformed. */
+  function maskSizeOf(counts: string, size: { width: number; height: number }) {
+    try {
+      return inferMaskFrameSize(maskCountsCoverage(counts), size.width, size.height);
+    } catch {
+      return undefined;
+    }
+  }
+
   /** A wire observation as editor geometry, or why the editor cannot show it. */
   function toObservation(
     wire: WireFrame,
@@ -433,11 +448,7 @@ export function createSegmentationServiceForClient(options: {
         maskRunsFromCounts(wire.geometry.value.counts, size.width, size.height);
       } catch (error) {
         diagnostics.maskSizeMismatches++;
-        const madeFor = inferMaskFrameSize(
-          maskCountsCoverage(wire.geometry.value.counts),
-          size.width,
-          size.height,
-        );
+        const madeFor = maskSizeOf(wire.geometry.value.counts, size);
         if (madeFor) {
           // Same topic, another decoded size (e.g. another transcode quality): say which.
           return {
@@ -563,24 +574,45 @@ export function createSegmentationServiceForClient(options: {
       }
     }
     // The read is the complete state of every registered frame in the range.
-    const covered = new Set(
-      doc.frames
-        .filter((frame) => {
-          if (frame.videoId !== videoId) {
-            return false;
+    const covered = new Set<string>();
+    for (const frame of doc.frames) {
+      const micros = truncateToMicros(frame.logTimeNs);
+      if (frame.videoId !== videoId || micros < fromMicros || micros >= toMicros) {
+        continue;
+      }
+      if (!changedSince(frame.id)) {
+        covered.add(frame.id);
+      } else if (loadedFrames.has(frame.id)) {
+        // A frame saved during the read already holds its newer state: answer with that whole
+        // state, so the caller does not mistake its untouched observations for deletions.
+        for (const [key, annotation] of Object.entries(doc.annotations)) {
+          if (annotation.frameId === frame.id) {
+            annotations[key] = annotation;
           }
-          const micros = truncateToMicros(frame.logTimeNs);
-          // A frame saved during the read already holds its newer state.
-          return micros >= fromMicros && micros < toMicros && !changedSince(frame.id);
-        })
-        .map((frame) => frame.id),
-    );
+        }
+        for (const [key, item] of Object.entries(doc.unreadableObservations ?? {})) {
+          if (item.frameId === frame.id) {
+            unreadable[key] = item;
+          }
+        }
+      }
+    }
     for (const [key, annotation] of Object.entries(doc.annotations)) {
       if (covered.has(annotation.frameId)) {
         delete doc.annotations[key];
       }
     }
-    Object.assign(doc.annotations, cloneSegmentation(annotations));
+    for (const key of Object.keys(doc.annotationSummaries)) {
+      if (covered.has(frameOfKey(key))) {
+        delete doc.annotationSummaries[key];
+      }
+    }
+    for (const [key, annotation] of Object.entries(annotations)) {
+      if (covered.has(annotation.frameId)) {
+        doc.annotations[key] = cloneSegmentation(annotation);
+        doc.annotationSummaries[key] = summarizeObservation(annotation);
+      }
+    }
     const keptUnreadable = Object.entries(doc.unreadableObservations ?? {}).filter(
       ([key, item]) => {
         if (covered.has(item.frameId)) {
@@ -593,7 +625,12 @@ export function createSegmentationServiceForClient(options: {
     for (const [key, wire] of unreadableWires) {
       opaqueWires.set(key, wire);
     }
-    const nextUnreadable = { ...Object.fromEntries(keptUnreadable), ...unreadable };
+    const nextUnreadable = {
+      ...Object.fromEntries(keptUnreadable),
+      ...Object.fromEntries(
+        Object.entries(unreadable).filter(([, item]) => covered.has(item.frameId)),
+      ),
+    };
     if (Object.keys(nextUnreadable).length > 0) {
       doc.unreadableObservations = nextUnreadable;
     } else {
@@ -604,6 +641,39 @@ export function createSegmentationServiceForClient(options: {
     }
     diagnostics.loadedFrames = loadedFrames.size;
     return { annotations, unreadable };
+  }
+
+  /**
+   * Forgets the geometry of frames the store no longer holds. A later save of one of them reads
+   * it again first (ensureFramesLoaded), so its snapshot is complete. Summaries stay, as the store
+   * keeps them for its evicted frames.
+   */
+  function releaseFrames(frameIds: ReadonlySet<string>): void {
+    for (const [key, annotation] of Object.entries(doc.annotations)) {
+      if (frameIds.has(annotation.frameId)) {
+        delete doc.annotations[key];
+      }
+    }
+    if (doc.unreadableObservations) {
+      for (const [key, item] of Object.entries(doc.unreadableObservations)) {
+        if (frameIds.has(item.frameId)) {
+          delete doc.unreadableObservations[key];
+          opaqueWires.delete(key);
+        }
+      }
+      if (Object.keys(doc.unreadableObservations).length === 0) {
+        delete doc.unreadableObservations;
+      }
+    }
+    for (const key of occluded.keys()) {
+      if (frameIds.has(frameOfKey(key))) {
+        occluded.delete(key);
+      }
+    }
+    for (const id of frameIds) {
+      loadedFrames.delete(id);
+    }
+    diagnostics.loadedFrames = loadedFrames.size;
   }
 
   /**
@@ -882,7 +952,11 @@ export function createSegmentationServiceForClient(options: {
       try {
         return await quickSegment(client, recordName, request, signal);
       } catch (error) {
-        throw error instanceof ConnectError && error.code !== Code.Canceled
+        if (error instanceof ConnectError && error.code === Code.Canceled) {
+          // A replaced or abandoned request, as toRpcError leaves it for every other operation.
+          throw error;
+        }
+        throw error instanceof ConnectError
           ? new AnnotationRpcError(rpcCodeName(error.code), describeRpcError(error), {
               cause: error,
               detail: error.rawMessage,
@@ -897,6 +971,7 @@ export function createSegmentationServiceForClient(options: {
     },
     // No cancelPropagation: aborting the stream (the signal passed to `propagate`) is the STOP,
     // and the store acknowledges it when the iterator ends rather than on a no-op reply.
+    releaseFrames,
     dispose() {
       background.abort();
       timelineListeners.clear();
@@ -1042,6 +1117,12 @@ export function createSegmentationServiceForClient(options: {
           for (const [key, annotation] of Object.entries(doc.annotations)) {
             if (annotation.frameId === frameId) {
               delete doc.annotations[key];
+            }
+          }
+          // An observation the snapshot left out is gone, with the occlusion it had.
+          for (const key of occluded.keys()) {
+            if (frameOfKey(key) === frameId && !(key in candidate.annotations)) {
+              occluded.delete(key);
             }
           }
           for (const [key, annotation] of Object.entries(candidate.annotations)) {
