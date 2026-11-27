@@ -38,6 +38,7 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
+import { useWorkspaceSlotEntries } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 
 import { CreateEventForm } from "../types";
@@ -75,16 +76,23 @@ const useStyles = makeStyles()((theme, _params) => ({
 
 interface EventFormProps {
   form: UseFormReturn<CreateEventForm>;
+  /** Record that is actually open. A reference is not written for any other record. */
+  recordName?: string;
   onMetaDataKeyDown?: (keyboardEvent: React.KeyboardEvent) => void;
 }
 
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
-export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.ReactNode {
+export function EventForm({
+  form,
+  onMetaDataKeyDown,
+  recordName,
+}: EventFormProps): React.ReactNode {
   const { classes } = useStyles();
   const { t } = useTranslation("event");
   const { formatTime } = usePlaybackTimeFormat();
+  const valueAdornments = useWorkspaceSlotEntries("momentValueAdornments");
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const [isComposition, setIsComposition] = useState(false);
 
@@ -416,10 +424,36 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
                   render={({ field: valueField }) => (
                     <TextField
                       {...valueField}
+                      // Unchanged layout unless a feature adds an adornment.
+                      fullWidth={valueAdornments.length > 0}
                       size="small"
                       variant="filled"
                       placeholder={t("attributeValue")}
                       error={hasDuplicate}
+                      slotProps={{
+                        input: {
+                          // Features may offer a value picker here (WorkspaceSlots).
+                          endAdornment:
+                            valueAdornments.length > 0 ? (
+                              <>
+                                {valueAdornments.map(([adornmentId, Adornment]) => (
+                                  <Adornment
+                                    key={adornmentId}
+                                    recordName={recordName}
+                                    value={valueField.value}
+                                    onChange={(value) => {
+                                      valueField.onChange(value);
+                                      // Same deferral as typing into the field below.
+                                      setTimeout(() => {
+                                        handleAutoAppendRow(index);
+                                      }, 0);
+                                    }}
+                                  />
+                                ))}
+                              </>
+                            ) : undefined,
+                        },
+                      }}
                       onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
                         if (
                           (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&

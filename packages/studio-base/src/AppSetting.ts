@@ -26,6 +26,10 @@ export enum AppSetting {
   // Experimental features
   SHOW_DEBUG_PANELS = "showDebugPanels",
 
+  // Segmentation: the creation tool a new drawing starts with ("polygon" | "quick").
+  SEGMENTATION_CREATION_TOOL = "segmentation.creationTool",
+  SEGMENTATION_DRAWING_HELP = "segmentation.drawingHelp",
+
   // Miscellaneous
   HIDE_SIGN_IN_PROMPT = "hideSignInPrompt",
   LAUNCH_PREFERENCE = "launchPreference",

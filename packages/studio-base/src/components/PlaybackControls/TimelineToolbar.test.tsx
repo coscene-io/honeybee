@@ -11,9 +11,11 @@ import i18n from "i18next";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
+import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import SeekStepControls from "./SeekStepControls";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { TimelineToolbar } from "./TimelineToolbar";
@@ -39,29 +41,36 @@ function ToolbarFixture({
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
-      <TimelineToolbar
-        onHeightChange={onHeightChange}
-        playback={
-          <>
-            <button>Back</button>
-            <button>Play</button>
-            <button>Forward</button>
-          </>
-        }
-        playbackOptions={<button>Repeat</button>}
-        seekStep={seekStep}
-        momentSettingsUrl={momentSettingsUrl}
-        speed={<button>Speed</button>}
-        time={({ compact }) => <input aria-label="Time" data-compact={compact} />}
-        sourceInfo={<button>Source</button>}
-        create={() => <button onClick={onCreate}>Create</button>}
-        editing={() => <button>Edit</button>}
-        zoom={<input type="range" aria-label="Timeline zoom" />}
-        fit={() => <button>Fit</button>}
-        help={({ showLabel }) =>
-          realHelp === true ? <ShortcutsHelpButton showLabel={showLabel} /> : <button>Help</button>
-        }
-      />
+      <WorkspaceContextProvider disablePersistence>
+        {realHelp === true && <KeyboardShortcutsDialog />}
+        <TimelineToolbar
+          onHeightChange={onHeightChange}
+          playback={
+            <>
+              <button>Back</button>
+              <button>Play</button>
+              <button>Forward</button>
+            </>
+          }
+          playbackOptions={<button>Repeat</button>}
+          seekStep={seekStep}
+          momentSettingsUrl={momentSettingsUrl}
+          speed={<button>Speed</button>}
+          time={({ compact }) => <input aria-label="Time" data-compact={compact} />}
+          sourceInfo={<button>Source</button>}
+          create={() => <button onClick={onCreate}>Create</button>}
+          editing={() => <button>Edit</button>}
+          zoom={<input type="range" aria-label="Timeline zoom" />}
+          fit={() => <button>Fit</button>}
+          help={({ showLabel }) =>
+            realHelp === true ? (
+              <ShortcutsHelpButton showLabel={showLabel} />
+            ) : (
+              <button>Help</button>
+            )
+          }
+        />
+      </WorkspaceContextProvider>
     </ThemeProvider>
   );
 }

@@ -67,6 +67,7 @@ const restrictedSyntaxRule = [
 module.exports = [
   globalIgnores([
     "packages/studio-base/src/services/api/moment-custom-field/generated/**",
+    "packages/studio-base/src/services/api/spatial-annotation/generated/**",
     "**/dist",
     "**/out",
     "**/template",

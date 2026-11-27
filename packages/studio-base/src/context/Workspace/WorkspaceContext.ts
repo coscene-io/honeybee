@@ -34,6 +34,7 @@ export const LeftSidebarItemKeys = [
   "problems",
   "playlist",
   "moment",
+  "space",
   "tasks",
 ] as const;
 export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
@@ -57,6 +58,9 @@ export type WorkspaceContextStore = {
     };
     preferences: {
       initialTab: undefined | AppSettingsTab;
+      open: boolean;
+    };
+    keyboardShortcuts: {
       open: boolean;
     };
   };
@@ -97,6 +101,7 @@ export type WorkspaceInitialState = import("ts-essentials").DeepPartial<
   dialogs?: {
     dataSource?: Partial<WorkspaceContextStore["dialogs"]["dataSource"]>;
     preferences?: Partial<WorkspaceContextStore["dialogs"]["preferences"]>;
+    keyboardShortcuts?: Partial<WorkspaceContextStore["dialogs"]["keyboardShortcuts"]>;
   };
 };
 

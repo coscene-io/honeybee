@@ -45,6 +45,7 @@ import PanelSettings from "@foxglove/studio-base/components/PanelSettings";
 import PlaybackControls, {
   RealtimeVizPlaybackControls,
 } from "@foxglove/studio-base/components/PlaybackControls";
+import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
 import { PerformanceSidebar } from "@foxglove/studio-base/components/PlaybackDiagnostics/PerformanceSidebar";
 import { Playlist } from "@foxglove/studio-base/components/Playlist";
 import { ProblemsList } from "@foxglove/studio-base/components/ProblemsList";
@@ -76,6 +77,10 @@ import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import {
+  WorkspaceSlotsProvider,
+  useWorkspaceSlotValues,
+} from "@foxglove/studio-base/context/WorkspaceSlots";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDefaultWebLaunchPreference";
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
@@ -88,6 +93,9 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+// The composition root: the one place that mounts the segmentation feature. It plugs into the
+// shared chrome through WorkspaceSlots.
+import { SegmentationWorkspaceExtension } from "@foxglove/studio-base/segmentation/components/SegmentationWorkspaceExtension";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import {
   logPlaybackPerformanceMetric,
@@ -284,6 +292,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     }
   }, [filesToOpen, handleFilesRef]);
 
+  const slotLeftSidebarItems = useWorkspaceSlotValues("leftSidebarItems");
   const leftSidebarItems = useMemo(() => {
     const items: [LeftSidebarItemKey, SidebarItem][] = [
       [
@@ -304,6 +313,10 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           hidden: enableList.event === "DISABLE",
         },
       ],
+      ...slotLeftSidebarItems.map(({ key, item }): [LeftSidebarItemKey, SidebarItem] => [
+        key,
+        item,
+      ]),
       [
         "tasks",
         {
@@ -332,7 +345,15 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       items.filter(([, item]) => item.hidden == undefined || !item.hidden),
     );
     return cleanItems;
-  }, [enableList.event, enableList.playlist, enableList.task, playerProblems, t, paid]);
+  }, [
+    enableList.event,
+    enableList.playlist,
+    enableList.task,
+    playerProblems,
+    t,
+    paid,
+    slotLeftSidebarItems,
+  ]);
 
   const rightSidebarItems = useMemo(() => {
     const items = new Map<RightSidebarItemKey, SidebarItem>([
@@ -465,6 +486,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
+      <KeyboardShortcutsDialog />
       <DeepLinksSyncAdapter deepLinks={props.deepLinks} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
@@ -582,6 +604,9 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
         initialTab: undefined,
         open: false,
       },
+      keyboardShortcuts: {
+        open: false,
+      },
     },
   };
 
@@ -591,7 +616,11 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
       workspaceStoreCreator={workspaceStoreCreator}
       disablePersistence={props.disablePersistence}
     >
-      <WorkspaceContent {...props} />
+      <WorkspaceSlotsProvider>
+        <SegmentationWorkspaceExtension>
+          <WorkspaceContent {...props} />
+        </SegmentationWorkspaceExtension>
+      </WorkspaceSlotsProvider>
     </WorkspaceContextProvider>
   );
 }

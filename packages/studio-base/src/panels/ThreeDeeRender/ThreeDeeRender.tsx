@@ -31,6 +31,7 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
+import { type SegmentationPanelBridge } from "@foxglove/studio-base/segmentation/imageSource";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
@@ -150,8 +151,13 @@ export function ThreeDeeRender(props: {
   testOptions: TestOptions;
   /** Allow for injection or overriding of default extensions by custom extensions */
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
+  /**
+   * Connects this panel to the segmentation editor (its image, camera and the masks drawn
+   * over it). Only present when the feature flag is on and a cloud record is open.
+   */
+  segmentation?: SegmentationPanelBridge;
 }): React.JSX.Element {
-  const { context, interfaceMode, testOptions, customSceneExtensions } = props;
+  const { context, interfaceMode, testOptions, customSceneExtensions, segmentation } = props;
   const {
     initialState,
     saveState,
@@ -952,6 +958,49 @@ export function ThreeDeeRender(props: {
     },
     [renderer],
   );
+
+  useEffect(() => {
+    if (!canvas || !renderer || interfaceMode !== "image" || !segmentation) {
+      return;
+    }
+    // Nothing is displayed on a canvas that has no size yet.
+    const sized = () => canvas.width > 0 && canvas.height > 0;
+    const unpublish = segmentation.publish({
+      cachedFrames: () => renderer.cachedSegmentationFrames(),
+      imageMetadata: () => (sized() ? renderer.captureSegmentationImageMetadata() : undefined),
+      image: () => (sized() ? renderer.captureSegmentationImage() : undefined),
+      bounds: () => canvas.getBoundingClientRect(),
+      viewControls: {
+        reset: () => {
+          renderer.resetView();
+        },
+        zoom: (ratio, clientX, clientY) => {
+          const rect = canvas.getBoundingClientRect();
+          renderer.zoomImageViewAt(ratio, clientX - rect.left, clientY - rect.top);
+        },
+        panBy: (dx, dy) => {
+          renderer.panImageViewBy(dx, dy);
+        },
+        // The renderer's own input handling reads these from its canvas.
+        wheel: (event) => {
+          canvas.dispatchEvent(new WheelEvent("wheel", event));
+        },
+        mouseDown: (event) => {
+          canvas.dispatchEvent(new MouseEvent("mousedown", event));
+        },
+      },
+    });
+    renderer.setSegmentationBridge(segmentation);
+    const onFrame = () => {
+      segmentation.notifyFrame();
+    };
+    renderer.on("endFrame", onFrame);
+    return () => {
+      unpublish();
+      renderer.setSegmentationBridge(undefined);
+      renderer.off("endFrame", onFrame);
+    };
+  }, [canvas, renderer, interfaceMode, segmentation]);
 
   const selectedImageTopic = interfaceMode === "image" ? config.imageMode.imageTopic : undefined;
   const selectedImageTopicMessageFrequency = useMemo(

@@ -46,6 +46,10 @@ export type WorkspaceActions = {
       close: () => void;
       open: (initialTab?: AppSettingsTab) => void;
     };
+    keyboardShortcuts: {
+      close: () => void;
+      open: () => void;
+    };
   };
 
   featureTourActions: {
@@ -160,6 +164,19 @@ export function useWorkspaceActions(): WorkspaceActions {
           open: (initialTab?: AppSettingsTab) => {
             set((draft) => {
               draft.dialogs.preferences = { open: true, initialTab };
+            });
+          },
+        },
+
+        keyboardShortcuts: {
+          close: () => {
+            set((draft) => {
+              draft.dialogs.keyboardShortcuts.open = false;
+            });
+          },
+          open: () => {
+            set((draft) => {
+              draft.dialogs.keyboardShortcuts.open = true;
             });
           },
         },

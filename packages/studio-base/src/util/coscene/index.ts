@@ -19,6 +19,7 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
+import { isExpectedRpcError } from "./rpcContext";
 import {
   getBrowserAuthUrl,
   getBrowserSession,
@@ -108,13 +109,16 @@ const setAuthorizationUnaryInterceptor =
       }
 
       session?.assertCurrent();
-      console.error(error);
-      try {
-        console.error(
-          `Error Calling GRPC Service ${req.service.typeName} Code: ${error.code} Message: ${error.message}`,
-        );
-      } catch (err) {
-        console.error(err);
+      // Cancellations and codes the caller handles itself (expectingCodes) are not failures.
+      if (!isExpectedRpcError(error, req.contextValues)) {
+        console.error(error);
+        try {
+          console.error(
+            `Error Calling GRPC Service ${req.service.typeName} Code: ${error.code} Message: ${error.message}`,
+          );
+        } catch (err) {
+          console.error(err);
+        }
       }
       throw error;
     }

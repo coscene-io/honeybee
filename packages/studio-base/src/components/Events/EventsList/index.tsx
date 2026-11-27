@@ -55,6 +55,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useWorkspaceSlotValues } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
@@ -274,15 +275,16 @@ export function EventsList(): React.JSX.Element {
     record.value?.isArchived === false;
 
   const timestampedEvents = useMemo(() => groupEvents(visibleEvents), [visibleEvents]);
+  const searchLabels = useWorkspaceSlotValues("momentValueSearchLabels");
   const details = useMemo(
     () =>
       new Map(
         (events.value ?? EMPTY_EVENTS).map((event) => [
           event.event.name,
-          eventListDetails(event, formatTime),
+          eventListDetails(event, formatTime, searchLabels),
         ]),
       ),
-    [events.value, formatTime],
+    [events.value, formatTime, searchLabels],
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => {

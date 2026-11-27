@@ -14,6 +14,11 @@ import { fromNanoSec } from "@foxglove/rostime";
 import { Immutable, MessageEvent, RenderState } from "@foxglove/studio";
 import { pauseFrameForPromises } from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
 import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import {
+  createSegmentationMaskOverlay,
+  createSegmentationPanelBridge,
+  type SegmentationPanelBridge,
+} from "@foxglove/studio-base/segmentation/imageSource";
 
 import type { RendererConfig } from "./IRenderer";
 import { Renderer } from "./Renderer";
@@ -99,12 +104,14 @@ jest.mock("@foxglove/studio-base/context/AnalyticsContext", () => ({
   useAnalytics: () => undefined,
 }));
 jest.mock("notistack", () => ({ useSnackbar: () => mockSnackbar }));
+const mockSetSegmentationBridge = jest.fn();
 jest.mock("./Renderer", () => ({
   Renderer: jest.fn(({ config }: { config: RendererConfig }) => {
     mockBeforeRenderer?.();
     const instance = Object.assign(new EventEmitter(), {
       config,
       schemaSubscriptions: new Map(),
+      sceneExtensions: new Map(),
       topicSubscriptions: new Map(),
       settings: { tree: () => mockSettingsTree, handleAction: jest.fn() },
       measurementTool: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
@@ -142,13 +149,17 @@ jest.mock("./Renderer", () => ({
       queueAnimationFrame: mockQueueRAF,
       animationFrame: mockDraw,
       processMessageEvents: mockEnqueue,
+      setSegmentationBridge: mockSetSegmentationBridge,
       dispose: mockDispose,
     });
     return instance;
   }),
 }));
 
-function mountPanel(beforeRenderer?: (context: BuiltinPanelExtensionContext) => void) {
+function mountPanel(
+  beforeRenderer?: (context: BuiltinPanelExtensionContext) => void,
+  options: { interfaceMode?: "3d" | "image"; segmentation?: SegmentationPanelBridge } = {},
+) {
   const context = {
     initialState: {},
     saveState: jest.fn(),
@@ -159,13 +170,21 @@ function mountPanel(beforeRenderer?: (context: BuiltinPanelExtensionContext) => 
     unstable_setMessagePathDropConfig: jest.fn(),
     unstable_getPlaybackIsPlaying: () => true,
     layout: { addPanel: jest.fn() },
+    setDefaultPanelTitle: jest.fn(),
   } as unknown as BuiltinPanelExtensionContext;
   mockBeforeRenderer = beforeRenderer
     ? () => {
         beforeRenderer(context);
       }
     : undefined;
-  const view = render(<ThreeDeeRender context={context} interfaceMode="3d" testOptions={{}} />);
+  const view = render(
+    <ThreeDeeRender
+      context={context}
+      interfaceMode={options.interfaceMode ?? "3d"}
+      testOptions={{}}
+      segmentation={options.segmentation}
+    />,
+  );
   return { context, view };
 }
 async function flushRender() {
@@ -409,6 +428,67 @@ describe("onRender awaited presentation", () => {
     expect(mockEnqueue).toHaveBeenCalledWith(
       expect.objectContaining({ currentFrame: [message("/latest", 2n)], didSeek: false }),
     );
+    view.unmount();
+  });
+});
+
+describe("segmentation bridge", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockBeforeRenderer = undefined;
+  });
+
+  const lastRenderer = () => jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
+  const newBridge = () =>
+    createSegmentationPanelBridge({
+      maskOverlay: createSegmentationMaskOverlay(),
+      maskPlanes: { get: () => ({}) as never, dispose: () => {} },
+    });
+
+  it("never connects the renderer when annotation is off", () => {
+    const { view } = mountPanel(undefined, { interfaceMode: "image" });
+    expect(mockSetSegmentationBridge).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("bridges the image and its frames to the editor only while mounted", () => {
+    const bridge = newBridge();
+    const onFrame = jest.fn();
+    bridge.subscribeFrames(onFrame);
+    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: bridge });
+    const renderer = lastRenderer();
+    expect(mockSetSegmentationBridge).toHaveBeenLastCalledWith(bridge);
+
+    act(() => {
+      renderer.emit("endFrame", 0n, renderer);
+    });
+
+    expect(onFrame).toHaveBeenCalledTimes(1);
+    expect(bridge.sources()?.image).toBeDefined();
+    view.unmount();
+    expect(bridge.sources()).toBeUndefined();
+    expect(mockSetSegmentationBridge).toHaveBeenLastCalledWith(undefined);
+    renderer.emit("endFrame", 0n, renderer);
+    expect(onFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands gestures made over the image to the renderer's canvas", () => {
+    const bridge = newBridge();
+    const { view } = mountPanel(undefined, { interfaceMode: "image", segmentation: bridge });
+    const canvas = view.container.querySelector("canvas")!;
+    const seen: [string, number][] = [];
+    for (const type of ["wheel", "mousedown"]) {
+      canvas.addEventListener(type, (event) => {
+        seen.push([event.type, (event as MouseEvent).clientX]);
+      });
+    }
+    const controls = bridge.sources()!.viewControls;
+    controls.wheel(new WheelEvent("wheel", { clientX: 3 }));
+    controls.mouseDown(new MouseEvent("mousedown", { clientX: 4 }));
+    expect(seen).toEqual([
+      ["wheel", 3],
+      ["mousedown", 4],
+    ]);
     view.unmount();
   });
 });

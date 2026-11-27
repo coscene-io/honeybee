@@ -7,12 +7,13 @@
 
 import {
   GrowthBook,
+  GrowthBookContext,
   GrowthBookProvider as Provider,
   useFeatureValue,
 } from "@growthbook/growthbook-react";
 import type { JSONValue } from "@growthbook/growthbook-react";
 import type { PropsWithChildren } from "react";
-import { useEffect } from "react";
+import { useContext, useEffect } from "react";
 
 import Logger from "@foxglove/log";
 
@@ -138,4 +139,20 @@ export function useFeatureIsOnWithConfig(
 export function useFeatureValueWithConfig<T extends JSONValue>(featureKey: string, fallback: T): T {
   const localFallback = getConfiguredFallback(featureKey, fallback);
   return useFeatureValue(featureKey, localFallback) as T;
+}
+
+/**
+ * Like `useFeatureIsOnWithConfig`, but also works outside a GrowthBookProvider (isolated tests),
+ * where there is no client and the configured fallback is the value.
+ */
+export function useOptionalFeatureIsOnWithConfig(
+  featureKey: string,
+  options: { fallback?: boolean } = {},
+): boolean {
+  // The context type claims a client, but outside a provider there is none.
+  const growthbook = useContext(GrowthBookContext).growthbook as GrowthBook | undefined;
+  const localFallback = getConfiguredFallback(featureKey, options.fallback ?? false);
+  return growthbook == undefined
+    ? localFallback
+    : growthbook.getFeatureValue<JSONValue>(featureKey, localFallback) === true;
 }

@@ -15,6 +15,12 @@ import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurat
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import {
+  WorkspaceSlotsProvider,
+  createWorkspaceSlotsStore,
+  registerWorkspaceSlot,
+  type PlaybackStepOverride,
+} from "@foxglove/studio-base/context/WorkspaceSlots";
 import type { RealtimeHistoryState } from "@foxglove/studio-base/players/types";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
@@ -106,6 +112,8 @@ function KeyframeSearchLock({ active = true }: { active?: boolean }): ReactNull 
   return ReactNull;
 }
 
+let slots = createWorkspaceSlotsStore();
+
 function Wrapper({
   children,
   realtimeHistory,
@@ -131,13 +139,15 @@ function Wrapper({
               disablePersistence
               initialState={{ playbackControls: { repeat: false, speed: 1, timelineHeight } }}
             >
-              <PlaybackInteractionStateProvider>
-                <MockMessagePipelineProvider realtimeHistory={realtimeHistory}>
-                  {children}
-                  <SpeedObserver />
-                  <TimelineHeightObserver />
-                </MockMessagePipelineProvider>
-              </PlaybackInteractionStateProvider>
+              <WorkspaceSlotsProvider store={slots}>
+                <PlaybackInteractionStateProvider>
+                  <MockMessagePipelineProvider realtimeHistory={realtimeHistory}>
+                    {children}
+                    <SpeedObserver />
+                    <TimelineHeightObserver />
+                  </MockMessagePipelineProvider>
+                </PlaybackInteractionStateProvider>
+              </WorkspaceSlotsProvider>
             </WorkspaceContextProvider>
           </CoreDataProvider>
         </CoSceneConsoleApiContext.Provider>
@@ -147,6 +157,10 @@ function Wrapper({
 }
 
 describe("<PlaybackControls />", () => {
+  beforeEach(() => {
+    slots = createWorkspaceSlotsStore();
+  });
+
   it("leaves Space to the focused group button while retaining the global playback shortcut", () => {
     const play = jest.fn();
     const toggle = jest.fn();
@@ -678,5 +692,139 @@ describe("<RealtimeVizPlaybackControls />", () => {
     expect(
       screen.getByRole<HTMLButtonElement>("button", { name: "Switch to playback mode" }).disabled,
     ).toBe(false);
+  });
+
+  describe("back / forward steps", () => {
+    const at = { sec: 1, nsec: 0 };
+    function renderStepControls() {
+      const seek = jest.fn();
+      const playUntil = jest.fn();
+      render(
+        <Wrapper>
+          <PlaybackControls
+            isPlaying={false}
+            repeatEnabled={false}
+            getTimeInfo={() => ({
+              startTime: { sec: 0, nsec: 0 },
+              endTime: { sec: 10, nsec: 0 },
+              currentTime: at,
+            })}
+            play={jest.fn()}
+            pause={jest.fn()}
+            seek={seek}
+            playUntil={playUntil}
+            enableRepeatPlayback={jest.fn()}
+          />
+        </Wrapper>,
+      );
+      return { seek, playUntil };
+    }
+    const press = (key: "ArrowLeft" | "ArrowRight", modifiers: Partial<KeyboardEventInit> = {}) => {
+      act(() => {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, code: key, key, ...modifiers }),
+        );
+      });
+    };
+
+    it("plays forward up to the step and seeks backward, with Alt large and Shift small", () => {
+      const { seek, playUntil } = renderStepControls();
+      press("ArrowRight");
+      expect(playUntil).toHaveBeenLastCalledWith({ sec: 1, nsec: 100_000_000 });
+      press("ArrowRight", { altKey: true });
+      expect(playUntil).toHaveBeenLastCalledWith({ sec: 1, nsec: 500_000_000 });
+      press("ArrowRight", { shiftKey: true });
+      expect(playUntil).toHaveBeenLastCalledWith({ sec: 1, nsec: 10_000_000 });
+      press("ArrowLeft");
+      expect(seek).toHaveBeenLastCalledWith({ sec: 0, nsec: 900_000_000 });
+      expect(seek).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores a deferred frame-step seek after the user seeks elsewhere", () => {
+      const step = jest.fn<
+        ReturnType<PlaybackStepOverride["step"]>,
+        Parameters<PlaybackStepOverride["step"]>
+      >((_direction, modifiers) =>
+        modifiers?.altKey === true
+          ? { handled: false, modifiers: { altKey: false, shiftKey: false } }
+          : { handled: true },
+      );
+      const unregister = registerWorkspaceSlot(slots, "playbackStep", "test", {
+        backwardLabel: "Previous camera frame",
+        forwardLabel: "Next camera frame",
+        step,
+      });
+      try {
+        const { seek } = renderStepControls();
+        press("ArrowRight");
+        const [, , seekTo, , isCurrent] = step.mock.calls[0]!;
+        expect(isCurrent()).toBe(true);
+        press("ArrowLeft", { altKey: true });
+        expect(isCurrent()).toBe(false);
+        expect(seek).toHaveBeenCalledTimes(1);
+        seekTo(2_000_000_000n);
+        expect(seek).toHaveBeenCalledTimes(1);
+      } finally {
+        act(() => {
+          unregister();
+        });
+      }
+    });
+
+    it("hands steps to a registered override, which seeks to its exact target", () => {
+      const step = jest.fn<
+        ReturnType<PlaybackStepOverride["step"]>,
+        Parameters<PlaybackStepOverride["step"]>
+      >((_direction, modifiers, seekTo) => {
+        if (modifiers?.altKey === true) {
+          // Alt keeps the player's time step at its default length.
+          return { handled: false, modifiers: { altKey: false, shiftKey: modifiers.shiftKey } };
+        }
+        seekTo(2_000_000_000n);
+        return { handled: true };
+      });
+      let unregister = () => {};
+      act(() => {
+        unregister = registerWorkspaceSlot(slots, "playbackStep", "test", {
+          backwardLabel: "Previous camera frame",
+          forwardLabel: "Next camera frame",
+          step,
+        });
+      });
+      try {
+        const { seek, playUntil } = renderStepControls();
+        expect(screen.getByRole("button", { name: "Next camera frame" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Previous camera frame" })).toBeTruthy();
+
+        press("ArrowRight", { shiftKey: true });
+        expect(step).toHaveBeenLastCalledWith(
+          1,
+          expect.objectContaining({ shiftKey: true }),
+          expect.any(Function),
+          1_000_000_000n,
+          expect.any(Function),
+        );
+        expect(seek).toHaveBeenLastCalledWith({ sec: 2, nsec: 0 });
+        expect(playUntil).not.toHaveBeenCalled();
+
+        press("ArrowRight", { altKey: true });
+        expect(playUntil).toHaveBeenLastCalledWith({ sec: 1, nsec: 100_000_000 });
+        press("ArrowRight", { altKey: true, shiftKey: true });
+        expect(playUntil).toHaveBeenLastCalledWith({ sec: 1, nsec: 10_000_000 });
+
+        fireEvent.click(screen.getByRole("button", { name: "Previous camera frame" }));
+        expect(step).toHaveBeenLastCalledWith(
+          -1,
+          undefined,
+          expect.any(Function),
+          1_000_000_000n,
+          expect.any(Function),
+        );
+      } finally {
+        act(() => {
+          unregister();
+        });
+      }
+    });
   });
 });
