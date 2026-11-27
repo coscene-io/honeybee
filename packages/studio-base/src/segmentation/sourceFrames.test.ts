@@ -99,7 +99,6 @@ function loaderFor(times: bigint[]) {
         registered.set(frame.id, frame);
       }
     },
-    knownLogTimes: () => [...registered.values()].map((frame) => BigInt(frame.logTimeNs)),
   });
   return { loader, reads, registered };
 }
@@ -132,6 +131,28 @@ it("reads later windows until enough following frames are known", async () => {
   expect(
     [...registered.values()].filter((frame) => BigInt(frame.logTimeNs) > seed).length,
   ).toBeGreaterThanOrEqual(100);
+});
+
+it("scans earlier windows through a gap even if an older window was read first", async () => {
+  const previous = START + 1_000_000_000n;
+  const current = START + 3n * SOURCE_FRAME_WINDOW_NS + 1_000_000_000n;
+  const { loader, registered } = loaderFor([previous, current]);
+  await loader.ensureRange(previous, previous);
+  await loader.ensurePreceding(current, 1);
+  expect(loader.isLoaded(previous, current)).toBe(true);
+  expect([...registered.values()].map((frame) => frame.logTimeNs)).toContain(String(previous));
+});
+
+it("fills both sides of a 1 fps strip across multiple source windows", async () => {
+  const times = Array.from({ length: 61 }, (_, index) => START + BigInt(index) * 1_000_000_000n);
+  const { loader, registered } = loaderFor(times);
+  await Promise.all([
+    loader.ensurePreceding(times[30]!, 20),
+    loader.ensureFollowing(times[30]!, 20),
+  ]);
+  expect(loader.isLoaded(times[10]!, times[50]!)).toBe(true);
+  const registeredTimes = new Set([...registered.values()].map((frame) => frame.logTimeNs));
+  expect(times.slice(10, 51).filter((time) => !registeredTimes.has(String(time)))).toEqual([]);
 });
 
 it("reads through a gap even when later frames are already known", async () => {
@@ -190,7 +211,6 @@ it("clears a failed window's retry timer when disposed", async () => {
       startNs: START,
       endNs: START + 1_000_000_000n,
       register: () => {},
-      knownLogTimes: () => [],
     });
     await expect(loader.ensureRange(START, START + 1n)).rejects.toThrow("read failed");
     expect(jest.getTimerCount()).toBe(1);
@@ -213,7 +233,6 @@ describe("source frame loader registry", () => {
       register: (frames) => {
         registered.push(...frames);
       },
-      knownLogTimes: () => registered.map((frame) => BigInt(frame.logTimeNs)),
     });
   }
 

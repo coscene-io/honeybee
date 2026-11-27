@@ -5,11 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { createCameraStepState } from "./cameraFrames";
 import { createSegmentationMaskOverlay } from "./imageSource";
 import { clearMaskGeometryCaches } from "./maskGeometry";
-import { createMaskOverlayControls, installMaskOverlaySource } from "./maskOverlay/overlaySource";
+import { installMaskOverlaySource } from "./maskOverlay/overlaySource";
 import { createSharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import { createSegmentationRegistry, createSegmentationSession } from "./runtime";
+import { createSegmentationChrome } from "./segmentationChrome";
 import type { SegmentationHost } from "./segmentationHostContext";
 import { createSourceFrameLoaders } from "./sourceFrames";
 
@@ -18,19 +20,18 @@ export function createSegmentationHost(): SegmentationHost {
   const session = createSegmentationSession();
   const registry = createSegmentationRegistry(session);
   const maskOverlay = createSegmentationMaskOverlay();
-  const maskOverlayControls = createMaskOverlayControls();
   const maskPlanes = createSharedMaskPlanes();
   const uninstallOverlay = installMaskOverlaySource({
     session,
     overlay: maskOverlay,
-    controls: maskOverlayControls,
   });
   return {
     session,
     registry,
+    chrome: createSegmentationChrome(),
+    cameraStep: createCameraStepState(),
     sourceFrames: createSourceFrameLoaders(),
     maskOverlay,
-    maskOverlayControls,
     maskPlanes,
     dispose: () => {
       uninstallOverlay();

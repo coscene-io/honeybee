@@ -740,6 +740,37 @@ describe("<RealtimeVizPlaybackControls />", () => {
       expect(seek).toHaveBeenCalledTimes(1);
     });
 
+    it("ignores a deferred frame-step seek after the user seeks elsewhere", () => {
+      const step = jest.fn<
+        ReturnType<PlaybackStepOverride["step"]>,
+        Parameters<PlaybackStepOverride["step"]>
+      >((_direction, modifiers) =>
+        modifiers?.altKey === true
+          ? { handled: false, modifiers: { altKey: false, shiftKey: false } }
+          : { handled: true },
+      );
+      const unregister = registerWorkspaceSlot(slots, "playbackStep", "test", {
+        backwardLabel: "Previous camera frame",
+        forwardLabel: "Next camera frame",
+        step,
+      });
+      try {
+        const { seek } = renderStepControls();
+        press("ArrowRight");
+        const [, , seekTo, , isCurrent] = step.mock.calls[0]!;
+        expect(isCurrent()).toBe(true);
+        press("ArrowLeft", { altKey: true });
+        expect(isCurrent()).toBe(false);
+        expect(seek).toHaveBeenCalledTimes(1);
+        seekTo(2_000_000_000n);
+        expect(seek).toHaveBeenCalledTimes(1);
+      } finally {
+        act(() => {
+          unregister();
+        });
+      }
+    });
+
     it("hands steps to a registered override, which seeks to its exact target", () => {
       const step = jest.fn<
         ReturnType<PlaybackStepOverride["step"]>,
@@ -771,6 +802,7 @@ describe("<RealtimeVizPlaybackControls />", () => {
           expect.objectContaining({ shiftKey: true }),
           expect.any(Function),
           1_000_000_000n,
+          expect.any(Function),
         );
         expect(seek).toHaveBeenLastCalledWith({ sec: 2, nsec: 0 });
         expect(playUntil).not.toHaveBeenCalled();
@@ -781,7 +813,13 @@ describe("<RealtimeVizPlaybackControls />", () => {
         expect(playUntil).toHaveBeenLastCalledWith({ sec: 1, nsec: 10_000_000 });
 
         fireEvent.click(screen.getByRole("button", { name: "Previous camera frame" }));
-        expect(step).toHaveBeenLastCalledWith(-1, undefined, expect.any(Function), 1_000_000_000n);
+        expect(step).toHaveBeenLastCalledWith(
+          -1,
+          undefined,
+          expect.any(Function),
+          1_000_000_000n,
+          expect.any(Function),
+        );
       } finally {
         act(() => {
           unregister();

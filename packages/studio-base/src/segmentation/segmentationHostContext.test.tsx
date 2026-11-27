@@ -13,6 +13,9 @@ import {
   useSegmentationHost,
   useSegmentationSession,
 } from "./segmentationHostContext";
+import { allowSlowRunner } from "./testing/slowRunner";
+
+allowSlowRunner();
 
 describe("segmentation host context", () => {
   it("throws outside a host: the feature is mounted only behind its flag", () => {

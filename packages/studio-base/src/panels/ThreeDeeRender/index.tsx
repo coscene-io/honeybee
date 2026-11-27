@@ -5,7 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo, useEffect, useContext } from "react";
+import {
+  StrictMode,
+  Suspense,
+  lazy,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { DeepPartial } from "ts-essentials";
 
 import { useCrash } from "@foxglove/hooks";
@@ -25,6 +34,10 @@ import { mountPanel } from "@foxglove/studio-base/components/PanelExtensionAdapt
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import { reportError } from "@foxglove/studio-base/reportError";
+import { useSegmentationEnabled } from "@foxglove/studio-base/segmentation/featureFlag";
+import type { SegmentationPanelBridge } from "@foxglove/studio-base/segmentation/imageSource";
+import { SegmentationHostContext } from "@foxglove/studio-base/segmentation/segmentationHostContext";
 import {
   PlaybackDiagnosticsContext,
   type PanelDiagnostics,
@@ -43,6 +56,8 @@ type InitPanelArgs = {
   interfaceMode: InterfaceMode;
   testOptions: TestOptions;
   customSceneExtensions?: DeepPartial<SceneExtensionConfig>;
+  /** Connects the image to the segmentation editor (feature flag on and a cloud record open). */
+  segmentation?: SegmentationPanelBridge;
 };
 
 function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
@@ -58,6 +73,7 @@ function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
             interfaceMode={interfaceMode}
             testOptions={testOptions}
             customSceneExtensions={customSceneExtensions}
+            segmentation={args.segmentation}
           />
         </ForwardAnalyticsContextProvider>
       </CaptureErrorBoundary>
@@ -75,10 +91,12 @@ type Props = {
 type AdapterContentProps = Props & {
   extensionData?: Record<string, unknown>;
   interfaceMode: InterfaceMode;
+  additionalToolbarIcons?: ReactNode;
+  segmentation?: SegmentationPanelBridge;
 };
 
 function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
-  const { interfaceMode } = props;
+  const { interfaceMode, additionalToolbarIcons, segmentation } = props;
   const crash = useCrash();
   const session = useContext(PlaybackDiagnosticsContext);
   const { id: panelId } = usePanelContext();
@@ -115,6 +133,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
         interfaceMode,
         testOptions: { onDownloadImage: props.onDownloadImage, debugPicking: props.debugPicking },
         customSceneExtensions,
+        segmentation,
       }),
     [
       diagnostics,
@@ -124,6 +143,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
       props.onDownloadImage,
       props.debugPicking,
       customSceneExtensions,
+      segmentation,
     ],
   );
 
@@ -134,6 +154,7 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
       highestSupportedConfigVersion={1}
       saveConfig={props.saveConfig}
       initPanel={boundInitPanel}
+      additionalToolbarIcons={additionalToolbarIcons}
     />
   );
 }
@@ -144,9 +165,68 @@ function ImagePanelAdapter(props: Props) {
     () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
     [topicMessageFrequencies],
   );
+  // Segmentation is behind a rollout flag and needs a cloud record. Otherwise the Image
+  // panel is exactly the plain one: no editor, no per-frame events, no AnnotationService calls.
+  const segmentation = useSegmentationEnabled();
 
+  if (!segmentation) {
+    return (
+      <ThreeDeeRenderAdapterContent
+        {...props}
+        interfaceMode="image"
+        extensionData={extensionData}
+      />
+    );
+  }
+  return <SegmentationImagePanel {...props} extensionData={extensionData} />;
+}
+
+// The editor is loaded only when it is used (flag on and a cloud record open), so other Image
+// panels and the 3D panel never download it.
+type RenderImagePanel = (extra: {
+  additionalToolbarIcons?: ReactNode;
+  segmentation?: SegmentationPanelBridge;
+}) => React.JSX.Element;
+
+type ImageAdapter = (props: {
+  imageTopic: string | undefined;
+  renderPanel: RenderImagePanel;
+}) => React.JSX.Element;
+
+const SegmentationImagePanelAdapter = lazy<ImageAdapter>(async () => {
+  try {
+    const { SegmentationImagePanelAdapter: Adapter } =
+      await import("@foxglove/studio-base/segmentation/components/SegmentationImagePanelAdapter");
+    return { default: Adapter };
+  } catch (error) {
+    reportError(error instanceof Error ? error : new Error(String(error)));
+    return { default: ({ renderPanel }) => renderPanel({}) };
+  }
+});
+
+function SegmentationImagePanel(props: Props & { extensionData: Record<string, unknown> }) {
+  // The workspace's extension provides the host once the editor's core has loaded.
+  const host = useContext(SegmentationHostContext);
+  const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
+  const renderPanel = useCallback<RenderImagePanel>(
+    ({ additionalToolbarIcons, segmentation }) => (
+      <ThreeDeeRenderAdapterContent
+        {...props}
+        interfaceMode="image"
+        additionalToolbarIcons={additionalToolbarIcons}
+        segmentation={segmentation}
+      />
+    ),
+    [props],
+  );
+  const plainPanel = renderPanel({});
+  if (host == undefined) {
+    return plainPanel;
+  }
   return (
-    <ThreeDeeRenderAdapterContent {...props} interfaceMode="image" extensionData={extensionData} />
+    <Suspense fallback={plainPanel}>
+      <SegmentationImagePanelAdapter imageTopic={imageTopic} renderPanel={renderPanel} />
+    </Suspense>
   );
 }
 

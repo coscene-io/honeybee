@@ -93,6 +93,9 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+// The composition root: the one place that mounts the segmentation feature. It plugs into the
+// shared chrome through WorkspaceSlots.
+import { SegmentationWorkspaceExtension } from "@foxglove/studio-base/segmentation/components/SegmentationWorkspaceExtension";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import {
   logPlaybackPerformanceMetric,
@@ -614,7 +617,9 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
       disablePersistence={props.disablePersistence}
     >
       <WorkspaceSlotsProvider>
-        <WorkspaceContent {...props} />
+        <SegmentationWorkspaceExtension>
+          <WorkspaceContent {...props} />
+        </SegmentationWorkspaceExtension>
       </WorkspaceSlotsProvider>
     </WorkspaceContextProvider>
   );

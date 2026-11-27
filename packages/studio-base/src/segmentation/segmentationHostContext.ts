@@ -5,19 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createContext } from "react";
+import { createContext, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 
+import type { CameraStepState } from "./cameraFrames";
 import type { SegmentationMaskOverlay } from "./imageSource";
-import type { MaskOverlayControls } from "./maskOverlay/overlaySource";
 import type { SharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import type {
   SegmentationRegistry,
   SegmentationSession,
   SegmentationSessionState,
 } from "./runtime";
+import type { SegmentationChrome } from "./segmentationChrome";
 import type { SourceFrameLoaders } from "./sourceFrames";
 
 /**
@@ -29,12 +30,14 @@ import type { SourceFrameLoaders } from "./sourceFrames";
 export type SegmentationHost = {
   session: SegmentationSession;
   registry: SegmentationRegistry;
+  /** The live image panels that can open the annotation space. */
+  chrome: SegmentationChrome;
+  /** Playback-bar frame stepping state (the step still being decoded). */
+  cameraStep: CameraStepState;
   /** The frame loader of each video bound to the open session, by video id. */
   sourceFrames: SourceFrameLoaders;
   /** Masks the editor publishes for every Image panel to draw. */
   maskOverlay: SegmentationMaskOverlay;
-  /** Display controls of the editor's overlay, mirrored for the GPU layer. */
-  maskOverlayControls: MaskOverlayControls;
   /** The mask-plane cache and worker shared by the host's Image panels. */
   maskPlanes: SharedMaskPlanes;
   /** Releases every runtime and listener the host holds. Called when its owner unmounts. */
@@ -46,6 +49,16 @@ export const SegmentationHostContext = createContext<SegmentationHost | undefine
 /** The host of the enclosing workspace. Throws outside one (the feature is flag-gated). */
 export function useSegmentationHost(): SegmentationHost {
   return useGuaranteedContext(SegmentationHostContext);
+}
+
+const noSubscribe = () => () => {};
+
+/** Whether the host holds annotation work that is not saved yet (staged, queued or propagating). */
+export function useHostHasUnsavedWork(host: SegmentationHost | undefined): boolean {
+  return useSyncExternalStore(
+    host ? host.registry.subscribe : noSubscribe,
+    () => host?.registry.hasUnsavedWork() ?? false,
+  );
 }
 
 /** Reads the session with a selector, like `useCoreData`. */
