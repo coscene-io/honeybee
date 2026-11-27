@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { setupJestCanvasMock } from "jest-canvas-mock";
+import * as THREE from "three";
 
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
@@ -176,6 +177,83 @@ describe("3D Renderer", () => {
 
   it("constructs a renderer without error", () => {
     expect(() => new Renderer({ ...defaultRendererProps, canvas })).not.toThrow();
+  });
+
+  describe("orbit target indicator", () => {
+    let renderer: Renderer;
+    let indicator: THREE.Object3D;
+
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+      jest.spyOn(window, "requestAnimationFrame").mockReturnValue(42);
+      renderer = new Renderer({ ...defaultRendererProps, canvas });
+      indicator = renderer.sceneExtensions
+        .get("foxglove.CameraStateSettings")!
+        .getObjectByName("OrbitTargetIndicator")!;
+      renderer.animationFrame();
+    });
+
+    afterEach(() => {
+      renderer.dispose();
+      jest.useRealTimers();
+    });
+
+    it.each(["canvas", "window"])("releases held pan keys on %s blur", (target) => {
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      renderer.animationFrame();
+      expect(indicator.visible).toBe(true);
+
+      // Alt-Tab only blurs the window; it need not blur the canvas or deliver a keyup.
+      (target === "window" ? window : canvas).dispatchEvent(new Event("blur"));
+      renderer.animationFrame();
+      const requestFrame = jest.mocked(window.requestAnimationFrame);
+      requestFrame.mockClear();
+
+      jest.advanceTimersByTime(999);
+      expect(requestFrame).not.toHaveBeenCalled();
+      expect(indicator.visible).toBe(true);
+      jest.advanceTimersByTime(1);
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+
+      // Once woken, rendering drives the fade through to completion.
+      requestFrame.mockClear();
+      renderer.animationFrame();
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(600);
+      renderer.animationFrame();
+      expect(indicator.visible).toBe(false);
+
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      expect(indicator.visible).toBe(true);
+    });
+
+    it("cancels the delayed fade when the renderer is disposed", () => {
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+      const queueFrame = jest.spyOn(renderer, "queueAnimationFrame");
+      renderer.dispose();
+      queueFrame.mockClear();
+
+      jest.advanceTimersByTime(2000);
+      window.dispatchEvent(new Event("blur"));
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      expect(queueFrame).not.toHaveBeenCalled();
+    });
+
+    it("cancels the delayed fade when the indicator is disabled", () => {
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+      renderer.updateConfig((draft) => {
+        draft.scene.showOrbitTarget = false;
+      });
+      renderer.animationFrame();
+      const requestFrame = jest.mocked(window.requestAnimationFrame);
+      requestFrame.mockClear();
+
+      jest.advanceTimersByTime(2000);
+      expect(requestFrame).not.toHaveBeenCalled();
+      expect(indicator.visible).toBe(false);
+    });
   });
 
   it("cancels and ignores a queued animation frame after disposal", () => {
