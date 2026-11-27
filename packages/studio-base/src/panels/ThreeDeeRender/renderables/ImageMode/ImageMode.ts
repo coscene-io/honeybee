@@ -13,7 +13,7 @@ import { Writable } from "ts-essentials";
 import { filterMap } from "@foxglove/den/collection";
 import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
-import { toNanoSec } from "@foxglove/rostime";
+import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import {
   Immutable,
   MessageEvent,
@@ -83,11 +83,17 @@ import {
   normalizeCameraInfo,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/projections";
 import { t3D } from "@foxglove/studio-base/panels/ThreeDeeRender/t3D";
-import { makePose } from "@foxglove/studio-base/panels/ThreeDeeRender/transforms";
+import { AnyFrameId, makePose } from "@foxglove/studio-base/panels/ThreeDeeRender/transforms";
 import {
   REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
   type RemoteVideoFrameReference,
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
+import {
+  type SegmentationImage,
+  type SegmentationImageMetadata,
+  type SegmentationPanelBridge,
+} from "@foxglove/studio-base/segmentation/imageSource";
+import { cachedNativeImageView } from "@foxglove/studio-base/segmentation/nativeImageTransform";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadFiles } from "@foxglove/studio-base/util/download";
 
@@ -115,6 +121,7 @@ import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
 import { colorModeSettingsFields } from "../colorMode";
+import { SegmentationMaskLayer } from "./SegmentationMaskLayer";
 
 const log = Logger.getLogger(__filename);
 
@@ -132,6 +139,10 @@ export class ImageMode
     | undefined;
 
   readonly #annotations: ImageAnnotations;
+  /** Built on the first frame a mask source is installed; Image panels without one never pay for it. */
+  #segmentationMasks: SegmentationMaskLayer | undefined;
+  #segmentationBridge: SegmentationPanelBridge | undefined;
+  #unsubscribeMaskOverlay: (() => void) | undefined;
 
   #imageWork: Promise<ImageSetImageResult> | undefined;
   protected imageRenderable: ImageRenderable | undefined;
@@ -242,6 +253,25 @@ export class ImageMode
     return this.#hasModifiedView;
   }
 
+  /** Zoom around a canvas-pixel point, as the wheel does (annotation view shortcuts). */
+  public zoomViewAt(ratio: number, canvasX: number, canvasY: number): void {
+    this.#camera.updateZoomFromWheel(ratio, new THREE.Vector2(canvasX, canvasY));
+    this.#updateAnnotationsScale();
+    this.#hasModifiedView = true;
+    this.dispatchEvent({ type: "hasModifiedViewChanged" });
+    this.renderer.queueAnimationFrame();
+  }
+
+  /** Pan by screen pixels, as a drag does. */
+  public panViewBy(dx: number, dy: number): void {
+    const offset = new THREE.Vector2();
+    this.#camera.getPanOffset(offset);
+    this.#camera.setPanOffset(offset.add(new THREE.Vector2(dx, dy)));
+    this.#hasModifiedView = true;
+    this.dispatchEvent({ type: "hasModifiedViewChanged" });
+    this.renderer.queueAnimationFrame();
+  }
+
   public resetViewModifications(): void {
     this.#hasModifiedView = false;
     this.#camera.resetModifications();
@@ -326,6 +356,8 @@ export class ImageMode
   }
 
   public override dispose(): void {
+    this.#segmentationCapture = undefined;
+    this.#segmentationBlockedImage = undefined;
     i18n.off("languageChanged", this.#handleLanguageChanged);
     this.renderer.settings.errors.off("update", this.#handleErrorChange);
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
@@ -334,11 +366,77 @@ export class ImageMode
     this.renderer.off("configApplied", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
     this.#annotations.dispose();
+    this.#unsubscribeMaskOverlay?.();
+    this.#segmentationMasks?.dispose();
+    this.#segmentationMasks = undefined;
     this.imageRenderable?.dispose();
     super.dispose();
   }
 
+  public override startFrame(
+    currentTime: bigint,
+    renderFrameId: AnyFrameId,
+    fixedFrameId: AnyFrameId,
+  ): void {
+    super.startFrame(currentTime, renderFrameId, fixedFrameId);
+    // The image committed its candidate on the renderer's startFrame event, before this runs, so
+    // the overlay binds to the exact frame drawn by this gl.render.
+    const bridge = this.#segmentationBridge;
+    if (
+      bridge != undefined &&
+      this.#segmentationMasks == undefined &&
+      bridge.maskOverlay.get() != undefined
+    ) {
+      this.#segmentationMasks = new SegmentationMaskLayer(
+        bridge,
+        // Read lazily: test renderers have no GL context.
+        () => this.renderer.gl.capabilities.maxTextureSize,
+        () => {
+          this.renderer.queueAnimationFrame();
+        },
+        (listener) => {
+          const canvas = this.renderer.gl.domElement;
+          canvas.addEventListener("webglcontextrestored", listener);
+          return () => {
+            canvas.removeEventListener("webglcontextrestored", listener);
+          };
+        },
+      );
+    }
+    this.#segmentationMasks?.update(this.imageRenderable);
+  }
+
+  /**
+   * Connects this panel to the segmentation editor: masks it publishes are drawn over the
+   * image. Without a bridge (the default) no segmentation code runs.
+   */
+  public setSegmentationBridge(bridge: SegmentationPanelBridge | undefined): void {
+    if (bridge === this.#segmentationBridge) {
+      return;
+    }
+    this.#unsubscribeMaskOverlay?.();
+    this.#unsubscribeMaskOverlay = undefined;
+    this.#segmentationMasks?.dispose();
+    this.#segmentationMasks = undefined;
+    this.#segmentationBridge = bridge;
+    if (!bridge) {
+      // No editor is left to ask for a capture, so nothing may hold a decoded frame for one.
+      this.#segmentationCaptureRequested = false;
+      this.#segmentationBlockedImage = undefined;
+      this.#segmentationCapture = undefined;
+    }
+    // Only redraws so the next frame can build the layer; once built, the layer subscribes itself.
+    this.#unsubscribeMaskOverlay = bridge?.maskOverlay.subscribe(() => {
+      if (this.#segmentationMasks == undefined) {
+        this.renderer.queueAnimationFrame();
+      }
+    });
+    this.renderer.queueAnimationFrame();
+  }
+
   public override handleSeek(): void {
+    this.#blockSegmentationCaptureOfCurrentImage();
+    this.#segmentationCapture = undefined;
     this.imageRenderable?.invalidateImage();
     const topic = this.#compressedVideoTopic;
     if (topic == undefined) {
@@ -348,6 +446,8 @@ export class ImageMode
   }
 
   public override removeAllRenderables(options: RemoveAllRenderablesOptions = {}): void {
+    this.#blockSegmentationCaptureOfCurrentImage();
+    this.#segmentationCapture = undefined;
     // To avoid flickering while seeking or changing subscriptions, we avoid clearing the
     // ImageRenderable for a short timeout. When a new image message arrives, we cancel the timeout,
     // so the old image will continue displaying until the new one has been decoded.
@@ -373,6 +473,8 @@ export class ImageMode
   }
 
   #removeImageRenderable(): void {
+    this.#segmentationCapture = undefined;
+    this.#segmentationBlockedImage = undefined;
     const hadImage = this.imageRenderable != undefined;
     this.imageRenderable?.dispose();
     this.imageRenderable?.removeFromParent();
@@ -1257,6 +1359,95 @@ export class ImageMode
     this.updateSettingsTree();
   };
 
+  #segmentationCapture: { image: SegmentationImage; encode: () => string } | undefined;
+  #segmentationBlockedImage: object | undefined;
+  /** Set once something asks for a capture; panels nobody annotates never hold a frame for it. */
+  #segmentationCaptureRequested = false;
+
+  /**
+   * A capture right after a seek must not return the frame shown before it. Blocked while an editor
+   * is connected, even before its first capture, or after one was requested.
+   */
+  #blockSegmentationCaptureOfCurrentImage(): void {
+    if (this.#segmentationCaptureRequested || this.#segmentationBridge != undefined) {
+      this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
+    }
+  }
+
+  /**
+   * The compressed frames this panel still holds for its image topic, in receive order. Only what
+   * the decoder cache has kept, so the list grows as playback and seeks bring frames in.
+   */
+  public cachedSegmentationFrames(): MessageEvent[] {
+    const topic = this.getImageModeSettings().imageTopic;
+    if (topic == undefined || this.#compressedVideoTopic !== topic) {
+      return [];
+    }
+    return this.#compressedVideoController?.cachedFrames() ?? [];
+  }
+
+  public captureSegmentationImageMetadata(): SegmentationImageMetadata | undefined {
+    this.#segmentationCaptureRequested = true;
+    const renderable = this.imageRenderable;
+    const image = renderable?.getDecodedImage();
+    const displayed = renderable?.userData.displayedFrameState;
+    if (
+      !image ||
+      image === this.#segmentationBlockedImage ||
+      !displayed ||
+      renderable.userData.topic !== this.getImageModeSettings().imageTopic
+    ) {
+      return undefined;
+    }
+    const { width, height } = getDecodedImageDimensions(image);
+    const mesh = renderable.userData.mesh;
+    const view = mesh
+      ? cachedNativeImageView(
+          mesh,
+          this.#camera,
+          this.renderer.input.canvasSize.width,
+          this.renderer.input.canvasSize.height,
+          width,
+          height,
+        )
+      : undefined;
+    this.#segmentationBlockedImage = undefined;
+    const message = displayed.image;
+    return {
+      nativeView: view,
+      imageWidth: width,
+      imageHeight: height,
+      topic: renderable.userData.topic,
+      timestamp: "header" in message ? message.header.stamp : message.timestamp,
+      receiveTime: fromNanoSec(displayed.receiveTime),
+      decodedIdentity: image,
+    };
+  }
+
+  /**
+   * Capture pixels and their displayed message together; pending decodes never relabel old pixels.
+   * `encodeImageUrl()` makes a PNG of the decoded frame on its first call and keeps it for that
+   * frame: callers that need only identity, size or projection never pay for the encode.
+   */
+  public captureSegmentationImage(): SegmentationImage | undefined {
+    const metadata = this.captureSegmentationImageMetadata();
+    const image = this.imageRenderable?.getDecodedImage();
+    if (!metadata || !image) {
+      return undefined;
+    }
+    const previous = this.#segmentationCapture;
+    if (previous?.image.decodedIdentity === image) {
+      if (!nativeViewsEqual(previous.image.nativeView, metadata.nativeView)) {
+        previous.image = { ...metadata, encodeImageUrl: previous.encode };
+      }
+      return previous.image;
+    }
+    this.#segmentationBlockedImage = undefined;
+    const encode = memoizedEncode(image);
+    this.#segmentationCapture = { image: { ...metadata, encodeImageUrl: encode }, encode };
+    return this.#segmentationCapture.image;
+  }
+
   #getDownloadImageCallback = (): (() => Promise<void>) => {
     return async () => {
       if (!this.imageRenderable) {
@@ -1385,3 +1576,36 @@ const createFallbackCameraInfoForImage = (options: {
   });
   return cameraInfo;
 };
+
+function nativeViewsEqual(
+  left: SegmentationImageMetadata["nativeView"],
+  right: SegmentationImageMetadata["nativeView"],
+): boolean {
+  return left === right || JSON.stringify(left) === JSON.stringify(right);
+}
+
+/** PNG data URL of one decoded frame, encoded once on first call ("" when no 2D context). */
+function memoizedEncode(
+  image: NonNullable<ReturnType<ImageRenderable["getDecodedImage"]>>,
+): () => string {
+  let url: string | undefined;
+  return () => {
+    if (url != undefined) {
+      return url;
+    }
+    const { width, height } = getDecodedImageDimensions(image);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return (url = "");
+    }
+    if (image instanceof ImageData) {
+      context.putImageData(image, 0, 0);
+    } else {
+      context.drawImage(image, 0, 0);
+    }
+    return (url = canvas.toDataURL("image/png"));
+  };
+}

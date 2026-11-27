@@ -10,11 +10,15 @@ import { useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 
+import type { SegmentationMaskOverlay } from "./imageSource";
+import type { MaskOverlayControls } from "./maskOverlay/overlaySource";
+import type { SharedMaskPlanes } from "./maskOverlay/sharedMaskPlanes";
 import type {
   SegmentationRegistry,
   SegmentationSession,
   SegmentationSessionState,
 } from "./runtime";
+import type { SourceFrameLoaders } from "./sourceFrames";
 
 /**
  * Everything one spatial-annotation workspace shares between its image panels, sidebar and app
@@ -25,6 +29,14 @@ import type {
 export type SegmentationHost = {
   session: SegmentationSession;
   registry: SegmentationRegistry;
+  /** The frame loader of each video bound to the open session, by video id. */
+  sourceFrames: SourceFrameLoaders;
+  /** Masks the editor publishes for every Image panel to draw. */
+  maskOverlay: SegmentationMaskOverlay;
+  /** Display controls of the editor's overlay, mirrored for the GPU layer. */
+  maskOverlayControls: MaskOverlayControls;
+  /** The mask-plane cache and worker shared by the host's Image panels. */
+  maskPlanes: SharedMaskPlanes;
   /** Releases every runtime and listener the host holds. Called when its owner unmounts. */
   dispose: () => void;
 };

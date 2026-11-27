@@ -42,6 +42,11 @@ import {
 import { LayerErrors } from "@foxglove/studio-base/panels/ThreeDeeRender/LayerErrors";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import type {
+  SegmentationImage,
+  SegmentationImageMetadata,
+  SegmentationPanelBridge,
+} from "@foxglove/studio-base/segmentation/imageSource";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { palette, fontMonospace } from "@foxglove/theme";
@@ -1013,6 +1018,33 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public resetView(): void {
     this.#imageModeExtension?.resetViewModifications();
     this.queueAnimationFrame();
+  }
+
+  /** The displayed image of an Image panel, for the segmentation editor. */
+  public captureSegmentationImage(): SegmentationImage | undefined {
+    return this.#imageModeExtension?.captureSegmentationImage();
+  }
+
+  public captureSegmentationImageMetadata(): SegmentationImageMetadata | undefined {
+    return this.#imageModeExtension?.captureSegmentationImageMetadata();
+  }
+
+  public cachedSegmentationFrames(): MessageEvent[] {
+    return this.#imageModeExtension?.cachedSegmentationFrames() ?? [];
+  }
+
+  /** Multiplies the image zoom around a point in canvas pixels. */
+  public zoomImageViewAt(ratio: number, canvasX: number, canvasY: number): void {
+    this.#imageModeExtension?.zoomViewAt(ratio, canvasX, canvasY);
+  }
+
+  public panImageViewBy(dx: number, dy: number): void {
+    this.#imageModeExtension?.panViewBy(dx, dy);
+  }
+
+  /** Connects the Image panel to the segmentation editor; without a bridge none of it runs. */
+  public setSegmentationBridge(bridge: SegmentationPanelBridge | undefined): void {
+    this.#imageModeExtension?.setSegmentationBridge(bridge);
   }
 
   public setSelectedRenderable(selection: PickedRenderable | undefined): void {

@@ -29,6 +29,11 @@ import {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import type {
+  SegmentationImage,
+  SegmentationImageMetadata,
+  SegmentationPanelBridge,
+} from "@foxglove/studio-base/segmentation/imageSource";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { LabelPool } from "@foxglove/three-text";
@@ -408,6 +413,16 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   canResetView(): boolean;
   /** Reset any manual view modifications (image mode only). */
   resetView(): void;
+
+  /** The displayed image of an Image panel, for the segmentation editor. */
+  captureSegmentationImage(): SegmentationImage | undefined;
+  captureSegmentationImageMetadata(): SegmentationImageMetadata | undefined;
+  cachedSegmentationFrames(): MessageEvent[];
+  /** Multiplies the image zoom around a point in canvas pixels. */
+  zoomImageViewAt(ratio: number, canvasX: number, canvasY: number): void;
+  panImageViewBy(dx: number, dy: number): void;
+  /** Connects the Image panel to the segmentation editor; without a bridge none of it runs. */
+  setSegmentationBridge(bridge: SegmentationPanelBridge | undefined): void;
 
   setSelectedRenderable(selection: PickedRenderable | undefined): void;
 
