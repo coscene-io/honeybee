@@ -16,19 +16,29 @@ import { SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 
 export const DEFAULT_LABEL_SCALE_FACTOR = 1;
+export const DEFAULT_SHOW_SELECTED_OBJECT_LABEL = true;
 
 export class SceneSettings extends SceneExtension {
   public static extensionId = "foxglove.SceneSettings";
   public constructor(renderer: IRenderer, name: string = SceneSettings.extensionId) {
     super(name, renderer);
 
-    renderer.labelPool.scaleFactor =
-      renderer.config.scene.labelScaleFactor ?? DEFAULT_LABEL_SCALE_FACTOR;
+    this.#handleConfigApplied();
+    renderer.on("configApplied", this.#handleConfigApplied);
   }
 
   public override dispose(): void {
+    this.renderer.off("configApplied", this.#handleConfigApplied);
     super.dispose();
   }
+
+  #handleConfigApplied = (): void => {
+    const expectedScaleFactor =
+      this.renderer.config.scene.labelScaleFactor ?? DEFAULT_LABEL_SCALE_FACTOR;
+    if (this.renderer.labelPool.scaleFactor !== expectedScaleFactor) {
+      this.renderer.labelPool.setScaleFactor(expectedScaleFactor);
+    }
+  };
 
   public override settingsNodes(): SettingsTreeEntry[] {
     const config = this.renderer.config;
@@ -60,6 +70,12 @@ export class SceneSettings extends SceneExtension {
         value: config.scene.labelScaleFactor,
         placeholder: String(DEFAULT_LABEL_SCALE_FACTOR),
       },
+      showSelectedObjectLabel: {
+        label: t("threeDee:showSelectedObjectLabel"),
+        help: t("threeDee:showSelectedObjectLabelHelp"),
+        input: "boolean",
+        value: config.scene.showSelectedObjectLabel ?? DEFAULT_SHOW_SELECTED_OBJECT_LABEL,
+      },
       ignoreColladaUpAxis: {
         label: t("threeDee:ignoreColladaUpAxis"),
         help: t("threeDee:ignoreColladaUpAxisHelp"),
@@ -88,6 +104,9 @@ export class SceneSettings extends SceneExtension {
       },
     };
 
+    if (this.renderer.interfaceMode !== "3d") {
+      delete fields.showSelectedObjectLabel;
+    }
     if (process.env.NODE_ENV === "production") {
       delete fields.debugPicking;
     }
@@ -110,6 +129,7 @@ export class SceneSettings extends SceneExtension {
       this.renderer.updateConfig((draft) => {
         draft.scene = {};
       });
+      this.renderer.setColorScheme(this.renderer.colorScheme, undefined);
       this.updateSettingsTree();
       return;
     }
@@ -133,9 +153,6 @@ export class SceneSettings extends SceneExtension {
       if (path[1] === "backgroundColor") {
         const backgroundColor = value as string | undefined;
         this.renderer.setColorScheme(this.renderer.colorScheme, backgroundColor);
-      } else if (path[1] === "labelScaleFactor") {
-        const labelScaleFactor = value as number | undefined;
-        this.renderer.labelPool.setScaleFactor(labelScaleFactor ?? DEFAULT_LABEL_SCALE_FACTOR);
       }
     } else {
       return;

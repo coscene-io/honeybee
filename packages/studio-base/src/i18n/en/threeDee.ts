@@ -46,6 +46,18 @@ export const threeDee = {
   historySize: "History size",
   labels: "Labels",
   labelSize: "Label size",
+  scaleInvariantLabels: "Scale invariant",
+  scaleInvariantLabelsHelp:
+    "Keep frame labels at a fixed screen-space pixel size instead of scaling with 3D distance",
+  labelMaxDistance: "Max label distance",
+  labelMaxDistanceHelp:
+    "Maximum distance in meters from the camera, or from the view center in the 2D plane. Set to 0 for unlimited distance.",
+  labelMinSpacing: "Label min spacing (px)",
+  labelMinSpacingHelp:
+    "Hide overlapping frame labels closer than this pixel spacing in dense scenes (0 disables culling)",
+  labelHighlightFilter: "Highlight filter",
+  labelHighlightFilterHelp:
+    "Highlight frame labels whose name contains this text and keep them visible",
   lineColor: "Line color",
   noCoordinateFramesFound: "No coordinate frames found",
   parent: "Parent",
@@ -67,6 +79,9 @@ export const threeDee = {
     "Match the behavior of rviz by ignoring the <up_axis> tag in COLLADA files",
   labelScale: "Label scale",
   labelScaleHelp: "Scale factor to apply to all labels",
+  showSelectedObjectLabel: "Selected object label",
+  showSelectedObjectLabelHelp:
+    "Display a 3D label on the currently selected object or point cloud point",
   meshUpAxis: "Mesh up axis",
   meshUpAxisHelp:
     'The direction to use as "up" when loading meshes without orientation info (STL and OBJ)',

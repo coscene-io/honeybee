@@ -67,7 +67,6 @@ export class TopicEntities extends Renderable<EntityTopicUserData> {
   }
 
   public override dispose(): void {
-    this.children.length = 0;
     this.#deleteAllEntities();
   }
 
@@ -140,11 +139,12 @@ export class TopicEntities extends Renderable<EntityTopicUserData> {
     }
 
     for (const primitiveType of ALL_PRIMITIVE_TYPES) {
-      const hasPrimitives = entity[PRIMITIVE_KEYS[primitiveType]].length > 0;
+      const primitiveKey = PRIMITIVE_KEYS[primitiveType];
       let renderable = renderables[primitiveType];
-      if (hasPrimitives) {
+      if (entity[primitiveKey].length > 0) {
         if (!renderable) {
           renderable = this.primitivePool.acquire(primitiveType);
+          renderable.primitiveKey = primitiveKey;
           renderable.name = `${entity.id}:${primitiveType} on ${this.topic}`;
           renderable.userData.settingsPath = this.userData.settingsPath;
           renderable.setColorScheme(this.renderer.colorScheme);

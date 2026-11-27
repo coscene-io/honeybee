@@ -317,6 +317,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return { image: this.userData.image, camera_info: this.userData.cameraInfo };
   }
 
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    const mesh = this.userData.mesh;
+    if (!mesh) {
+      return undefined;
+    }
+    // The middle vertex of the projection grid is the projected image center.
+    const positions = mesh.geometry.getAttribute("position");
+    return mesh.localToWorld(out.fromBufferAttribute(positions, Math.floor(positions.count / 2)));
+  }
+
   public setRenderBehindScene(): void {
     this.#renderBehindScene = true;
     this.#materialNeedsUpdate = true;

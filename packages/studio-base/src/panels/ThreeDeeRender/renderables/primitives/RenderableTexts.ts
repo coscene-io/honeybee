@@ -5,13 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type * as THREE from "three";
+
 import { toNanoSec } from "@foxglove/rostime";
 import { SceneEntity, TextPrimitive } from "@foxglove/schemas";
 import { Label, LabelPool } from "@foxglove/three-text";
 
 import { RenderablePrimitive } from "./RenderablePrimitive";
 import type { IRenderer } from "../../IRenderer";
-import { getLuminance, makeRgba, SRGBToLinear, stringToRgba } from "../../color";
+import { makeRgba, stringToRgba } from "../../color";
+import {
+  acquirePooledLabel,
+  releasePooledLabel,
+  setLabelContrastingColors,
+} from "../../labels/labelUtils";
 import { LayerSettingsEntity } from "../../settings";
 
 const tempRgba = makeRgba();
@@ -29,7 +36,8 @@ export class RenderableTexts extends RenderablePrimitive {
     const oldLength = this.#labels.length;
     if (newLength > oldLength) {
       for (let i = oldLength; i < newLength; i++) {
-        const newLabel = this.#labelPool.acquire();
+        const newLabel = acquirePooledLabel(this.#labelPool);
+        newLabel.userData.labelPrimitiveIndex = i;
         this.#labels.push(newLabel);
         this.add(newLabel);
       }
@@ -52,14 +60,7 @@ export class RenderableTexts extends RenderablePrimitive {
       }
 
       label.setText(text.text);
-      label.setColor(SRGBToLinear(color.r), SRGBToLinear(color.g), SRGBToLinear(color.b), color.a);
-
-      const foregroundIsDark = getLuminance(color.r, color.g, color.b) < 0.5;
-      if (foregroundIsDark) {
-        label.setBackgroundColor(1, 1, 1, color.a);
-      } else {
-        label.setBackgroundColor(0, 0, 0, color.a);
-      }
+      setLabelContrastingColors(label, color);
       label.setLineHeight(text.font_size);
       // note that billboard needs to be true for scale_invariant to work
       label.setBillboard(text.billboard);
@@ -78,17 +79,30 @@ export class RenderableTexts extends RenderablePrimitive {
     }
     // need to release the no longer used labels so that they don't linger on the scene
     if (i < this.#labels.length) {
-      // cuts off remaining labels and loops through  them  release to from labelpool
+      // cuts off remaining labels and loops through them to release back to labelPool
       for (const label of this.#labels.splice(i)) {
-        this.#labelPool.release(label);
+        releasePooledLabel(this.#labelPool, label);
       }
     }
   }
 
+  public override getLabelWorldPosition(
+    out: THREE.Vector3,
+    primitiveIndex?: number,
+  ): THREE.Vector3 | undefined {
+    const label =
+      primitiveIndex == undefined
+        ? this.#labels.find((item) => item.mesh.count > 0)
+        : this.#labels[primitiveIndex];
+    return label && label.mesh.count > 0 ? label.getWorldPosition(out) : undefined;
+  }
+
   public override dispose(): void {
     for (const label of this.#labels) {
-      this.#labelPool.release(label);
+      releasePooledLabel(this.#labelPool, label);
     }
+    this.#labels.length = 0;
+    super.dispose();
   }
 
   public override update(

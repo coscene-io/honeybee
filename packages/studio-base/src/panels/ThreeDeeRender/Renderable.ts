@@ -118,4 +118,17 @@ export class Renderable<
     void instanceId;
     return undefined;
   }
+
+  /** A representative position for the callout, or undefined when there is no drawable geometry. */
+  public getLabelWorldPosition(
+    out: THREE.Vector3,
+    _primitiveIndex?: number,
+  ): THREE.Vector3 | undefined {
+    return this.getWorldPosition(out);
+  }
+
+  /** Instance data for the 3D callout. Point renderables supply their rendered local coordinates. */
+  public instanceLabelDetails(instanceId: number): Record<string, RosValue> | undefined {
+    return this.instanceDetails(instanceId);
+  }
 }

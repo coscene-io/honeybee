@@ -45,11 +45,13 @@ import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { palette, fontMonospace } from "@foxglove/theme";
-import { LabelMaterial, LabelPool } from "@foxglove/three-text";
+import { LabelMaterial } from "@foxglove/three-text";
 
 import {
   IRenderer,
   InstancedLineMaterial,
+  LAYER_DEFAULT,
+  LAYER_SELECTED,
   RendererConfig,
   RendererEvents,
   RendererMessageEvents,
@@ -59,8 +61,7 @@ import {
 } from "./IRenderer";
 import { Input } from "./Input";
 import { DEFAULT_MESH_UP_AXIS, ModelCache } from "./ModelCache";
-import { PickedRenderable, Picker } from "./Picker";
-import type { Renderable } from "./Renderable";
+import { findPickedRenderable, PickedRenderable, Picker } from "./Picker";
 import { SceneExtension } from "./SceneExtension";
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ScreenOverlay } from "./ScreenOverlay";
@@ -73,6 +74,7 @@ import {
   FRAME_TRANSFORMS_DATATYPES,
   FRAME_TRANSFORM_DATATYPES,
 } from "./foxglove";
+import { ViewportLabelPool } from "./labels/labelUtils";
 import { DetailLevel, msaaSamples } from "./lod";
 import {
   normalizeFrameTransform,
@@ -85,6 +87,7 @@ import { ImageMode } from "./renderables/ImageMode/ImageMode";
 import { MeasurementTool } from "./renderables/MeasurementTool";
 import { PublishClickTool } from "./renderables/PublishClickTool";
 import { MarkerPool } from "./renderables/markers/MarkerPool";
+import { RenderablePrimitive } from "./renderables/primitives/RenderablePrimitive";
 import {
   Header,
   MarkerArray,
@@ -121,10 +124,6 @@ const MAX_SELECTIONS = 10;
 // affected by gamma correction
 const LIGHT_BACKDROP = new THREE.Color(palette.light.background?.default);
 const DARK_BACKDROP = new THREE.Color(palette.dark.background?.default);
-
-// Define rendering layers for multipass rendering used for the selection effect
-const LAYER_DEFAULT = 0;
-const LAYER_SELECTED = 1;
 
 const FOLLOW_TF_PATH = ["general", "followTf"];
 const NO_FRAME_SELECTED = "NO_FRAME_SELECTED";
@@ -260,7 +259,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public fixedFrameId: string | undefined;
   public followFrameId: string | undefined;
 
-  public labelPool = new LabelPool({ fontFamily: fontMonospace });
+  public labelPool = new ViewportLabelPool({ fontFamily: fontMonospace });
   public markerPool = new MarkerPool(this);
   public sharedGeometry = new SharedGeometry();
 
@@ -427,11 +426,16 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     }
 
     this.#watchDevicePixelRatio();
+    this.labelPool.addEventListener("error", this.#handleLabelPoolError);
     document.addEventListener("visibilitychange", this.#onVisibilityChange);
 
     this.setCameraState(config.cameraState);
     this.animationFrame();
   }
+
+  #handleLabelPoolError = (event: { error: Error }): void => {
+    log.warn(`3D label font atlas error: ${event.error.message}`);
+  };
 
   #onHUDItemsChange = () => {
     this.hudItems = this.hud.getHUDItems();
@@ -484,6 +488,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.sharedGeometry.dispose();
     this.modelCache.dispose();
 
+    this.labelPool.removeEventListener("error", this.#handleLabelPoolError);
     this.labelPool.dispose();
     this.markerPool.dispose();
     this.#transformPool.clear();
@@ -1285,6 +1290,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       sceneExtension.startFrame(currentTime, renderFrameId, fixedFrameId);
     }
 
+    this.emit("beforeRender");
     this.gl.render(this.#scene, camera);
 
     if (this.#selectedRenderable) {
@@ -1537,12 +1543,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   #pickSingleObject(cursorCoords: THREE.Vector2): PickedRenderable | undefined {
     // Render a single pixel using a fragment shader that writes object IDs as
     // colors, then read the value of that single pixel back
-    const objectId = this.#picker.pick(
-      cursorCoords.x,
-      cursorCoords.y,
-      this.cameraHandler.getActiveCamera(),
-      { debug: this.debugPicking, disableSetViewOffset: this.interfaceMode === "image" },
-    );
+    const camera = this.cameraHandler.getActiveCamera();
+    const options = {
+      debug: this.debugPicking,
+      disableSetViewOffset: this.interfaceMode === "image",
+    };
+    const objectId = this.#picker.pick(cursorCoords.x, cursorCoords.y, camera, options);
     if (objectId === -1) {
       log.debug("Picking did not return an object");
       return undefined;
@@ -1551,39 +1557,48 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     // Traverse the scene looking for this objectId
     const pickedObject = this.#scene.getObjectById(objectId);
 
-    // Find the highest ancestor of the picked object that is a Renderable
-    let renderable: Renderable | undefined;
-    let maybeRenderable = pickedObject as Partial<Renderable> | undefined;
-    while (maybeRenderable) {
-      if (maybeRenderable.pickable === true) {
-        renderable = maybeRenderable as Renderable;
-      }
-      maybeRenderable = (maybeRenderable.parent ?? undefined) as Partial<Renderable> | undefined;
-    }
-
-    if (!renderable) {
+    const selection = findPickedRenderable(pickedObject);
+    if (!selection) {
       log.warn(
         `No Renderable found for objectId ${objectId} (name="${pickedObject?.name}" uuid=${pickedObject?.uuid})`,
       );
       return undefined;
     }
 
+    const { renderable } = selection;
     log.debug(`Picking pass returned ${renderable.id} (${renderable.name})`, renderable);
 
-    let instanceIndex: number | undefined;
     if (renderable.pickableInstances) {
-      instanceIndex = this.#picker.pickInstance(
+      const instanceIndex = this.#picker.pickInstance(
         cursorCoords.x,
         cursorCoords.y,
-        this.cameraHandler.getActiveCamera(),
+        camera,
         renderable,
-        { debug: this.debugPicking, disableSetViewOffset: this.interfaceMode === "image" },
+        options,
       );
-      instanceIndex = instanceIndex === -1 ? undefined : instanceIndex;
+      selection.instanceIndex = instanceIndex === -1 ? undefined : instanceIndex;
       log.debug("Instance picking pass on", renderable, "returned", instanceIndex);
+    } else if (
+      this.interfaceMode === "3d" &&
+      renderable instanceof RenderablePrimitive &&
+      pickedObject instanceof THREE.InstancedMesh &&
+      pickedObject.parent === renderable
+    ) {
+      // Keep the SceneEntity as the inspected object, and locate the clicked primitive for its label.
+      const index =
+        pickedObject.count === 1
+          ? 0
+          : this.#picker.pickInstance(
+              cursorCoords.x,
+              cursorCoords.y,
+              camera,
+              pickedObject,
+              options,
+            );
+      selection.primitiveIndex = index >= 0 && index < pickedObject.count ? index : undefined;
     }
 
-    return { renderable, instanceIndex };
+    return selection;
   }
 
   #updateFrameErrors(): void {
@@ -1634,6 +1649,11 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       if ((object as Partial<THREE.Mesh>).material) {
         const mesh = object as THREE.Mesh;
         const material = mesh.material as Partial<THREE.ShaderMaterial>;
+
+        // ViewportLabelPool updates display and picking uniforms from the physical WebGL viewport.
+        if (material instanceof LabelMaterial) {
+          return;
+        }
 
         // Update render resolution uniforms
         if (material.uniforms?.resolution) {

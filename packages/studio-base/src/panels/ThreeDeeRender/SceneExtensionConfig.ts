@@ -21,6 +21,7 @@ import { Poses } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/P
 import { PublishSettings } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/PublishSettings";
 import { FoxgloveSceneEntities } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/SceneEntities";
 import { SceneSettings } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/SceneSettings";
+import { SelectedObjectLabel } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/SelectedObjectLabel";
 import { Urdfs } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Urdfs";
 import { VelodyneScans } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/VelodyneScans";
 
@@ -75,6 +76,10 @@ export const DEFAULT_SCENE_EXTENSION_CONFIG: SceneExtensionConfig = {
     },
     [SceneSettings.extensionId]: {
       init: (renderer: IRenderer) => new SceneSettings(renderer),
+    },
+    [SelectedObjectLabel.extensionId]: {
+      init: (renderer: IRenderer) => new SelectedObjectLabel(renderer),
+      supportedInterfaceModes: ["3d"],
     },
     [FrameAxes.extensionId]: {
       init: (renderer: IRenderer) =>
