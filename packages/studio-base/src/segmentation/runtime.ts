@@ -29,7 +29,7 @@ export type SegmentationRuntimeOptions = Pick<SegmentationStoreOptions, "creatio
   seek?: (logTimeNs: bigint) => void;
 };
 
-/** One runtime is shared by the canvas, Space sidebar and workflows. */
+/** One runtime is shared by the canvas, Space sidebar, workflows and Moment references. */
 export function createSegmentationRuntime(
   /** The live AnnotationService adapter; tests pass the in-memory mock. Never modified. */
   service: SegmentationService,

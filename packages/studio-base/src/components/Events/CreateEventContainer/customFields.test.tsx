@@ -11,7 +11,7 @@ import { ProjectSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatfor
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { RecordSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import { createStore } from "zustand";
 
@@ -37,6 +37,17 @@ import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { SegmentationWorkspaceSlots } from "@foxglove/studio-base/segmentation/components/SegmentationWorkspaceSlots";
+import {
+  TestHostProvider,
+  installSegmentationTestHost,
+  testHost,
+} from "@foxglove/studio-base/segmentation/testing/host";
+import { createMockSegmentationRuntime } from "@foxglove/studio-base/segmentation/testing/mockRuntime";
+import {
+  createSeedDocument,
+  setMockControls,
+} from "@foxglove/studio-base/segmentation/testing/mockService";
 import { CustomFieldSchemaSchema } from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
 import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
@@ -45,6 +56,8 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 import { CreateEventContainer } from ".";
 
 const owner = "warehouses/warehouse/projects/project";
+const openRecord = `${owner}/records/record`;
+installSegmentationTestHost();
 const schema = create(CustomFieldSchemaSchema, {
   properties: [
     {
@@ -105,7 +118,12 @@ function Views(): React.JSX.Element {
   );
 }
 
-function setup({ keepAnother = false, withKind = true } = {}) {
+function setup({
+  keepAnother = false,
+  withKind = true,
+  eventRecord = openRecord,
+  withReferences = false,
+} = {}) {
   const playlistStore = createStore<CoScenePlaylistStore>(() => ({
     bagFiles: {
       loading: false,
@@ -129,7 +147,7 @@ function setup({ keepAnother = false, withKind = true } = {}) {
       ...event,
       name: `${owner}/events/${index}`,
       displayName: `Moment ${index}`,
-      record: `${owner}/records/record`,
+      record: eventRecord,
       customFieldValues: schema.properties
         .filter((property) => withKind || property.id !== "kind")
         .map((property) =>
@@ -182,6 +200,7 @@ function setup({ keepAnother = false, withKind = true } = {}) {
                         endTime={{ sec: 3600, nsec: 0 }}
                       >
                         <SeedCoreData />
+                        {withReferences && <SegmentationWorkspaceSlots />}
                         <Views />
                       </MockMessagePipelineProvider>
                     </TimelineInteractionStateProvider>
@@ -194,8 +213,65 @@ function setup({ keepAnother = false, withKind = true } = {}) {
       </WorkspaceContextProvider>
     </ThemeProvider>
   );
-  return { ...render(content), content, getEvents, updateEvent };
+  const rendered = withReferences
+    ? render(content, { wrapper: TestHostProvider })
+    : render(content);
+  return { ...rendered, content, getEvents, updateEvent };
 }
+
+async function startAnnotationSession() {
+  const document = createSeedDocument();
+  document.record.id = openRecord;
+  document.videos = document.videos.map((video) => ({ ...video, recordId: openRecord }));
+  const runtime = createMockSegmentationRuntime(document);
+  setMockControls(runtime.service, { delayMs: 0 });
+  await runtime.initialize();
+  testHost().session.setState({ runtime });
+  return runtime;
+}
+
+it("disables the reference picker when editing a Moment from a different record", async () => {
+  const runtime = await startAnnotationSession();
+  try {
+    setup({ eventRecord: `${owner}/records/other`, withReferences: true });
+    fireEvent.click(await screen.findByTitle("Edit Moment"));
+    const editor = within(screen.getByTestId("editor"));
+    expect(
+      editor.getByRole<HTMLButtonElement>("button", {
+        name: "Reference a spatial class or instance",
+      }).disabled,
+    ).toBe(true);
+  } finally {
+    runtime.dispose();
+  }
+});
+
+it("keeps Enter in the reference dialog until the user explicitly saves the Moment", async () => {
+  const runtime = await startAnnotationSession();
+  try {
+    const { updateEvent } = setup({ withReferences: true });
+    fireEvent.click(await screen.findByTitle("Edit Moment"));
+    const editor = within(screen.getByTestId("editor"));
+    fireEvent.change(editor.getByPlaceholderText("Attribute Key"), { target: { value: "target" } });
+    fireEvent.click(editor.getByRole("button", { name: "Reference a spatial class or instance" }));
+    const selector = screen.getByRole("combobox", { name: "Choose a class or instance" });
+    fireEvent.change(selector, { target: { value: "class/class-1" } });
+    await act(async () => {
+      fireEvent.keyDown(selector, { key: "Enter" });
+    });
+    expect(updateEvent).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
+    fireEvent.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(updateEvent).toHaveBeenCalledTimes(1);
+    });
+    expect(updateEvent.mock.calls[0]?.[0].event.customizedFields).toMatchObject({
+      target: `spatial://${encodeURIComponent(openRecord)}/class/class-1`,
+    });
+  } finally {
+    runtime.dispose();
+  }
+});
 
 function clearCreationType() {
   const editor = within(screen.getByTestId("editor"));

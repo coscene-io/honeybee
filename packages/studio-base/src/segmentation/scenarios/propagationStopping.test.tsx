@@ -10,6 +10,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { GlobalPropagationLock } from "../components/GlobalPropagationLock";
+import { MomentReferencePicker } from "../components/MomentReferencePicker";
 import { SegmentationSidebar } from "../components/SegmentationSidebar";
 import { SegmentationWorkbench } from "../components/SegmentationWorkbench";
 import { CurrentFramePropagationForm } from "./fixtures/canvas";
@@ -29,7 +30,7 @@ afterEach(() => {
 });
 
 describe("propagation stopping", () => {
-  it("keeps actual editor/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
+  it("keeps actual editor/picker/native surfaces locked until delayed cancel ack and restores keyboard focus for retry", async () => {
     let cancels = 0;
     // The first (failing) acknowledgement waits until focus has been moved away, so the lock's
     // focus restore is observed whatever the runner's speed.
@@ -65,6 +66,7 @@ describe("propagation stopping", () => {
         <SegmentationSidebar />
         <SegmentationWorkbench runtime={runtime} />
         <CurrentFramePropagationForm store={runtime.store} />
+        <MomentReferencePicker store={runtime.store} value="" onChange={() => {}} />
         <GlobalPropagationLock />
       </>,
     );
@@ -78,6 +80,9 @@ describe("propagation stopping", () => {
     );
     expect(container.inert).toBe(true);
     expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", true);
+    expect(
+      screen.getByRole("button", { name: "Reference a spatial class or instance" }),
+    ).toHaveProperty("disabled", true);
     act(() => {
       runtime.store.getState().stopPropagation();
     });
@@ -102,6 +107,9 @@ describe("propagation stopping", () => {
     });
     expect(container.inert).not.toBe(true);
     expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", false);
+    expect(
+      screen.getByRole("button", { name: "Reference a spatial class or instance" }),
+    ).toHaveProperty("disabled", false);
     runtime.dispose();
   });
 });

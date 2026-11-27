@@ -30,6 +30,7 @@ The editor reads and writes annotations for eligible cloud recordings through th
 | Move a class's instances to another class                          | One `UpdateInstance` per moved instance. The source class remains.                                                                                                                            |
 | Merge instances                                                    | **Not supported**, rejected before any write: the API cannot list every topic of a recording, so deleting the source instance would also delete its observations on cameras that are not open |
 | Propagate / stop                                                   | The `PropagateAnnotation` server stream, with `direction` FORWARD or BACKWARD; stopping cancels the RPC                                                                                       |
+| Moment references                                                  | Not part of the contract; the live service does not save them                                                                                                                                 |
 
 The order of one submission (`submit`):
 

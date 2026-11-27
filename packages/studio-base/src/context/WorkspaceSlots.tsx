@@ -22,7 +22,7 @@ import type { LeftSidebarItemKey } from "@foxglove/studio-base/context/Workspace
 
 /**
  * Extension points that let a feature add to shared workspace chrome (app bar, playback bar,
- * keyboard shortcuts dialog) without the shared code importing the feature.
+ * keyboard shortcuts dialog, moment fields) without the shared code importing the feature.
  *
  * A feature registers while it is mounted (`useWorkspaceSlot`); shared code reads the slot and
  * falls back to its own behavior when nothing is registered. The slots live in a store created by
@@ -56,6 +56,20 @@ export type ShortcutSection = { title: string; rows: readonly ShortcutRow[] };
 /** An extra column in the keyboard shortcuts dialog. */
 export type ShortcutColumn = { title: string; sections: readonly ShortcutSection[] };
 
+/** Renders a moment metadata value, or returns undefined to keep the default rendering. */
+export type MomentValueRenderer = (props: {
+  value: string;
+  highlight?: string;
+}) => React.ReactNode | undefined;
+
+/** An end adornment for a moment metadata value field. */
+export type MomentValueAdornment = React.ComponentType<{
+  /** The record owning the Moment; undefined when none is known. */
+  recordName?: string;
+  value: string;
+  onChange: (value: string) => void;
+}>;
+
 /** A left sidebar tab, shown after the built-in Moment tab. */
 export type LeftSidebarSlotItem = { key: LeftSidebarItemKey; item: SidebarItem };
 
@@ -64,6 +78,10 @@ export type Slots = {
   leftSidebarItems: Readonly<Record<string, LeftSidebarSlotItem>>;
   playbackStep: Readonly<Record<string, PlaybackStepOverride>>;
   shortcutColumns: Readonly<Record<string, ShortcutColumn>>;
+  momentValueRenderers: Readonly<Record<string, MomentValueRenderer>>;
+  /** Adds the display label of a feature-owned metadata value to Moment search. */
+  momentValueSearchLabels: Readonly<Record<string, (value: string) => string | undefined>>;
+  momentValueAdornments: Readonly<Record<string, MomentValueAdornment>>;
 };
 
 export type WorkspaceSlotName = keyof Slots;
@@ -74,6 +92,9 @@ export function createWorkspaceSlotsStore(): StoreApi<Slots> {
     leftSidebarItems: {},
     playbackStep: {},
     shortcutColumns: {},
+    momentValueRenderers: {},
+    momentValueSearchLabels: {},
+    momentValueAdornments: {},
   }));
 }
 

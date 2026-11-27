@@ -26,6 +26,7 @@ import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import { EventDetails } from "@foxglove/studio-base/components/Events/EventDetails";
+import { MomentMetadataValue } from "@foxglove/studio-base/components/Events/MomentMetadataValue";
 import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
 import {
   DOUBTFUL_MOMENT_COLOR,
@@ -600,7 +601,7 @@ function EventViewComponent(params: {
                       </Stack>
                       <Stack className={classes.layout15}>:</Stack>
                       <Stack>
-                        <HighlightedText text={value ?? ""} highlight={filter} />
+                        <MomentMetadataValue value={value ?? ""} highlight={filter} />
                       </Stack>
                     </Stack>
                   ))}

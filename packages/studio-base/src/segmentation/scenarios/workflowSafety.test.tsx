@@ -9,6 +9,7 @@
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
+import { MomentReferencePicker } from "../components/MomentReferencePicker";
 import { SubmissionControls, WorkflowControls } from "../components/WorkflowControls";
 import { polygonsOf } from "../maskGeometry";
 import { frameInstanceKey } from "../service";
@@ -98,9 +99,10 @@ describe("workflow safety", () => {
     runtime.dispose();
   });
 
-  it("keeps clean staging and empty queues honest", async () => {
+  it("keeps clean staging and empty queues honest, and cannot fabricate an empty Moment reference", async () => {
     const runtime = await setup();
-    render(
+    const onChange = jest.fn();
+    const { rerender } = render(
       <>
         <SubmissionControls store={runtime.store} />
         <WorkflowControls store={runtime.store} />
@@ -113,6 +115,23 @@ describe("workflow safety", () => {
     expect(screen.getByText("No staged changes")).toBeTruthy();
     expect(screen.getByText("Submitted batches appear here; you can keep editing.")).toBeTruthy();
     expect(runtime.store.getState().submissionQueue).toHaveLength(0);
+    act(() => {
+      const document = runtime.store.getState().document!;
+      runtime.store.setState({ document: { ...document, classes: [], instances: [] } });
+    });
+    rerender(<MomentReferencePicker store={runtime.store} value="unchanged" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    expect(
+      screen.getByText(
+        "No saved targets yet. Create and save a class or instance in the Space sidebar first.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Insert reference" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onChange).not.toHaveBeenCalled();
     runtime.dispose();
   });
 });

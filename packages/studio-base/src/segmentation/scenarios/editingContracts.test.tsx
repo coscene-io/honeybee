@@ -8,6 +8,7 @@
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
+import { ActiveMomentReference } from "../components/ActiveMomentReference";
 import { SegmentationCanvas } from "../components/SegmentationCanvas/SegmentationCanvas";
 import { SegmentationTree } from "../components/SegmentationTree/SegmentationTree";
 import { SegmentationWorkbench } from "../components/SegmentationWorkbench";
@@ -16,7 +17,7 @@ import { polygonsOf } from "../maskGeometry";
 import { cloneSegmentation, frameInstanceKey } from "../service";
 import { render, testHost, installSegmentationTestHost } from "../testing/host";
 import { createMockSegmentationRuntime } from "../testing/mockRuntime";
-import { setMockControls } from "../testing/mockService";
+import { createSeedDocument, setMockControls } from "../testing/mockService";
 import { TEST_DECODED_FRAME } from "../testing/nativeFrame";
 import { allowSlowRunner } from "../testing/slowRunner";
 import type { SegmentationDocument } from "../types";
@@ -226,5 +227,31 @@ describe("editing contracts", () => {
     expect(runtime.store.getState().stagedOperations).toHaveLength(1);
     expect(write).not.toHaveBeenCalled();
     runtime.dispose();
+  });
+
+  it("keeps the form record A reference when the runtime switches to B before or during picking", async () => {
+    const a = await fixture();
+    const document = createSeedDocument();
+    document.record.id = "record-B";
+    document.videos = document.videos.map((video) => ({ ...video, recordId: "record-B" }));
+    const b = await fixture(document);
+    const value = "spatial://record-1/instance/instance-1";
+    const change = jest.fn();
+    testHost().session.setState({ runtime: a, sourceReady: true });
+    render(<ActiveMomentReference recordName="record-1" value={value} onChange={change} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
+      target: { value: "instance/instance-2" },
+    });
+    act(() => {
+      testHost().session.setState({ runtime: b });
+    });
+    expect(
+      screen.getByRole("button", { name: "Reference a spatial class or instance" }),
+    ).toHaveProperty("disabled", true);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(change).not.toHaveBeenCalled();
+    a.dispose();
+    b.dispose();
   });
 });

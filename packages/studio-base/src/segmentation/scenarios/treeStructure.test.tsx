@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import i18n from "i18next";
 
 import {
   confirm,
@@ -18,6 +19,10 @@ import {
   setup,
   structureDocument,
 } from "./fixtures/tree";
+import {
+  MomentReferencePicker,
+  resolveSpatialReference,
+} from "../components/MomentReferencePicker";
 import { SegmentationCanvas } from "../components/SegmentationCanvas/SegmentationCanvas";
 import { SegmentationTree } from "../components/SegmentationTree/SegmentationTree";
 import { SubmissionControls, WorkflowControls } from "../components/WorkflowControls";
@@ -591,5 +596,48 @@ describe("structure tree acceptance", () => {
     expect(screen.getByRole("button", { name: "Retry submit" })).toBeDefined();
     expect(store.getState().document).toEqual(localBeforeSubmit);
     expect(await service.loadFrameWindow("video-1", 0, 0.6)).toEqual(backendBefore);
+  });
+
+  it("fences duplicate instance 7 references and selection when switching real stores", async () => {
+    const first = structureDocument();
+    first.instances.push({ id: "7", name: "First seven", classId: "C" });
+    const second = structureDocument();
+    second.record.id = "second-record";
+    second.videos[0]!.recordId = second.record.id;
+    second.instances.push({ id: "7", name: "Second seven", classId: "D" });
+    const a = createSegmentationStore(
+      createMockSegmentationService({ document: first, controls: { delayMs: 0 } }),
+    );
+    const b = createSegmentationStore(
+      createMockSegmentationService({ document: second, controls: { delayMs: 0 } }),
+    );
+    await a.getState().initialize();
+    await b.getState().initialize();
+    a.getState().setSelection([{ type: "instance", id: "7" }]);
+    const onChange = jest.fn();
+    const view = render(<MomentReferencePicker store={a} value="" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByLabelText("Choose a class or instance"), {
+      target: { value: "instance/7" },
+    });
+    view.rerender(<MomentReferencePicker store={b} value="" onChange={onChange} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(b.getState().selection).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByLabelText("Choose a class or instance"), {
+      target: { value: "instance/7" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
+    expect(onChange).toHaveBeenCalledWith("spatial://second-record/instance/7");
+    expect(
+      resolveSpatialReference(
+        "spatial://record-1/instance/7",
+        b.getState().document,
+        i18n.getFixedT("en", "segmentation"),
+      ),
+    ).toContain("(record not open)");
+    expect(a.getState().selection).toEqual([{ type: "instance", id: "7" }]);
+    a.getState().dispose();
+    b.getState().dispose();
   });
 });

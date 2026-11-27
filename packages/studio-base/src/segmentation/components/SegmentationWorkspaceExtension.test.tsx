@@ -131,6 +131,7 @@ it("has no host and registers nothing while the rollout flag is off, even on a c
   expect(state.leftSidebarItems).toEqual({});
   expect(state.playbackStep).toEqual({});
   expect(state.shortcutColumns).toEqual({});
+  expect(state.momentValueRenderers).toEqual({});
 });
 
 it("provides a host to everything below it once the flag is on", async () => {

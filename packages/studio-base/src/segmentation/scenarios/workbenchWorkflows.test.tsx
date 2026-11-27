@@ -8,8 +8,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import i18n from "i18next";
 
 import { GlobalPropagationLock } from "../components/GlobalPropagationLock";
+import {
+  MomentReferencePicker,
+  encodeSpatialReference,
+  parseSpatialReference,
+  resolveSpatialReference,
+} from "../components/MomentReferencePicker";
 import { SegmentationActionMenu } from "../components/SegmentationActionMenu";
 import { SegmentationWorkbench } from "../components/SegmentationWorkbench";
 import { endSegmentationSession, openWorkflowPanel } from "../runtime";
@@ -43,6 +50,8 @@ afterEach(() => {
     open: false,
   });
 });
+
+const t = i18n.getFixedT("en", "segmentation");
 
 describe("workbench workflow integration", () => {
   it("keeps the focused canvas workflow open when an unrelated canvas unmounts", async () => {
@@ -131,6 +140,51 @@ describe("workbench workflow integration", () => {
     });
     runtime.store.getState().dispose();
   });
+
+  it("persists a typed reference selected by stable identity and resolves changed or deleted targets", async () => {
+    const runtime = await initializedRuntime();
+    const onChange = jest.fn();
+    render(<MomentReferencePicker store={runtime.store} value="" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
+      target: { value: "instance/instance-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Insert reference" }));
+    const value = onChange.mock.calls[0]![0] as string;
+    expect(parseSpatialReference(value)).toEqual({
+      recordId: "record-1",
+      targetType: "instance",
+      targetId: "instance-1",
+    });
+    act(() => {
+      runtime.store.getState().renameInstance("instance-1", "Renamed person");
+    });
+    expect(resolveSpatialReference(value, runtime.store.getState().document, t)).toContain(
+      "Renamed person",
+    );
+    act(() => {
+      runtime.store.getState().deleteInstance("instance-1", "all");
+    });
+    expect(resolveSpatialReference(value, runtime.store.getState().document, t)).toContain(
+      "(deleted)",
+    );
+    expect(resolveSpatialReference(value, undefined, t)).toContain("(record not open)");
+    expect(
+      parseSpatialReference(encodeSpatialReference("record/odd", "class", "id:odd"))?.recordId,
+    ).toBe("record/odd");
+    expect(parseSpatialReference("spatial://bad%zz/class/id")).toBeUndefined();
+    // The persisted format names the record, the kind and the id only; a camera segment written by
+    // earlier builds is read and ignored.
+    expect(encodeSpatialReference("record-1", "instance", "instance-1")).toBe(
+      "spatial://record-1/instance/instance-1",
+    );
+    expect(parseSpatialReference("spatial://record-1/old-video/instance/instance-1")).toEqual({
+      recordId: "record-1",
+      targetType: "instance",
+      targetId: "instance-1",
+    });
+    runtime.store.getState().dispose();
+  });
   it("makes every app surface inert while STOP remains outside and restores prior inert state", async () => {
     const runtime = await initializedRuntime();
     testHost().session.setState({ runtime });
@@ -199,6 +253,24 @@ describe("workbench workflow integration", () => {
       openWorkflowPanel(testHost().session);
     });
     expect(screen.queryByRole("button", { name: "Start propagation" })).toBeNull();
+    runtime.store.getState().dispose();
+  });
+
+  it("closes the Moment picker when its record becomes unavailable", async () => {
+    const runtime = await initializedRuntime();
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <MomentReferencePicker store={runtime.store} value="" onChange={onChange} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Reference a spatial class or instance" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Choose a class or instance" }), {
+      target: { value: "instance/instance-1" },
+    });
+    rerender(<MomentReferencePicker store={runtime.store} value="" onChange={onChange} disabled />);
+    expect(
+      screen.queryByRole("dialog", { name: "Reference an annotated class or instance" }),
+    ).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
     runtime.store.getState().dispose();
   });
 });
