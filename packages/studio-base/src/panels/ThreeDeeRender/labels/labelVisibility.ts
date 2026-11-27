@@ -34,6 +34,10 @@ type ActiveEntry = {
 type GridCell = {
   points: number[];
   count: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
 };
 
 // Slight hysteresis prevents labels right at the distance or overlap boundary from flickering
@@ -42,6 +46,7 @@ const DISTANCE_HYSTERESIS_FACTOR = 1.03;
 const PRIORITY_DISTANCE_HYSTERESIS_FACTOR = 0.97;
 const GRID_OFFSET = 100000;
 const GRID_STRIDE = 200001;
+const NEIGHBOR_OFFSETS = [0, -1, 1];
 
 const tempCameraPos = new THREE.Vector3();
 const tempProjected = new THREE.Vector3();
@@ -128,8 +133,8 @@ export class LabelDensityCuller {
       const screenX = (tempProjected.x * 0.5 + 0.5) * canvasWidth;
       const screenY = (0.5 - tempProjected.y * 0.5) * canvasHeight;
 
-      // Skip off-screen labels from density tracking (and cull non-pinned off-screen labels to
-      // avoid unnecessary draw calls outside the viewport).
+      // A label can extend into the viewport even if its anchor is outside the grid.
+      // Leave clipping to the renderer when this anchor cannot suppress an on-screen neighbor.
       const margin = minSpacingPx;
       if (
         screenX < -margin ||
@@ -137,7 +142,7 @@ export class LabelDensityCuller {
         screenY < -margin ||
         screenY > canvasHeight + margin
       ) {
-        candidate.visible = candidate.alwaysVisible;
+        candidate.visible = true;
         continue;
       }
 
@@ -201,10 +206,21 @@ export class LabelDensityCuller {
     let cell = this.#grid.get(key);
     if (!cell) {
       const index = this.#grid.size;
-      cell = this.#cellPool[index] ?? { points: [], count: 0 };
+      cell = this.#cellPool[index] ?? { points: [], count: 0, minX: 0, maxX: 0, minY: 0, maxY: 0 };
       cell.count = 0;
+      cell.minX = cell.maxX = screenX;
+      cell.minY = cell.maxY = screenY;
       this.#cellPool[index] = cell;
       this.#grid.set(key, cell);
+    } else {
+      // Co-located frames are common. One point has the same exclusion area as the whole stack.
+      if (cell.points[cell.count - 2] === screenX && cell.points[cell.count - 1] === screenY) {
+        return;
+      }
+      cell.minX = Math.min(cell.minX, screenX);
+      cell.maxX = Math.max(cell.maxX, screenX);
+      cell.minY = Math.min(cell.minY, screenY);
+      cell.maxY = Math.max(cell.maxY, screenY);
     }
     cell.points[cell.count] = screenX;
     cell.points[cell.count + 1] = screenY;
@@ -218,10 +234,16 @@ export class LabelDensityCuller {
     screenY: number,
     minSpacingSq: number,
   ): boolean {
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
+    for (const dx of NEIGHBOR_OFFSETS) {
+      for (const dy of NEIGHBOR_OFFSETS) {
         const cell = this.#grid.get(cellKey(gx + dx, gy + dy));
         if (!cell) {
+          continue;
+        }
+        // A dense cluster of pinned labels may occupy only a small part of a neighboring cell.
+        const dxToCell = Math.max(cell.minX - screenX, screenX - cell.maxX, 0);
+        const dyToCell = Math.max(cell.minY - screenY, screenY - cell.maxY, 0);
+        if (dxToCell * dxToCell + dyToCell * dyToCell >= minSpacingSq) {
           continue;
         }
         const points = cell.points;

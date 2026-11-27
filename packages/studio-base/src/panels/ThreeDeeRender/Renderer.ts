@@ -45,7 +45,7 @@ import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import type { PanelDiagnostics } from "@foxglove/studio-base/services/playbackDiagnostics";
 import { palette, fontMonospace } from "@foxglove/theme";
-import { LabelMaterial, LabelPool } from "@foxglove/three-text";
+import { LabelMaterial } from "@foxglove/three-text";
 
 import {
   IRenderer,
@@ -74,6 +74,7 @@ import {
   FRAME_TRANSFORMS_DATATYPES,
   FRAME_TRANSFORM_DATATYPES,
 } from "./foxglove";
+import { ViewportLabelPool } from "./labels/labelUtils";
 import { DetailLevel, msaaSamples } from "./lod";
 import {
   normalizeFrameTransform,
@@ -86,6 +87,7 @@ import { ImageMode } from "./renderables/ImageMode/ImageMode";
 import { MeasurementTool } from "./renderables/MeasurementTool";
 import { PublishClickTool } from "./renderables/PublishClickTool";
 import { MarkerPool } from "./renderables/markers/MarkerPool";
+import { RenderablePrimitive } from "./renderables/primitives/RenderablePrimitive";
 import {
   Header,
   MarkerArray,
@@ -257,7 +259,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public fixedFrameId: string | undefined;
   public followFrameId: string | undefined;
 
-  public labelPool = new LabelPool({ fontFamily: fontMonospace });
+  public labelPool = new ViewportLabelPool({ fontFamily: fontMonospace });
   public markerPool = new MarkerPool(this);
   public sharedGeometry = new SharedGeometry();
 
@@ -1541,12 +1543,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   #pickSingleObject(cursorCoords: THREE.Vector2): PickedRenderable | undefined {
     // Render a single pixel using a fragment shader that writes object IDs as
     // colors, then read the value of that single pixel back
-    const objectId = this.#picker.pick(
-      cursorCoords.x,
-      cursorCoords.y,
-      this.cameraHandler.getActiveCamera(),
-      { debug: this.debugPicking, disableSetViewOffset: this.interfaceMode === "image" },
-    );
+    const camera = this.cameraHandler.getActiveCamera();
+    const options = {
+      debug: this.debugPicking,
+      disableSetViewOffset: this.interfaceMode === "image",
+    };
+    const objectId = this.#picker.pick(cursorCoords.x, cursorCoords.y, camera, options);
     if (objectId === -1) {
       log.debug("Picking did not return an object");
       return undefined;
@@ -1566,20 +1568,36 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     const { renderable } = selection;
     log.debug(`Picking pass returned ${renderable.id} (${renderable.name})`, renderable);
 
-    let instanceIndex: number | undefined;
     if (renderable.pickableInstances) {
-      instanceIndex = this.#picker.pickInstance(
+      const instanceIndex = this.#picker.pickInstance(
         cursorCoords.x,
         cursorCoords.y,
-        this.cameraHandler.getActiveCamera(),
+        camera,
         renderable,
-        { debug: this.debugPicking, disableSetViewOffset: this.interfaceMode === "image" },
+        options,
       );
-      instanceIndex = instanceIndex === -1 ? undefined : instanceIndex;
+      selection.instanceIndex = instanceIndex === -1 ? undefined : instanceIndex;
       log.debug("Instance picking pass on", renderable, "returned", instanceIndex);
+    } else if (
+      this.interfaceMode === "3d" &&
+      renderable instanceof RenderablePrimitive &&
+      pickedObject instanceof THREE.InstancedMesh &&
+      pickedObject.parent === renderable
+    ) {
+      // Keep the SceneEntity as the inspected object, and locate the clicked primitive for its label.
+      const index =
+        pickedObject.count === 1
+          ? 0
+          : this.#picker.pickInstance(
+              cursorCoords.x,
+              cursorCoords.y,
+              camera,
+              pickedObject,
+              options,
+            );
+      selection.primitiveIndex = index >= 0 && index < pickedObject.count ? index : undefined;
     }
 
-    selection.instanceIndex = instanceIndex;
     return selection;
   }
 
@@ -1632,8 +1650,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         const mesh = object as THREE.Mesh;
         const material = mesh.material as Partial<THREE.ShaderMaterial>;
 
-        // @foxglove/three-text LabelMaterial manages its own physical-pixel `resolution` and
-        // `uPixelRatio` uniforms via onBeforeRender(renderer.getCurrentViewport()).
+        // ViewportLabelPool updates display and picking uniforms from the physical WebGL viewport.
         if (material instanceof LabelMaterial) {
           return;
         }

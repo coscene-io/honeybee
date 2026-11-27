@@ -120,7 +120,10 @@ export class Renderable<
   }
 
   /** A representative position for the callout, or undefined when there is no drawable geometry. */
-  public getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+  public getLabelWorldPosition(
+    out: THREE.Vector3,
+    _primitiveIndex?: number,
+  ): THREE.Vector3 | undefined {
     return this.getWorldPosition(out);
   }
 

@@ -37,6 +37,7 @@ import {
   matchesLabelFilter,
   normalizeLabelFilter,
   releasePooledLabel,
+  updateBillboardBounds,
 } from "../labels/labelUtils";
 import { LabelDensityCuller, LabelVisibilityCandidate } from "../labels/labelVisibility";
 import { BaseSettings, fieldSize, PRECISION_DEGREES, PRECISION_DISTANCE } from "../settings";
@@ -80,6 +81,8 @@ export type FrameAxisUserData = BaseUserData & {
 };
 
 export class FrameAxisRenderable extends Renderable<FrameAxisUserData> {
+  public matchesLabelFilter = false;
+
   public override dispose(): void {
     releasePooledLabel(this.renderer.labelPool, this.userData.label);
     super.dispose();
@@ -355,13 +358,14 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
     const maxDistance = transformsConfig?.labelMaxDistance;
     const minSpacingPx = transformsConfig?.labelMinSpacing;
-    const normalizedFilter = this.#lastNormalizedFilter;
     const shouldCullLabels =
       showLabel &&
       ((maxDistance != undefined && maxDistance > 0) ||
         (minSpacingPx != undefined && minSpacingPx > 0));
 
     let candidateCount = 0;
+    const camera = this.renderer.cameraHandler.getActiveCamera();
+    camera.updateWorldMatrix(true, false);
 
     // Update the lines and labels between coordinate frames
     for (const renderable of this.renderables.values()) {
@@ -405,6 +409,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
       tempVecC.copy(worldPosition);
       renderable.worldToLocal(tempVecC);
       label.position.set(tempVecC.x, tempVecC.y, tempVecC.z);
+      updateBillboardBounds(label, worldPosition, camera, this.renderer.input.canvasSize);
 
       if (!shouldCullLabels) {
         label.visible = true;
@@ -412,9 +417,8 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
       }
 
       const frameId = renderable.userData.frameId;
-      const displayName = childFrame?.displayName() ?? frameId;
       const isSelected = frameId === this.#selectedFrameId;
-      const isFilterMatch = matchesLabelFilter(displayName, normalizedFilter);
+      const isFilterMatch = renderable.matchesLabelFilter;
       const priority = isSelected
         ? PRIORITY_SELECTED
         : isFilterMatch
@@ -453,7 +457,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
       if (candidateCount > 0) {
         this.#labelCuller.evaluate(this.#activeCandidates, {
-          camera: this.renderer.cameraHandler.getActiveCamera(),
+          camera,
           canvasWidth: this.renderer.input.canvasSize.width,
           canvasHeight: this.renderer.input.canvasSize.height,
           maxDistance,
@@ -510,14 +514,10 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
     const frameId = renderable.userData.frameId;
     const frame = this.renderer.transformTree.frame(frameId);
     const displayName = frame?.displayName() ?? frameId;
-    const normalizedFilter = normalizeLabelFilter(
-      this.renderer.config.scene.transforms?.labelFilter,
-    );
-    const highlighted =
-      frameId === this.#selectedFrameId || matchesLabelFilter(displayName, normalizedFilter);
+    renderable.matchesLabelFilter = matchesLabelFilter(displayName, this.#lastNormalizedFilter);
 
     applyLabelHighlightStyle(renderable.userData.label, {
-      highlighted,
+      highlighted: frameId === this.#selectedFrameId || renderable.matchesLabelFilter,
       colorScheme: this.#colorScheme,
       normalForeground: this.#labelForegroundColor,
       normalBackground: this.#labelBackgroundColor,

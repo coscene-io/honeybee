@@ -32,35 +32,49 @@ const PRIMITIVE_DEFAULT_SETTINGS: LayerSettingsEntity = {
 const tempOrientation = new THREE.Quaternion();
 
 export class RenderablePrimitive extends Renderable<EntityRenderableUserData> {
-  /** The picker selects the whole primitive batch. Anchor its callout to the first primitive. */
+  /** Message array rendered by this batch. */
   public primitiveKey?: Lowercase<PrimitiveType>;
 
-  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+  public override getLabelWorldPosition(
+    out: THREE.Vector3,
+    primitiveIndex?: number,
+  ): THREE.Vector3 | undefined {
     const key = this.primitiveKey;
     const entity = this.userData.entity;
     if (!key || !entity) {
       return undefined;
     }
-    const primitive = entity[key].find((item) => {
-      if ("points" in item) {
-        const vertexCount = item.indices.length > 0 ? item.indices.length : item.points.length;
-        return vertexCount >= (key === "triangles" ? 3 : 2);
+    const primitives = entity[key];
+    // A programmatic selection can identify only the batch. Use its first drawable primitive.
+    const end =
+      primitiveIndex == undefined
+        ? primitives.length
+        : Math.min(primitiveIndex + 1, primitives.length);
+    for (let i = primitiveIndex ?? 0; i < end; i++) {
+      const primitive = primitives[i];
+      if (!primitive) {
+        return undefined;
       }
-      return !("text" in item) || item.text.length > 0;
-    });
-    if (!primitive) {
-      return undefined;
+      if ("points" in primitive) {
+        const count =
+          primitive.indices.length > 0 ? primitive.indices.length : primitive.points.length;
+        const vertex = primitive.points[primitive.indices[0] ?? 0];
+        if (!vertex || count < (key === "triangles" ? 3 : 2)) {
+          continue;
+        }
+        out
+          .copy(vertex)
+          .applyQuaternion(tempOrientation.copy(primitive.pose.orientation))
+          .add(primitive.pose.position);
+      } else {
+        if ("text" in primitive && primitive.text.length === 0) {
+          continue;
+        }
+        out.copy(primitive.pose.position);
+      }
+      return this.localToWorld(out);
     }
-    const vertex = "points" in primitive ? primitive.points[primitive.indices[0] ?? 0] : undefined;
-    if (vertex) {
-      out
-        .copy(vertex)
-        .applyQuaternion(tempOrientation.copy(primitive.pose.orientation))
-        .add(primitive.pose.position);
-    } else {
-      out.copy(primitive.pose.position);
-    }
-    return this.localToWorld(out);
+    return undefined;
   }
 
   public constructor(

@@ -32,6 +32,8 @@ const NullScene = ReactNull as unknown as THREE.Scene;
 export type PickedRenderable = {
   renderable: Renderable;
   instanceIndex?: number;
+  /** SceneEntity primitive hit by the picker. Inspection still uses the owning batch. */
+  primitiveIndex?: number;
   /** A nested visual, such as a URDF link, within the selected object. */
   pickedChild?: THREE.Object3D;
 };
@@ -42,7 +44,11 @@ export function findPickedRenderable(
 ): PickedRenderable | undefined {
   let owner: Renderable | undefined;
   let anchor: THREE.Object3D | undefined;
+  let primitiveIndex: number | undefined;
   for (let node = object; node != undefined; node = node.parent ?? undefined) {
+    if (typeof node.userData.labelPrimitiveIndex === "number") {
+      primitiveIndex ??= node.userData.labelPrimitiveIndex;
+    }
     if ((node as Partial<Renderable>).pickable === true) {
       owner = node as Renderable;
       anchor ??= node;
@@ -51,7 +57,7 @@ export function findPickedRenderable(
     }
   }
   return owner
-    ? { renderable: owner, pickedChild: anchor !== owner ? anchor : undefined }
+    ? { renderable: owner, primitiveIndex, pickedChild: anchor !== owner ? anchor : undefined }
     : undefined;
 }
 

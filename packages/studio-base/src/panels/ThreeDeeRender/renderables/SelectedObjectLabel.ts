@@ -22,6 +22,7 @@ import {
   applyLabelHighlightStyle,
   DEFAULT_LABEL_ANCHOR_X,
   releasePooledLabel,
+  updateBillboardBounds,
 } from "../labels/labelUtils";
 
 const SELECTED_OBJECT_LABEL_LINE_HEIGHT_PX = 13;
@@ -32,7 +33,13 @@ function truncateLine(text: string): string {
   if (text.length <= MAX_LABEL_LINE_LENGTH) {
     return text;
   }
-  return `${text.slice(0, MAX_LABEL_LINE_LENGTH - 1)}\u2026`;
+  // Qualified names end with the entity ID, marker ID or topic basename.
+  let start = text.length - (MAX_LABEL_LINE_LENGTH - 1);
+  const firstCodeUnit = text.charCodeAt(start);
+  if (firstCodeUnit >= 0xdc00 && firstCodeUnit <= 0xdfff) {
+    start++;
+  }
+  return `\u2026${text.slice(start)}`;
 }
 
 function getFiniteNumber(value: unknown): number | undefined {
@@ -134,7 +141,9 @@ export function computeSelectedObjectWorldPosition(
 
   const anchor = selection.pickedChild ?? renderable;
   const position =
-    anchor instanceof Renderable ? anchor.getLabelWorldPosition(out) : anchor.getWorldPosition(out);
+    anchor instanceof Renderable
+      ? anchor.getLabelWorldPosition(out, selection.primitiveIndex)
+      : anchor.getWorldPosition(out);
   return (
     position != undefined &&
     Number.isFinite(out.x) &&
@@ -280,6 +289,11 @@ export class SelectedObjectLabel extends SceneExtension {
       instanceDetails,
     );
     label.visible = validPosition;
+    if (validPosition) {
+      const camera = this.renderer.cameraHandler.getActiveCamera();
+      camera.updateWorldMatrix(true, false);
+      updateBillboardBounds(label, label.position, camera, this.renderer.input.canvasSize);
+    }
   };
 
   #handleRemoved = (): void => {

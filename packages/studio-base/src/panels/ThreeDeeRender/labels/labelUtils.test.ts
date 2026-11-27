@@ -21,6 +21,7 @@ import {
   normalizeLabelFilter,
   releasePooledLabel,
   setLabelContrastingColors,
+  updateBillboardBounds,
 } from "./labelUtils";
 
 describe("labelUtils", () => {
@@ -41,6 +42,7 @@ describe("labelUtils", () => {
     first.scale.set(2, 3, 4);
     first.renderOrder = 9999999;
     first.mesh.renderOrder = 9999999;
+    first.mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 100);
     first.layers.set(1);
     first.mesh.layers.set(1);
     first.userData.pose = { position: { x: 1, y: 2, z: 3 } };
@@ -64,6 +66,7 @@ describe("labelUtils", () => {
     expect(recycled.scale.toArray()).toEqual([1, 1, 1]);
     expect(recycled.renderOrder).toBe(0);
     expect(recycled.mesh.renderOrder).toBe(0);
+    expect(recycled.mesh.boundingSphere).toBeNull();
     expect(recycled.layers.mask).toBe(1);
     expect(recycled.mesh.layers.mask).toBe(1);
     expect(recycled.userData.pose).toBeUndefined();
@@ -83,6 +86,36 @@ describe("labelUtils", () => {
     ]);
 
     releasePooledLabel(pool, recycled);
+    pool.dispose();
+  });
+
+  it.each([
+    new THREE.OrthographicCamera(-50, 50, 50, -50, 0.1, 1000),
+    new THREE.PerspectiveCamera(90, 1, 0.1, 1000),
+  ])("keeps partially visible fixed-size text in the $type frustum", (camera) => {
+    camera.position.z = 50;
+    camera.updateMatrixWorld();
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(
+      new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
+    );
+    const pool = new LabelPool();
+    const label = acquirePooledLabel(pool);
+    label.setSizeAttenuation(false);
+    label.setLineHeight(14);
+    label.setText("long_frame_name".repeat(20));
+    const canvasSize = new THREE.Vector2(1000, 1000);
+    // Both cameras span 100 world units at z=0. The anchor is 15 CSS pixels off the left edge.
+    label.position.x = -51.5;
+    label.updateMatrixWorld();
+    expect(frustum.intersectsObject(label.mesh)).toBe(false);
+    updateBillboardBounds(label, label.position, camera, canvasSize);
+    expect(frustum.intersectsObject(label.mesh)).toBe(true);
+
+    label.position.x = -500;
+    label.updateMatrixWorld();
+    updateBillboardBounds(label, label.position, camera, canvasSize);
+    expect(frustum.intersectsObject(label.mesh)).toBe(false);
+    releasePooledLabel(pool, label);
     pool.dispose();
   });
 

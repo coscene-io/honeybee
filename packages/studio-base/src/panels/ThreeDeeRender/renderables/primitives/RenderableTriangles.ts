@@ -32,7 +32,9 @@ export class RenderableTriangles extends RenderablePrimitive {
 
   #ensureCapacity(triCount: number) {
     while (triCount > this.#triangleMeshes.length) {
-      this.#triangleMeshes.push(makeTriangleMesh());
+      const mesh = makeTriangleMesh();
+      mesh.userData.labelPrimitiveIndex = this.#triangleMeshes.length;
+      this.#triangleMeshes.push(mesh);
     }
   }
   #updateTriangleMeshes(tris: TriangleListPrimitive[]) {

@@ -7,12 +7,57 @@
 
 import * as THREE from "three";
 
-import { Label, LabelPool } from "@foxglove/three-text";
+import { Label, LabelMaterial, LabelPool } from "@foxglove/three-text";
 
 import { getLuminance, SRGBToLinear } from "../color";
 
 export const DEFAULT_LABEL_ANCHOR_X = 0.5;
 export const DEFAULT_LABEL_ANCHOR_Y = 0.5;
+
+const cameraSpaceAnchor = new THREE.Vector3();
+
+export class ViewportLabelPool extends LabelPool {
+  protected override createLabel(): Label {
+    const label = super.createLabel();
+    // Three r166 invokes the mesh hook. three-text 0.6.1 uses it for the picking material only.
+    const beforeRender = label.mesh.onBeforeRender.bind(label.mesh);
+    label.mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+      beforeRender(renderer, scene, camera, geometry, material, group);
+      // three-text overrides this hook to set its shader viewport and DPR.
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      label.material.onBeforeRender(renderer, scene, camera, geometry, label.mesh, group);
+    };
+    return label;
+  }
+}
+
+/** Cover the billboard that three-text expands in its shader when Three.js tests the mesh frustum. */
+export function updateBillboardBounds(
+  label: Label,
+  worldAnchor: THREE.Vector3,
+  camera: THREE.PerspectiveCamera | THREE.OrthographicCamera,
+  canvasSize: THREE.Vector2,
+): void {
+  const { uniforms } = label.material as LabelMaterial;
+  const [width, height] = uniforms.uLabelSize!.value as [number, number];
+  const [anchorX, anchorY] = uniforms.uAnchorPoint!.value as [number, number];
+  let extentX = width * Math.max(anchorX, 1 - anchorX);
+  let extentY = height * Math.max(anchorY, 1 - anchorY);
+  if (uniforms.uSizeAttenuation!.value === false) {
+    // Fixed-size labels use CSS pixels. Convert them back to world units at the anchor depth.
+    const depth =
+      camera instanceof THREE.PerspectiveCamera
+        ? Math.abs(cameraSpaceAnchor.copy(worldAnchor).applyMatrix4(camera.matrixWorldInverse).z)
+        : 1;
+    const projection = camera.projectionMatrix.elements;
+    extentX *= (2 * depth) / (Math.max(1, canvasSize.width) * Math.abs(projection[0]!));
+    extentY *= (2 * depth) / (Math.max(1, canvasSize.height) * Math.abs(projection[5]!));
+  }
+  const sphere = (label.mesh.boundingSphere ??= new THREE.Sphere());
+  sphere.center.set(0, 0, 0);
+  const scale = Math.abs(uniforms.uScale!.value as number);
+  sphere.radius = scale * Math.sqrt(extentX * extentX + extentY * extentY);
+}
 
 /** Render order for highlighted / selected 3D labels so they remain legible above geometry. */
 export const HIGHLIGHT_LABEL_RENDER_ORDER = 9999998;
@@ -57,9 +102,11 @@ export function resetLabel(label: Label): void {
   label.scale.set(1, 1, 1);
   label.renderOrder = 0;
   label.mesh.renderOrder = 0;
+  label.mesh.boundingSphere = ReactNull;
   label.layers.set(0);
   label.mesh.layers.set(0);
   label.userData.pose = undefined;
+  label.userData.labelPrimitiveIndex = undefined;
   label.userData.picking = undefined;
   label.mesh.userData.picking = undefined;
 

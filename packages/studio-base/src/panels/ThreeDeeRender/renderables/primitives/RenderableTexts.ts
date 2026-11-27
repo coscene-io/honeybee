@@ -35,6 +35,7 @@ export class RenderableTexts extends RenderablePrimitive {
     if (newLength > oldLength) {
       for (let i = oldLength; i < newLength; i++) {
         const newLabel = acquirePooledLabel(this.#labelPool);
+        newLabel.userData.labelPrimitiveIndex = i;
         this.#labels.push(newLabel);
         this.add(newLabel);
       }

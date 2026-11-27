@@ -833,17 +833,17 @@ describe("ImageRenderable candidate scheduling", () => {
     expect(renderable.userData.settings.contrast).toBe(newContrastValue);
   });
 
-  it("should set camera model", () => {
-    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+  it("anchors the label at the projected image center until the mesh is removed", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, makeUserData());
     const model = new PinholeCameraModel({
       width: 100,
       height: 100,
       binning_x: 0,
       binning_y: 0,
-      D: [1, 2, 3, 4, 5, 6, 7, 8],
+      D: [],
       distortion_model: "",
-      K: [],
-      P: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      K: [100, 0, 50, 0, 100, 50, 0, 0, 1],
+      P: [100, 0, 50, 0, 0, 100, 50, 0, 0, 0, 1, 0],
       R: [],
       roi: {
         x_offset: 0,
@@ -855,6 +855,22 @@ describe("ImageRenderable candidate scheduling", () => {
     });
     renderable.setCameraModel(model);
     expect(renderable.userData.cameraModel).toBe(model);
+    renderable.userData.texture = new THREE.Texture();
+    renderable.position.set(1, 2, 3);
+    renderable.rotation.y = Math.PI / 2;
+    const anchor = new THREE.Vector3();
+    for (const distance of [10, 2]) {
+      renderable.setSettings({ ...renderable.userData.settings, distance });
+      renderable.update();
+      expect(renderable.getLabelWorldPosition(anchor)).toBe(anchor);
+      expect(anchor.x).toBeCloseTo(1 + distance - 0.001);
+      expect(anchor.y).toBeCloseTo(2);
+      expect(anchor.z).toBeCloseTo(3);
+    }
+
+    renderable.setSettings({ ...renderable.userData.settings, cameraInfoTopic: "/other" });
+    expect(renderable.getLabelWorldPosition(anchor)).toBeUndefined();
+    renderable.dispose();
   });
 });
 describe("ImageRenderable error handling", () => {

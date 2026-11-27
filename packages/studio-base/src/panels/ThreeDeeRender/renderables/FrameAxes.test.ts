@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { setupJestCanvasMock } from "jest-canvas-mock";
+import * as THREE from "three";
 
 import { SettingsTreeAction } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
@@ -33,6 +34,7 @@ jest.mock("three", () => {
           isWebGL2: true,
         },
         getPixelRatio: jest.fn(() => 2),
+        getCurrentViewport: jest.fn(),
         setPixelRatio: jest.fn(),
         setSize: jest.fn(),
         render: jest.fn(),
@@ -140,6 +142,8 @@ describe("FrameAxes unified @foxglove/three-text labels", () => {
       },
     };
     frameAxes.handleSettingsAction(enableScreenSpace);
+    renderer.animationFrame();
+    expect(label.mesh.boundingSphere?.radius).toBeGreaterThan(0);
 
     expect(mat.uniforms.uSizeAttenuation?.value).toBe(false);
     expect(mat.uniforms.uAnchorPoint?.value).toEqual([0.5, 0]);
@@ -163,7 +167,7 @@ describe("FrameAxes unified @foxglove/three-text labels", () => {
     renderer.dispose();
   });
 
-  it("preserves LabelMaterial resolution uniform ownership across canvas resizes", () => {
+  it("updates the display and picking viewports through the mesh draw hook", () => {
     const renderer = createRenderer({
       transforms: { enablePreloading: false, scaleInvariantLabels: true },
     });
@@ -171,16 +175,32 @@ describe("FrameAxes unified @foxglove/three-text labels", () => {
 
     renderer.addCoordinateFrame("world");
     const label = frameAxes.renderables.get("world")!.userData.label;
-    const mat = label.material as LabelMaterial;
-
-    // Simulate physical-pixel viewport populated by LabelMaterial.onBeforeRender (2x DPR)
-    mat.uniforms.resolution!.value.set(1600, 1200);
-    renderer.input.canvasSize.set(1024, 768);
-    renderer.animationFrame();
-
-    // Renderer.#updateResolution() must NOT overwrite LabelMaterial's physical viewport uniform
-    expect(mat.uniforms.resolution!.value.x).toBe(1600);
-    expect(mat.uniforms.resolution!.value.y).toBe(1200);
+    const scene = new THREE.Scene();
+    const camera = renderer.cameraHandler.getActiveCamera();
+    for (const [width, height, dpr] of [
+      [800, 600, 2],
+      [1024, 768, 1],
+    ] as const) {
+      renderer.input.canvasSize.set(width, height);
+      renderer.animationFrame();
+      jest
+        .spyOn(renderer.gl, "getCurrentViewport")
+        .mockImplementation((v) => v.set(0, 0, width * dpr, height * dpr));
+      jest.spyOn(renderer.gl, "getPixelRatio").mockReturnValue(dpr);
+      label.mesh.onBeforeRender(
+        renderer.gl,
+        scene,
+        camera,
+        label.geometry,
+        label.material,
+        new THREE.Group(),
+      );
+      for (const material of [label.material, label.pickingMaterial]) {
+        const { uniforms } = material as LabelMaterial;
+        expect(uniforms.resolution!.value.toArray()).toEqual([width * dpr, height * dpr]);
+        expect(uniforms.uPixelRatio!.value).toBe(dpr);
+      }
+    }
 
     renderer.dispose();
   });
@@ -253,6 +273,15 @@ describe("FrameAxes unified @foxglove/three-text labels", () => {
     renderer.setSelectedRenderable(undefined);
     expect(farHidden.userData.label.renderOrder).toBe(0);
     expect(farHidden.userData.label.material.depthTest).toBe(true);
+
+    renderer.updateConfig((draft) => {
+      draft.scene.transforms!.labelFilter = " HIDDEN ";
+    });
+    renderer.animationFrame();
+    expect(farHidden.userData.label.visible).toBe(true);
+    expect(farHidden.userData.label.renderOrder).toBe(HIGHLIGHT_LABEL_RENDER_ORDER);
+    expect(farTarget.userData.label.visible).toBe(false);
+    expect(farTarget.userData.label.renderOrder).toBe(0);
 
     renderer.dispose();
   });

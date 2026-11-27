@@ -17,7 +17,7 @@ import { EDGE_LINE_SEGMENTS_NAME, LoadedModel } from "../../ModelCache";
 import { makeRgba, rgbToThreeColor, stringToRgba } from "../../color";
 import { disposeMeshesRecursive } from "../../dispose";
 import { LayerSettingsEntity } from "../../settings";
-import { removeLights, replaceMaterials } from "../models";
+import { ModelInstance, replaceMaterials } from "../models";
 
 const tempRgba = makeRgba();
 
@@ -27,7 +27,7 @@ type RenderableModel = {
   /** Material used to override the model's colors when embedded_materials is false */
   material?: THREE.MeshStandardMaterial;
   /** Model wrapped in a Group to allow setting the group's position/orientation/scale without affecting the model */
-  model: THREE.Group;
+  model: ModelInstance;
   /** Reference to the original model before modification so it can be re-cloned if necessary. */
   cachedModel: LoadedModel;
   /** Reference to the original message for checking whether this renderable can be reused */
@@ -51,6 +51,8 @@ export class RenderableModels extends RenderablePrimitive {
   #renderablesByDataCrc = new Map<number, RenderableModel[]>();
   /** Renderables loaded from URLs */
   #renderablesByUrl = new Map<string, RenderableModel[]>();
+  // Asynchronous loads can attach children in a different order from the message.
+  #modelsByIndex: (ModelInstance | undefined)[] = [];
   #updateCount = 0;
 
   public constructor(renderer: IRenderer) {
@@ -76,7 +78,7 @@ export class RenderableModels extends RenderablePrimitive {
         overrideMediaType: primitive.media_type.length > 0 ? primitive.media_type : undefined,
       });
       if (cachedModel) {
-        renderable = { model: cloneAndPrepareModel(cachedModel), cachedModel, primitive };
+        renderable = { model: new ModelInstance(cachedModel), cachedModel, primitive };
       }
     } finally {
       revokeURL(url);
@@ -118,11 +120,12 @@ export class RenderableModels extends RenderablePrimitive {
     const prevRenderablesByDataCrc = this.#renderablesByDataCrc;
     this.#renderablesByDataCrc = new Map();
 
-    const modelsToLoad: ModelPrimitive[] = [];
+    this.#modelsByIndex.length = 0;
+    const indicesToLoad: number[] = [];
 
     // iterate over new primitives and update existing renderables
-    // add primitives that don't have models yet to modelsToLoad
-    for (const primitive of models) {
+    // Keep the message index of each primitive that needs to load.
+    for (const [index, primitive] of models.entries()) {
       let prevRenderables: RenderableModel[] | undefined;
       let newRenderables: RenderableModel[] | undefined;
       let renderable: RenderableModel | undefined;
@@ -150,16 +153,17 @@ export class RenderableModels extends RenderablePrimitive {
       }
       // renderable not found in prevRenderables
       if (renderable) {
-        this.#updateModel(renderable, primitive);
+        this.#updateModel(renderable, primitive, index);
         newRenderables.push(renderable);
         this.add(renderable.model);
       } else {
-        modelsToLoad.push(primitive);
+        indicesToLoad.push(index);
       }
     }
 
     Promise.all(
-      modelsToLoad.map(async (primitive) => {
+      indicesToLoad.map(async (index) => {
+        const primitive = models[index]!;
         let newRenderables: RenderableModel[] | undefined;
         let renderable: RenderableModel | undefined;
         if (primitive.url.length === 0) {
@@ -207,7 +211,7 @@ export class RenderableModels extends RenderablePrimitive {
           return;
         }
         if (renderable) {
-          this.#updateModel(renderable, primitive);
+          this.#updateModel(renderable, primitive, index);
           newRenderables.push(renderable);
           this.add(renderable.model);
 
@@ -245,12 +249,20 @@ export class RenderableModels extends RenderablePrimitive {
     this.#updateOutlineVisibility();
   }
 
-  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
-    // Only loaded model groups are attached to the scene.
-    return this.children[0]?.getWorldPosition(out);
+  public override getLabelWorldPosition(
+    out: THREE.Vector3,
+    primitiveIndex?: number,
+  ): THREE.Vector3 | undefined {
+    const model =
+      primitiveIndex == undefined ? this.children[0] : this.#modelsByIndex[primitiveIndex];
+    return model instanceof ModelInstance && model.visible
+      ? model.getLabelWorldPosition(out)
+      : undefined;
   }
 
   public override dispose(): void {
+    ++this.#updateCount;
+    this.#modelsByIndex.length = 0;
     for (const renderables of this.#renderablesByUrl.values()) {
       for (const renderable of renderables) {
         this.#disposeModel(renderable);
@@ -328,7 +340,9 @@ export class RenderableModels extends RenderablePrimitive {
     return cachedModel;
   }
 
-  #updateModel(renderable: RenderableModel, primitive: ModelPrimitive) {
+  #updateModel(renderable: RenderableModel, primitive: ModelPrimitive, index: number) {
+    this.#modelsByIndex[index] = renderable.model;
+    renderable.model.userData.labelPrimitiveIndex = index;
     const overrideColor = this.userData.settings.color
       ? stringToRgba(tempRgba, this.userData.settings.color)
       : primitive.override_color
@@ -351,7 +365,8 @@ export class RenderableModels extends RenderablePrimitive {
       renderable.material.needsUpdate = true;
     } else if (renderable.material) {
       // We already discarded the original materials, need to re-clone them from the original model
-      renderable.model = cloneAndPrepareModel(renderable.cachedModel);
+      renderable.model.restoreEmbeddedModel();
+      renderable.material.dispose();
       renderable.material = undefined;
     }
 
@@ -374,12 +389,6 @@ export class RenderableModels extends RenderablePrimitive {
     disposeMeshesRecursive(renderable.model);
     disposeMeshesRecursive(renderable.cachedModel);
   }
-}
-
-function cloneAndPrepareModel(cachedModel: LoadedModel) {
-  const model = cachedModel.clone(true);
-  removeLights(model);
-  return new THREE.Group().add(model);
 }
 
 /** Used to check that data primitives are using the same model data */

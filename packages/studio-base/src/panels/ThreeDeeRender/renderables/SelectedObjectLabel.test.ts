@@ -29,7 +29,7 @@ import {
   SelectedObjectLabel,
 } from "./SelectedObjectLabel";
 import { LAYER_SELECTED, RendererConfig } from "../IRenderer";
-import { findPickedRenderable } from "../Picker";
+import { findPickedRenderable, Picker } from "../Picker";
 import { Renderable } from "../Renderable";
 import { Renderer } from "../Renderer";
 import { DEFAULT_SCENE_EXTENSION_CONFIG } from "../SceneExtensionConfig";
@@ -209,6 +209,7 @@ describe("SelectedObjectLabel", () => {
     expect(label?.position.toArray()).toEqual([11.25, -2.5, 0.75]);
     expect(label?.layers.mask).toBe(1 << LAYER_SELECTED);
     expect(label?.mesh.layers.mask).toBe(1 << LAYER_SELECTED);
+    expect(label?.mesh.boundingSphere?.radius).toBeGreaterThan(0);
     expect(label?.userData.picking).toBe(false);
     expect((label?.material as LabelMaterial).uniforms.uSizeAttenuation?.value).toBe(false);
 
@@ -350,6 +351,27 @@ describe("SelectedObjectLabel", () => {
     renderer.dispose();
   });
 
+  it("retains entity and marker IDs in labels for long topic names", async () => {
+    const topic = "/perception/object_recognition/tracking/objects";
+    const renderer = createTopicRenderer(topic);
+    for (const id of ["vehicle-21", "person-9"]) {
+      const renderable = new MockEntityRenderable("object", topic, id, renderer);
+      const text = formatSelectedObjectLabel({ renderable });
+      expect(text.endsWith(`: ${id}`)).toBe(true);
+      expect(text.length).toBeLessThanOrEqual(48);
+    }
+    await renderMessage(renderer, topic, "visualization_msgs/Marker", {
+      header: { frame_id: "map" },
+      ns: "tracks",
+      id: 52,
+      type: MarkerType.CUBE,
+    });
+    const markers = renderer.sceneExtensions.get(Markers.extensionId) as Markers;
+    const renderable = markers.renderables.get(topic)!.children[0] as Renderable;
+    expect(formatSelectedObjectLabel({ renderable }).endsWith(":tracks:52")).toBe(true);
+    renderer.dispose();
+  });
+
   it("anchors a ROS line marker at its first point in the transformed marker frame", async () => {
     const renderer = createTopicRenderer("/markers");
     const extension = renderer.sceneExtensions.get(
@@ -466,6 +488,168 @@ describe("SelectedObjectLabel", () => {
     expect(label.visible).toBe(false);
     renderer.dispose();
   });
+
+  it.each(["cubes", "spheres", "cylinders", "arrows"])(
+    "tracks the clicked instance of SceneEntity %s while inspecting the whole entity",
+    async (key) => {
+      const topic = "/scene";
+      const renderer = createTopicRenderer(topic);
+      renderer.setPickingEnabled(true);
+      const update = async (xs: number[]) => {
+        await renderMessage(renderer, topic, "foxglove.SceneUpdate", {
+          entities: [
+            {
+              id: "A",
+              frame_id: "map",
+              [key]: xs.map((x) => ({ pose: { ...makePose(), position: { x, y: 0, z: 0 } } })),
+            },
+          ],
+        });
+      };
+      await update([0, 100]);
+      const entities = renderer.sceneExtensions.get(FoxgloveSceneEntities.extensionId)!;
+      const batch = entities.renderables.get(topic)!.children[0]!;
+      const mesh = batch.children.find((child) => child instanceof THREE.InstancedMesh)!;
+      const pick = jest
+        .spyOn(Picker.prototype, "pick")
+        .mockReturnValueOnce(mesh.id)
+        .mockReturnValue(-1);
+      const pickInstance = jest.spyOn(Picker.prototype, "pickInstance").mockReturnValue(1);
+      try {
+        renderer.once("renderablesClicked", (selections) => {
+          expect(selections[0]?.renderable).toBe(batch);
+          expect(selections[0]?.primitiveIndex).toBe(1);
+          expect(selections[0]?.instanceIndex).toBeUndefined();
+          renderer.setSelectedRenderable(selections[0]);
+        });
+        renderer.input.emit("click", new THREE.Vector2(42, 21), undefined, new MouseEvent("click"));
+        expect(pickInstance).toHaveBeenCalledWith(
+          42,
+          21,
+          renderer.cameraHandler.getActiveCamera(),
+          mesh,
+          expect.anything(),
+        );
+        const extension = renderer.sceneExtensions.get(
+          SelectedObjectLabel.extensionId,
+        ) as SelectedObjectLabel;
+        const label = extension.getLabel()!;
+        expect(label.position.x).toBe(100);
+        await update([0, 200]);
+        expect(label.position.x).toBe(200);
+        await update([0]);
+        expect(label.visible).toBe(false);
+      } finally {
+        pick.mockRestore();
+        pickInstance.mockRestore();
+        renderer.dispose();
+      }
+    },
+  );
+
+  it.each(["texts", "lines", "triangles"])(
+    "anchors the selected SceneEntity %s slot across updates and hides it when removed",
+    async (key) => {
+      const topic = "/scene";
+      const renderer = createTopicRenderer(topic);
+      const update = async (xs: number[]) => {
+        const items = xs.map((x) => ({
+          pose: { ...makePose(), position: { x, y: 0, z: 0 } },
+          text: "label",
+          points: [{ x: 1 }, { y: 1 }, { z: 1 }],
+        }));
+        await renderMessage(renderer, topic, "foxglove.SceneUpdate", {
+          entities: [{ id: "A", frame_id: "map", [key]: items }],
+        });
+      };
+      await update([0, 100]);
+      const entities = renderer.sceneExtensions.get(FoxgloveSceneEntities.extensionId)!;
+      const batch = entities.renderables.get(topic)!.children[0]!;
+      const second = batch.children[1]!;
+      renderer.setSelectedRenderable(findPickedRenderable(second.children[0] ?? second));
+      const extension = renderer.sceneExtensions.get(
+        SelectedObjectLabel.extensionId,
+      ) as SelectedObjectLabel;
+      const label = extension.getLabel()!;
+      const vertexOffset = key === "texts" ? 0 : 1;
+      expect(label.position.x).toBe(100 + vertexOffset);
+      await update([0, 200]);
+      expect(label.position.x).toBe(200 + vertexOffset);
+      await update([0]);
+      expect(label.visible).toBe(false);
+      renderer.dispose();
+    },
+  );
+
+  it.each(["visualization_msgs/Marker", "foxglove.SceneUpdate"])(
+    "anchors a %s model to its offset geometry and tracks pose changes",
+    async (schemaName) => {
+      const topic = "/model";
+      const renderer = createTopicRenderer(topic);
+      const geometry = new THREE.BoxGeometry(2, 2, 2).translate(10, 0, 0);
+      const source = new THREE.Group().add(new THREE.Mesh(geometry));
+      source.children[0]!.name = "body";
+      source.children[0]!.position.x = 90;
+      const load = jest.spyOn(renderer.modelCache, "load").mockResolvedValue(source);
+      const scale = { x: 2, y: 1, z: 1 };
+      const model = (x: number, url = "robot.glb") => ({
+        url,
+        pose: { ...makePose(), position: { x, y: 0, z: 0 } },
+        scale,
+      });
+      const isMarker = schemaName === "visualization_msgs/Marker";
+      const update = async (x: number, url = "robot.glb") => {
+        await renderMessage(
+          renderer,
+          topic,
+          schemaName,
+          isMarker
+            ? {
+                header: { frame_id: "map" },
+                type: MarkerType.MESH_RESOURCE,
+                mesh_resource: url,
+                pose: model(x).pose,
+                scale,
+              }
+            : { entities: [{ frame_id: "map", id: "robot", models: [model(-50), model(x, url)] }] },
+        );
+      };
+      await update(5);
+      const scene = renderer.sceneExtensions.get(
+        isMarker ? Markers.extensionId : FoxgloveSceneEntities.extensionId,
+      )!;
+      const owner = scene.renderables.get(topic)!.children[0]!;
+      const pickedModel = isMarker ? owner : owner.children[1]!;
+      const selection = findPickedRenderable(pickedModel.getObjectByName("body"));
+      expect(selection?.renderable).toBe(owner);
+      renderer.setSelectedRenderable(selection);
+      const extension = renderer.sceneExtensions.get(
+        SelectedObjectLabel.extensionId,
+      ) as SelectedObjectLabel;
+      const label = extension.getLabel()!;
+      expect(label.position.toArray()).toEqual([205, 0, 0]);
+      await update(12);
+      expect(label.position.toArray()).toEqual([212, 0, 0]);
+      if (!isMarker) {
+        let finishLoad!: (model: THREE.Group) => void;
+        load.mockReturnValueOnce(
+          new Promise<THREE.Group>((resolve) => {
+            finishLoad = resolve;
+          }),
+        );
+        await update(25, "replacement.glb");
+        expect(label.visible).toBe(false);
+        const replacement = new THREE.Group().add(new THREE.Mesh(new THREE.BoxGeometry()));
+        replacement.children[0]!.position.x = 3;
+        finishLoad(replacement);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        renderer.animationFrame();
+        expect(label.visible).toBe(true);
+        expect(label.position.toArray()).toEqual([31, 0, 0]);
+      }
+      renderer.dispose();
+    },
+  );
 
   it("tracks an offset SceneEntity and drops the callout when its primitive is recycled", async () => {
     const renderer = createTopicRenderer("/scene");

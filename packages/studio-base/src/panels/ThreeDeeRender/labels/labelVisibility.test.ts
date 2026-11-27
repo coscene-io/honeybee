@@ -102,6 +102,19 @@ describe("LabelDensityCuller", () => {
     expect(separate.visible).toBe(true);
   });
 
+  it("keeps a label whose anchor is outside the viewport available for clipping", () => {
+    const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+    camera.position.z = 10;
+    const edge = makeCandidate("long frame name extending into view", [5.125, 0, 0]);
+    new LabelDensityCuller().evaluate([edge], {
+      camera,
+      canvasWidth: 800,
+      canvasHeight: 800,
+      minSpacingPx: 5,
+    });
+    expect(edge.visible).toBe(true);
+  });
+
   it("reveals dense labels when zooming closer or resizing to a larger viewport", () => {
     const culler = new LabelDensityCuller();
     const farCamera = makeCamera([0, 0, 30]);
@@ -127,6 +140,31 @@ describe("LabelDensityCuller", () => {
     });
     expect(a.visible).toBe(true);
     expect(b.visible).toBe(true);
+  });
+
+  it("keeps co-located pinned labels and checks spacing against the entire cluster", () => {
+    const camera = new THREE.OrthographicCamera(0, 800, 600, 0, 0.1, 100);
+    camera.position.z = 10;
+    const culler = new LabelDensityCuller();
+    for (const x of [33, 333]) {
+      const pinned = Array.from({ length: 100 }, (_, i) =>
+        makeCandidate(String(i), [x, 100, 0], { alwaysVisible: true, priority: 2 }),
+      );
+      pinned.push(
+        makeCandidate("cluster edge", [x + 12, 100, 0], { alwaysVisible: true, priority: 2 }),
+      );
+      const near = makeCandidate("near edge", [x + 42, 100, 0]);
+      const separate = makeCandidate("outside cluster", [x + 52, 100, 0]);
+      culler.evaluate([...pinned, near, separate], {
+        camera,
+        canvasWidth: 800,
+        canvasHeight: 600,
+        minSpacingPx: 32,
+      });
+      expect(pinned.every((c) => c.visible)).toBe(true);
+      expect(near.visible).toBe(false);
+      expect(separate.visible).toBe(true);
+    }
   });
 
   it("handles dense 500-label scenes cleanly without unbounded overlap", () => {

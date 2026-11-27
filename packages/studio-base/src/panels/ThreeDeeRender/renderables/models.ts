@@ -7,7 +7,37 @@
 
 import * as THREE from "three";
 
-import { LoadedModel } from "../ModelCache";
+import type { LoadedModel } from "../ModelCache";
+
+const modelBounds = new WeakMap<LoadedModel, THREE.Box3>();
+
+/** Keeps the message pose separate from transforms authored inside the model. */
+export class ModelInstance extends THREE.Group {
+  readonly #source: LoadedModel;
+
+  public constructor(source: LoadedModel) {
+    super();
+    this.#source = source;
+    this.restoreEmbeddedModel();
+  }
+
+  public restoreEmbeddedModel(): void {
+    const model = this.#source.clone(true);
+    removeLights(model);
+    this.clear();
+    this.add(model);
+  }
+
+  public getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    let bounds = modelBounds.get(this.#source);
+    if (!bounds) {
+      // The cached asset is unparented, so its bounds include authored transforms in instance space.
+      bounds = new THREE.Box3().setFromObject(this.#source);
+      modelBounds.set(this.#source, bounds);
+    }
+    return bounds.isEmpty() ? undefined : this.localToWorld(bounds.getCenter(out));
+  }
+}
 
 export type GltfMesh = THREE.Mesh<
   THREE.BufferGeometry,
