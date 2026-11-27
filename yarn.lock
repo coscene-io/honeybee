@@ -3233,7 +3233,7 @@ __metadata:
     moment: "npm:2.31.0"
     moment-duration-format: "npm:2.3.2"
     moment-timezone: "npm:0.6.6"
-    monaco-editor: "npm:0.55.1"
+    monaco-editor: "npm:0.58.0"
     monaco-editor-webpack-plugin: "npm:7.1.1"
     natsort: "npm:2.0.3"
     notistack: "npm:3.0.2"
@@ -7674,6 +7674,13 @@ __metadata:
   version: 1.13.0
   resolution: "@unrs/resolver-binding-win32-x64-msvc@npm:1.13.0"
   conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@vscode/diff@npm:0.0.2-145":
+  version: 0.0.2-145
+  resolution: "@vscode/diff@npm:0.0.2-145"
+  checksum: 10/bfb5d6a75b7e0392e452cf326fc3d5eef8afaa9cb0c9ef336a9a55b92b901245997445800e86376b6cc156f16f619a8a240ce20669e3dca57c51942e9ff9265d
   languageName: node
   linkType: hard
 
@@ -15361,13 +15368,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-editor@npm:0.55.1":
-  version: 0.55.1
-  resolution: "monaco-editor@npm:0.55.1"
+"monaco-editor@npm:0.58.0":
+  version: 0.58.0
+  resolution: "monaco-editor@npm:0.58.0"
   dependencies:
-    dompurify: "npm:3.2.7"
+    "@vscode/diff": "npm:0.0.2-145"
+    dompurify: "npm:3.4.17"
     marked: "npm:14.0.0"
-  checksum: 10/73836b612a923342001b8cbb459aad0de486c94672fb7cf9d28bdafed9f3b7523d5aba510d9f8e7d24476a5aacf0d3a5c0cdc520ed4764f6f89f8cf5ba8d9329
+  checksum: 10/71859a69faf76bb11777fdc043d250eadb013283ab31d1bcaa1e943ae7cec460e2186609e05bb9bbbd1193a578a61fb274b1913cfa00e99d05442d225fb0782c
   languageName: node
   linkType: hard
 
