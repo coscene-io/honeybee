@@ -129,6 +129,10 @@ function makeWorkspaceActions(openLayoutDrawer: jest.Mock): WorkspaceActions {
         close: jest.fn(),
         open: jest.fn(),
       },
+      keyboardShortcuts: {
+        close: jest.fn(),
+        open: jest.fn(),
+      },
     },
     featureTourActions: {
       startTour: jest.fn(),

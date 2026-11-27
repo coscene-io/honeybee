@@ -43,6 +43,7 @@ import {
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useWorkspaceSlotEntries } from "@foxglove/studio-base/context/WorkspaceSlots";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import {
   checkSupportCoStudioDownload,
@@ -199,6 +200,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
 
   const { appBarLayoutButton } = useAppContext();
+  // Features add record-level controls here (WorkspaceSlots `appBarItems`).
+  const appBarSlotItems = useWorkspaceSlotEntries("appBarItems");
   const dataSource = useCoreData(selectDataSource);
   const isShareManifestSource = dataSource?.id === SHARE_MANIFEST_DATA_SOURCE_ID;
 
@@ -330,6 +333,9 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           <div className={classes.end}>
             <div className={classes.endInner} onDoubleClick={handleStopDoubleClick}>
               {!isShareManifestSource && appBarLayoutButton}
+              {appBarSlotItems.map(([id, Item]) => (
+                <Item key={id} />
+              ))}
               <ShardProfileSelector />
               {/* <CoSceneLayoutButtonOld /> */}
               {!isShareManifestSource && <CoSceneLayoutButton />}
