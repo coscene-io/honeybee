@@ -552,10 +552,10 @@ describe("SelectedObjectLabel", () => {
     async (key) => {
       const topic = "/scene";
       const renderer = createTopicRenderer(topic);
-      const update = async (xs: number[]) => {
+      const update = async (xs: number[], text = "label") => {
         const items = xs.map((x) => ({
           pose: { ...makePose(), position: { x, y: 0, z: 0 } },
-          text: "label",
+          text,
           points: [{ x: 1 }, { y: 1 }, { z: 1 }],
         }));
         await renderMessage(renderer, topic, "foxglove.SceneUpdate", {
@@ -575,6 +575,12 @@ describe("SelectedObjectLabel", () => {
       expect(label.position.x).toBe(100 + vertexOffset);
       await update([0, 200]);
       expect(label.position.x).toBe(200 + vertexOffset);
+      if (key === "texts") {
+        await update([0, 200], "\n");
+        expect(label.visible).toBe(false);
+        await update([0, 200], "restored");
+        expect(label.visible).toBe(true);
+      }
       await update([0]);
       expect(label.visible).toBe(false);
       renderer.dispose();

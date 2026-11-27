@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type * as THREE from "three";
+
 import { toNanoSec } from "@foxglove/rostime";
 import { SceneEntity, TextPrimitive } from "@foxglove/schemas";
 import { Label, LabelPool } from "@foxglove/three-text";
@@ -82,6 +84,17 @@ export class RenderableTexts extends RenderablePrimitive {
         releasePooledLabel(this.#labelPool, label);
       }
     }
+  }
+
+  public override getLabelWorldPosition(
+    out: THREE.Vector3,
+    primitiveIndex?: number,
+  ): THREE.Vector3 | undefined {
+    const label =
+      primitiveIndex == undefined
+        ? this.#labels.find((item) => item.mesh.count > 0)
+        : this.#labels[primitiveIndex];
+    return label && label.mesh.count > 0 ? label.getWorldPosition(out) : undefined;
   }
 
   public override dispose(): void {

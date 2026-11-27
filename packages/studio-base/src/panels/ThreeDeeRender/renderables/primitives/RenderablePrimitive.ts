@@ -67,9 +67,6 @@ export class RenderablePrimitive extends Renderable<EntityRenderableUserData> {
           .applyQuaternion(tempOrientation.copy(primitive.pose.orientation))
           .add(primitive.pose.position);
       } else {
-        if ("text" in primitive && primitive.text.length === 0) {
-          continue;
-        }
         out.copy(primitive.pose.position);
       }
       return this.localToWorld(out);
