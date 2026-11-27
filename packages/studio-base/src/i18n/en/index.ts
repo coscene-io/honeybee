@@ -52,3 +52,4 @@ export * from "./callService";
 export * from "./diagnostics";
 export * from "./map";
 export * from "./parameters";
+export * from "./segmentation";
