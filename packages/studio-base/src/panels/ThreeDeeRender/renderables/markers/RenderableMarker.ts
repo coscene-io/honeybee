@@ -13,12 +13,21 @@ import { RosValue } from "@foxglove/studio-base/players/types";
 import type { IRenderer } from "../../IRenderer";
 import { BaseUserData, Renderable } from "../../Renderable";
 import { makeRgba, rgbToThreeColor, stringToRgba } from "../../color";
-import { Marker } from "../../ros";
+import { Marker, MarkerType } from "../../ros";
 import type { LayerSettingsMarker } from "../TopicMarkers";
 
 const tempColor = new THREE.Color();
 const tempColor2 = new THREE.Color();
 const tempTuple4: THREE.Vector4Tuple = [0, 0, 0, 0];
+
+const MIN_MARKER_POINTS: Partial<Record<number, number>> = {
+  [MarkerType.LINE_STRIP]: 2,
+  [MarkerType.LINE_LIST]: 2,
+  [MarkerType.CUBE_LIST]: 1,
+  [MarkerType.SPHERE_LIST]: 1,
+  [MarkerType.POINTS]: 1,
+  [MarkerType.TRIANGLE_LIST]: 3,
+};
 
 export type MarkerUserData = BaseUserData & {
   topic: string;
@@ -53,6 +62,16 @@ export class RenderableMarker extends Renderable<MarkerUserData> {
       originalMarker: marker,
       expiresIn: hasLifetime ? toNanoSec(marker.lifetime) : undefined,
     });
+  }
+
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    const { type, points } = this.userData.marker;
+    const minPoints =
+      type === MarkerType.ARROW && points.length === 2 ? 2 : MIN_MARKER_POINTS[type];
+    if (minPoints == undefined) {
+      return super.getLabelWorldPosition(out);
+    }
+    return points.length >= minPoints ? this.localToWorld(out.copy(points[0]!)) : undefined;
   }
 
   public override idFromMessage(): number | string | undefined {

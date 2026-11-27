@@ -118,6 +118,9 @@ export function Sidebar<K extends string>({
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Tabs
           className={classes.tabs}
+          variant={anchor === "right" ? "scrollable" : "standard"}
+          scrollButtons={anchor === "right" ? "auto" : false}
+          allowScrollButtonsMobile
           textColor="inherit"
           value={activeTab ?? false}
           onChange={(_ev, newValue: K) => {

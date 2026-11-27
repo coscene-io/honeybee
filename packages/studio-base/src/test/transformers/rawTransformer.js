@@ -7,6 +7,6 @@
 
 module.exports = {
   process(sourceText) {
-    return `module.exports = ${JSON.stringify(sourceText)};`;
+    return { code: `module.exports = ${JSON.stringify(sourceText)};` };
   },
 };

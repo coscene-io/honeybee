@@ -16,8 +16,9 @@
 //
 
 import { Badge, Button, Divider, Paper, Tab, Tabs, badgeClasses, tabClasses } from "@mui/material";
-import { ReactElement, useState } from "react";
+import { ReactElement, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useCopyToClipboard } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -25,6 +26,7 @@ import {
   UserScriptStore,
   useUserScriptState,
 } from "@foxglove/studio-base/context/UserScriptStateContext";
+import { copyMessageReplacer } from "@foxglove/studio-base/panels/RawMessages/copyMessageReplacer";
 import DiagnosticsSection from "@foxglove/studio-base/panels/UserScriptEditor/BottomBar/DiagnosticsSection";
 import LogsSection from "@foxglove/studio-base/panels/UserScriptEditor/BottomBar/LogsSection";
 import { Diagnostic, UserScriptLog } from "@foxglove/studio-base/players/UserScriptPlayer/types";
@@ -38,7 +40,40 @@ type Props = {
   save: () => void;
 };
 
-type BottomBarModes = "logs" | "diagnostics";
+type BottomBarModes = "logs" | "diagnostics" | "timing";
+
+function ScriptTimings(): React.JSX.Element {
+  const { t } = useTranslation("userScriptEditor");
+  const timings = useUserScriptState((store) => store.timings);
+  const [, refresh] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refresh((tick) => tick + 1);
+    }, 1000);
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+  if (timings == undefined || timings.size === 0) {
+    return <Stack padding={1}>{t("noTimings")}</Stack>;
+  }
+  return (
+    <Stack padding={1} gap={1}>
+      {Array.from(timings, ([id, row]) => (
+        <div key={id}>
+          <strong>{row.name}</strong>
+          <br />
+          {t("timingSummary", {
+            calls: row.calls,
+            mean: row.calls > 0 ? (row.totalMs / row.calls).toFixed(2) : "—",
+            max: row.calls > 0 ? row.maxMs.toFixed(2) : "—",
+            compile: row.compileMs.toFixed(1),
+          })}
+        </div>
+      ))}
+    </Stack>
+  );
+}
 
 const TAB_HEIGHT = 36;
 
@@ -94,6 +129,7 @@ const BottomBar = ({
   const [bottomBarDisplay, setBottomBarDisplay] = useState<BottomBarModes>("diagnostics");
   const { t } = useTranslation("userScriptEditor");
 
+  const [, copy] = useCopyToClipboard();
   const { clearUserScriptLogs } = useUserScriptState(selectUserScriptActions);
 
   const handleChange = (_event: React.SyntheticEvent, value: BottomBarModes) => {
@@ -112,6 +148,7 @@ const BottomBar = ({
           direction="row"
           alignItems="center"
           justifyContent="space-between"
+          flexWrap="wrap"
           gap={1}
           paddingRight={1}
         >
@@ -155,8 +192,33 @@ const BottomBar = ({
                 handleClick();
               }}
             />
+            <Tab label={t("timingTab")} value="timing" onClick={handleClick} />
           </Tabs>
           <Stack direction="row" alignItems="center" gap={0.5} fullHeight>
+            {bottomBarDisplay === "logs" && (
+              <Button
+                size="small"
+                disabled={logs.length === 0}
+                onClick={() => {
+                  copy(
+                    logs
+                      .map(({ value }) => {
+                        if (value == undefined || typeof value === "string") {
+                          return String(value);
+                        }
+                        try {
+                          return JSON.stringify(value, copyMessageReplacer);
+                        } catch {
+                          return Object.prototype.toString.call(value);
+                        }
+                      })
+                      .join("\n"),
+                  );
+                }}
+              >
+                {t("copyLogs")}
+              </Button>
+            )}
             {bottomBarDisplay === "logs" && (
               <Button
                 size="small"
@@ -191,6 +253,7 @@ const BottomBar = ({
           </Stack>
         </Stack>
         <Divider />
+        {bottomBarDisplay === "timing" && <ScriptTimings />}
         {bottomBarDisplay === "diagnostics" && <DiagnosticsSection diagnostics={diagnostics} />}
         {bottomBarDisplay === "logs" && <LogsSection logs={logs} />}
       </Paper>

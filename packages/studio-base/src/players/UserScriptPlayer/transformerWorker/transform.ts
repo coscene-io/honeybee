@@ -219,12 +219,14 @@ export const validateInputTopics = (scriptData: ScriptData, topics: Topic[]): Sc
 // will be leveraged to:
 // - Generate the AST
 // - Handle external libraries
-export const compile = (scriptData: ScriptData): ScriptData => {
+export const compile = (scriptData: ScriptData): ScriptData => compileWithUtilities(scriptData);
+
+function compileWithUtilities(scriptData: ScriptData, args?: TransformArgs): ScriptData {
   const { sourceCode, rosLib, typesLib } = scriptData;
 
   const options: ts.CompilerOptions = baseCompilerOptions;
   const scriptFileName = "/studio_script/index.ts";
-  const projectConfig = getUserScriptProjectConfig();
+  const projectConfig = getUserScriptProjectConfig(args?.utilities, args?.rotationConvention);
   const projectCode = new Map<string, string>();
 
   const sourceCodeMap = new Map<string, string>();
@@ -317,7 +319,7 @@ export const compile = (scriptData: ScriptData): ScriptData => {
     projectCode,
     diagnostics: [...scriptData.diagnostics, ...newDiagnostics],
   };
-};
+}
 
 // Currently we only look types matching the exact name "GlobalVariables". In the future,
 // we should check the type of the 2nd arg passed to the publisher function in
@@ -444,7 +446,7 @@ const transform = (args: TransformArgs): ScriptData => {
 
   const transformer = compose(
     getOutputTopic,
-    compile,
+    (data) => compileWithUtilities(data, args),
     getInputTopics,
     validateInputTopics,
     extractDatatypes,

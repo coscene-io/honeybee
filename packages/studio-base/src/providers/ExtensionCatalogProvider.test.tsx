@@ -268,6 +268,78 @@ describe("ExtensionCatalogProvider", () => {
     ]);
   });
 
+  it("updates and unloads shared utility modules and rejects names that shadow the script project", async () => {
+    const extension = fakeExtension({ namespace: "org", name: "tools", version: "1" });
+    const getExtensions = jest.fn().mockResolvedValue([extension]);
+    const loadExtension = jest.fn();
+    const source = (name: string, value: number) =>
+      `module.exports.activate = ctx => ctx.registerUserScriptUtility({name: ${JSON.stringify(name)}, source: "export const value = ${value}"});`;
+    loadExtension.mockResolvedValue(source("team.ts", 1));
+    const loader: ExtensionLoader = {
+      namespace: "org",
+      getExtensions,
+      loadExtension,
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+      ),
+    });
+    await waitFor(() => {
+      expect(result.current.installedUserScriptUtilities[0]?.source).toContain("1");
+    });
+    loadExtension.mockResolvedValue(source("team.ts", 2));
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+    expect(result.current.installedUserScriptUtilities[0]?.source).toContain("2");
+    loadExtension.mockResolvedValue(source("Vectors.ts", 3));
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+    expect(result.current.loadState).toBe("degraded");
+    expect(console.error).toHaveBeenCalled();
+    jest.mocked(console.error).mockClear();
+    expect(result.current.installedUserScriptUtilities[0]?.source).toContain("2");
+    getExtensions.mockResolvedValue([]);
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+    expect(result.current.installedUserScriptUtilities).toEqual([]);
+  });
+
+  it("reports collisions between extensions without replacing the installed utility", async () => {
+    const getExtensions = jest
+      .fn()
+      .mockResolvedValue([fakeExtension({ id: "first" }), fakeExtension({ id: "second" })]);
+    const loadExtension = jest.fn(
+      async (id: string) => `module.exports.activate = ctx => ctx.registerUserScriptUtility({
+      name: "${id === "first" ? "Team" : "team"}.ts", source: "export const id = '${id}';"
+    });`,
+    );
+    const loader: ExtensionLoader = {
+      namespace: "org",
+      getExtensions,
+      loadExtension,
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+      ),
+    });
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("degraded");
+    });
+    expect(result.current.installedUserScriptUtilities).toEqual([
+      { name: "Team.ts", source: "export const id = 'first';" },
+    ]);
+    expect(result.current.loadErrors[0]?.extensionId).toBe("second");
+  });
+
   it("should register topic aliases", async () => {
     const source = `
         module.exports = {

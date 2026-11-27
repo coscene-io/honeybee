@@ -90,6 +90,13 @@ describe("requireImplementation", () => {
     );
     expect(requireImplementation("main", map)).toEqual({});
   });
+  it("shares partially initialized exports across a circular extension dependency", () => {
+    const project = new Map([
+      ["/studio_script/a.js", 'exports.name = "a"; exports.b = require("./b.js").value;'],
+      ["/studio_script/b.js", 'exports.value = require("./a").name + "b";'],
+    ]);
+    expect(requireImplementation("./a", project)).toEqual({ name: "a", b: "ab" });
+  });
   it("correctly matches nested modules", () => {
     const map = new Map<string, string>();
     map.set(

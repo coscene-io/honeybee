@@ -161,6 +161,7 @@ function makeWorkspaceActions(openLayoutDrawer: jest.Mock): WorkspaceActions {
         setSize: jest.fn(),
       },
       right: {
+        updateUserScriptEditor: jest.fn(),
         selectItem: jest.fn(),
         setOpen: jest.fn(),
         setSize: jest.fn(),

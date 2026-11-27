@@ -48,6 +48,12 @@ type NormalizedLaserScan = {
   intensities: Float32Array;
 };
 
+function scanAngleIncrement(scan: NormalizedLaserScan): number {
+  return scan.ranges.length > 1
+    ? (scan.end_angle - scan.start_angle) / (scan.ranges.length - 1)
+    : 0;
+}
+
 type LaserScanHistoryUserData = BaseUserData & {
   settings: LayerSettingsLaserScan;
   topic: string;
@@ -105,15 +111,33 @@ class LaserScanRenderable extends PointsRenderable<LaserScanUserData> {
   }
 
   public override instanceDetails(instanceId: number): Record<string, RosValue> | undefined {
-    const range =
-      instanceId >= 0 && instanceId < this.userData.laserScan.ranges.length
-        ? this.userData.laserScan.ranges[instanceId]
-        : undefined;
-    const intensity =
-      instanceId >= 0 && instanceId < this.userData.laserScan.intensities.length
-        ? this.userData.laserScan.intensities[instanceId]
-        : undefined;
-    return { range, intensity };
+    const scan = this.userData.laserScan;
+    const range = scan.ranges[instanceId];
+    if (range == undefined || instanceId >= this.geometry.drawRange.count) {
+      return undefined;
+    }
+    return { range, intensity: scan.intensities[instanceId] };
+  }
+
+  public override instanceLabelDetails(instanceId: number): Record<string, RosValue> | undefined {
+    const scan = this.userData.laserScan;
+    const range = scan.ranges[instanceId];
+    if (
+      range == undefined ||
+      instanceId >= this.geometry.drawRange.count ||
+      !Number.isFinite(range) ||
+      range < scan.range_min ||
+      range > scan.range_max
+    ) {
+      return undefined;
+    }
+    const angle = scan.start_angle + scanAngleIncrement(scan) * instanceId;
+    return {
+      x: range * Math.cos(angle),
+      y: range * Math.sin(angle),
+      z: 0,
+      intensity: scan.intensities[instanceId],
+    };
   }
 
   public updateUniforms(settings: LayerSettingsLaserScan, laserScan: NormalizedLaserScan): void {
@@ -568,8 +592,7 @@ export class LaserScanMaterial extends THREE.RawShaderMaterial {
     this.uniforms.isCircle!.value = settings.pointShape === "circle";
     this.uniforms.pointSize!.value = settings.pointSize;
     this.uniforms.angleMin!.value = laserScan.start_angle;
-    this.uniforms.angleIncrement!.value =
-      (laserScan.end_angle - laserScan.start_angle) / (laserScan.ranges.length - 1);
+    this.uniforms.angleIncrement!.value = scanAngleIncrement(laserScan);
     this.uniforms.rangeMin!.value = laserScan.range_min;
     this.uniforms.rangeMax!.value = laserScan.range_max;
     this.uniformsNeedUpdate = true;
@@ -655,8 +678,7 @@ class LaserScanInstancePickingMaterial extends THREE.RawShaderMaterial {
     this.uniforms.isCircle!.value = settings.pointShape === "circle";
     this.uniforms.pointSize!.value = settings.pointSize;
     this.uniforms.angleMin!.value = laserScan.start_angle;
-    this.uniforms.angleIncrement!.value =
-      (laserScan.end_angle - laserScan.start_angle) / (laserScan.ranges.length - 1);
+    this.uniforms.angleIncrement!.value = scanAngleIncrement(laserScan);
     this.uniforms.rangeMin!.value = laserScan.range_min;
     this.uniforms.rangeMax!.value = laserScan.range_max;
     this.uniformsNeedUpdate = true;

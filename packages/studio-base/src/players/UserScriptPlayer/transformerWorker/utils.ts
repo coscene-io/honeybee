@@ -95,4 +95,5 @@ export const baseCompilerOptions = {
   strict: true,
   target: ts.ScriptTarget.ES2022,
   module: ts.ModuleKind.CommonJS,
+  rewriteRelativeImportExtensions: true,
 };

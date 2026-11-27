@@ -19,6 +19,7 @@ const useStyles = makeStyles()((theme) => ({
   list: {
     height: "100%",
     overflowY: "auto",
+    "& .MuiListItemButton-root": { userSelect: "text" },
   },
 
   layout1: {

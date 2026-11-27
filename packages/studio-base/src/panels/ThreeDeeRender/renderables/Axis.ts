@@ -37,6 +37,7 @@ export class Axis extends THREE.Object3D {
   public constructor(name: string, renderer: IRenderer) {
     super();
     this.name = name;
+    this.userData.labelAnchor = true;
     this.#renderer = renderer;
 
     // Create three arrow shafts

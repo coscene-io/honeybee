@@ -43,6 +43,7 @@ export class RenderableLines extends RenderablePrimitive {
         lineRenderable = new LinePrimitiveRenderable(primitive, this.renderer.input.canvasSize);
         this.#lines.push(lineRenderable);
       }
+      lineRenderable.userData.labelPrimitiveIndex = idx;
       lineRenderable.setPrimitive(primitive);
       lineRenderable.setSettings(this.userData.settings);
 

@@ -21,7 +21,7 @@ import {
   lib_dts,
   lib_filename,
 } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/lib";
-import rawUserUtils from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/rawUserUtils";
+import { getUtilityFiles } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/rawUserUtils";
 import {
   ros_lib_dts,
   ros_lib_filename,
@@ -53,12 +53,13 @@ export function generateFoxgloveSchemaDeclarations(): UserScriptProjectFile[] {
   return files;
 }
 
-const utilityFiles: UserScriptProjectFile[] = rawUserUtils.map((utility) => ({
-  ...utility,
-  filePath: `${DEFAULT_STUDIO_SCRIPT_PREFIX}${utility.fileName}`,
-}));
-
-export function getUserScriptProjectConfig(): UserScriptProjectConfig {
+export function getUserScriptProjectConfig(
+  ...args: Parameters<typeof getUtilityFiles>
+): UserScriptProjectConfig {
+  const utilityFiles = getUtilityFiles(...args).map((utility) => ({
+    ...utility,
+    filePath: DEFAULT_STUDIO_SCRIPT_PREFIX + utility.fileName,
+  }));
   const declarations: UserScriptProjectConfig["declarations"] = [];
   declarations.push({
     fileName: lib_filename,

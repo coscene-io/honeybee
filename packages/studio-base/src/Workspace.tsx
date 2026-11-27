@@ -15,7 +15,7 @@
 
 import { toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
-import { useEffect, useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useEffect, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -107,6 +107,19 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 import { useCloseLayoutDrawerOnSessionChange } from "./hooks/useCloseLayoutDrawerOnSessionChange";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
+
+const UserScriptSidebar = lazy(
+  async () => await import("./panels/UserScriptEditor/UserScriptSidebar"),
+);
+
+function UserScriptsTab(): React.JSX.Element {
+  const { t } = useTranslation("userScriptEditor");
+  return (
+    <Suspense fallback={<span>{t("loadingEditor")}</span>}>
+      <UserScriptSidebar />
+    </Suspense>
+  );
+}
 
 const PERSONAL_INFO_CONFIG_ID = "personalInfo";
 
@@ -353,6 +366,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         },
       ],
       ["variables", { title: t("variables"), component: VariablesList }],
+      ["user-scripts", { title: t("userScripts", { ns: "panels" }), component: UserScriptsTab }],
       ["extensions", { title: t("extensions"), component: ExtensionsSidebar }],
     ]);
 

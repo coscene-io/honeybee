@@ -15,12 +15,12 @@ import type { IRenderer } from "../../IRenderer";
 import { rgbToThreeColor } from "../../color";
 import { disposeMeshesRecursive } from "../../dispose";
 import { Marker } from "../../ros";
-import { removeLights, replaceMaterials } from "../models";
+import { ModelInstance, replaceMaterials } from "../models";
 
 const MESH_FETCH_FAILED = "MESH_FETCH_FAILED";
 
 export class RenderableMeshResource extends RenderableMarker {
-  #mesh: THREE.Group | THREE.Scene | undefined;
+  #mesh: ModelInstance | undefined;
   #material: THREE.MeshStandardMaterial;
   #referenceUrl: string | undefined;
 
@@ -39,6 +39,10 @@ export class RenderableMeshResource extends RenderableMarker {
     this.#material = makeStandardMaterial(marker.color);
     this.#referenceUrl = options?.referenceUrl;
     this.update(marker, receiveTime, true);
+  }
+
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    return this.#mesh?.getLabelWorldPosition(out);
   }
 
   public override dispose(): void {
@@ -129,7 +133,7 @@ export class RenderableMeshResource extends RenderableMarker {
   async #loadModel(
     url: string,
     opts: { useEmbeddedMaterials: boolean },
-  ): Promise<THREE.Group | THREE.Scene | undefined> {
+  ): Promise<ModelInstance | undefined> {
     const cachedModel = await this.renderer.modelCache.load(
       url,
       { referenceUrl: this.#referenceUrl },
@@ -153,8 +157,7 @@ export class RenderableMeshResource extends RenderableMarker {
       return undefined;
     }
 
-    const mesh = cachedModel.clone(true);
-    removeLights(mesh);
+    const mesh = new ModelInstance(cachedModel);
     if (!opts.useEmbeddedMaterials) {
       replaceMaterials(mesh, this.#material);
     }

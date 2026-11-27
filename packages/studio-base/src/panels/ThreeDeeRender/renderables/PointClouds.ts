@@ -124,12 +124,23 @@ class PointCloudRenderable extends PointsRenderable<PointCloudUserData> {
     const pointCloud = this.userData.pointCloud;
     const data = pointCloud.data;
     const stride = getStride(pointCloud);
+    if (
+      !Number.isInteger(instanceId) ||
+      instanceId < 0 ||
+      instanceId >= this.geometry.drawRange.count ||
+      !Number.isFinite(stride) ||
+      stride <= 0
+    ) {
+      return undefined;
+    }
+    const pointOffset = instanceId * stride;
+    if (pointOffset + stride > data.byteLength) {
+      return undefined;
+    }
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const pointStep = getStride(pointCloud);
     const details: Record<string, RosValue> = {};
 
     for (const field of pointCloud.fields) {
-      const pointOffset = instanceId * pointStep;
       const reader = getReader(field, stride);
       if (reader) {
         details[field.name] = reader(view, pointOffset);
@@ -137,6 +148,32 @@ class PointCloudRenderable extends PointsRenderable<PointCloudUserData> {
     }
 
     return details;
+  }
+
+  public override instanceLabelDetails(instanceId: number): Record<string, RosValue> | undefined {
+    const position = this.geometry.attributes.position!;
+    if (
+      !Number.isInteger(instanceId) ||
+      instanceId < 0 ||
+      instanceId >= Math.min(position.count, this.geometry.drawRange.count)
+    ) {
+      return undefined;
+    }
+    // The position buffer already includes the rendered zero for an omitted coordinate axis.
+    const cloud = this.userData.pointCloud;
+    const stride = getStride(cloud);
+    const field = cloud.fields.find((f) => f.name === "intensity");
+    const reader = field && getReader(field, stride);
+    const data = cloud.data;
+    return {
+      x: position.getX(instanceId),
+      y: position.getY(instanceId),
+      z: position.getZ(instanceId),
+      intensity: reader?.(
+        new DataView(data.buffer, data.byteOffset, data.byteLength),
+        instanceId * stride,
+      ),
+    };
   }
 }
 
@@ -319,8 +356,6 @@ export class PointCloudHistoryRenderable extends Renderable<PointCloudHistoryUse
     } else {
       latestStixelEntry.renderable.geometry.resize(0);
     }
-    const stixelPositionAttribute = latestStixelEntry.renderable.geometry.attributes.position!;
-    const stixelColorAttribute = latestStixelEntry.renderable.geometry.attributes.color!;
     // Iterate the point cloud data to update position and color attributes
     this.#updatePointCloudBuffers(
       pointCloud,
@@ -329,8 +364,7 @@ export class PointCloudHistoryRenderable extends Renderable<PointCloudHistoryUse
       settings,
       positionAttribute,
       colorAttribute,
-      stixelPositionAttribute,
-      stixelColorAttribute,
+      latestStixelEntry.renderable,
     );
   }
 
@@ -631,9 +665,10 @@ export class PointCloudHistoryRenderable extends Renderable<PointCloudHistoryUse
     settings: LayerSettingsPointClouds,
     positionAttribute: THREE.BufferAttribute,
     colorAttribute: THREE.BufferAttribute,
-    stixelPositionAttribute: THREE.BufferAttribute,
-    stixelColorAttribute: THREE.BufferAttribute,
+    stixels: StixelsRenderable,
   ): void {
+    const stixelPositionAttribute = stixels.geometry.attributes.position!;
+    const stixelColorAttribute = stixels.geometry.attributes.color!;
     const data = pointCloud.data;
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     const pointStep = getStride(pointCloud);
@@ -648,6 +683,7 @@ export class PointCloudHistoryRenderable extends Renderable<PointCloudHistoryUse
       alphaReader,
     } = readers;
 
+    let firstStixelVertex: number | undefined;
     // Update position attribute
     for (let i = 0; i < pointCount; i++) {
       const pointOffset = i * pointStep;
@@ -658,6 +694,15 @@ export class PointCloudHistoryRenderable extends Renderable<PointCloudHistoryUse
       if (settings.stixelsEnabled) {
         stixelPositionAttribute.setXYZ(i * 2, x, y, z);
         stixelPositionAttribute.setXYZ(i * 2 + 1, x, y, 0);
+        if (
+          firstStixelVertex == undefined &&
+          z !== 0 &&
+          Number.isFinite(x) &&
+          Number.isFinite(y) &&
+          Number.isFinite(z)
+        ) {
+          firstStixelVertex = i * 2;
+        }
       }
     }
 
@@ -716,6 +761,7 @@ export class PointCloudHistoryRenderable extends Renderable<PointCloudHistoryUse
     colorAttribute.needsUpdate = true;
     stixelPositionAttribute.needsUpdate = true;
     stixelColorAttribute.needsUpdate = true;
+    stixels.labelVertex = firstStixelVertex;
   }
 }
 
@@ -1081,6 +1127,8 @@ function createStixelGeometry(topic: string, usage: THREE.Usage): DynamicBufferG
 class StixelsRenderable extends Renderable<BaseUserData, /*TRenderer=*/ undefined> {
   #stixels: THREE.LineSegments<DynamicBufferGeometry, THREE.LineBasicMaterial>;
   public readonly geometry: DynamicBufferGeometry;
+  /** First drawable segment in the current batch. */
+  public labelVertex?: number;
 
   public constructor(
     name: string,
@@ -1099,6 +1147,15 @@ class StixelsRenderable extends Renderable<BaseUserData, /*TRenderer=*/ undefine
     stixels.name = `${userData.topic}:PointCloud:stixels`;
     this.#stixels = stixels;
     this.add(stixels);
+  }
+
+  public override getLabelWorldPosition(out: THREE.Vector3): THREE.Vector3 | undefined {
+    if (this.labelVertex == undefined || this.labelVertex >= this.geometry.drawRange.count) {
+      return undefined;
+    }
+    return this.localToWorld(
+      out.fromBufferAttribute(this.geometry.attributes.position!, this.labelVertex),
+    );
   }
 
   public override dispose(): void {

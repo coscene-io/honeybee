@@ -173,7 +173,7 @@ export class UrdfRenderable extends Renderable<UrdfUserData> {
     for (const childRenderable of this.userData.renderables.values()) {
       childRenderable.dispose();
     }
-    this.children.length = 0;
+    this.clear();
     this.userData.renderables.clear();
   }
 }

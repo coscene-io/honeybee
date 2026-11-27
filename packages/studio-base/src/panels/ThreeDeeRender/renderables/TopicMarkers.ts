@@ -67,7 +67,7 @@ export class TopicMarkers extends Renderable<MarkerTopicUserData> {
         this.renderer.markerPool.release(marker);
       }
     }
-    this.children.length = 0;
+    this.clear();
     this.namespaces.clear();
   }
 

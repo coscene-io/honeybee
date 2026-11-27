@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { FieldReader, getReader } from "./readers";
+import { getReader } from "./readers";
 import { Point, Header, RGBA } from "./types";
 
 interface sensor_msgs__PointField {
@@ -27,16 +27,6 @@ export interface sensor_msgs__PointCloud2 {
   is_dense: boolean;
 }
 
-type Reader = { datatype: number; offset: number; reader: FieldReader };
-
-function getFieldOffsetsAndReaders(fields: sensor_msgs__PointField[]): Reader[] {
-  const result: Reader[] = [];
-  for (const { datatype, offset = 0 } of fields) {
-    result.push({ datatype, offset, reader: getReader(datatype, offset) });
-  }
-  return result;
-}
-
 type Field = number | string;
 
 /**
@@ -45,7 +35,9 @@ type Field = number | string;
  */
 export const readPoints = (message: sensor_msgs__PointCloud2): Array<Field[]> => {
   const { fields, height, point_step, row_step, width, data } = message;
-  const readers = getFieldOffsetsAndReaders(fields);
+  const readers = fields.map(({ datatype, offset }) =>
+    getReader(datatype, offset, message.is_bigendian ? "big" : "little"),
+  );
 
   const points: Array<Field[]> = [];
   for (let i = 0; i < height; i++) {
@@ -54,7 +46,7 @@ export const readPoints = (message: sensor_msgs__PointCloud2): Array<Field[]> =>
       const row: Field[] = [];
       const dataStart = j * point_step + dataOffset;
       for (const reader of readers) {
-        const value = reader.reader.read(data, dataStart);
+        const value = reader.read(data, dataStart);
         row.push(value);
       }
       points.push(row);
